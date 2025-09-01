@@ -25,47 +25,57 @@
         <div class="left-section">
           <div class="greeting-card">
             <!-- 使用独立的问候组件 -->
-            <UserGreeting 
-              :user-info="userInfo"
-              :show-stats="true"
-              :study-stats="studyStats"
-              :weather-info="weatherInfo"
-              :is-dark-mode="isDarkMode"
-              :is-collapsed="!isExpanded"
-            />
+            <transition name="greeting-expand" appear>
+              <UserGreeting 
+                v-if="isExpanded"
+                :user-info="userInfo"
+                :show-stats="true"
+                :study-stats="studyStats"
+                :weather-info="weatherInfo"
+                :is-dark-mode="isDarkMode"
+                :is-collapsed="!isExpanded"
+                key="greeting-expanded"
+              />
+            </transition>
 
             <!-- 使用独立的打卡状态组件 -->
-            <CheckinStatus
-              ref="checkinStatusRef"
-              :checkin-info="checkinInfo"
-              :is-dark-mode="isDarkMode"
-              :is-collapsed="false"
-              @checkin="handleCheckinEvent"
-              @checkout="handleCheckoutEvent"
-              @request-checkin="showCheckinDialog"
-              @request-checkout="showCheckoutDialog"
-            />
+            <transition name="checkin-expand" appear>
+              <CheckinStatus
+                v-if="isExpanded"
+                ref="checkinStatusRef"
+                :checkin-info="checkinInfo"
+                :is-dark-mode="isDarkMode"
+                :is-collapsed="false"
+                @checkin="handleCheckinEvent"
+                @checkout="handleCheckoutEvent"
+                @request-checkin="showCheckinDialog"
+                @request-checkout="showCheckoutDialog"
+                key="checkin-expanded"
+              />
+            </transition>
           </div>
         </div>
 
         <!-- 右侧：实时座位图 -->
         <div class="right-section">
-          <div class="seat-map-card">
-            <div class="card-header">
-              <h4>实时座位图</h4>
-              <div class="last-update">
-                <el-icon><Refresh /></el-icon>
-                <span>最后更新: {{ lastUpdateTime }}</span>
+          <transition name="seatmap-expand" appear>
+            <div v-if="isExpanded" class="seat-map-card" key="seatmap-expanded">
+              <div class="card-header">
+                <h4>实时座位图</h4>
+                <div class="last-update">
+                  <el-icon><Refresh /></el-icon>
+                  <span>最后更新: {{ lastUpdateTime }}</span>
+                </div>
               </div>
+              
+              <RealTimeSeatMap
+                :current-user-id="userInfo.id"
+                :default-room-id="defaultRoomId"
+                @seat-click="handleSeatClick"
+                @room-change="handleRoomChange"
+              />
             </div>
-            
-            <RealTimeSeatMap
-              :current-user-id="userInfo.id"
-              :default-room-id="defaultRoomId"
-              @seat-click="handleSeatClick"
-              @room-change="handleRoomChange"
-            />
-          </div>
+          </transition>
         </div>
       </div>
     </div>
@@ -76,31 +86,41 @@
         <!-- 左侧：保持与展开时相同的占比 -->
         <div class="collapsed-left-section">
           <div class="collapsed-greeting-card">
-            <UserGreeting 
-              :user-info="userInfo"
-              :show-stats="false"
-              :study-stats="studyStats"
-              :weather-info="weatherInfo"
-              :is-dark-mode="isDarkMode"
-              :is-collapsed="true"
-            />
-            <CheckinStatus
-              ref="checkinStatusCollapsedRef"
-              :checkin-info="checkinInfo"
-              :is-dark-mode="isDarkMode"
-              :is-collapsed="true"
-              @checkin="handleCheckinEvent"
-              @checkout="handleCheckoutEvent"
-              @request-checkin="showCheckinDialog"
-              @request-checkout="showCheckoutDialog"
-            />
+            <transition-group name="greeting-collapse" appear tag="div">
+              <UserGreeting 
+                v-if="!isExpanded"
+                :user-info="userInfo"
+                :show-stats="false"
+                :study-stats="studyStats"
+                :weather-info="weatherInfo"
+                :is-dark-mode="!isDarkMode"
+                :is-collapsed="true"
+                :key="`greeting-collapsed-${isExpanded}`"
+              />
+            </transition-group>
+            <transition-group name="checkin-collapse" appear tag="div">
+              <CheckinStatus
+                v-if="!isExpanded"
+                ref="checkinStatusCollapsedRef"
+                :checkin-info="checkinInfo"
+                :is-dark-mode="!isDarkMode"
+                :is-collapsed="true"
+                @checkin="handleCheckinEvent"
+                @checkout="handleCheckoutEvent"
+                @request-checkin="showCheckinDialog"
+                @request-checkout="showCheckoutDialog"
+                :key="`checkin-collapsed-${isExpanded}`"
+              />
+            </transition-group>
           </div>
         </div>
         <!-- 右侧：保持占位，但内容简化或隐藏 -->
         <div class="collapsed-right-section">
-          <div class="collapsed-placeholder">
-            <span class="placeholder-text">点击展开查看更多</span>
-          </div>
+          <transition-group name="placeholder-collapse" appear tag="div">
+            <div v-if="!isExpanded" class="collapsed-placeholder" :key="`placeholder-collapsed-${isExpanded}`">
+              <span class="placeholder-text">点击展开查看更多</span>
+            </div>
+          </transition-group>
         </div>
       </div>
     </div>
@@ -191,9 +211,28 @@ const isDarkMode = ref(false)
 
 // 检查当前时间来决定主题
 const checkTimeTheme = () => {
-  const hour = new Date().getHours()
+  const now = new Date()
+  const hour = now.getHours()
+  
   // 6点到18点为白天模式，其他时间为黑夜模式
-  isDarkMode.value = hour < 6 || hour >= 18
+  const isDay = hour >= 6 && hour < 18
+  isDarkMode.value = !isDay
+  
+  // 输出当前时间和模式（便于调试）
+  console.log(`当前时间: ${hour}:${now.getMinutes().toString().padStart(2, '0')}, 模式: ${isDarkMode.value ? '夜间' : '白天'}`)
+}
+
+// 测试不同时间的主题（开发调试用）
+const testThemeAtTime = (hour) => {
+  const isDay = hour >= 6 && hour < 18
+  isDarkMode.value = !isDay
+  console.log(`测试时间: ${hour}:00, 模式: ${isDarkMode.value ? '夜间' : '白天'}`)
+}
+
+// 暴露给全局用于测试（在浏览器控制台中可以调用）
+if (typeof window !== 'undefined') {
+  window.testTheme = testThemeAtTime
+  window.resetTheme = checkTimeTheme
 }
 
 // 计算动态高度
@@ -336,15 +375,22 @@ function handleRoomChange(roomId) {
 
 // 定时器
 let updateTimer = null
+let themeTimer = null
 
 // 生命周期
 onMounted(() => {
   updateLastUpdateTime()
   checkTimeTheme() // 初始化主题
+  
+  // 更新时间显示（30秒一次）
   updateTimer = setInterval(() => {
     updateLastUpdateTime()
-    checkTimeTheme() // 定期检查主题
-  }, 30000) // 30秒更新一次
+  }, 30000)
+  
+  // 检查主题切换（每分钟检查一次，确保在6点和18点及时切换）
+  themeTimer = setInterval(() => {
+    checkTimeTheme()
+  }, 60000) // 1分钟检查一次主题
   
   // 监听窗口大小变化
   window.addEventListener('resize', calculateExpandedHeight)
@@ -358,6 +404,9 @@ onMounted(() => {
 onUnmounted(() => {
   if (updateTimer) {
     clearInterval(updateTimer)
+  }
+  if (themeTimer) {
+    clearInterval(themeTimer)
   }
   window.removeEventListener('resize', calculateExpandedHeight)
 })
@@ -505,6 +554,9 @@ onUnmounted(() => {
   padding: 32px;
   position: relative;
   z-index: 2;
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: 1;
+  transform: scale(1);
 }
 
 .content-grid {
@@ -512,6 +564,7 @@ onUnmounted(() => {
   grid-template-columns: 1fr 1.5fr;
   gap: 32px;
   height: 100%;
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* 折叠状态的布局 */
@@ -519,6 +572,9 @@ onUnmounted(() => {
   padding: 20px 24px;
   position: relative;
   z-index: 2;
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: 1;
+  transform: scale(1);
 }
 
 .collapsed-grid {
@@ -526,10 +582,20 @@ onUnmounted(() => {
   grid-template-columns: 1fr 1.5fr;
   gap: 24px;
   height: 100%;
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .collapsed-left-section, .collapsed-right-section {
   height: 100%;
+  animation: collapse 0.5s ease;
+}
+@keyframes collapse {
+  0% {
+    transform: scaleY(2)
+  }
+  100% {
+    transform: scaleY(1)
+  }
 }
 
 .collapsed-greeting-card {
@@ -543,7 +609,9 @@ onUnmounted(() => {
   flex-direction: column;
   border: 1px solid rgba(255, 255, 255, 0.2);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s ease;
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: scale(1);
+  opacity: 1;
 }
 
 .theme-light .collapsed-greeting-card {
@@ -606,6 +674,20 @@ onUnmounted(() => {
   height: 100%;
 }
 
+.greeting-card{
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(30px);
+  border-radius: 24px;
+  padding: 32px;
+  max-height: 575px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  animation: expand 0.5s ease;
+}
+
 .greeting-card, .seat-map-card {
   background: rgba(255, 255, 255, 0.15);
   backdrop-filter: blur(30px);
@@ -617,6 +699,14 @@ onUnmounted(() => {
   border: 1px solid rgba(255, 255, 255, 0.2);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
+}
+@keyframes expand {
+  0% {
+    transform: scale(1.2)
+  }
+  100% {
+    transform: scale(1)
+  }
 }
 
 .theme-light .greeting-card, 
@@ -788,5 +878,69 @@ onUnmounted(() => {
   .placeholder-text {
     font-size: 13px;
   }
+}
+
+/* Vue 组件过渡动画 */
+
+/* 折叠状态下组件的过渡动画 */
+.greeting-collapse-enter-active {
+  transition: all 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition-delay: 0.1s;
+}
+
+.greeting-collapse-enter-from {
+  opacity: 0;
+  transform: scale(0.8) translateY(30px) rotateX(20deg);
+}
+
+.checkin-collapse-enter-active {
+  transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition-delay: 0.3s;
+}
+
+.checkin-collapse-enter-from {
+  opacity: 0;
+  transform: scale(0.8) translateY(40px) rotateX(25deg);
+}
+
+.placeholder-collapse-enter-active {
+  transition: all 0.9s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition-delay: 0.5s;
+}
+
+.placeholder-collapse-enter-from {
+  opacity: 0;
+  transform: scale(0.7) translateX(50px) rotateY(15deg);
+}
+
+/* 展开状态下组件的过渡动画 */
+.greeting-expand-enter-active {
+  transition: all 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition-delay: 0.1s;
+}
+
+.greeting-expand-enter-from {
+  opacity: 0;
+  transform: scale(0.9) translateY(-20px);
+}
+
+.checkin-expand-enter-active {
+  transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition-delay: 0.3s;
+}
+
+.checkin-expand-enter-from {
+  opacity: 0;
+  transform: scale(0.9) translateY(-30px);
+}
+
+.seatmap-expand-enter-active {
+  transition: all 0.9s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition-delay: 0.5s;
+}
+
+.seatmap-expand-enter-from {
+  opacity: 0;
+  transform: scale(0.85) translateX(40px) rotateY(-10deg);
 }
 </style>

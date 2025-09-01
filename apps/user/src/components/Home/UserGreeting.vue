@@ -184,30 +184,39 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 24px;
-  transition: all 0.3s ease;
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: top center;
 }
 
 /* 折叠状态样式 */
 .user-greeting.collapsed {
   gap: 16px;
+  transform: scale(0.95);
 }
 
 .user-greeting.collapsed .greeting-header h3 {
   font-size: 24px;
   margin-bottom: 8px;
+  transform: translateY(-5px);
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .user-greeting.collapsed .datetime-display {
   padding: 20px 24px;
+  transform: scale(0.98);
+  opacity: 0.95;
 }
 
 .user-greeting.collapsed .date-info {
   margin-bottom: 12px;
+  transform: translateY(-2px);
 }
 
 .user-greeting.collapsed .motivation {
   padding: 12px 20px;
   font-size: 13px;
+  transform: scale(0.96);
+  opacity: 0.9;
 }
 
 .greeting-header h3 {
@@ -217,7 +226,8 @@ onUnmounted(() => {
   color: #2d3748;
   text-align: center;
   letter-spacing: -0.8px;
-  transition: all 0.3s ease;
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: translateY(0);
 }
 
 .theme-dark .greeting-header h3 {
@@ -232,8 +242,10 @@ onUnmounted(() => {
   backdrop-filter: blur(30px);
   border-radius: 24px;
   border: 1px solid rgba(255, 255, 255, 0.4);
-  transition: all 0.3s ease;
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: 0 8px 32px rgba(135, 206, 250, 0.15);
+  transform: scale(1);
+  opacity: 1;
 }
 
 .theme-dark .datetime-display {
@@ -249,7 +261,8 @@ onUnmounted(() => {
   margin-bottom: 12px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   letter-spacing: -2px;
-  transition: color 0.3s ease;
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: scale(1);
 }
 
 .theme-dark .time {
@@ -263,6 +276,8 @@ onUnmounted(() => {
   align-items: center;
   gap: 16px;
   margin-bottom: 16px;
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: translateY(0);
 }
 
 .date {
@@ -309,7 +324,9 @@ onUnmounted(() => {
   font-size: 14px;
   font-weight: 500;
   line-height: 1.5;
-  transition: all 0.3s ease;
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: scale(1);
+  opacity: 1;
 }
 
 .theme-dark .motivation {

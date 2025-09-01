@@ -267,15 +267,20 @@ defineExpose({
 <style scoped>
 .checkin-status {
   margin-top: 24px;
-  transition: all 0.3s ease;
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
   height: auto;
   min-height: 50px;
+  transform-origin: top center;
+  transform: scale(1);
 }
 
 /* 展开状态计时器样式 */
 .study-timer-expanded {
   margin-bottom: 24px;
   text-align: center;
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: scale(1);
+  opacity: 1;
 }
 
 .timer-display-expanded {
@@ -284,10 +289,12 @@ defineExpose({
   padding: 32px 24px;
   border: 1px solid rgba(255, 255, 255, 0.5);
   backdrop-filter: blur(20px);
-  transition: all 0.3s ease;
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: 0 8px 32px rgba(135, 206, 250, 0.15);
   width: 100%;
   max-width: 425px;
+  transform: scale(1);
+  opacity: 1;
 }
 
 .timer-display-expanded .timer-text {
@@ -327,15 +334,22 @@ defineExpose({
 .study-timer-collapsed {
   /* margin-top: 24px; */
   text-align: center;
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: scale(0.95);
+  opacity: 0.95;
 }
 
 .study-timer {
   margin-bottom: 24px;
   text-align: center;
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .study-status-collapsed {
   text-align: center;
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: scale(0.95);
+  opacity: 0.95;
 }
 
 .timer-display {
@@ -696,6 +710,9 @@ defineExpose({
 .checkin-actions {
   display: flex;
   justify-content: center;
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: scale(1);
+  opacity: 1;
 }
 
 /* 自定义按钮样式 */
