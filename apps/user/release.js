@@ -136,17 +136,17 @@ function main() {
     console.log(`   4. git tag v${newVersion}    # 创建标签`);
     console.log('   5. git push --tags  # 推送标签');
 
-    } catch (error) {
-        console.error('❌ 发布失败:', error.message);
-    }
+  } catch (error) {
+    console.error('❌ 发布失败:', error.message);
+  }
 }
 
 // 检查是否直接运行此脚本
 if (process.argv[1].endsWith('release.js')) {
-    main();
+  main();
 }
 
 export {
-    updatePackageVersion,
-    generateVersionConfig
+  updatePackageVersion,
+  generateVersionConfig
 };
