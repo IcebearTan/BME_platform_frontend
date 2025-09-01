@@ -1,0 +1,31 @@
+{
+  "name": "bme-frontend",
+  "private": true,
+  "version": "2.1.3",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "release": "node release.js",
+    "version:patch": "npm version patch --no-git-tag-version && node release.js",
+    "version:minor": "npm version minor --no-git-tag-version && node release.js",
+    "version:major": "npm version major --no-git-tag-version && node release.js"
+  },
+  "dependencies": {
+    "@element-plus/icons-vue": "^2.3.1",
+    "axios": "^1.7.7",
+    "element-plus": "^2.8.3",
+    "gsap": "^3.12.7",
+    "js-md5": "^0.8.3",
+    "vue": "^3.4.37",
+    "vue-persistedstate": "^1.2.5",
+    "vue-router": "^4.4.5",
+    "vuex": "^4.1.0",
+    "vuex-persistedstate": "^4.1.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.1.2",
+    "vite": "^5.4.1"
+  }
+}
