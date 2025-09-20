@@ -8,8 +8,14 @@
       'theme-light': !isDarkMode
     }"
     :style="{ height: isExpanded ? dynamicHeight : '380px' }"
-    @click="togglePanel"
   >
+    <!-- 展开/折叠专用按钮 -->
+    <div class="panel-toggle-button" @click="togglePanel">
+      <el-icon class="toggle-icon" :class="{ rotated: !isExpanded }">
+        <ArrowDown />
+      </el-icon>
+    </div>
+
     <!-- 展开/折叠控制按钮 -->
     <!-- <div class="panel-header" >
       <h2>实时状态面板</h2>
@@ -69,10 +75,13 @@
               </div>
               
               <RealTimeSeatMap
-                :current-user-id="userInfo.id"
-                :default-room-id="defaultRoomId"
-                @seat-click="handleSeatClick"
-                @room-change="handleRoomChange"
+                :size="200"
+                :radius="110"
+                :cornerRadius="6"
+                :gap="20"
+                :equilateral="false"
+                :triangleSize="10"
+                uniformColor="#fff"
               />
             </div>
           </transition>
@@ -93,7 +102,7 @@
                 :show-stats="false"
                 :study-stats="studyStats"
                 :weather-info="weatherInfo"
-                :is-dark-mode="!isDarkMode"
+                :is-dark-mode="isDarkMode"
                 :is-collapsed="true"
                 :key="`greeting-collapsed-${isExpanded}`"
               />
@@ -103,7 +112,7 @@
                 v-if="!isExpanded"
                 ref="checkinStatusCollapsedRef"
                 :checkin-info="checkinInfo"
-                :is-dark-mode="!isDarkMode"
+                :is-dark-mode="isDarkMode"
                 :is-collapsed="true"
                 @checkin="handleCheckinEvent"
                 @checkout="handleCheckoutEvent"
@@ -201,6 +210,7 @@ const checkinLoading = ref(false)
 const checkoutLoading = ref(false)
 const panelRef = ref(null)
 const checkinStatusRef = ref(null)
+const checkinStatusCollapsedRef = ref(null)
 const dynamicHeight = ref('300px')
 const checkinDialogVisible = ref(false)
 const checkoutDialogVisible = ref(false)
@@ -283,6 +293,7 @@ const checkinInfo = ref({
   checkedIn: false,
   checkedOut: false,
   checkinTime: null,
+  checkinTimestamp: null,
   checkoutTime: null,
   location: null,
   studyDuration: null
@@ -323,9 +334,11 @@ async function handleCheckin() {
     // 模拟API调用
     await new Promise(resolve => setTimeout(resolve, 1000))
     
-    // 调用子组件的签到方法
-    if (checkinStatusRef.value) {
+    // 根据面板状态调用对应子组件的签到方法
+    if (isExpanded.value && checkinStatusRef.value) {
       checkinStatusRef.value.handleCheckin()
+    } else if (!isExpanded.value && checkinStatusCollapsedRef.value) {
+      checkinStatusCollapsedRef.value.handleCheckin()
     }
     
     checkinDialogVisible.value = false
@@ -342,9 +355,11 @@ async function handleCheckout() {
     // 模拟API调用
     await new Promise(resolve => setTimeout(resolve, 1000))
     
-    // 调用子组件的签退方法
-    if (checkinStatusRef.value) {
+    // 根据面板状态调用对应子组件的签退方法
+    if (isExpanded.value && checkinStatusRef.value) {
       checkinStatusRef.value.handleCheckout()
+    } else if (!isExpanded.value && checkinStatusCollapsedRef.value) {
+      checkinStatusCollapsedRef.value.handleCheckout()
     }
     
     checkoutDialogVisible.value = false
@@ -422,7 +437,7 @@ onUnmounted(() => {
   transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   backdrop-filter: blur(20px);
-  margin-top: 5px
+  /* margin-top: 5px */
 }
 
 /* 白天主题 - 温暖晴天配色 */
@@ -495,6 +510,75 @@ onUnmounted(() => {
   border-radius: 24px;
   animation: sunlight-dance 20s ease-in-out infinite;
   opacity: 0.7;
+}
+
+/* 专用展开/收起按钮样式 */
+.panel-toggle-button {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.theme-light .panel-toggle-button {
+  background: rgba(255, 255, 255, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 12px rgba(135, 206, 235, 0.15);
+}
+
+.theme-dark .panel-toggle-button {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.05);
+}
+
+.panel-toggle-button:hover {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+}
+
+.theme-light .panel-toggle-button:hover {
+  background: rgba(255, 255, 255, 0.35);
+  border-color: rgba(255, 255, 255, 0.4);
+  box-shadow: 0 6px 16px rgba(135, 206, 235, 0.2);
+}
+
+.theme-dark .panel-toggle-button:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 6px 16px rgba(255, 255, 255, 0.336);
+}
+
+.panel-toggle-button .toggle-icon {
+  color: white;
+  font-size: 16px;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.theme-light .panel-toggle-button .toggle-icon {
+  color: #1a365d;
+}
+
+.theme-dark .panel-toggle-button .toggle-icon {
+  color: #ffffff;
+}
+
+.panel-toggle-button .toggle-icon.rotated {
+  transform: rotate(180deg);
 }
 
 /* @keyframes sunlight-dance {
@@ -607,6 +691,8 @@ onUnmounted(() => {
   min-height: 200px;
   display: flex;
   flex-direction: column;
+  align-items: center;
+  justify-content: center;
   border: 1px solid rgba(255, 255, 255, 0.2);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
   transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
@@ -682,6 +768,8 @@ onUnmounted(() => {
   max-height: 575px;
   display: flex;
   flex-direction: column;
+  align-items: center;
+  justify-content: center;
   border: 1px solid rgba(255, 255, 255, 0.2);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
@@ -702,7 +790,10 @@ onUnmounted(() => {
 }
 @keyframes expand {
   0% {
-    transform: scale(1.2)
+    transform: scale(1)
+  }
+  50% {
+    transform: scale(1.05)
   }
   100% {
     transform: scale(1)

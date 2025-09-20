@@ -2,7 +2,7 @@
 // 这个文件用于统一管理版本号和更新信息
 
 // 当前版本号（会在构建时被 vite.config.js 读取）
-export const APP_VERSION = '2.1.4'
+export const APP_VERSION = '2.1.5'
 
 // 构建日期（会在构建时自动生成）
 export const BUILD_DATE = new Date().toLocaleDateString('zh-CN')
@@ -11,14 +11,18 @@ export const BUILD_DATE = new Date().toLocaleDateString('zh-CN')
 export const UPDATE_DATE = '2025/9/1'
 
 // 更新公告的唯一标识（基于更新日期和版本号）
-export const ANNOUNCEMENT_ID = `20250901-v2.1.4`
+export const ANNOUNCEMENT_ID = `20250901-v2.1.5`
 
 // 版本更新日志
 export const VERSION_CHANGELOG = {
-    '2.1.4': {
+    '2.1.5': {
         date: '2025/9/1',
         features: [
-
+            ' 完善时间主题自动切换功能',
+            ' 修复LivePanel主题逻辑错误',
+            ' 添加白天/夜间模式调试功能',
+            ' 优化动画过渡效果',
+            ' 修复子组件主题属性传递问题'
         ],
         importantNotice: '如有问题请及时反馈！'
     }

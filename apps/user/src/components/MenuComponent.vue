@@ -355,7 +355,7 @@ const handleUserGroup = () => {
 
 .el-menu-demo{
     width: 1325px;
-    border-bottom: solid 1px #e6e6e6;
+    border: none !important;
 }
 .el-menu--horizontal>.el-menu-item:nth-child(1) {
     margin-right: auto;

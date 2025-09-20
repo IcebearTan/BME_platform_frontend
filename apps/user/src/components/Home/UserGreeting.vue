@@ -220,6 +220,7 @@ onUnmounted(() => {
 }
 
 .greeting-header h3 {
+  width: 100%;
   margin: 0;
   font-size: 32px;
   font-weight: 300;
@@ -236,6 +237,8 @@ onUnmounted(() => {
 }
 
 .datetime-display {
+  /* width: 100%; */
+  width: 500px;
   text-align: center;
   padding: 32px 24px;
   background: rgba(255, 255, 255, 0.3);
@@ -315,13 +318,12 @@ onUnmounted(() => {
 }
 
 .motivation {
-  padding: 16px 24px;
-  background: rgba(255, 255, 255, 0.4);
-  backdrop-filter: blur(20px);
+  padding: 14px 20px;
+  /* background: rgba(255, 255, 255, 0.4); */
   border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  color: #2d3748;
-  font-size: 14px;
+  /* border: 1px solid rgba(255, 255, 255, 0.5); */
+  color: #6a7383;
+  font-size: 16px;
   font-weight: 500;
   line-height: 1.5;
   transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);

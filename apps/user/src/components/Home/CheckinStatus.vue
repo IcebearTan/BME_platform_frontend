@@ -180,7 +180,8 @@ function handleCheckin() {
       hour12: false,
       hour: '2-digit',
       minute: '2-digit'
-    })
+    }),
+    checkinTimestamp: now.toISOString() // 存储完整的签到时间戳
   }
   
   // 开始计时
@@ -218,9 +219,13 @@ function handleCheckout() {
 onMounted(() => {
   // 如果已经签到但未签退，恢复计时
   if (props.checkinInfo.checkedIn && !props.checkinInfo.checkedOut) {
-    if (props.checkinInfo.checkinTime) {
+    // 优先使用完整的签到时间戳
+    if (props.checkinInfo.checkinTimestamp) {
+      studyStartTime.value = props.checkinInfo.checkinTimestamp
+    } else if (props.checkinInfo.checkinTime) {
+      // 回退到旧的构造方式（为了兼容性）
       const today = new Date().toDateString()
-      const checkinTimeStr = `${today} ${props.checkinInfo.checkinTime}:00`
+      const checkinTimeStr = `${today} ${props.checkinInfo.checkinTime}`
       studyStartTime.value = new Date(checkinTimeStr).toISOString()
     } else {
       // 如果没有具体的签到时间，使用当前时间作为开始时间
@@ -234,10 +239,13 @@ onMounted(() => {
 // 监听checkinInfo变化
 watch(() => props.checkinInfo, (newInfo) => {
   if (newInfo.checkedIn && !newInfo.checkedOut && !studyTimer) {
-    // 开始计时
-    if (newInfo.checkinTime) {
+    // 优先使用完整的签到时间戳
+    if (newInfo.checkinTimestamp) {
+      studyStartTime.value = newInfo.checkinTimestamp
+    } else if (newInfo.checkinTime) {
+      // 回退到旧的构造方式（为了兼容性）
       const today = new Date().toDateString()
-      const checkinTimeStr = `${today} ${newInfo.checkinTime}:00`
+      const checkinTimeStr = `${today} ${newInfo.checkinTime}`
       studyStartTime.value = new Date(checkinTimeStr).toISOString()
     } else {
       studyStartTime.value = new Date().toISOString()
@@ -284,14 +292,14 @@ defineExpose({
 }
 
 .timer-display-expanded {
-  background: rgba(255, 255, 255, 0.4);
+  /* background: rgba(255, 255, 255, 0.4); */
   border-radius: 20px;
-  padding: 32px 24px;
+  /* padding: 32px 24px; */
   border: 1px solid rgba(255, 255, 255, 0.5);
-  backdrop-filter: blur(20px);
+  /* backdrop-filter: blur(20px); */
   transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 8px 32px rgba(135, 206, 250, 0.15);
-  width: 100%;
+  /* box-shadow: 0 8px 32px rgba(135, 206, 250, 0.15); */
+  width: 200px;
   max-width: 425px;
   transform: scale(1);
   opacity: 1;
@@ -319,6 +327,7 @@ defineExpose({
 .theme-dark .timer-display-expanded {
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 6px;
 }
 
 .theme-dark .timer-display-expanded .timer-text {

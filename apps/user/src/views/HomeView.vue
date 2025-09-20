@@ -85,7 +85,7 @@ const toggleMobileMenu = () => {
   justify-content: center;
   /* 桌面居中 */
   align-items: center;
-  border-bottom: solid 1px #e6e6e6;
+  /* border-bottom: solid 1px #e6e6e6; */
   padding: 0;
   /* 移除默认内边距 */
   height: 60px;
