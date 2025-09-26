@@ -36,37 +36,24 @@
       <div class="content-grid">
         <!-- 左侧：问候语和打卡状态 -->
         <div class="left-section">
-          <div class="greeting-card">
-            <!-- 使用独立的问候组件 -->
-            <transition name="greeting-expand" appear>
-              <UserGreeting 
-                v-if="isExpanded"
-                :user-info="userInfo"
-                :show-stats="true"
-                :study-stats="studyStats"
-                :weather-info="weatherInfo"
-                :is-dark-mode="isDarkMode"
-                :is-collapsed="!isExpanded"
-                key="greeting-expanded"
-              />
-            </transition>
-
-            <!-- 使用独立的打卡状态组件 -->
-            <transition name="checkin-expand" appear>
-              <CheckinStatus
-                v-if="isExpanded"
-                ref="checkinStatusRef"
-                :checkin-info="checkinInfo"
-                :is-dark-mode="isDarkMode"
-                :is-collapsed="false"
-                @checkin="handleCheckinEvent"
-                @checkout="handleCheckoutEvent"
-                @request-checkin="showCheckinDialog"
-                @request-checkout="showCheckoutDialog"
-                key="checkin-expanded"
-              />
-            </transition>
-          </div>
+          <transition name="greeting-expand" appear>
+            <UserGreeting 
+              v-if="isExpanded"
+              :user-info="userInfo"
+              :show-stats="true"
+              :study-stats="studyStats"
+              :weather-info="weatherInfo"
+              :is-dark-mode="isDarkMode"
+              :is-collapsed="false"
+              :show-checkin-status="true"
+              :checkin-info="checkinInfo"
+              @checkin="handleCheckinEvent"
+              @checkout="handleCheckoutEvent"
+              @request-checkin="showCheckinDialog"
+              @request-checkout="showCheckoutDialog"
+              key="greeting-expanded"
+            />
+          </transition>
         </div>
 
         <!-- 右侧：实时座位图 -->
@@ -148,34 +135,24 @@
       <div class="collapsed-grid">
         <!-- 左侧：保持与展开时相同的占比 -->
         <div class="collapsed-left-section">
-          <div class="collapsed-greeting-card">
-            <transition-group name="greeting-collapse" appear tag="div">
-              <UserGreeting 
-                v-if="!isExpanded"
-                :user-info="userInfo"
-                :show-stats="false"
-                :study-stats="studyStats"
-                :weather-info="weatherInfo"
-                :is-dark-mode="isDarkMode"
-                :is-collapsed="true"
-                :key="`greeting-collapsed-${isExpanded}`"
-              />
-            </transition-group>
-            <transition-group name="checkin-collapse" appear tag="div">
-              <CheckinStatus
-                v-if="!isExpanded"
-                ref="checkinStatusCollapsedRef"
-                :checkin-info="checkinInfo"
-                :is-dark-mode="isDarkMode"
-                :is-collapsed="true"
-                @checkin="handleCheckinEvent"
-                @checkout="handleCheckoutEvent"
-                @request-checkin="showCheckinDialog"
-                @request-checkout="showCheckoutDialog"
-                :key="`checkin-collapsed-${isExpanded}`"
-              />
-            </transition-group>
-          </div>
+          <transition name="greeting-collapse" appear>
+            <UserGreeting 
+              v-if="!isExpanded"
+              :user-info="userInfo"
+              :show-stats="false"
+              :study-stats="studyStats"
+              :weather-info="weatherInfo"
+              :is-dark-mode="isDarkMode"
+              :is-collapsed="true"
+              :show-checkin-status="true"
+              :checkin-info="checkinInfo"
+              @checkin="handleCheckinEvent"
+              @checkout="handleCheckoutEvent"
+              @request-checkin="showCheckinDialog"
+              @request-checkout="showCheckoutDialog"
+              key="greeting-collapsed"
+            />
+          </transition>
         </div>
         <!-- 右侧：保持占位，但内容简化或隐藏 -->
         <div class="collapsed-right-section">
@@ -880,38 +857,6 @@ if (typeof window !== 'undefined') {
   }
 }
 
-.collapsed-greeting-card {
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(30px);
-  border-radius: 20px;
-  padding: 20px;
-  height: auto;
-  min-height: 200px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-  transform: scale(1);
-  opacity: 1;
-}
-
-.theme-light .collapsed-greeting-card {
-  background: rgba(255, 255, 255, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  color: #1a365d;
-  box-shadow: 0 8px 32px rgba(135, 206, 235, 0.2);
-}
-
-.theme-dark .collapsed-greeting-card {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: white;
-  box-shadow: 0 8px 32px rgba(255, 255, 255, 0.05);
-}
-
 .collapsed-placeholder {
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(30px);
@@ -1287,47 +1232,6 @@ if (typeof window !== 'undefined') {
   animation: expand 0.5s ease;
 }
 
-.greeting-card {
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(30px);
-  border-radius: 24px;
-  padding: 32px;
-  max-height: 575px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s ease;
-  animation: expand 0.5s ease;
-}
-@keyframes expand {
-  0% {
-    transform: scale(1)
-  }
-  50% {
-    transform: scale(1.05)
-  }
-  100% {
-    transform: scale(1)
-  }
-}
-
-.theme-light .greeting-card {
-  background: rgba(255, 255, 255, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  color: #1a365d;
-  box-shadow: 0 8px 32px rgba(135, 206, 235, 0.2);
-}
-
-.theme-dark .greeting-card {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: white;
-  box-shadow: 0 8px 32px rgba(255, 255, 255, 0.05);
-}
-
 /* 移除了 seat-map-card 样式，现在由 SeatMap 组件自己处理 */
 
 .card-header {
@@ -1424,12 +1328,7 @@ if (typeof window !== 'undefined') {
     font-size: 18px;
   }
   
-  .greeting-card {
-    padding: 24px;
-    border-radius: 20px;
-  }
-  
-  .collapsed-greeting-card, .collapsed-placeholder {
+  .collapsed-placeholder {
     padding: 16px;
     border-radius: 16px;
     min-height: 160px;
@@ -1465,15 +1364,10 @@ if (typeof window !== 'undefined') {
     gap: 12px;
   }
   
-  .collapsed-greeting-card, .collapsed-placeholder {
+  .collapsed-placeholder {
     padding: 14px;
     border-radius: 14px;
     min-height: 140px;
-  }
-  
-  .greeting-card {
-    padding: 20px;
-    border-radius: 16px;
   }
   
   .placeholder-text {
@@ -1494,14 +1388,15 @@ if (typeof window !== 'undefined') {
   transform: scale(0.8) translateY(30px) rotateX(20deg);
 }
 
-.checkin-collapse-enter-active {
-  transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
-  transition-delay: 0.3s;
+/* 折叠状态下组件的过渡动画 */
+.greeting-collapse-enter-active {
+  transition: all 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition-delay: 0.1s;
 }
 
-.checkin-collapse-enter-from {
+.greeting-collapse-enter-from {
   opacity: 0;
-  transform: scale(0.8) translateY(40px) rotateX(25deg);
+  transform: scale(0.9) translateY(20px);
 }
 
 .placeholder-collapse-enter-active {
@@ -1523,16 +1418,6 @@ if (typeof window !== 'undefined') {
 .greeting-expand-enter-from {
   opacity: 0;
   transform: scale(0.9) translateY(-20px);
-}
-
-.checkin-expand-enter-active {
-  transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
-  transition-delay: 0.3s;
-}
-
-.checkin-expand-enter-from {
-  opacity: 0;
-  transform: scale(0.9) translateY(-30px);
 }
 
 .seatmap-expand-enter-active {

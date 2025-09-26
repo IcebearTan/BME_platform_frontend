@@ -39,23 +39,32 @@
     <div class="study-status-collapsed" v-if="isCollapsed && (!checkinInfo.checkedIn || checkinInfo.checkedOut)">
       <div class="status-display" 
            :class="{ 
-             'status-jelly-hover': !checkinInfo.checkedIn && isHovering
+             'status-jelly-hover': isHovering
            }"
-           @click="!checkinInfo.checkedIn ? requestCheckin() : null"
-           @mouseenter="!checkinInfo.checkedIn ? startHoverAnimation() : null"
-           @mouseleave="!checkinInfo.checkedIn ? endHoverAnimation() : null">
+           @click="requestCheckin()"
+           @mouseenter="startHoverAnimation()"
+           @mouseleave="endHoverAnimation()">
         <div class="status-content-wrapper">
-          <div class="status-content" :class="{ 'content-switching': !checkinInfo.checkedIn }">
+          <div class="status-content content-switching">
             <!-- 提示文本 -->
-            <div class="status-info" :class="{ 'info-hidden': !checkinInfo.checkedIn && isHovering }">
-              <span class="status-text">
-                {{ !checkinInfo.checkedIn ? '点击开始' : '今日完成' }}
+            <div class="status-info" :class="{ 'info-hidden': isHovering }">
+              <span class="status-text" v-if="!checkinInfo.checkedOut">
+                点击开始
               </span>
-              <span class="status-icon" v-if="!checkinInfo.checkedIn">▶</span>
+              <span class="status-text" v-else-if="checkinInfo.totalDuration">
+                今日已累计：{{ checkinInfo.totalDuration }}
+              </span>
+              <span class="status-text" v-else-if="checkinInfo.studyDuration">
+                今日已累计：{{ checkinInfo.studyDuration }}
+              </span>
+              <span class="status-text" v-else>
+                点击开始
+              </span>
+              <span class="status-icon" v-if="!checkinInfo.checkedOut">▶</span>
             </div>
-            <!-- 开始按钮显示 -->
-            <div class="status-button" :class="{ 'button-visible': !checkinInfo.checkedIn && isHovering }">
-              <span class="button-text">开始学习</span>
+            <!-- 开始/再次学习按钮显示 -->
+            <div class="status-button" :class="{ 'button-visible': isHovering }">
+              <span class="button-text">{{ checkinInfo.checkedOut ? '再次学习' : '开始学习' }}</span>
               <div class="button-icon">●</div>
             </div>
           </div>
@@ -65,30 +74,81 @@
 
     <!-- 打卡按钮 -->
     <div class="checkin-actions" v-if="!isCollapsed">
-      <el-button 
-        v-if="!checkinInfo.checkedIn"
-        type="primary" 
-        size="large" 
-        @click="requestCheckin"
-        :loading="loading"
-        round
-        class="custom-button primary-button"
-      >
-        开始学习
-      </el-button>
-      <el-button 
-        v-else-if="!checkinInfo.checkedOut"
-        type="danger" 
-        size="large" 
-        @click="requestCheckout"
-        :loading="loading"
-        round
-        class="custom-button danger-button"
-      >
-        结束学习
-      </el-button>
-      <div v-else class="completed-status">
-        今日学习已完成
+      <!-- 未开始学习时 -->
+      <div
+        v-if="!checkinInfo.checkedIn && !checkinInfo.checkedOut"
+        class="status-display expanded-status"
+        :class="{ 
+          'status-jelly-hover': isHovering
+        }"
+        @click="requestCheckin()"
+        @mouseenter="startHoverAnimation()"
+        @mouseleave="endHoverAnimation()">
+        <div class="status-content-wrapper">
+          <div class="status-content content-switching">
+            <!-- 提示文本 -->
+            <div class="status-info" :class="{ 'info-hidden': isHovering }">
+              <span class="status-text">点击开始</span>
+              <span class="status-icon">▶</span>
+            </div>
+            <!-- 开始学习按钮显示 -->
+            <div class="status-button" :class="{ 'button-visible': isHovering }">
+              <span class="button-text">开始学习</span>
+              <div class="button-icon">●</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 正在学习时 -->
+      <div
+        v-else-if="checkinInfo.checkedIn && !checkinInfo.checkedOut"
+        class="status-display expanded-status danger-style"
+        :class="{ 
+          'status-jelly-hover': isHovering
+        }"
+        @click="requestCheckout()"
+        @mouseenter="startHoverAnimation()"
+        @mouseleave="endHoverAnimation()">
+        <div class="status-content-wrapper">
+          <div class="status-content content-switching">
+            <!-- 提示文本 -->
+            <div class="status-info" :class="{ 'info-hidden': isHovering }">
+              <span class="status-text">正在学习中</span>
+              <span class="status-icon">⏸</span>
+            </div>
+            <!-- 结束学习按钮显示 -->
+            <div class="status-button" :class="{ 'button-visible': isHovering }">
+              <span class="button-text">结束学习</span>
+              <div class="button-icon">●</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 已完成学习时 -->
+      <div
+        v-else
+        class="status-display expanded-status completed-style"
+        :class="{ 
+          'status-jelly-hover': completedHovering
+        }"
+        @click="requestCheckin()"
+        @mouseenter="startCompletedHover()"
+        @mouseleave="endCompletedHover()">
+        <div class="status-content-wrapper">
+          <div class="status-content content-switching">
+            <!-- 累计时长显示 -->
+            <div class="status-info" :class="{ 'info-hidden': completedHovering }">
+              <span class="status-text">今日已累计：{{ checkinInfo.totalDuration || checkinInfo.studyDuration || '0h 0m' }}</span>
+            </div>
+            <!-- 开始学习按钮显示 -->
+            <div class="status-button" :class="{ 'button-visible': completedHovering }">
+              <span class="button-text">开始学习</span>
+              <div class="button-icon">●</div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -130,6 +190,12 @@ const loading = ref(false)
 const studyStartTime = ref(null)
 const currentStudyDuration = ref('00:00:00')
 const isHovering = ref(false)
+const completedHovering = ref(false)
+
+// 监视 checkinInfo 变化
+watch(() => props.checkinInfo, (newInfo) => {
+  console.log('CheckinStatus received checkinInfo:', newInfo)
+}, { deep: true, immediate: true })
 
 // 动画控制方法
 const startHoverAnimation = () => {
@@ -138,6 +204,15 @@ const startHoverAnimation = () => {
 
 const endHoverAnimation = () => {
   isHovering.value = false
+}
+
+// 展开状态完成区域的hover控制
+const startCompletedHover = () => {
+  completedHovering.value = true
+}
+
+const endCompletedHover = () => {
+  completedHovering.value = false
 }
 
 // 定时器
@@ -301,6 +376,7 @@ defineExpose({
   /* box-shadow: 0 8px 32px rgba(135, 206, 250, 0.15); */
   width: 200px;
   max-width: 425px;
+  margin: 0 auto;
   transform: scale(1);
   opacity: 1;
 }
@@ -489,7 +565,7 @@ defineExpose({
   position: relative;
   overflow: hidden;
   cursor: pointer;
-  min-width: 120px;
+  min-width: 200px;
   width: auto;
   display: inline-block;
 }
@@ -497,12 +573,54 @@ defineExpose({
 .status-jelly-hover {
   transform: scale(1.05) !important;
   border-radius: 20px !important;
-  min-width: 160px !important;
+  min-width: 220px !important;
   padding: 14px 20px !important;
-  background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%) !important;
-  border: 1px solid rgba(45, 55, 72, 0.3) !important;
-  box-shadow: 0 12px 40px rgba(45, 55, 72, 0.4) !important;
+  background: linear-gradient(135deg, #56e3a4 0%, #3ae9b4 100%) !important;
+  /* border: 1px solid rgba(85, 234, 214, 0.66) !important; */
+  box-shadow: 0 12px 40px rgba(92, 235, 235, 0.4) !important;
   animation: jellyBounce 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+/* 展开状态专用样式 */
+.expanded-status {
+  min-width: 200px !important;
+  width: auto !important;
+  height: 32px !important;
+  border-radius: 20px !important;
+  padding: 6px 20px !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center !important;
+}
+
+.expanded-status .status-content-wrapper {
+  height: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* 危险状态（正在学习中）的样式 */
+.danger-style {
+  background: linear-gradient(135deg, #e53e3e 0%, #c53030 100%) !important;
+  color: white !important;
+}
+
+.danger-style.status-jelly-hover {
+  background: linear-gradient(135deg, #c53030 0%, #9c2a2a 100%) !important;
+  border-color: rgba(197, 48, 48, 0.3) !important;
+  box-shadow: 0 12px 40px rgba(229, 62, 62, 0.4) !important;
+}
+
+/* 完成状态的样式 */
+.completed-style {
+  background: rgba(255, 255, 255, 0.4) !important;
+  color: #2d3748 !important;
+}
+
+.completed-style.status-jelly-hover {
+  background: linear-gradient(135deg, #56e3a4 0%, #3ae9b4 100%) !important;
+  color: white !important;
 }
 
 .status-content-wrapper {
@@ -521,7 +639,7 @@ defineExpose({
 
 .status-info {
   position: absolute;
-  top: 0;
+  top: 50%;
   left: 0;
   width: 100%;
   display: flex;
@@ -529,18 +647,18 @@ defineExpose({
   justify-content: center;
   gap: 8px;
   opacity: 1;
-  transform: translateX(0);
+  transform: translateY(-50%) translateX(0);
   transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .status-info.info-hidden {
   opacity: 0;
-  transform: translateX(-20px);
+  transform: translateY(-50%) translateX(-20px);
 }
 
 .status-button {
   position: absolute;
-  top: 0;
+  top: 50%;
   left: 0;
   width: 100%;
   display: flex;
@@ -548,13 +666,13 @@ defineExpose({
   justify-content: center;
   gap: 8px;
   opacity: 0;
-  transform: translateX(20px);
+  transform: translateY(-50%) translateX(20px);
   transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .status-button.button-visible {
   opacity: 1;
-  transform: translateX(0);
+  transform: translateY(-50%) translateX(0);
 }
 
 /* 文本和图标样式 */
@@ -726,16 +844,22 @@ defineExpose({
 
 /* 自定义按钮样式 */
 .custom-button {
-  min-width: 160px;
-  height: 48px;
-  font-weight: 500;
-  font-size: 16px;
-  border: none;
+  min-width: 160px !important;
+  height: 48px !important;
+  font-weight: 500 !important;
+  font-size: 16px !important;
+  border: none !important;
+  border-radius: 20px !important;
   backdrop-filter: blur(20px);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
   position: relative;
   overflow: hidden;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 
 .custom-button::before {
@@ -754,24 +878,33 @@ defineExpose({
 }
 
 .primary-button {
-  background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%);
-  color: white;
+  background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%) !important;
+  color: white !important;
 }
 
 .primary-button:hover {
-  background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
+  background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%) !important;
   transform: translateY(-2px);
   box-shadow: 0 12px 40px rgba(45, 55, 72, 0.4);
 }
 
 .theme-dark .primary-button {
-  background: linear-gradient(135deg, #ffffff 0%, #f0f0f0 100%);
-  color: #000000;
+  background: linear-gradient(135deg, #ffffff 0%, #f0f0f0 100%) !important;
+  color: #000000 !important;
 }
 
 .theme-dark .primary-button:hover {
-  background: linear-gradient(135deg, #e6e6e6 0%, #cccccc 100%);
+  background: linear-gradient(135deg, #e6e6e6 0%, #cccccc 100%) !important;
   box-shadow: 0 12px 40px rgba(255, 255, 255, 0.3);
+}
+
+.button-loading {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.button-loading:hover {
+  transform: none !important;
 }
 
 .danger-button {
@@ -809,12 +942,70 @@ defineExpose({
   backdrop-filter: blur(20px);
   transition: all 0.3s ease;
   min-width: 160px;
+  cursor: pointer;
+  position: relative;
+  height: 48px;
+}
+
+.completed-text,
+.completed-button-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+  display: block;
+}
+
+.completed-text {
+  opacity: 1;
+  color: #2d3748;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.completed-text.text-fade-out {
+  opacity: 0;
+  transform: translate(-50%, -50%) translateY(-10px);
+}
+
+.completed-button-text {
+  opacity: 0;
+  color: #4facfe;
+  font-weight: 600;
+  font-size: 16px;
+  transform: translate(-50%, -50%) translateY(10px);
+}
+
+.completed-button-text.text-fade-in {
+  opacity: 1;
+  transform: translate(-50%, -50%) translateY(0);
+}
+
+.completed-status:hover {
+  background: rgba(79, 172, 254, 0.15);
+  border-color: rgba(79, 172, 254, 0.3);
+  transform: translateY(-2px);
 }
 
 .theme-dark .completed-status {
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.2);
   color: #ffffff;
+}
+
+.theme-dark .completed-text {
+  color: #ffffff;
+}
+
+.theme-dark .completed-button-text {
+  color: #4facfe;
+}
+
+.theme-dark .completed-status:hover {
+  background: rgba(79, 172, 254, 0.2);
+  border-color: rgba(79, 172, 254, 0.4);
 }
 
 /* 响应式设计 */
@@ -846,11 +1037,11 @@ defineExpose({
   .timer-collapsed, .status-display {
     padding: 10px 14px !important;
     border-radius: 20px !important;
-    min-width: 100px !important;
+    min-width: 180px !important;
   }
   
   .timer-jelly-hover, .status-jelly-hover {
-    min-width: 140px !important;
+    min-width: 200px !important;
     padding: 12px 16px !important;
   }
   
@@ -866,17 +1057,23 @@ defineExpose({
     width: 100%;
   }
   
-  .custom-button {
-    width: 100%;
-    min-width: auto;
-    height: 44px;
-    font-size: 15px;
+  .expanded-status {
+    width: 100% !important;
+    min-width: auto !important;
+    height: 48px !important;
+    font-size: 15px !important;
   }
   
   .completed-status {
     width: 100%;
     min-width: auto;
     border-radius: 16px;
+    padding: 12px 24px;
+    height: 48px;
+  }
+
+  .completed-text, .completed-button-text {
+    font-size: 14px !important;
   }
 }
 
@@ -899,11 +1096,11 @@ defineExpose({
   .timer-collapsed, .status-display {
     padding: 8px 12px !important;
     border-radius: 18px !important;
-    min-width: 90px !important;
+    min-width: 160px !important;
   }
   
   .timer-jelly-hover, .status-jelly-hover {
-    min-width: 120px !important;
+    min-width: 180px !important;
     padding: 10px 14px !important;
   }
   
@@ -925,15 +1122,20 @@ defineExpose({
     border-radius: 10px !important;
   }
   
-  .custom-button {
-    height: 42px;
-    font-size: 14px;
+  .expanded-status {
+    height: 48px !important;
+    font-size: 14px !important;
   }
   
   .completed-status {
-    padding: 14px 20px;
+    padding: 12px 20px;
     font-size: 15px;
     border-radius: 14px;
+    height: 48px;
+  }
+
+  .completed-text, .completed-button-text {
+    font-size: 13px !important;
   }
 }
 </style>
