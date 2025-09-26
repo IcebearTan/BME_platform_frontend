@@ -23,6 +23,8 @@
 <script setup>
 import { computed, toRefs } from 'vue'
 
+// 这是一个基础的八边形三角形形状组件
+// 用于构建更复杂的座位图布局
 const props = defineProps({
   size: { type: Number, default: 240 },          // svg 宽高
   radius: { type: Number, default: 86 },         // 外接圆半径（顶点距离中心）

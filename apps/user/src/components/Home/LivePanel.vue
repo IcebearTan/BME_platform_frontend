@@ -16,6 +16,13 @@
       </el-icon>
     </div>
 
+    <!-- 主题调试按钮 -->
+    <div class="theme-debug-button" @click="toggleThemeDebug" title="点击切换主题（调试用）">
+      <el-icon class="theme-icon">
+        <component :is="isDarkMode ? 'Sunny' : 'Moon'" />
+      </el-icon>
+    </div>
+
     <!-- 展开/折叠控制按钮 -->
     <!-- <div class="panel-header" >
       <h2>实时状态面板</h2>
@@ -64,25 +71,72 @@
 
         <!-- 右侧：实时座位图 -->
         <div class="right-section">
+          <!-- 房间标题和切换 -->
+          <transition name="room-header-expand" appear>
+            <div v-if="isExpanded" class="room-header">
+              <transition name="online-stats-expand" appear>
+                <div v-if="isExpanded" class="online-stats" 
+                     :class="{ 'invisible-placeholder': currentRoom.id === '110' }" 
+                     v-show="currentRoom.available">
+                  <span class="stats-label">在线</span>
+                  <span class="stats-value">{{ onlineCount }}/{{ totalSeats }}</span>
+                </div>
+              </transition>
+              
+              <transition name="room-title-expand" appear>
+                <h2 v-if="isExpanded" class="room-title">{{ currentRoom.name }}实况</h2>
+              </transition>
+              
+              <transition name="room-switcher-expand" appear>
+                <div v-if="isExpanded" class="room-switcher-container">
+                  <div 
+                    class="room-switcher-track"
+                    @click="handleTrackClick"
+                  >
+                    <div 
+                      class="room-switcher-slider"
+                      :style="{ transform: `translateX(${currentRoom.id === '106' ? '0%' : '100%'})` }"
+                    ></div>
+                    <div class="room-switcher-options">
+                      <div 
+                        v-for="room in availableRooms"
+                        :key="room.id"
+                        class="room-option"
+                        :class="{ 
+                          active: currentRoom.id === room.id,
+                          disabled: !room.available
+                        }"
+                      >
+                        {{ room.name }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </transition>
+            </div>
+          </transition>
+          
           <transition name="seatmap-expand" appear>
-            <div v-if="isExpanded" class="seat-map-card" key="seatmap-expanded">
-              <div class="card-header">
-                <h4>实时座位图</h4>
-                <div class="last-update">
-                  <el-icon><Refresh /></el-icon>
-                  <span>最后更新: {{ lastUpdateTime }}</span>
+            <div v-if="isExpanded" key="seatmap-expanded">
+              <SeatMap
+                v-if="currentRoom.available"
+                ref="seatMapRef"
+                :octagon-size="seatMapConfig.size"
+                :octagon-radius="seatMapConfig.radius"
+                :octagon-corner-radius="8"
+                :octagon-gap="seatMapConfig.gap"
+                :is-dark-mode="isDarkMode"
+                :show-layout-controls="false"
+                :current-room-id="currentRoom.id"
+                default-layout="octagon"
+              />
+              <div v-else class="room-unavailable">
+                <div class="unavailable-content">
+                  <el-icon class="unavailable-icon"><Refresh /></el-icon>
+                  <h3>{{ currentRoom.name }}座位图</h3>
+                  <p>功能开发中，敬请期待...</p>
                 </div>
               </div>
-              
-              <RealTimeSeatMap
-                :size="200"
-                :radius="110"
-                :cornerRadius="6"
-                :gap="20"
-                :equilateral="false"
-                :triangleSize="10"
-                uniformColor="#fff"
-              />
             </div>
           </transition>
         </div>
@@ -176,13 +230,15 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { ElIcon, ElTag, ElButton, ElDialog } from 'element-plus'
 import { 
   ArrowDown, 
-  Refresh
+  Refresh,
+  Sunny,
+  Moon
 } from '@element-plus/icons-vue'
-import RealTimeSeatMap from './RealTimeSeatMap.vue'
+import SeatMap from './SeatMap.vue'
 import UserGreeting from './UserGreeting.vue'
 import CheckinStatus from './CheckinStatus.vue'
 
@@ -201,7 +257,7 @@ const props = defineProps({
 })
 
 // Emits
-const emit = defineEmits(['checkin', 'checkout', 'seat-click', 'room-change'])
+const emit = defineEmits(['checkin', 'checkout', 'room-change'])
 
 // 响应式数据
 const isExpanded = ref(props.defaultExpanded)
@@ -211,10 +267,13 @@ const checkoutLoading = ref(false)
 const panelRef = ref(null)
 const checkinStatusRef = ref(null)
 const checkinStatusCollapsedRef = ref(null)
+const seatMapRef = ref(null)
 const dynamicHeight = ref('300px')
 const checkinDialogVisible = ref(false)
 const checkoutDialogVisible = ref(false)
 const checkoutStudyDuration = ref('')
+const onlineCount = ref(2)
+const totalSeats = ref(5)
 
 // 白天黑夜模式
 const isDarkMode = ref(false)
@@ -237,12 +296,6 @@ const testThemeAtTime = (hour) => {
   const isDay = hour >= 6 && hour < 18
   isDarkMode.value = !isDay
   console.log(`测试时间: ${hour}:00, 模式: ${isDarkMode.value ? '夜间' : '白天'}`)
-}
-
-// 暴露给全局用于测试（在浏览器控制台中可以调用）
-if (typeof window !== 'undefined') {
-  window.testTheme = testThemeAtTime
-  window.resetTheme = checkTimeTheme
 }
 
 // 计算动态高度
@@ -287,6 +340,36 @@ const weatherInfo = ref({
   description: '晴',
   temperature: 25
 })
+
+// 房间配置
+const availableRooms = ref([
+  { id: '106', name: '106', available: true },
+  { id: '110', name: '110', available: true }
+])
+
+const currentRoom = ref(availableRooms.value[0])
+
+// 座位图大小配置
+const seatMapConfig = ref({
+  size: 160,
+  radius: 100,
+  gap: 20
+})
+
+// 座位图大小预设
+const seatMapPresets = {
+  small: { size: 180, radius: 45, gap: 15 },
+  medium: { size: 240, radius: 60, gap: 20 },
+  large: { size: 400, radius: 100, gap: 25 }
+}
+
+// 切换座位图大小
+const changeSeatMapSize = (preset) => {
+  if (seatMapPresets[preset]) {
+    seatMapConfig.value = { ...seatMapPresets[preset] }
+    console.log(`🗺️ 座位图大小已调整为: ${preset}`, seatMapConfig.value)
+  }
+}
 
 // 打卡信息
 const checkinInfo = ref({
@@ -380,12 +463,52 @@ function handleCheckoutEvent(checkoutData) {
   emit('checkout', checkoutData)
 }
 
-function handleSeatClick(seat) {
-  emit('seat-click', seat)
+// 房间切换方法
+function switchRoom(roomId) {
+  console.log(`🔄 switchRoom 被调用，roomId: ${roomId}`)
+  
+  const room = availableRooms.value.find(r => r.id === roomId)
+  console.log('找到的房间:', room)
+  
+  if (room) {
+    const oldRoom = currentRoom.value
+    currentRoom.value = room
+    console.log(`🏠 切换成功: ${oldRoom.name} → ${room.name}`)
+    emit('room-change', roomId)
+  } else {
+    console.log('❌ 房间切换失败: 房间不存在')
+  }
+}
+
+// 处理滑块轨道点击
+function handleTrackClick() {
+  console.log('🖱️ 滑块被点击了')
+  console.log('当前房间:', currentRoom.value)
+  console.log('可用房间:', availableRooms.value)
+  
+  // 找到另一个可用的房间
+  const otherRoom = availableRooms.value.find(room => 
+    room.id !== currentRoom.value.id && room.available
+  )
+  
+  console.log('找到的其他房间:', otherRoom)
+  
+  if (otherRoom) {
+    console.log(`准备切换到房间: ${otherRoom.name}`)
+    switchRoom(otherRoom.id)
+  } else {
+    console.log('没有找到其他可用房间')
+  }
 }
 
 function handleRoomChange(roomId) {
   emit('room-change', roomId)
+}
+
+// 主题调试切换方法
+function toggleThemeDebug() {
+  isDarkMode.value = !isDarkMode.value
+  console.log(`🎨 手动切换主题: ${isDarkMode.value ? '🌙 夜间模式' : '☀️ 白天模式'}`)
 }
 
 // 定时器
@@ -425,6 +548,28 @@ onUnmounted(() => {
   }
   window.removeEventListener('resize', calculateExpandedHeight)
 })
+
+// 监听 SeatMap 的在线人数变化
+watch(() => seatMapRef.value?.onlineCount, (newCount) => {
+  if (newCount !== undefined) {
+    onlineCount.value = newCount
+  }
+}, { immediate: true })
+
+watch(() => seatMapRef.value?.totalSeats, (newTotal) => {
+  if (newTotal !== undefined) {
+    totalSeats.value = newTotal
+  }
+}, { immediate: true })
+
+// 暴露给全局用于测试（在浏览器控制台中可以调用）
+if (typeof window !== 'undefined') {
+  window.testTheme = testThemeAtTime
+  window.resetTheme = checkTimeTheme
+  window.changeSeatMapSize = changeSeatMapSize
+  window.getSeatMapConfig = () => seatMapConfig.value
+  window.seatMapPresets = seatMapPresets
+}
 </script>
 
 <style scoped>
@@ -579,6 +724,59 @@ onUnmounted(() => {
 
 .panel-toggle-button .toggle-icon.rotated {
   transform: rotate(180deg);
+}
+
+/* 主题调试按钮样式 */
+.theme-debug-button {
+  position: absolute;
+  top: 20px;
+  right: 70px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.theme-light .theme-debug-button {
+  background: linear-gradient(135deg, #ffd700, #ffa500);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+}
+
+.theme-dark .theme-debug-button {
+  background: linear-gradient(135deg, #4a5568, #2d3748);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.theme-debug-button:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.theme-light .theme-debug-button:hover {
+  box-shadow: 0 4px 16px rgba(255, 215, 0, 0.4);
+}
+
+.theme-dark .theme-debug-button:hover {
+  box-shadow: 0 4px 16px rgba(255, 255, 255, 0.2);
+}
+
+.theme-debug-button .theme-icon {
+  font-size: 18px;
+  transition: all 0.3s ease;
+}
+
+.theme-light .theme-debug-button .theme-icon {
+  color: #fff;
+}
+
+.theme-dark .theme-debug-button .theme-icon {
+  color: #ffd700;
 }
 
 /* @keyframes sunlight-dance {
@@ -760,6 +958,319 @@ onUnmounted(() => {
   height: 100%;
 }
 
+/* 房间头部样式 */
+.room-header {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 16px 20px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  position: relative;
+}
+
+.theme-light .room-header {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 4px 16px rgba(135, 206, 235, 0.15);
+}
+
+.theme-dark .room-header {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 4px 16px rgba(255, 255, 255, 0.05);
+}
+
+.room-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-align: center;
+  grid-column: 2;
+}
+
+.theme-light .room-title {
+  background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.theme-dark .room-title {
+  background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* 在线人数统计样式（左侧固定位置） */
+.online-stats {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(15px);
+  border-radius: 12px;
+  padding: 10px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+}
+
+.online-stats:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(111, 218, 163, 0.2);
+}
+
+.theme-light .online-stats {
+  background: rgba(255, 255, 255, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 2px 8px rgba(135, 206, 235, 0.1);
+}
+
+.theme-dark .online-stats {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 2px 8px rgba(255, 255, 255, 0.05);
+}
+
+.online-stats .stats-label {
+  font-weight: 500;
+  opacity: 0.8;
+  font-size: 13px;
+}
+
+.online-stats .stats-value {
+  font-weight: 700;
+  color: #6fdaa3;
+  font-size: 16px;
+}
+
+.theme-dark .online-stats .stats-value {
+  color: #ffffff;
+}
+
+/* 不可见占位符样式 - 保持布局但隐藏内容 */
+.online-stats.invisible-placeholder {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* 网格布局列定位 */
+.online-stats {
+  grid-column: 1;
+  justify-self: start;
+}
+
+.room-switcher-container {
+  grid-column: 3;
+  justify-self: end;
+}
+
+.room-switcher-container {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  grid-column: 3;
+  justify-self: end;
+}
+
+.room-switcher-track {
+  position: relative;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(20px);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 4px;
+  width: 120px;
+  height: 36px;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.room-switcher-track:hover {
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.15), 0 0 10px rgba(111, 218, 163, 0.3);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.theme-light .room-switcher-track {
+  background: rgba(255, 255, 255, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.theme-dark .room-switcher-track {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.05);
+}
+
+.room-switcher-slider {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: calc(50% - 2px);
+  height: calc(100% - 4px);
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(30px);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.theme-light .room-switcher-slider {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.theme-dark .room-switcher-slider {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 2px 8px rgba(255, 255, 255, 0.1);
+}
+
+.room-switcher-options {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+}
+
+.room-option {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border-radius: 16px;
+  user-select: none;
+  position: relative;
+}
+
+.room-option:not(.disabled):hover {
+  /* background: rgba(255, 255, 255, 0.15); */
+  transform: scale(1.02);
+}
+
+.room-option:not(.disabled):active {
+  transform: scale(0.98);
+}
+
+.room-option.active {
+  color: #333333;
+  font-weight: 700;
+}
+
+.room-option.active {
+  color: #1a365d;
+  text-shadow: none;
+}
+
+.theme-light .room-option {
+  color: rgba(26, 54, 93, 0.7);
+}
+
+.theme-dark .room-option {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.theme-light .room-option.active {
+  color: #1a365d;
+}
+
+.theme-dark .room-option.active {
+  color: #ffffff;
+}
+
+.room-option.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.room-option.disabled:hover {
+  background: transparent;
+}
+
+/* 房间不可用状态样式 */
+.room-unavailable {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 300px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.theme-light .room-unavailable {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 8px 32px rgba(135, 206, 235, 0.15);
+}
+
+.theme-dark .room-unavailable {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 8px 32px rgba(255, 255, 255, 0.05);
+}
+
+.unavailable-content {
+  text-align: center;
+  color: #666;
+}
+
+.theme-light .unavailable-content {
+  color: #4a5568;
+}
+
+.theme-dark .unavailable-content {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.unavailable-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.6;
+  animation: rotate 2s linear infinite;
+}
+
+@keyframes rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.unavailable-content h3 {
+  margin: 0 0 8px 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.unavailable-content p {
+  margin: 0;
+  font-size: 14px;
+  opacity: 0.8;
+}
+
 .greeting-card{
   background: rgba(255, 255, 255, 0.15);
   backdrop-filter: blur(30px);
@@ -776,7 +1287,7 @@ onUnmounted(() => {
   animation: expand 0.5s ease;
 }
 
-.greeting-card, .seat-map-card {
+.greeting-card {
   background: rgba(255, 255, 255, 0.15);
   backdrop-filter: blur(30px);
   border-radius: 24px;
@@ -784,9 +1295,12 @@ onUnmounted(() => {
   max-height: 575px;
   display: flex;
   flex-direction: column;
+  align-items: center;
+  justify-content: center;
   border: 1px solid rgba(255, 255, 255, 0.2);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
+  animation: expand 0.5s ease;
 }
 @keyframes expand {
   0% {
@@ -800,25 +1314,21 @@ onUnmounted(() => {
   }
 }
 
-.theme-light .greeting-card, 
-.theme-light .seat-map-card {
+.theme-light .greeting-card {
   background: rgba(255, 255, 255, 0.25);
   border: 1px solid rgba(255, 255, 255, 0.3);
   color: #1a365d;
   box-shadow: 0 8px 32px rgba(135, 206, 235, 0.2);
 }
 
-.theme-dark .greeting-card, 
-.theme-dark .seat-map-card {
+.theme-dark .greeting-card {
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.15);
   color: white;
   box-shadow: 0 8px 32px rgba(255, 255, 255, 0.05);
 }
 
-.seat-map-card {
-  position: relative;
-}
+/* 移除了 seat-map-card 样式，现在由 SeatMap 组件自己处理 */
 
 .card-header {
   display: flex;
@@ -914,7 +1424,7 @@ onUnmounted(() => {
     font-size: 18px;
   }
   
-  .greeting-card, .seat-map-card {
+  .greeting-card {
     padding: 24px;
     border-radius: 20px;
   }
@@ -961,7 +1471,7 @@ onUnmounted(() => {
     min-height: 140px;
   }
   
-  .greeting-card, .seat-map-card {
+  .greeting-card {
     padding: 20px;
     border-radius: 16px;
   }
@@ -1027,11 +1537,55 @@ onUnmounted(() => {
 
 .seatmap-expand-enter-active {
   transition: all 0.9s cubic-bezier(0.34, 1.56, 0.64, 1);
-  transition-delay: 0.5s;
+  transition-delay: 0.7s;
 }
 
 .seatmap-expand-enter-from {
   opacity: 0;
   transform: scale(0.85) translateX(40px) rotateY(-10deg);
+}
+
+/* 房间头部展开动画 */
+.room-header-expand-enter-active {
+  transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition-delay: 0.2s;
+}
+
+.room-header-expand-enter-from {
+  opacity: 0;
+  transform: scale(0.9) translateY(-15px);
+}
+
+/* 在线人数统计动画 */
+.online-stats-expand-enter-active {
+  transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition-delay: 0.3s;
+}
+
+.online-stats-expand-enter-from {
+  opacity: 0;
+  transform: scale(0.8) translateX(-30px);
+}
+
+/* 房间标题动画 */
+.room-title-expand-enter-active {
+  transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition-delay: 0.4s;
+}
+
+.room-title-expand-enter-from {
+  opacity: 0;
+  transform: scale(0.9) translateY(-10px);
+}
+
+/* 房间切换器动画 */
+.room-switcher-expand-enter-active {
+  transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition-delay: 0.5s;
+}
+
+.room-switcher-expand-enter-from {
+  opacity: 0;
+  transform: scale(0.8) translateX(30px);
 }
 </style>
