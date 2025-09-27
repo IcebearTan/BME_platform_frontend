@@ -58,9 +58,9 @@
                 今日已累计：{{ checkinInfo.studyDuration }}
               </span>
               <span class="status-text" v-else>
-                点击开始
+                今日还未打卡哦
               </span>
-              <span class="status-icon" v-if="!checkinInfo.checkedOut">▶</span>
+              <span class="status-icon" v-if="!checkinInfo.checkedOut && (!checkinInfo.totalDuration && !checkinInfo.studyDuration)">▶</span>
             </div>
             <!-- 开始/再次学习按钮显示 -->
             <div class="status-button" :class="{ 'button-visible': isHovering }">
@@ -140,7 +140,12 @@
           <div class="status-content content-switching">
             <!-- 累计时长显示 -->
             <div class="status-info" :class="{ 'info-hidden': completedHovering }">
-              <span class="status-text">今日已累计：{{ checkinInfo.totalDuration || checkinInfo.studyDuration || '0h 0m' }}</span>
+              <span class="status-text" v-if="checkinInfo.totalDuration || checkinInfo.studyDuration">
+                今日已累计：{{ checkinInfo.totalDuration || checkinInfo.studyDuration }}
+              </span>
+              <span class="status-text" v-else>
+                今日还未打卡哦
+              </span>
             </div>
             <!-- 开始学习按钮显示 -->
             <div class="status-button" :class="{ 'button-visible': completedHovering }">
@@ -194,7 +199,7 @@ const completedHovering = ref(false)
 
 // 监视 checkinInfo 变化
 watch(() => props.checkinInfo, (newInfo) => {
-  console.log('CheckinStatus received checkinInfo:', newInfo)
+  // console.log('CheckinStatus received checkinInfo:', newInfo)
 }, { deep: true, immediate: true })
 
 // 动画控制方法
@@ -224,7 +229,10 @@ const updateStudyDuration = () => {
   
   const now = new Date()
   const startTime = new Date(studyStartTime.value)
-  const diff = now - startTime
+  
+  // 直接在开始时间基础上减去5秒，让计时器从5秒开始
+  const adjustedStartTime = new Date(startTime.getTime() - 5000)
+  const diff = now - adjustedStartTime
   
   const hours = Math.floor(diff / (1000 * 60 * 60))
   const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
@@ -602,12 +610,12 @@ defineExpose({
 
 /* 危险状态（正在学习中）的样式 */
 .danger-style {
-  background: linear-gradient(135deg, #e53e3e 0%, #c53030 100%) !important;
+  background: linear-gradient(135deg, #ef4242 0%, #df3939 100%) !important;
   color: white !important;
 }
 
 .danger-style.status-jelly-hover {
-  background: linear-gradient(135deg, #c53030 0%, #9c2a2a 100%) !important;
+  background: linear-gradient(135deg, #ef4242 0%, #df3939 100%) !important;
   border-color: rgba(197, 48, 48, 0.3) !important;
   box-shadow: 0 12px 40px rgba(229, 62, 62, 0.4) !important;
 }

@@ -1,9 +1,9 @@
 <template>
   <div class="sidebar-content">
     <!-- 每日打卡组件 -->
-    <!-- <div class="sidebar-section">
+    <div class="sidebar-section">
       <DailyAttendence />
-    </div> -->
+    </div>
     
     <!-- 出勤排行榜 -->
     <div class="sidebar-section">

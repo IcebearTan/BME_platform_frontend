@@ -38,7 +38,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, h, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import CheckinStatus from './CheckinStatus.vue'
 import api from '../../api'
@@ -157,7 +157,6 @@ const fetchCheckStatus = async () => {
       url: '/records',
       method: 'get'
     })
-    console.log('records data:', res.data)
     formeCheckStatus.value = [
       ...res.data.previous_month.records,
       ...res.data.current_month.records,
@@ -176,7 +175,6 @@ const fetchLatestCheckTime = async () => {
       url: '/lateset_checktime',
       method: 'get'
     })
-    console.log('latest_checktime data:', res.data)
     return res.data
   } catch (error) {
     console.error('获取今日最新打卡状态失败:', error)
@@ -187,7 +185,6 @@ const fetchLatestCheckTime = async () => {
 // 获取最新打卡状态并更新界面
 const getLatesetCheckStatus = async () => {
   todayRecord.value = await fetchLatestCheckTime()
-  console.log('今日最新打卡状态:', todayRecord.value)
   
   if (!todayRecord.value) {
     isVisible.value = false
@@ -202,11 +199,9 @@ const getLatesetCheckStatus = async () => {
       checkTime.value = serverCheckTime
     } else {
       // 已签到且已签退，状态为"已完成"
-      console.log('今日打卡已完成')
     }
   } else {
     // 没有打卡记录，初始状态
-    console.log('今日未打卡')
   }
   
   // 根据服务器数据更新界面显示状态
@@ -243,29 +238,64 @@ const isOvertime = () => {
 
 // 计算本次签到的持续时间
 const calculateThisTimeDuration = () => {
-  if (!todayRecord.value || !todayRecord.value.check_in_time || todayRecord.value.check_out_time) {
-    return '0h 0m 0s' // 未签到或已签退
+  // 首先检查是否有有效的打卡记录
+  if (!todayRecord.value || !todayRecord.value.has_record || !todayRecord.value.check_in_time || todayRecord.value.check_out_time) {
+    return null // 未签到、已签退或没有记录时返回null
   }
 
-  const checkInTime = new Date(todayRecord.value.check_in_time)
+  let checkInTime = new Date(todayRecord.value.check_in_time)
   
   if (isNaN(checkInTime.getTime())) {
     console.warn('无效的签到时间:', todayRecord.value.check_in_time)
-    return '0h 0m 0s'
+    return null
   }
   
-  const duration = nowTime.value - checkInTime
+  let duration = nowTime.value - checkInTime
   
+  // 如果时间差为负数，说明存在时间同步问题，调整签到时间
   if (duration < 0) {
-    console.warn('计算出负数时长，服务器时间可能有问题')
-    return '0h 0m 0s'
+    checkInTime = new Date(nowTime.value.getTime() - 1000) // 调整为1秒前
+    duration = nowTime.value - checkInTime
   }
 
   const hours = Math.floor(duration / (1000 * 60 * 60))
   const minutes = Math.floor((duration % (1000 * 60 * 60)) / (1000 * 60))
   const seconds = Math.floor((duration % (1000 * 60)) / 1000)
 
-  return `${hours}h ${minutes}m ${seconds}s`
+  const result = `${hours}h ${minutes}m ${seconds}s`
+  return result
+}
+
+// 计算本次签到的实际学习时长（用于签退后显示）
+const calculateLastSessionDuration = () => {
+  // 必须有完整的签到签退记录
+  if (!todayRecord.value || !todayRecord.value.has_record || 
+      !todayRecord.value.check_in_time || !todayRecord.value.check_out_time) {
+    return null
+  }
+
+  const checkInTime = new Date(todayRecord.value.check_in_time)
+  const checkOutTime = new Date(todayRecord.value.check_out_time)
+  
+  if (isNaN(checkInTime.getTime()) || isNaN(checkOutTime.getTime())) {
+    console.warn('无效的签到或签退时间:', {
+      checkInTime: todayRecord.value.check_in_time,
+      checkOutTime: todayRecord.value.check_out_time
+    })
+    return null
+  }
+  
+  const sessionDuration = checkOutTime - checkInTime
+  
+  if (sessionDuration < 10000) { // 小于10秒
+    return null
+  }
+  
+  const hours = Math.floor(sessionDuration / (1000 * 60 * 60))
+  const minutes = Math.floor((sessionDuration % (1000 * 60 * 60)) / (1000 * 60))
+
+  const result = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`
+  return result
 }
 
 // 解析时长字符串为毫秒
@@ -281,19 +311,20 @@ function parseDurationToMilliseconds(duration) {
 
 // 计算今日总签到时长
 const calculateThisDayDuration = () => {
+  // 首先检查是否有打卡记录，按照DailyAttendence的逻辑
+  if (!todayRecord.value || !todayRecord.value.has_record) {
+    return null
+  }
+  
+  // 额外安全检查：如果没有check_in_time也返回null
+  if (!todayRecord.value.check_in_time) {
+    return null
+  }
+  
   let totalDurationMilliseconds = 0
   
-  // 首先获取已完成的打卡时长（从服务器数据）
-  if (todayRecord.value && todayRecord.value.duration) {
-    if (typeof todayRecord.value.duration === 'number') {
-      // 如果是数字，假设是小时数，转换为毫秒
-      totalDurationMilliseconds = todayRecord.value.duration * 60 * 60 * 1000
-    } else if (typeof todayRecord.value.duration === 'string') {
-      // 如果是字符串，使用原有的解析函数
-      totalDurationMilliseconds = parseDurationToMilliseconds(todayRecord.value.duration)
-    }
-  } else {
-    // 如果最新接口没有 duration，尝试从历史记录获取
+  // 如果已经签退，直接从历史记录获取最新的累计时间
+  if (todayRecord.value.check_out_time) {
     const today = new Date()
     const todayDateString = today.toISOString().split('T')[0]
     const historyRecord = formeCheckStatus.value.find(record => record.date === todayDateString)
@@ -301,33 +332,61 @@ const calculateThisDayDuration = () => {
     if (historyRecord && historyRecord.total_duration) {
       totalDurationMilliseconds = parseDurationToMilliseconds(historyRecord.total_duration)
     }
-  }
-
-  // 如果当前正在签到中，加上本次签到的时长
-  if (todayRecord.value && todayRecord.value.check_in_time && !todayRecord.value.check_out_time) {
-    const checkInTime = new Date(todayRecord.value.check_in_time)
-    
-    if (!isNaN(checkInTime.getTime())) {
-      const currentSessionDuration = nowTime.value - checkInTime
-      
-      if (currentSessionDuration > 0) {
-        totalDurationMilliseconds += currentSessionDuration
-      } else {
-        console.warn('当前签到时长为负数，跳过累加:', {
-          checkInTime: checkInTime.toISOString(),
-          nowTime: nowTime.value.toISOString(),
-          duration: currentSessionDuration
-        })
+  } else {
+    // 如果还在签到中，使用 todayRecord 的 duration + 当前会话时间
+    if (todayRecord.value.duration) {
+      if (typeof todayRecord.value.duration === 'number') {
+        // 如果是数字，假设是小时数，转换为毫秒
+        totalDurationMilliseconds = todayRecord.value.duration * 60 * 60 * 1000
+      } else if (typeof todayRecord.value.duration === 'string') {
+        // 如果是字符串，使用原有的解析函数
+        totalDurationMilliseconds = parseDurationToMilliseconds(todayRecord.value.duration)
       }
     } else {
-      console.warn('无效的签到时间，跳过累加:', todayRecord.value.check_in_time)
+      // 如果最新接口没有 duration，尝试从历史记录获取
+      const today = new Date()
+      const todayDateString = today.toISOString().split('T')[0]
+      const historyRecord = formeCheckStatus.value.find(record => record.date === todayDateString)
+      
+      if (historyRecord && historyRecord.total_duration) {
+        totalDurationMilliseconds = parseDurationToMilliseconds(historyRecord.total_duration)
+      }
     }
+    
+    // 如果当前正在签到中，加上本次签到的时长
+    if (todayRecord.value.check_in_time && !todayRecord.value.check_out_time) {
+      const checkInTime = new Date(todayRecord.value.check_in_time)
+      
+      if (!isNaN(checkInTime.getTime())) {
+        const currentSessionDuration = nowTime.value - checkInTime
+        
+        if (currentSessionDuration > 0) {
+          totalDurationMilliseconds += currentSessionDuration
+        } else {
+          console.warn('当前签到时长为负数，跳过累加:', {
+            checkInTime: checkInTime.toISOString(),
+            nowTime: nowTime.value.toISOString(),
+            duration: currentSessionDuration
+          })
+        }
+      } else {
+        console.warn('无效的签到时间，跳过累加:', todayRecord.value.check_in_time)
+      }
+    }
+  }
+
+  // 强制过滤：如果总时长小于10秒，视为未打卡状态（避免时区差异导致的负数或极小值）
+  const MINIMUM_DURATION_MS = 10 * 1000 // 10秒的毫秒数
+  
+  if (totalDurationMilliseconds < MINIMUM_DURATION_MS) {
+    return null
   }
 
   const hours = Math.floor(totalDurationMilliseconds / (1000 * 60 * 60))
   const minutes = Math.floor((totalDurationMilliseconds % (1000 * 60 * 60)) / (1000 * 60))
 
-  return `${hours}h ${minutes}m`
+  const result = `${hours}h ${minutes}m`
+  return result
 }
 
 // 提交签到
@@ -357,8 +416,10 @@ const submitCheckCode = async (code) => {
       }
 
       isVisible.value = true
+      return true // 明确返回成功状态
     }
   } catch (error) {
+    // 显示错误消息
     if (error?.response?.status === 409) {
       ElMessage({
         type: 'error',
@@ -375,6 +436,8 @@ const submitCheckCode = async (code) => {
         message: error?.response?.data?.message || error,
       })
     }
+    // 重新抛出错误，让调用方能够捕获
+    throw error
   }
 }
 
@@ -393,11 +456,16 @@ const submitCheckOutCode = async (code) => {
         type: 'success',
         message: '签退成功！',
       })
-      // 重新获取最新状态
-      todayRecord.value = await fetchLatestCheckTime()
+      // 重新获取最新状态和历史记录，确保当日累计时间正确显示
+      await Promise.all([
+        fetchLatestCheckTime().then(data => todayRecord.value = data),
+        fetchCheckStatus() // 同时更新历史记录
+      ])
       isVisible.value = false
+      return true // 明确返回成功状态
     }
   } catch (error) {
+    // 显示错误消息
     if (error?.response?.status === 409) {
       ElMessage({
         type: 'error',
@@ -414,45 +482,366 @@ const submitCheckOutCode = async (code) => {
         message: error?.response?.data?.message || error,
       })
     }
+    // 重新抛出错误，让调用方能够捕获
+    throw error
   }
 }
 
 // 显示签到弹窗
 const openCheckin = () => {
-  ElMessageBox.prompt('请输入签到码', '签到', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
+  const codeValue = ref(['', '', '', '', '', ''])
+  let closeDialog = null // 用于存储关闭函数
+  
+  const inputContainer = h('div', { 
+    class: 'verification-code-container',
+    style: {
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: '12px',
+      padding: '24px 0'
+    }
+  }, codeValue.value.map((value, index) => 
+    h('input', {
+      key: index,
+      type: 'text',
+      maxlength: 1,
+      value: value,
+      class: 'verification-digit-input',
+      style: {
+        width: '40px',
+        height: '50px',
+        textAlign: 'center',
+        fontSize: '24px',
+        fontWeight: '600',
+        color: '#2c3e50',
+        background: '#f8f9fa',
+        border: '2px solid #e9ecef',
+        borderRadius: '10px',
+        outline: 'none',
+        transition: 'all 0.3s ease',
+        letterSpacing: '0px'
+      },
+      onInput: async (e) => {
+        const inputValue = e.target.value.replace(/[^0-9]/g, '')
+        e.target.value = inputValue
+        codeValue.value[index] = inputValue
+        
+        // 添加填充状态样式
+        if (inputValue) {
+          e.target.classList.add('input-filled')
+          e.target.classList.remove('input-error')
+        } else {
+          e.target.classList.remove('input-filled', 'input-error')
+        }
+        
+        // 自动跳转到下一个输入框
+        if (inputValue && index < 5) {
+          const nextInput = e.target.parentElement.children[index + 1]
+          if (nextInput) {
+            nextInput.focus()
+          }
+        }
+        
+        // 检查是否输入完成6位数字
+        const fullCode = codeValue.value.join('')
+        if (fullCode.length === 6 && fullCode.replace(/\s/g, '') === fullCode) {
+          // 输入完成，直接调用API验证
+          const container = e.target.parentElement
+          
+          try {
+            await submitCheckCode(fullCode)
+            // API成功，显示成功动画
+            container.classList.add('all-filled')
+            Array.from(container.children).forEach((input, i) => {
+              setTimeout(() => {
+                input.classList.add('input-success')
+                input.classList.remove('input-filled')
+              }, i * 100)
+            })
+            
+            // 成功后关闭弹窗
+            setTimeout(() => {
+              if (closeDialog) {
+                console.log('使用关闭函数关闭签到弹窗')
+                closeDialog()
+              } else {
+                console.log('关闭函数不存在')
+              }
+            }, 600)
+            
+          } catch (error) {
+            // API失败，显示错误动画
+            Array.from(container.children).forEach((input, i) => {
+              setTimeout(() => {
+                input.classList.add('input-error')
+                setTimeout(() => {
+                  input.classList.remove('input-error')
+                  input.value = ''
+                  codeValue.value[i] = ''
+                  input.classList.remove('input-filled')
+                }, 500)
+              }, i * 50)
+            })
+            
+            // 重新聚焦第一个输入框
+            setTimeout(() => {
+              container.children[0]?.focus()
+            }, 800)
+          }
+        }
+      },
+      onKeydown: (e) => {
+        // 退格键处理
+        if (e.key === 'Backspace' && !codeValue.value[index] && index > 0) {
+          const prevInput = e.target.parentElement.children[index - 1]
+          if (prevInput) {
+            prevInput.focus()
+            codeValue.value[index - 1] = ''
+            prevInput.value = ''
+            prevInput.classList.remove('input-filled', 'input-error', 'input-success')
+          }
+        }
+      },
+      onFocus: (e) => {
+        e.target.style.borderColor = '#3498db'
+        e.target.style.background = '#ffffff'
+        e.target.style.transform = 'scale(1.05)'
+        e.target.style.boxShadow = '0 0 0 4px rgba(52, 152, 219, 0.2)'
+      },
+      onBlur: (e) => {
+        if (!codeValue.value[index]) {
+          e.target.style.borderColor = '#e9ecef'
+          e.target.style.background = '#f8f9fa'
+        }
+        e.target.style.transform = 'scale(1)'
+        e.target.style.boxShadow = 'none'
+      }
+    })
+  ))
+
+  const messageBox = ElMessageBox({
+    title: '签到',
+    message: inputContainer,
+    showCancelButton: false,
+    showConfirmButton: false,
+    closeOnClickModal: true,
+    closeOnPressEscape: true,
     lockScroll: false,
-    customClass: 'glass-messagebox',
+    customClass: 'glass-messagebox verification-modal',
   })
-    .then(({ value }) => {
-      submitCheckCode(value)
-    })
-    .catch(() => {
-      ElMessage({
-        type: 'info',
-        message: '取消签到',
-      })
-    })
+
+  // 设置关闭函数 - 直接查找DOM元素关闭
+  closeDialog = () => {
+    // 尝试通过DOM操作关闭弹窗
+    const messageBoxElement = document.querySelector('.glass-messagebox')
+    if (messageBoxElement) {
+      const closeBtn = messageBoxElement.querySelector('.el-message-box__headerbtn')
+      if (closeBtn) {
+        closeBtn.click()
+      } else {
+        // 如果没有关闭按钮，直接移除元素
+        messageBoxElement.remove()
+      }
+    }
+  }
+
+  // 弹窗打开后立即聚焦第一个输入框
+  nextTick(() => {
+    setTimeout(() => {
+      const firstInput = document.querySelector('.glass-messagebox .verification-digit-input')
+      if (firstInput) {
+        firstInput.focus()
+        console.log('已聚焦到第一个输入框')
+      }
+    }, 200)
+  })
+
+  messageBox.catch(() => {
+    // 用户手动关闭弹窗，不需要任何动画
+    console.log('用户关闭了签到弹窗')
+  })
 }
 
 // 显示签退弹窗
 const openCheckout = () => {
-  ElMessageBox.prompt('请输入签退码', '签退', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
+  const codeValue = ref(['', '', '', '', '', ''])
+  let closeDialog = null // 用于存储关闭函数
+  
+  const inputContainer = h('div', { 
+    class: 'verification-code-container',
+    style: {
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: '12px',
+      padding: '24px 0'
+    }
+  }, codeValue.value.map((value, index) => 
+    h('input', {
+      key: index,
+      type: 'text',
+      maxlength: 1,
+      value: value,
+      class: 'verification-digit-input',
+      style: {
+        width: '40px',
+        height: '50px',
+        textAlign: 'center',
+        fontSize: '24px',
+        fontWeight: '600',
+        color: '#2c3e50',
+        background: '#f8f9fa',
+        border: '2px solid #e9ecef',
+        borderRadius: '10px',
+        outline: 'none',
+        transition: 'all 0.3s ease',
+        letterSpacing: '0px'
+      },
+      onInput: async (e) => {
+        const inputValue = e.target.value.replace(/[^0-9]/g, '')
+        e.target.value = inputValue
+        codeValue.value[index] = inputValue
+        
+        // 添加填充状态样式
+        if (inputValue) {
+          e.target.classList.add('input-filled')
+          e.target.classList.remove('input-error')
+        } else {
+          e.target.classList.remove('input-filled', 'input-error')
+        }
+        
+        // 自动跳转到下一个输入框
+        if (inputValue && index < 5) {
+          const nextInput = e.target.parentElement.children[index + 1]
+          if (nextInput) {
+            nextInput.focus()
+          }
+        }
+        
+        // 检查是否输入完成6位数字
+        const fullCode = codeValue.value.join('')
+        if (fullCode.length === 6 && fullCode.replace(/\s/g, '') === fullCode) {
+          // 输入完成，直接调用API验证
+          const container = e.target.parentElement
+          
+          try {
+            await submitCheckOutCode(fullCode)
+            // API成功，显示成功动画
+            container.classList.add('all-filled')
+            Array.from(container.children).forEach((input, i) => {
+              setTimeout(() => {
+                input.classList.add('input-success')
+                input.classList.remove('input-filled')
+              }, i * 100)
+            })
+            
+            // 成功后关闭弹窗
+            setTimeout(() => {
+              if (closeDialog) {
+                console.log('使用关闭函数关闭签退弹窗')
+                closeDialog()
+              } else {
+                console.log('关闭函数不存在')
+              }
+            }, 600)
+            
+          } catch (error) {
+            // API失败，显示错误动画
+            Array.from(container.children).forEach((input, i) => {
+              setTimeout(() => {
+                input.classList.add('input-error')
+                setTimeout(() => {
+                  input.classList.remove('input-error')
+                  input.value = ''
+                  codeValue.value[i] = ''
+                  input.classList.remove('input-filled')
+                }, 500)
+              }, i * 50)
+            })
+            
+            // 重新聚焦第一个输入框
+            setTimeout(() => {
+              container.children[0]?.focus()
+            }, 800)
+          }
+        }
+      },
+      onKeydown: (e) => {
+        // 退格键处理
+        if (e.key === 'Backspace' && !codeValue.value[index] && index > 0) {
+          const prevInput = e.target.parentElement.children[index - 1]
+          if (prevInput) {
+            prevInput.focus()
+            codeValue.value[index - 1] = ''
+            prevInput.value = ''
+            prevInput.classList.remove('input-filled', 'input-error', 'input-success')
+          }
+        }
+      },
+      onFocus: (e) => {
+        e.target.style.borderColor = '#3498db'
+        e.target.style.background = '#ffffff'
+        e.target.style.transform = 'scale(1.05)'
+        e.target.style.boxShadow = '0 0 0 4px rgba(52, 152, 219, 0.2)'
+      },
+      onBlur: (e) => {
+        if (!codeValue.value[index]) {
+          e.target.style.borderColor = '#e9ecef'
+          e.target.style.background = '#f8f9fa'
+        }
+        e.target.style.transform = 'scale(1)'
+        e.target.style.boxShadow = 'none'
+      }
+    })
+  ))
+
+  const messageBox = ElMessageBox({
+    title: '签退',
+    message: inputContainer,
+    showCancelButton: false,
+    showConfirmButton: false,
+    closeOnClickModal: true,
+    closeOnPressEscape: true,
     lockScroll: false,
-    customClass: 'glass-messagebox',
+    customClass: 'glass-messagebox verification-modal',
   })
-    .then(({ value }) => {
-      submitCheckOutCode(value)
-    })
-    .catch(() => {
-      ElMessage({
-        type: 'info',
-        message: '取消签退',
-      })
-    })
+
+  // 设置关闭函数 - 直接查找DOM元素关闭
+  closeDialog = () => {
+    // 尝试通过DOM操作关闭弹窗
+    const messageBoxElement = document.querySelector('.glass-messagebox')
+    if (messageBoxElement) {
+      const closeBtn = messageBoxElement.querySelector('.el-message-box__headerbtn')
+      if (closeBtn) {
+        closeBtn.click()
+      } else {
+        // 如果没有关闭按钮，直接移除元素
+        messageBoxElement.remove()
+      }
+    }
+  }
+
+  // 弹窗打开后立即聚焦第一个输入框
+  nextTick(() => {
+    setTimeout(() => {
+      const firstInput = document.querySelector('.glass-messagebox .verification-digit-input')
+      if (firstInput) {
+        firstInput.focus()
+        console.log('已聚焦到第一个输入框')
+      }
+    }, 200)
+  })
+
+  messageBox.catch(() => {
+    // 用户手动关闭弹窗，不需要任何动画
+    console.log('用户关闭了签退弹窗')
+  })
+
+  // 将关闭方法暴露给输入框使用
+  window.closeCurrentMessageBox = () => {
+    messageBoxPromise.close && messageBoxPromise.close()
+  }
 }
 
 // 计算属性
@@ -484,8 +873,8 @@ const isTodayCheckedComputed = computed(() => {
 
 // 当天累计时长（仅在学习结束后显示）
 const todayTotalHours = computed(() => {
-  // 只有在已签退的情况下才显示当天累计时长
-  if (todayRecord.value && todayRecord.value.check_out_time) {
+  // 只有在已签退且有打卡记录的情况下才显示当天累计时长
+  if (todayRecord.value && todayRecord.value.has_record && todayRecord.value.check_out_time) {
     return calculateThisDayDuration()
   }
   return null
@@ -493,8 +882,8 @@ const todayTotalHours = computed(() => {
 
 // 本次学习时长（正在学习中显示）
 const currentSessionDuration = computed(() => {
-  // 只有在已签到但未签退的情况下才显示本次时长
-  if (todayRecord.value && todayRecord.value.check_in_time && !todayRecord.value.check_out_time) {
+  // 只有在已签到但未签退且有打卡记录的情况下才显示本次时长
+  if (todayRecord.value && todayRecord.value.has_record && todayRecord.value.check_in_time && !todayRecord.value.check_out_time) {
     return calculateThisTimeDuration()
   }
   return null
@@ -551,30 +940,19 @@ const adaptedCheckinInfo = computed(() => {
     checkinTimestamp: isCurrentlyStudying ? new Date(todayRecord.value.check_in_time).getTime() : null,
     checkoutTime: todayRecord.value.check_out_time,
     location: null,
-    // 传递时长信息给CheckinStatus
+    // 传递时长信息给CheckinStatus，确保遵循最小时长阈值
     studyDuration: isCurrentlyStudying 
-      ? calculateThisTimeDuration()  // 正在学习中显示本次时长
+      ? calculateThisTimeDuration()  // 正在学习中显示本次时长（已有阈值验证）
       : hasStudiedToday
-        ? calculateThisDayDuration() // 已签退显示总时长
+        ? calculateLastSessionDuration() // 已签退显示本次学习时长，不是累计时长
         : null,
-    // 始终传递累计时长
-    totalDuration: calculateThisDayDuration()
+    // 修复：只有在有has_record时才调用calculateThisDayDuration，并遵循最小时长阈值
+    totalDuration: (todayRecord.value.has_record && (isCurrentlyStudying || hasStudiedToday)) 
+      ? calculateThisDayDuration()  // 已有阈值验证，会返回null如果时长过短
+      : null
   }
-  
-  // 调试输出
-  console.log('adaptedCheckinInfo:', {
-    isCurrentlyStudying,
-    hasStudiedToday,
-    studyDuration: result.studyDuration,
-    totalDuration: result.totalDuration,
-    checkedOut: result.checkedOut,
-    todayRecord: todayRecord.value
-  })
-  
   return result
-})
-
-// 处理 CheckinStatus 组件的事件
+})// 处理 CheckinStatus 组件的事件
 const handleCheckin = (data) => {
   emit('checkin', data)
 }
@@ -632,7 +1010,6 @@ onMounted(async () => {
     
     try {
       await Promise.all(fetchPromises)
-      console.log('打卡数据获取完成')
     } catch (error) {
       console.error('打卡数据获取失败:', error)
     }
@@ -1218,96 +1595,170 @@ onUnmounted(() => {
   }
 }
 
-/* 透明玻璃弹窗样式 */
+/* 扁平风格弹窗样式 */
 :global(.glass-messagebox) {
-  background: rgba(255, 255, 255, 0.1) !important;
-  backdrop-filter: blur(20px) !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  background: #ffffff !important;
+  backdrop-filter: none !important;
+  border: none !important;
   border-radius: 16px !important;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1) !important;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15) !important;
+}
+
+:global(.glass-messagebox.verification-modal) {
+  min-width: 420px !important;
 }
 
 :global(.glass-messagebox .el-message-box__header) {
   background: transparent !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
-  padding: 20px 24px 16px !important;
+  border-bottom: none !important;
+  padding: 32px 24px 8px !important;
+  text-align: center !important;
 }
 
 :global(.glass-messagebox .el-message-box__title) {
-  color: rgba(255, 255, 255, 0.9) !important;
+  color: #2c3e50 !important;
   font-weight: 600 !important;
-  font-size: 18px !important;
+  font-size: 24px !important;
+  text-align: center !important;
 }
 
 :global(.glass-messagebox .el-message-box__content) {
-  padding: 16px 24px !important;
+  padding: 8px 24px 32px !important;
   background: transparent !important;
+  text-align: center !important;
 }
 
 :global(.glass-messagebox .el-message-box__message) {
-  color: rgba(255, 255, 255, 0.8) !important;
-  font-size: 14px !important;
-}
-
-:global(.glass-messagebox .el-input__wrapper) {
-  background: rgba(255, 255, 255, 0.1) !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
-  border-radius: 8px !important;
-  backdrop-filter: blur(10px) !important;
-  box-shadow: none !important;
-}
-
-:global(.glass-messagebox .el-input__inner) {
-  background: transparent !important;
-  color: rgba(255, 255, 255, 0.9) !important;
-  border: none !important;
-}
-
-:global(.glass-messagebox .el-input__inner::placeholder) {
-  color: rgba(255, 255, 255, 0.5) !important;
+  color: transparent !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  text-align: center !important;
 }
 
 :global(.glass-messagebox .el-message-box__btns) {
-  padding: 16px 24px 20px !important;
-  background: transparent !important;
-  border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+  display: none !important;
 }
 
-:global(.glass-messagebox .el-button) {
-  border-radius: 8px !important;
-  font-weight: 500 !important;
+/* 验证码输入框容器 */
+:global(.verification-code-container) {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  gap: 16px !important;
+  padding: 24px 0 !important;
+}
+
+/* 验证码单个数字输入框 */
+:global(.verification-digit-input) {
+  width: 40px !important;
+  height: 50px !important;
+  text-align: center !important;
+  font-size: 24px !important;
+  font-weight: 600 !important;
+  color: #2c3e50 !important;
+  background: #f8f9fa !important;
+  border: 2px solid #e9ecef !important;
+  border-radius: 10px !important;
+  outline: none !important;
   transition: all 0.3s ease !important;
+  letter-spacing: 0px !important;
 }
 
-:global(.glass-messagebox .el-button--primary) {
-  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%) !important;
-  border: none !important;
-  color: white !important;
+:global(.verification-digit-input:focus) {
+  border-color: #3498db !important;
+  background: #ffffff !important;
+  transform: scale(1.05) !important;
+  box-shadow: 0 0 0 4px rgba(52, 152, 219, 0.2) !important;
 }
 
-:global(.glass-messagebox .el-button--primary:hover) {
-  background: linear-gradient(135deg, #43a3f7 0%, #00ddf7 100%) !important;
-  transform: translateY(-1px) !important;
-  box-shadow: 0 4px 12px rgba(79, 172, 254, 0.4) !important;
+/* 输入完成状态 */
+:global(.verification-digit-input.input-filled) {
+  border-color: #27ae60 !important;
+  background: #ffffff !important;
+  color: #27ae60 !important;
 }
 
-:global(.glass-messagebox .el-button--default) {
-  background: rgba(255, 255, 255, 0.1) !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
-  color: rgba(255, 255, 255, 0.8) !important;
-  backdrop-filter: blur(10px) !important;
+/* 输入错误状态 */
+:global(.verification-digit-input.input-error) {
+  border-color: #e74c3c !important;
+  background: #ffffff !important;
+  color: #e74c3c !important;
+  animation: shake 0.5s ease-in-out !important;
 }
 
-:global(.glass-messagebox .el-button--default:hover) {
-  background: rgba(255, 255, 255, 0.2) !important;
-  border-color: rgba(255, 255, 255, 0.3) !important;
-  transform: translateY(-1px) !important;
-  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.1) !important;
+/* 成功动画 */
+:global(.verification-digit-input.input-success) {
+  border-color: #27ae60 !important;
+  background: #ffffff !important;
+  color: #27ae60 !important;
+  animation: pulse-success 0.6s ease-in-out !important;
+}
+
+/* 抖动动画（错误反馈） */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-8px); }
+  20%, 40%, 60%, 80% { transform: translateX(8px); }
+}
+
+/* 脉冲动画（成功反馈） */
+@keyframes pulse-success {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); box-shadow: 0 0 0 8px rgba(39, 174, 96, 0.3); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(39, 174, 96, 0); }
+}
+
+/* 容器成功动画 */
+:global(.verification-code-container.all-filled) {
+  animation: container-success 0.8s ease-in-out !important;
+}
+
+@keyframes container-success {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.02); }
+  100% { transform: scale(1); }
 }
 
 /* 遮罩层样式 */
 :global(.el-overlay) {
   background: rgba(0, 0, 0, 0.3) !important;
-  backdrop-filter: blur(4px) !important;
+  backdrop-filter: none !important;
+}
+
+/* 响应式适配 */
+@media (max-width: 768px) {
+  :global(.glass-messagebox.verification-modal) {
+    min-width: 350px !important;
+    margin: 20px !important;
+  }
+  
+  :global(.verification-code-container) {
+    gap: 12px !important;
+    padding: 20px 0 !important;
+  }
+  
+  :global(.verification-digit-input) {
+    width: 36px !important;
+    height: 46px !important;
+    font-size: 22px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  :global(.glass-messagebox.verification-modal) {
+    min-width: 320px !important;
+    margin: 16px !important;
+  }
+  
+  :global(.verification-code-container) {
+    gap: 8px !important;
+    padding: 16px 0 !important;
+  }
+  
+  :global(.verification-digit-input) {
+    width: 34px !important;
+    height: 44px !important;
+    font-size: 20px !important;
+  }
 }
 </style>
