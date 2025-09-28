@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { ElMessage } from 'element-plus'
 import api from '../../api';
 
 const currentCategory = ref('');
@@ -53,6 +54,24 @@ const isGetMedal = (getTime) => {
 onMounted(() => {
   fetchMedals()
 })
+
+// 佩戴勋章，向后端 POST /user/medal_wear，携带 Medal_Id
+const wearMedal = async (medal) => {
+  try {
+    const res = await api.post('/user/medal_wear', { Medal_Id: medal.Medal_Id })
+    // 假定后端返回 { code: 200, msg: '...' } 或类似结构
+    if (res?.data?.code === 200) {
+      ElMessage.success(res.data.msg || '佩戴成功')
+      // 可选：刷新勋章列表以确保状态同步
+      fetchMedals()
+    } else {
+      ElMessage.error(res?.data?.msg || '佩戴失败')
+    }
+  } catch (error) {
+    console.error('wearMedal error', error)
+    ElMessage.error('请求失败，请稍后重试')
+  }
+}
 </script>
 
 <template>
@@ -107,7 +126,7 @@ onMounted(() => {
       <div 
         class="medal-card" 
         v-for="medal in filteredMedals" 
-        :key="medal.id"
+        :key="medal.Medal_Id"
         :class="{ 'medal-earned': medal.Get_Time }"
       >
         <div class="medal-image-wrapper">
@@ -116,6 +135,12 @@ onMounted(() => {
             :alt="medal.Medal_Name_CN" 
             class="medal-image"
           />
+          <!-- hover overlay with wear button: 仅对已获得的勋章显示 -->
+          <div class="medal-overlay" v-if="medal.Get_Time">
+            <div class="overlay-inner">
+              <button class="wear-btn" @click.stop.prevent="wearMedal(medal)">佩戴</button>
+            </div>
+          </div>
           <div v-if="medal.Get_Time" class="earned-badge">✓</div>
         </div>
         <div class="medal-details">
@@ -234,6 +259,52 @@ onMounted(() => {
   position: relative;
   display: inline-block;
   margin-bottom: 16px;
+}
+
+/* hover overlay: 使用 backdrop-filter 做高斯模糊，并居中按钮 */
+.medal-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.35);
+  border-radius: 50%;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+
+.medal-image-wrapper:hover .medal-overlay {
+  opacity: 1;
+}
+
+.overlay-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 佩戴按钮样式，和项目整体风格保持一致（蓝色主色、圆角、轻微阴影） */
+.wear-btn {
+  background: linear-gradient(180deg, #4a90e2 0%, #2b6cb0 100%);
+  color: #fff;
+  border: none;
+  padding: 8px 18px;
+  border-radius: 20px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(43,108,176,0.18);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.wear-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(43,108,176,0.22);
 }
 
 .medal-image {
