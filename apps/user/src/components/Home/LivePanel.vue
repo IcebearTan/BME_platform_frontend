@@ -4,10 +4,10 @@
     class="live-checkin-panel"
     :class="{ 
       expanded: isExpanded,
+      collapsed: !isExpanded,
       'theme-dark': isDarkMode,
       'theme-light': !isDarkMode
     }"
-    :style="{ height: isExpanded ? dynamicHeight : '380px' }"
   >
     <!-- 展开/折叠专用按钮 -->
     <div class="panel-toggle-button" @click="togglePanel">
@@ -217,7 +217,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { ElIcon, ElTag, ElButton, ElDialog } from 'element-plus'
 import { 
   ArrowDown, 
@@ -256,7 +256,6 @@ const panelRef = ref(null)
 const checkinStatusRef = ref(null)
 const checkinStatusCollapsedRef = ref(null)
 const seatMapRef = ref(null)
-const dynamicHeight = ref('300px')
 const checkinDialogVisible = ref(false)
 const checkoutDialogVisible = ref(false)
 const checkoutStudyDuration = ref('')
@@ -284,28 +283,6 @@ const testThemeAtTime = (hour) => {
   const isDay = hour >= 6 && hour < 18
   isDarkMode.value = !isDay
   console.log(`测试时间: ${hour}:00, 模式: ${isDarkMode.value ? '夜间' : '白天'}`)
-}
-
-// 计算动态高度
-const calculateExpandedHeight = () => {
-  if (!panelRef.value) return
-  
-  nextTick(() => {
-    const panel = panelRef.value
-    const rect = panel.getBoundingClientRect()
-    const viewportHeight = window.innerHeight
-    
-    // 计算面板顶部到视口顶部的距离
-    const topOffset = rect.top
-    
-    // 预留底部边距 (可根据实际情况调整)
-    const bottomMargin = 20
-    
-    // 计算可用高度
-    const availableHeight = viewportHeight - topOffset - bottomMargin
-    
-    dynamicHeight.value = `${Math.max(availableHeight, 500)}px`
-  })
 }
 
 // 用户信息
@@ -383,9 +360,6 @@ const monthlyStatsData = ref({
 // 方法
 function togglePanel() {
   isExpanded.value = !isExpanded.value
-  if (isExpanded.value) {
-    calculateExpandedHeight()
-  }
 }
 
 function updateLastUpdateTime() {
@@ -565,14 +539,6 @@ onMounted(() => {
   themeTimer = setInterval(() => {
     checkTimeTheme()
   }, 60000) // 1分钟检查一次主题
-  
-  // 监听窗口大小变化
-  window.addEventListener('resize', calculateExpandedHeight)
-  
-  // 初始计算高度
-  if (isExpanded.value) {
-    calculateExpandedHeight()
-  }
 })
 
 onUnmounted(() => {
@@ -582,7 +548,6 @@ onUnmounted(() => {
   if (themeTimer) {
     clearInterval(themeTimer)
   }
-  window.removeEventListener('resize', calculateExpandedHeight)
 })
 
 // 监听 SeatMap 的在线人数变化
@@ -611,14 +576,25 @@ if (typeof window !== 'undefined') {
 <style scoped>
 .live-checkin-panel {
   width: 100%;
-  height: 500px;
   border-radius: 20px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
   overflow: hidden;
   transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   backdrop-filter: blur(20px);
-  /* margin-top: 5px */
+}
+
+/* 折叠状态高度 */
+.live-checkin-panel.collapsed {
+  height: 380px;
+  min-height: 380px;
+}
+
+/* 展开状态高度 */
+.live-checkin-panel.expanded {
+  height: calc(100vh - 80px);
+  min-height: 500px;
+  max-height: none;
 }
 
 /* 白天主题 - 温暖晴天配色 */
@@ -1382,6 +1358,12 @@ if (typeof window !== 'undefined') {
   .collapsed-placeholder {
     min-height: 120px;
   }
+  
+  /* 移动端下调整高度 */
+  .live-checkin-panel.expanded {
+    height: calc(100vh - 60px);
+    min-height: 450px;
+  }
 }
 
 @media (max-width: 768px) {
@@ -1410,6 +1392,17 @@ if (typeof window !== 'undefined') {
   .collapsed-grid {
     gap: 16px;
   }
+  
+  /* 平板端高度调整 */
+  .live-checkin-panel.collapsed {
+    height: 350px;
+    min-height: 350px;
+  }
+  
+  .live-checkin-panel.expanded {
+    height: calc(100vh - 50px);
+    min-height: 400px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -1437,6 +1430,17 @@ if (typeof window !== 'undefined') {
   
   .placeholder-text {
     font-size: 13px;
+  }
+  
+  /* 手机端高度调整 */
+  .live-checkin-panel.collapsed {
+    height: 320px;
+    min-height: 320px;
+  }
+  
+  .live-checkin-panel.expanded {
+    height: calc(100vh - 30px);
+    min-height: 350px;
   }
 }
 

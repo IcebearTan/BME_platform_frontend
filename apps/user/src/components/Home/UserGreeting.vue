@@ -1,6 +1,11 @@
 <template>
-  <div class="user-greeting-container" :class="{ 'theme-dark': isDarkMode, 'collapsed': isCollapsed }">
-    <div class="user-greeting" :class="{ 'theme-dark': isDarkMode, 'collapsed': isCollapsed }">
+  <!-- 展开状态容器 -->
+  <div 
+    v-if="!isCollapsed" 
+    class="user-greeting-expanded" 
+    :class="{ 'theme-dark': isDarkMode }"
+  >
+    <div class="expanded-content">
       <!-- 问候语头部 -->
       <div class="greeting-header">
         <h3>{{ greetingMessage }}</h3>
@@ -8,8 +13,7 @@
 
       <!-- 当前时间日期 -->
       <div class="datetime-display" v-if="showDateTime">
-        <!-- 折叠状态下隐藏时间 -->
-        <div class="time" v-if="!isCollapsed">{{ currentTime }}</div>
+        <div class="time">{{ currentTime }}</div>
         <div class="date-info">
           <span class="date">{{ currentDate }}</span>
           <span class="week">{{ currentWeek }}</span>
@@ -28,7 +32,39 @@
       v-if="showCheckinStatus"
       :checkin-info="adaptedCheckinInfo"
       :is-dark-mode="isDarkMode"
-      :is-collapsed="isCollapsed"
+      :is-collapsed="false"
+      @checkin="handleCheckin"
+      @checkout="handleCheckout"
+      @request-checkin="openCheckin"
+      @request-checkout="openCheckout"
+    />
+  </div>
+
+  <!-- 折叠状态容器 -->
+  <div 
+    v-if="isCollapsed" 
+    class="user-greeting-collapsed" 
+    :class="{ 'theme-dark': isDarkMode }"
+  >
+    <div class="collapsed-content">
+      <!-- 折叠状态只显示问候语 -->
+      <div class="greeting-header-collapsed">
+        <h3>{{ greetingMessage }}</h3>
+      </div>
+      
+      <!-- 折叠状态显示简化的日期信息 -->
+      <div class="date-info-collapsed" v-if="showDateTime">
+        <span class="date">{{ currentDate }}</span>
+        <span class="week">{{ currentWeek }}</span>
+      </div>
+    </div>
+
+    <!-- 打卡状态组件 -->
+    <CheckinStatus
+      v-if="showCheckinStatus"
+      :checkin-info="adaptedCheckinInfo"
+      :is-dark-mode="isDarkMode"
+      :is-collapsed="true"
       @checkin="handleCheckin"
       @checkout="handleCheckout"
       @request-checkin="openCheckin"
@@ -1109,22 +1145,332 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.user-greeting-container {
+/* =================== 展开状态样式 =================== */
+.user-greeting-expanded {
   background: rgba(255, 255, 255, 0.15);
   backdrop-filter: blur(30px);
   border-radius: 24px;
-  padding: 32px;
-  max-height: 575px; /* 恢复固定高度 */
+  padding: 32px 32px 40px 32px;
+  max-height: 575px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center; /* 恢复居中对齐 */
+  justify-content: center;
   border: 1px solid rgba(255, 255, 255, 0.2);
   box-shadow: 0 8px 32px rgba(135, 206, 250, 0.15);
   transition: all 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   animation: expand 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  gap: 24px;
+  /* gap: 24px; */
   transform: translateY(0) scale(1);
+}
+
+.user-greeting-expanded.theme-dark {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: white;
+  box-shadow: 0 8px 32px rgba(255, 255, 255, 0.05);
+}
+
+.user-greeting-expanded.theme-light {
+  background: rgba(255, 255, 255, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #1a365d;
+  box-shadow: 0 8px 32px rgba(135, 206, 250, 0.15);
+}
+
+.expanded-content {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+  align-items: center;
+}
+
+/* =================== 折叠状态样式 =================== */
+.user-greeting-collapsed {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(30px);
+  border-radius: 20px;
+  padding: 20px 20px 8px 20px;
+  min-height: 180px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 6px 24px rgba(135, 206, 250, 0.12);
+  transition: all 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  animation: collapse 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* gap: 16px; */
+  transform: translateY(0) scale(1);
+}
+
+.user-greeting-collapsed.theme-dark {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: white;
+  box-shadow: 0 6px 24px rgba(255, 255, 255, 0.04);
+}
+
+.user-greeting-collapsed.theme-light {
+  background: rgba(255, 255, 255, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #1a365d;
+  box-shadow: 0 6px 24px rgba(135, 206, 235, 0.2);
+}
+
+.collapsed-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  align-items: center;
+  text-align: center;
+}
+
+/* =================== 展开状态的具体元素样式 =================== */
+.greeting-header h3 {
+  width: 100%;
+  margin: 0;
+  font-size: 32px;
+  font-weight: 300;
+  color: #2d3748;
+  text-align: center;
+  letter-spacing: -0.8px;
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.user-greeting-expanded.theme-dark .greeting-header h3 {
+  color: #ffffff;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.datetime-display {
+  width: auto;
+  min-width: 450px;
+  max-width: 600px;
+  text-align: center;
+  padding: 32px 24px;
+  background: rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(30px);
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 8px 32px rgba(135, 206, 250, 0.15);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-sizing: border-box;
+  overflow: hidden;
+  word-wrap: break-word;
+}
+
+.user-greeting-expanded.theme-dark .datetime-display {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 32px rgba(255, 255, 255, 0.05);
+}
+
+.time {
+  font-size: clamp(36px, 8vw, 52px);
+  font-weight: 100;
+  color: #2d3748;
+  margin-bottom: 12px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  letter-spacing: -2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+  max-width: 100%;
+}
+
+.user-greeting-expanded.theme-dark .time {
+  color: #ffffff;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.date-info {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  width: 100%;
+  max-width: 100%;
+}
+
+.date {
+  font-size: 16px;
+  color: #4a5568;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+.user-greeting-expanded.theme-dark .date {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.week {
+  font-size: 16px;
+  color: #4a5568;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100px;
+}
+
+.user-greeting-expanded.theme-dark .week {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.weather {
+  font-size: 15px;
+  color: #2d3748;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.user-greeting-expanded.theme-dark .weather {
+  color: #ffffff;
+}
+
+.motivation {
+  padding: 14px 20px;
+  border-radius: 16px;
+  color: #6a7383;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.5;
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.user-greeting-expanded.theme-dark .motivation {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+/* =================== 折叠状态的具体元素样式 =================== */
+.greeting-header-collapsed h3 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 300;
+  color: #2d3748;
+  text-align: center;
+  letter-spacing: -0.5px;
+}
+
+.user-greeting-collapsed.theme-dark .greeting-header-collapsed h3 {
+  color: #ffffff;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.date-info-collapsed {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.date-info-collapsed .date,
+.date-info-collapsed .week {
+  font-size: 14px;
+  color: #4a5568;
+  font-weight: 500;
+}
+
+.user-greeting-collapsed.theme-dark .date-info-collapsed .date,
+.user-greeting-collapsed.theme-dark .date-info-collapsed .week {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* =================== 动画定义 =================== */
+@keyframes expand {
+  0% {
+    opacity: 0;
+    transform: translateY(-30px) scale(0.9) rotateX(15deg);
+    box-shadow: 0 4px 16px rgba(135, 206, 250, 0.05);
+  }
+  50% {
+    opacity: 0.8;
+    transform: translateY(-5px) scale(1.02) rotateX(0deg);
+    box-shadow: 0 12px 40px rgba(135, 206, 250, 0.25);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotateX(0deg);
+    box-shadow: 0 8px 32px rgba(135, 206, 250, 0.15);
+  }
+}
+
+@keyframes collapse {
+  0% {
+    opacity: 0;
+    transform: translateY(20px) scale(1.1) rotateX(-10deg);
+    box-shadow: 0 4px 16px rgba(135, 206, 250, 0.08);
+  }
+  60% {
+    opacity: 0.9;
+    transform: translateY(-3px) scale(0.98) rotateX(0deg);
+    box-shadow: 0 8px 28px rgba(135, 206, 250, 0.18);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotateX(0deg);
+    box-shadow: 0 6px 24px rgba(135, 206, 250, 0.12);
+  }
+}
+
+/* 深色主题动画 */
+.user-greeting-expanded.theme-dark {
+  animation: expandDark 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes expandDark {
+  0% {
+    opacity: 0;
+    transform: translateY(-30px) scale(0.9) rotateX(15deg);
+    box-shadow: 0 4px 16px rgba(255, 255, 255, 0.02);
+  }
+  50% {
+    opacity: 0.8;
+    transform: translateY(-5px) scale(1.02) rotateX(0deg);
+    box-shadow: 0 12px 40px rgba(255, 255, 255, 0.08);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotateX(0deg);
+    box-shadow: 0 8px 32px rgba(255, 255, 255, 0.05);
+  }
+}
+
+.user-greeting-collapsed.theme-dark {
+  animation: collapseDark 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes collapseDark {
+  0% {
+    opacity: 0;
+    transform: translateY(20px) scale(1.1) rotateX(-10deg);
+    box-shadow: 0 4px 16px rgba(255, 255, 255, 0.02);
+  }
+  60% {
+    opacity: 0.9;
+    transform: translateY(-3px) scale(0.98) rotateX(0deg);
+    box-shadow: 0 8px 28px rgba(255, 255, 255, 0.06);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotateX(0deg);
+    box-shadow: 0 6px 24px rgba(255, 255, 255, 0.04);
+  }
 }
 
 @keyframes expand {
@@ -1561,96 +1907,61 @@ onUnmounted(() => {
   color: rgba(255, 255, 255, 0.6);
 }
 
-/* 响应式设计 */
+/* =================== 新的响应式设计 =================== */
 @media (max-width: 768px) {
-  .user-greeting-container {
+  .user-greeting-expanded {
     padding: 24px;
     border-radius: 20px;
   }
   
-  .user-greeting-container.collapsed {
+  .user-greeting-collapsed {
     padding: 16px;
     border-radius: 16px;
-    min-height: 160px;
+    min-height: 140px;
   }
   
   .greeting-header h3 {
     font-size: 28px;
   }
   
-  .user-greeting.collapsed .greeting-header h3 {
+  .greeting-header-collapsed h3 {
     font-size: 20px;
   }
   
   .datetime-display {
-    min-width: 320px; /* 移动端调整最小宽度 */
-    max-width: 400px; /* 移动端调整最大宽度 */
+    min-width: 320px;
+    max-width: 400px;
     padding: 28px 20px;
     border-radius: 20px;
-  }
-  
-  .user-greeting.collapsed .datetime-display {
-    padding: 16px 18px;
-  }
-  
-  .stats-grid {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
-  
-  .stat-item {
-    padding: 16px 12px;
-    border-radius: 12px;
-  }
-  
-  .stat-value {
-    font-size: 24px;
   }
 }
 
 @media (max-width: 480px) {
-  .user-greeting-container {
+  .user-greeting-expanded {
     gap: 20px;
     padding: 20px;
     border-radius: 16px;
   }
   
-  .user-greeting-container.collapsed {
+  .user-greeting-collapsed {
     gap: 12px;
     padding: 14px;
     border-radius: 14px;
-    min-height: 140px;
-  }
-  
-  .user-greeting {
-    gap: 20px;
-  }
-  
-  .user-greeting.collapsed {
-    gap: 12px;
+    min-height: 120px;
   }
   
   .greeting-header h3 {
     font-size: 24px;
   }
   
-  .user-greeting.collapsed .greeting-header h3 {
+  .greeting-header-collapsed h3 {
     font-size: 18px;
   }
   
   .datetime-display {
-    min-width: 280px; /* 小屏幕进一步调整最小宽度 */
-    max-width: 350px; /* 小屏幕进一步调整最大宽度 */
+    min-width: 280px;
+    max-width: 350px;
     padding: 24px 16px;
-    border-radius: 16px;
-  }
-  
-  .user-greeting.collapsed .datetime-display {
-    padding: 14px 16px;
-  }
-  
-  .study-stats {
-    padding: 20px;
     border-radius: 16px;
   }
   
@@ -1658,11 +1969,6 @@ onUnmounted(() => {
     padding: 14px 20px;
     font-size: 13px;
     border-radius: 12px;
-  }
-  
-  .user-greeting.collapsed .motivation {
-    padding: 10px 16px;
-    font-size: 12px;
   }
 }
 
