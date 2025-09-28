@@ -129,6 +129,8 @@ const todayRecord = ref({}) // 今日打卡记录
 const formeCheckStatus = ref([]) // 历史记录，用于计算累计时长
 const isVisible = ref(false) // 是否显示签退界面
 const checkTime = ref(null) // 签到时间
+const hasShownOvertimeWarning = ref(false) // 是否已显示超时警告
+const hasShownSevereOvertimeWarning = ref(false) // 是否已显示严重超时警告
 
 // 登录检查
 const checkLogin = () => {
@@ -234,6 +236,42 @@ const isOvertime = () => {
   const diffHours = (nowTime.value - checkInTime) / (1000 * 60 * 60)
   
   return diffHours > 6 // 超过6小时
+}
+
+// 检查并显示超时提示
+const checkOvertimeWarning = () => {
+  if (isOvertime() && !hasShownOvertimeWarning.value) {
+    hasShownOvertimeWarning.value = true
+    
+    // 显示超时警告消息
+    ElMessageBox({
+      type: 'error',
+      message: '⚠️ 学习时长已超过6小时，本次签到记录无效，请尽快签退！长时间学习记得适当休息哦～',
+      duration: 10000, // 10秒显示时间
+      showClose: true,
+      lockScroll: false,
+    })
+    
+    // 5分钟后再次提醒（如果仍未签退且未显示过严重警告）
+    setTimeout(() => {
+      if (isOvertime() && !hasShownSevereOvertimeWarning.value) {
+        hasShownSevereOvertimeWarning.value = true
+        ElMessageBox({
+          type: 'error',
+          message: '🚨 学习时长严重超时！请立即签退并注意休息！',
+          duration: 15000, // 15秒显示时间
+          showClose: true,
+          lockScroll: false,
+        })
+      }
+    }, 5 * 60 * 1000) // 5分钟
+  }
+  
+  // 如果已签退，重置所有警告状态
+  if (todayRecord.value?.check_out_time) {
+    hasShownOvertimeWarning.value = false
+    hasShownSevereOvertimeWarning.value = false
+  }
 }
 
 // 计算本次签到的持续时间
@@ -416,6 +454,9 @@ const submitCheckCode = async (code) => {
       }
 
       isVisible.value = true
+      // 签到成功，重置超时警告状态
+      hasShownOvertimeWarning.value = false
+      hasShownSevereOvertimeWarning.value = false
       return true // 明确返回成功状态
     }
   } catch (error) {
@@ -462,6 +503,9 @@ const submitCheckOutCode = async (code) => {
         fetchCheckStatus() // 同时更新历史记录
       ])
       isVisible.value = false
+      // 签退成功，重置超时警告状态
+      hasShownOvertimeWarning.value = false
+      hasShownSevereOvertimeWarning.value = false
       return true // 明确返回成功状态
     }
   } catch (error) {
@@ -940,6 +984,7 @@ const adaptedCheckinInfo = computed(() => {
     checkinTimestamp: isCurrentlyStudying ? new Date(todayRecord.value.check_in_time).getTime() : null,
     checkoutTime: todayRecord.value.check_out_time,
     location: null,
+    isOvertime: isCurrentlyStudying ? isOvertime() : false, // 传递超时状态
     // 传递时长信息给CheckinStatus，确保遵循最小时长阈值
     studyDuration: isCurrentlyStudying 
       ? calculateThisTimeDuration()  // 正在学习中显示本次时长（已有阈值验证）
@@ -998,6 +1043,8 @@ onMounted(async () => {
   // 实时更新当前时间
   setInterval(() => {
     nowTime.value = new Date()
+    // 每次更新时间时检查是否超时
+    checkOvertimeWarning()
   }, 1000)
   
   // 如果已登录，获取打卡状态和历史记录
@@ -1010,6 +1057,8 @@ onMounted(async () => {
     
     try {
       await Promise.all(fetchPromises)
+      // 初始化完成后检查一次超时状态
+      checkOvertimeWarning()
     } catch (error) {
       console.error('打卡数据获取失败:', error)
     }
@@ -1046,6 +1095,8 @@ onMounted(async () => {
       
       // 更新界面显示
       checkIsVisible()
+      // 检查是否需要超时提示
+      checkOvertimeWarning()
     }, 30000) // 30秒同步一次
   }
 })
@@ -1063,11 +1114,11 @@ onUnmounted(() => {
   backdrop-filter: blur(30px);
   border-radius: 24px;
   padding: 32px;
-  max-height: 575px;
+  max-height: 575px; /* 恢复固定高度 */
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: center; /* 恢复居中对齐 */
   border: 1px solid rgba(255, 255, 255, 0.2);
   box-shadow: 0 8px 32px rgba(135, 206, 250, 0.15);
   transition: all 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -1276,8 +1327,9 @@ onUnmounted(() => {
 }
 
 .datetime-display {
-  /* width: 100%; */
-  width: 500px;
+  width: auto; /* 改为自适应宽度 */
+  min-width: 450px; /* 设置最小宽度保持美观 */
+  max-width: 600px; /* 设置最大宽度防止过宽 */
   text-align: center;
   padding: 32px 24px;
   background: rgba(255, 255, 255, 0.3);
@@ -1288,6 +1340,12 @@ onUnmounted(() => {
   box-shadow: 0 8px 32px rgba(135, 206, 250, 0.15);
   transform: scale(1);
   opacity: 1;
+  overflow: hidden; /* 防止内容溢出 */
+  word-wrap: break-word; /* 长单词换行 */
+  display: flex; /* 使用flexbox布局 */
+  flex-direction: column; /* 垂直排列 */
+  align-items: center; /* 居中对齐 */
+  box-sizing: border-box; /* 包含padding和border在内的盒模型 */
 }
 
 .theme-dark .datetime-display {
@@ -1297,7 +1355,7 @@ onUnmounted(() => {
 }
 
 .time {
-  font-size: 52px;
+  font-size: clamp(36px, 8vw, 52px); /* 响应式字体大小 */
   font-weight: 100;
   color: #2d3748;
   margin-bottom: 12px;
@@ -1305,6 +1363,12 @@ onUnmounted(() => {
   letter-spacing: -2px;
   transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
   transform: scale(1);
+  white-space: nowrap; /* 防止时间换行 */
+  overflow: hidden; /* 隐藏溢出部分 */
+  text-overflow: ellipsis; /* 溢出时显示省略号 */
+  width: 100%; /* 使用全部可用宽度 */
+  max-width: 100%; /* 限制最大宽度 */
+  flex-shrink: 0; /* 防止被压缩 */
 }
 
 .theme-dark .time {
@@ -1320,6 +1384,10 @@ onUnmounted(() => {
   margin-bottom: 16px;
   transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
   transform: translateY(0);
+  flex-wrap: wrap; /* 允许换行 */
+  width: 100%; /* 使用全部可用宽度 */
+  max-width: 100%; /* 限制最大宽度 */
+  flex-shrink: 0; /* 防止被压缩 */
 }
 
 .date {
@@ -1327,6 +1395,10 @@ onUnmounted(() => {
   color: #4a5568;
   font-weight: 500;
   transition: color 0.3s ease;
+  white-space: nowrap; /* 防止换行 */
+  overflow: hidden; /* 隐藏溢出 */
+  text-overflow: ellipsis; /* 溢出时显示省略号 */
+  max-width: 200px; /* 限制最大宽度 */
 }
 
 .theme-dark .date {
@@ -1338,6 +1410,10 @@ onUnmounted(() => {
   color: #4a5568;
   font-weight: 500;
   transition: color 0.3s ease;
+  white-space: nowrap; /* 防止换行 */
+  overflow: hidden; /* 隐藏溢出 */
+  text-overflow: ellipsis; /* 溢出时显示省略号 */
+  max-width: 100px; /* 限制最大宽度 */
 }
 
 .theme-dark .week {
@@ -1506,11 +1582,9 @@ onUnmounted(() => {
     font-size: 20px;
   }
   
-  .time {
-    font-size: 44px;
-  }
-  
   .datetime-display {
+    min-width: 320px; /* 移动端调整最小宽度 */
+    max-width: 400px; /* 移动端调整最大宽度 */
     padding: 28px 20px;
     border-radius: 20px;
   }
@@ -1564,12 +1638,9 @@ onUnmounted(() => {
     font-size: 18px;
   }
   
-  .time {
-    font-size: 40px;
-    letter-spacing: -1px;
-  }
-  
   .datetime-display {
+    min-width: 280px; /* 小屏幕进一步调整最小宽度 */
+    max-width: 350px; /* 小屏幕进一步调整最大宽度 */
     padding: 24px 16px;
     border-radius: 16px;
   }

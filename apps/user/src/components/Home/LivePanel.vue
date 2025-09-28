@@ -34,7 +34,7 @@
     <!-- 面板内容 -->
     <div class="panel-content" v-show="isExpanded">
       <div class="content-grid">
-        <!-- 左侧：问候语和打卡状态 -->
+        <!-- 左侧：问候语、打卡状态和月度统计 -->
         <div class="left-section">
           <transition name="greeting-expand" appear>
             <UserGreeting 
@@ -52,6 +52,16 @@
               @request-checkin="showCheckinDialog"
               @request-checkout="showCheckoutDialog"
               key="greeting-expanded"
+            />
+          </transition>
+          
+          <!-- 月度统计面板 -->
+          <transition name="monthly-stats-expand" appear>
+            <MonthlyStatsPanel 
+              v-if="isExpanded"
+              :monthly-stats="monthlyStatsData"
+              :is-dark-mode="isDarkMode"
+              key="monthly-stats-expanded"
             />
           </transition>
         </div>
@@ -218,6 +228,7 @@ import {
 import SeatMap from './SeatMap.vue'
 import UserGreeting from './UserGreeting.vue'
 import CheckinStatus from './CheckinStatus.vue'
+import MonthlyStatsPanel from './MonthlyStatsPanel.vue'
 
 // Props
 const props = defineProps({
@@ -359,6 +370,13 @@ const checkinInfo = ref({
   studyDuration: null
 })
 
+// 月度统计数据
+const monthlyStatsData = ref({
+  totalDays: 0,
+  totalHours: 0,
+  rank: null
+})
+
 // 计算属性
 // (已移除 checkinStatus，现在由 CheckinStatus 组件内部处理)
 
@@ -488,6 +506,44 @@ function toggleThemeDebug() {
   console.log(`🎨 手动切换主题: ${isDarkMode.value ? '🌙 夜间模式' : '☀️ 白天模式'}`)
 }
 
+// 获取月度统计数据
+async function fetchMonthlyStats() {
+  try {
+    // 这里应该调用实际的API
+    // const response = await fetch('/api/monthly_stats')
+    // const data = await response.json()
+    
+    // 临时使用模拟数据
+    const mockData = calculateMonthlyStatsFromRecords()
+    monthlyStatsData.value = mockData
+    
+    console.log('📊 月度统计数据已更新:', monthlyStatsData.value)
+    return mockData
+  } catch (error) {
+    console.error('❌ 获取月度统计数据失败:', error)
+    // 使用备用计算方法
+    return calculateMonthlyStatsFromRecords()
+  }
+}
+
+// 从现有记录计算月度统计（备用方法）
+function calculateMonthlyStatsFromRecords() {
+  // 模拟计算逻辑
+  const now = new Date()
+  const currentMonth = now.getMonth()
+  const currentYear = now.getFullYear()
+  
+  // 这里应该基于实际的学习记录进行计算
+  // 暂时返回模拟数据
+  const mockStats = {
+    totalDays: Math.floor(Math.random() * 20) + 5, // 5-25天
+    totalHours: Math.floor(Math.random() * 50) + 20, // 20-70小时
+    rank: Math.floor(Math.random() * 100) + 1 // 1-100排名
+  }
+  
+  return mockStats
+}
+
 // 定时器
 let updateTimer = null
 let themeTimer = null
@@ -496,6 +552,9 @@ let themeTimer = null
 onMounted(() => {
   updateLastUpdateTime()
   checkTimeTheme() // 初始化主题
+  
+  // 获取月度统计数据
+  fetchMonthlyStats()
   
   // 更新时间显示（30秒一次）
   updateTimer = setInterval(() => {
@@ -901,6 +960,12 @@ if (typeof window !== 'undefined') {
 
 .left-section, .right-section {
   height: 100%;
+}
+
+.left-section {
+  display: flex;
+  flex-direction: column;
+  gap: 24px; /* 为两个组件之间添加间距 */
 }
 
 /* 房间头部样式 */
@@ -1418,6 +1483,16 @@ if (typeof window !== 'undefined') {
 .greeting-expand-enter-from {
   opacity: 0;
   transform: scale(0.9) translateY(-20px);
+}
+
+.monthly-stats-expand-enter-active {
+  transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition-delay: 0.4s;
+}
+
+.monthly-stats-expand-enter-from {
+  opacity: 0;
+  transform: scale(0.9) translateY(30px);
 }
 
 .seatmap-expand-enter-active {

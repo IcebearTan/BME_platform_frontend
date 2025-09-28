@@ -2,9 +2,16 @@
   <div class="checkin-status" :class="{ 'theme-dark': isDarkMode }">
     <!-- 展开状态下的计时器 -->
     <div class="study-timer-expanded" v-if="!isCollapsed && checkinInfo.checkedIn && !checkinInfo.checkedOut">
-      <div class="timer-display-expanded">
-        <span class="timer-text">学习时长</span>
-        <div class="timer-value-expanded">{{ currentStudyDuration }}</div>
+      <div class="timer-display-expanded" :class="{ 'overtime-warning': checkinInfo.isOvertime }">
+        <span class="timer-text" :class="{ 'overtime-text': checkinInfo.isOvertime }">
+          {{ checkinInfo.isOvertime ? '⚠️ 学习超时' : '学习时长' }}
+        </span>
+        <div class="timer-value-expanded" :class="{ 'overtime-value': checkinInfo.isOvertime }">
+          {{ currentStudyDuration }}
+        </div>
+        <div v-if="checkinInfo.isOvertime" class="overtime-message">
+          请尽快签退并适当休息
+        </div>
       </div>
     </div>
 
@@ -13,7 +20,8 @@
       <div 
         class="timer-display timer-collapsed jelly-hover"
         :class="{ 
-          'timer-jelly-hover': isHovering
+          'timer-jelly-hover': isHovering,
+          'overtime-warning': checkinInfo.isOvertime
         }"
         @click="requestCheckout"
         @mouseenter="startHoverAnimation"
@@ -23,8 +31,12 @@
           <div class="timer-content content-switching">
             <!-- 学习时长显示 -->
             <div class="timer-info" :class="{ 'info-hidden': isHovering }">
-              <span class="timer-value">{{ currentStudyDuration }}</span>
-              <span class="timer-label">学习中</span>
+              <span class="timer-value" :class="{ 'overtime-value': checkinInfo.isOvertime }">
+                {{ checkinInfo.isOvertime ? '⚠️ ' + currentStudyDuration : currentStudyDuration }}
+              </span>
+              <span class="timer-label" :class="{ 'overtime-text': checkinInfo.isOvertime }">
+                {{ checkinInfo.isOvertime ? '学习超时' : '学习中' }}
+              </span>
             </div>
             <!-- 结束按钮显示 -->
             <div class="timer-button" :class="{ 'button-visible': isHovering }">
@@ -421,6 +433,78 @@ defineExpose({
 .theme-dark .timer-value-expanded {
   color: #ffffff;
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+/* 超时警告样式 */
+.timer-display-expanded.overtime-warning {
+  border: 2px solid #e74c3c !important;
+  background: linear-gradient(135deg, #fff5f5 0%, #fed7d7 100%) !important;
+  box-shadow: 0 8px 32px rgba(231, 76, 60, 0.2) !important;
+  animation: overtime-pulse 2s infinite;
+}
+
+.theme-dark .timer-display-expanded.overtime-warning {
+  background: linear-gradient(135deg, #2d1b1b 0%, #4a1f1f 100%) !important;
+  border: 2px solid #e74c3c !important;
+  box-shadow: 0 8px 32px rgba(231, 76, 60, 0.3) !important;
+}
+
+.timer-text.overtime-text {
+  color: #e74c3c !important;
+  font-weight: 700 !important;
+}
+
+.timer-value-expanded.overtime-value {
+  color: #c0392b !important;
+  font-weight: 600 !important;
+}
+
+.theme-dark .timer-value-expanded.overtime-value {
+  color: #e74c3c !important;
+}
+
+.overtime-message {
+  font-size: 14px;
+  color: #e74c3c;
+  font-weight: 500;
+  margin-top: 8px;
+  text-align: center;
+  animation: overtime-blink 1.5s ease-in-out infinite alternate;
+}
+
+.theme-dark .overtime-message {
+  color: #ec7063;
+}
+
+/* 折叠状态下的超时警告 */
+.timer-display.overtime-warning {
+  border: 2px solid #e74c3c !important;
+  background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%) !important;
+  animation: overtime-pulse 2s infinite;
+}
+
+.timer-value.overtime-value {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+.timer-label.overtime-text {
+  color: rgba(255, 255, 255, 0.9) !important;
+  font-weight: 600 !important;
+}
+
+@keyframes overtime-pulse {
+  0%, 100% {
+    box-shadow: 0 8px 32px rgba(231, 76, 60, 0.2);
+  }
+  50% {
+    box-shadow: 0 12px 40px rgba(231, 76, 60, 0.4);
+  }
+}
+
+@keyframes overtime-blink {
+  0% { opacity: 1; }
+  100% { opacity: 0.6; }
 }
 
 /* 折叠状态计时器样式 */
