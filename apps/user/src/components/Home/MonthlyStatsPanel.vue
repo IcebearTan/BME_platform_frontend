@@ -1,40 +1,46 @@
 <template>
   <div class="monthly-stats-panel" :class="{ 'theme-dark': isDarkMode }">
-    <div class="panel-header">
+    <!-- <div class="panel-header">
       <h4 class="panel-title">本月学习统计</h4>
-    </div>
+    </div> -->
     
     <div class="stats-grid">
       <!-- 累计天数 -->
       <div class="stat-card days-card" :class="{ 'theme-dark': isDarkMode }">
-        <div class="stat-icon days-icon">
-          <span>📅</span>
-        </div>
         <div class="stat-content">
-          <div class="stat-value">{{ monthlyStats.totalDays || 0 }}</div>
-          <div class="stat-label">累计天数</div>
+          <div class="stat-value days-value">{{ monthlyStats.totalDays || 0 }}</div>
+          <div class="stat-bottom">
+            <div class="stat-icon days-icon">
+              <span>📅</span>
+            </div>
+            <div class="stat-label">累计天数</div>
+          </div>
         </div>
       </div>
 
       <!-- 本月时长 -->
       <div class="stat-card duration-card" :class="{ 'theme-dark': isDarkMode }">
-        <div class="stat-icon duration-icon">
-          <span>⏱️</span>
-        </div>
         <div class="stat-content">
-          <div class="stat-value">{{ formatDuration(monthlyStats.totalHours) }}</div>
-          <div class="stat-label">本月时长</div>
+          <div class="stat-value duration-value">{{ formatDuration(monthlyStats.totalHours) }}</div>
+          <div class="stat-bottom">
+            <div class="stat-icon duration-icon">
+              <span>⏱️</span>
+            </div>
+            <div class="stat-label">本月时长</div>
+          </div>
         </div>
       </div>
 
       <!-- 本月排名 -->
       <div class="stat-card rank-card" :class="{ 'theme-dark': isDarkMode }">
-        <div class="stat-icon rank-icon">
-          <span>🏆</span>
-        </div>
         <div class="stat-content">
-          <div class="stat-value">{{ formatRank(monthlyStats.rank) }}</div>
-          <div class="stat-label">本月排名</div>
+          <div class="stat-value rank-value">{{ formatRank(monthlyStats.rank) }}</div>
+          <div class="stat-bottom">
+            <div class="stat-icon rank-icon">
+              <span>🏆</span>
+            </div>
+            <div class="stat-label">本月排名</div>
+          </div>
         </div>
       </div>
     </div>
@@ -95,11 +101,11 @@ const formatRank = (rank) => {
   background: rgba(255, 255, 255, 0.15);
   backdrop-filter: blur(30px);
   border-radius: 20px;
-  padding: 24px;
+  padding: 24px 24px 24px 24px;
   border: 1px solid rgba(255, 255, 255, 0.2);
   box-shadow: 0 8px 32px rgba(135, 206, 250, 0.15);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  margin-top: 16px;
+  margin-top: 15px;
 }
 
 .monthly-stats-panel.theme-dark {
@@ -136,7 +142,7 @@ const formatRank = (rank) => {
   background: rgba(255, 255, 255, 0.6);
   backdrop-filter: blur(20px);
   border-radius: 16px;
-  padding: 20px 16px;
+  padding: 10px 16px;
   border: 1px solid rgba(255, 255, 255, 0.3);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   text-align: center;
@@ -175,17 +181,31 @@ const formatRank = (rank) => {
   background: rgba(241, 196, 15, 0.08);
 }
 
+.stat-content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.stat-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: auto;
+}
+
 .stat-icon {
-  font-size: 24px;
-  margin-bottom: 12px;
+  font-size: 16px;
   display: flex;
   justify-content: center;
   align-items: center;
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  margin: 0 auto 12px;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
   transition: all 0.3s ease;
+  flex-shrink: 0;
 }
 
 .days-icon {
@@ -204,22 +224,39 @@ const formatRank = (rank) => {
   filter: brightness(1.2);
 }
 
-.stat-content {
-  position: relative;
-}
-
 .stat-value {
-  font-size: 24px;
+  font-size: 36px;
   font-weight: 700;
-  color: #2d3748;
-  margin-bottom: 4px;
+  margin-bottom: 8px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace;
   letter-spacing: -0.5px;
   transition: all 0.3s ease;
+  text-align: center;
 }
 
-.theme-dark .stat-value {
-  color: #ffffff;
+/* 不同类型数值的颜色 */
+.days-value {
+  color: #3498db;
+}
+
+.duration-value {
+  color: #2ecc71;
+}
+
+.rank-value {
+  color: #f39c12;
+}
+
+.theme-dark .days-value {
+  color: #5dade2;
+}
+
+.theme-dark .duration-value {
+  color: #58d68d;
+}
+
+.theme-dark .rank-value {
+  color: #f7c52d;
 }
 
 .stat-label {
@@ -238,11 +275,6 @@ const formatRank = (rank) => {
 /* 悬停时的数值动画 */
 .stat-card:hover .stat-value {
   transform: scale(1.1);
-  color: #1a365d;
-}
-
-.theme-dark .stat-card:hover .stat-value {
-  color: #ffffff;
 }
 
 .stat-card:hover .stat-label {
@@ -272,14 +304,13 @@ const formatRank = (rank) => {
   }
 
   .stat-icon {
-    width: 40px;
-    height: 40px;
-    font-size: 20px;
-    margin-bottom: 8px;
+    width: 24px;
+    height: 24px;
+    font-size: 14px;
   }
 
   .stat-value {
-    font-size: 20px;
+    font-size: 28px;
   }
 
   .stat-label {
@@ -308,14 +339,13 @@ const formatRank = (rank) => {
   }
 
   .stat-icon {
-    width: 36px;
-    height: 36px;
-    font-size: 18px;
-    margin-bottom: 6px;
+    width: 22px;
+    height: 22px;
+    font-size: 12px;
   }
 
   .stat-value {
-    font-size: 18px;
+    font-size: 24px;
   }
 
   .stat-label {
