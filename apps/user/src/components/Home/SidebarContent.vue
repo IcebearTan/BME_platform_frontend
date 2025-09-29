@@ -1,9 +1,9 @@
 <template>
   <div class="sidebar-content">
     <!-- 每日打卡组件 -->
-    <div class="sidebar-section">
+    <!-- <div class="sidebar-section">
       <DailyAttendence />
-    </div>
+    </div> -->
     
     <!-- 出勤排行榜 -->
     <div class="sidebar-section">
@@ -18,7 +18,7 @@
     
     <!-- 快捷操作区 -->
     
-    <div class="sidebar-section">
+    <!-- <div class="sidebar-section">
       <div class="section-header">
         <h3 class="section-title">
           <span class="title-icon">⚡</span>
@@ -40,7 +40,7 @@
           <div class="action-arrow">→</div>
         </div>
       </div>
-    </div>
+    </div> -->
    
   </div>
 </template>
@@ -101,10 +101,10 @@ const handleActionClick = (action) => {
 
 .sidebar-section {
   /* min-height: 150px; */
-  background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 2px 20px rgba(0,0,0,0.06);
-  border: 1px solid rgba(0,0,0,0.04);
+  /* background-color: #333333; */
+  /* border-radius: 16px; */
+  /* box-shadow: 0 2px 20px rgba(0,0,0,0.06); */
+  /* border: 1px solid rgba(0,0,0,0.04); */
   overflow: hidden;
   transition: all 0.3s ease;
 }

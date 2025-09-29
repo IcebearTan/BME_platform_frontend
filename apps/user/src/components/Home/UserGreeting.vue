@@ -179,7 +179,7 @@ const motivationText = computed(() => {
 // 方法
 // 处理CheckinStatus状态变化
 function handleCheckinStatusChange(checkinData) {
-  console.log('📍 UserGreeting 接收到打卡状态变化:', checkinData)
+  // console.log('📍 UserGreeting 接收到打卡状态变化:', checkinData)
   // 将状态变化传递给父组件（LivePanel）
   emit('status-change', checkinData)
 }

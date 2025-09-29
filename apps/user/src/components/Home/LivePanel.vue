@@ -74,7 +74,6 @@
             <div v-if="isExpanded" class="room-header">
               <transition name="online-stats-expand" appear>
                 <div v-if="isExpanded" class="online-stats" 
-                     :class="{ 'invisible-placeholder': currentRoom.id === '110' }" 
                      v-show="currentRoom.available">
                   <span class="stats-label">在线</span>
                   <span class="stats-value">{{ onlineCount }}/{{ totalSeats }}</span>
@@ -176,45 +175,6 @@
         </div>
       </div>
     </div>
-
-    <!-- 签到确认弹框 -->
-    <el-dialog
-      v-model="checkinDialogVisible"
-      title="开始学习"
-      width="320px"
-      center
-      append-to-body
-    >
-      <div class="dialog-content">
-        <p>确认开始今日的学习吗？</p>
-      </div>
-      <template #footer>
-        <el-button @click="checkinDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleCheckin" :loading="checkinLoading">
-          确认签到
-        </el-button>
-      </template>
-    </el-dialog>
-
-    <!-- 签退确认弹框 -->
-    <el-dialog
-      v-model="checkoutDialogVisible"
-      title="结束学习"
-      width="320px"
-      center
-      append-to-body
-    >
-      <div class="dialog-content">
-        <p>本次学习时长：{{ checkoutStudyDuration }}</p>
-        <p>确认结束今日的学习吗？</p>
-      </div>
-      <template #footer>
-        <el-button @click="checkoutDialogVisible = false">取消</el-button>
-        <el-button type="danger" @click="handleCheckout" :loading="checkoutLoading">
-          确认签退
-        </el-button>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
@@ -283,16 +243,12 @@ const checkTimeTheme = () => {
   // 6点到18点为白天模式，其他时间为黑夜模式
   const isDay = hour >= 6 && hour < 18
   isDarkMode.value = !isDay
-  
-  // 输出当前时间和模式（便于调试）
-  console.log(`当前时间: ${hour}:${now.getMinutes().toString().padStart(2, '0')}, 模式: ${isDarkMode.value ? '夜间' : '白天'}`)
 }
 
 // 测试不同时间的主题（开发调试用）
 const testThemeAtTime = (hour) => {
   const isDay = hour >= 6 && hour < 18
   isDarkMode.value = !isDay
-  console.log(`测试时间: ${hour}:00, 模式: ${isDarkMode.value ? '夜间' : '白天'}`)
 }
 
 // 用户信息
@@ -342,7 +298,6 @@ const seatMapPresets = {
 const changeSeatMapSize = (preset) => {
   if (seatMapPresets[preset]) {
     seatMapConfig.value = { ...seatMapPresets[preset] }
-    console.log(`🗺️ 座位图大小已调整为: ${preset}`, seatMapConfig.value)
   }
 }
 
@@ -425,7 +380,7 @@ async function handleCheckin() {
     
     checkinDialogVisible.value = false
   } catch (error) {
-    console.error('签到失败:', error)
+    // 签到失败处理
   } finally {
     checkinLoading.value = false
   }
@@ -446,7 +401,7 @@ async function handleCheckout() {
     
     checkoutDialogVisible.value = false
   } catch (error) {
-    console.error('签退失败:', error)
+    // 签退失败处理
   } finally {
     checkoutLoading.value = false
   }
@@ -466,46 +421,30 @@ function handleCheckoutEvent(checkoutData) {
 
 // 处理CheckinStatus状态变化
 function handleStatusChange(checkinData) {
-  console.log('📍 LivePanel 接收到打卡状态变化:', checkinData)
   // 更新 store 中的打卡状态
   store.commit('setCheckinInfo', checkinData)
 }
 
 // 房间切换方法
 function switchRoom(roomId) {
-  console.log(`🔄 switchRoom 被调用，roomId: ${roomId}`)
-  
   const room = availableRooms.value.find(r => r.id === roomId)
-  console.log('找到的房间:', room)
   
   if (room) {
     const oldRoom = currentRoom.value
     currentRoom.value = room
-    console.log(`🏠 切换成功: ${oldRoom.name} → ${room.name}`)
     emit('room-change', roomId)
-  } else {
-    console.log('❌ 房间切换失败: 房间不存在')
   }
 }
 
 // 处理滑块轨道点击
 function handleTrackClick() {
-  console.log('🖱️ 滑块被点击了')
-  console.log('当前房间:', currentRoom.value)
-  console.log('可用房间:', availableRooms.value)
-  
   // 找到另一个可用的房间
   const otherRoom = availableRooms.value.find(room => 
     room.id !== currentRoom.value.id && room.available
   )
   
-  console.log('找到的其他房间:', otherRoom)
-  
   if (otherRoom) {
-    console.log(`准备切换到房间: ${otherRoom.name}`)
     switchRoom(otherRoom.id)
-  } else {
-    console.log('没有找到其他可用房间')
   }
 }
 
@@ -530,10 +469,8 @@ async function fetchMonthlyStats() {
     const mockData = calculateMonthlyStatsFromRecords()
     monthlyStatsData.value = mockData
     
-    console.log('📊 月度统计数据已更新:', monthlyStatsData.value)
     return mockData
   } catch (error) {
-    console.error('❌ 获取月度统计数据失败:', error)
     // 使用备用计算方法
     return calculateMonthlyStatsFromRecords()
   }
@@ -572,13 +509,6 @@ onMounted(() => {
   // 添加屏幕尺寸变化监听器
   window.addEventListener('resize', updateScreenSize)
   
-  // 输出初始状态调试信息
-  console.log('🚀 LivePanel 组件已挂载，初始状态:')
-  console.log(`📱 屏幕尺寸: ${screenWidth.value}x${screenHeight.value}`)
-  console.log(`🖥️ 是否小屏幕: ${isSmallScreen.value}`)
-  console.log(`✅ 打卡状态: ${isCurrentlyCheckedIn.value}`)
-  console.log(`📊 是否显示月度统计: ${shouldShowMonthlyStats.value}`)
-  
   // 更新时间显示（30秒一次）
   updateTimer = setInterval(() => {
     updateLastUpdateTime()
@@ -614,28 +544,34 @@ watch(() => seatMapRef.value?.totalSeats, (newTotal) => {
   }
 }, { immediate: true })
 
+// 监听房间切换，确保在线人数正确更新
+watch(() => currentRoom.value.id, (newRoomId) => {
+  // 给Vue一点时间重新渲染SeatMap组件，然后更新统计
+  setTimeout(() => {
+    if (seatMapRef.value) {
+      const stats = seatMapRef.value.getOnlineStats()
+      if (stats) {
+        onlineCount.value = stats.onlineCount
+        totalSeats.value = stats.totalSeats
+      }
+    }
+  }, 100)
+}, { immediate: true })
+
+// 监听在线人数变化（调试用）
+watch([() => onlineCount.value, () => totalSeats.value], ([newOnline, newTotal]) => {
+}, { immediate: true })
+
 // 监听月度统计面板显示状态变化（用于调试）
 watch(() => shouldShowMonthlyStats.value, (newValue, oldValue) => {
-  console.log(`📊 月度统计面板显示状态变化: ${oldValue} → ${newValue}`)
-  console.log(`📱 屏幕高度: ${screenHeight.value}px (小屏幕: ${isSmallScreen.value})`)
-  console.log(`✅ 打卡状态: ${isCurrentlyCheckedIn.value ? '已签到' : '未签到'}`)
-  console.log(`📂 面板展开: ${isExpanded.value}`)
-  console.log('🔍 详细判断逻辑:')
-  console.log(`  - 面板展开: ${isExpanded.value}`)
-  console.log(`  - 小屏幕判定: ${isSmallScreen.value} (高度 ${screenHeight.value}px <= 1100px)`)
-  console.log(`  - 正在打卡: ${isCurrentlyCheckedIn.value}`)
-  console.log(`  - 最终结果: ${newValue ? '显示' : '隐藏'}月度统计面板`)
 }, { immediate: true })
 
 // 监听屏幕尺寸变化
 watch(() => screenHeight.value, (newHeight) => {
-  console.log(`📏 屏幕高度变化: ${newHeight}px (小屏幕: ${isSmallScreen.value})`)
 }, { immediate: true })
 
 // 监听打卡状态变化
 watch(() => isCurrentlyCheckedIn.value, (newValue) => {
-  console.log(`✅ 打卡状态变化: ${newValue ? '已签到' : '未签到'}`)
-  console.log(`📊 月度统计面板应该显示: ${shouldShowMonthlyStats.value}`)
 }, { immediate: true })
 
 // 暴露给全局用于测试（在浏览器控制台中可以调用）
@@ -666,7 +602,6 @@ if (typeof window !== 'undefined') {
         checkinTime: new Date().toLocaleTimeString(),
         checkinTimestamp: Date.now()
       })
-      console.log('✅ 模拟签到成功')
     } else {
       store.commit('setCheckinInfo', {
         checkedIn: false,
@@ -674,40 +609,64 @@ if (typeof window !== 'undefined') {
         checkinTime: null,
         checkinTimestamp: null
       })
-      console.log('❌ 取消签到状态')
     }
-    console.log('🔄 打卡状态已切换:', newCheckedIn ? '已签到' : '未签到')
-    console.log('📊 月度统计面板现在应该:', shouldShowMonthlyStats.value ? '显示' : '隐藏')
   }
   window.simulateSmallScreen = () => {
     screenHeight.value = 1000 // 模拟16寸以下屏幕
-    console.log('📱 已模拟小屏幕 (1000px高度)')
-    console.log('📊 月度统计面板现在应该:', shouldShowMonthlyStats.value ? '显示' : '隐藏')
   }
   window.simulateLargeScreen = () => {
     screenHeight.value = 1400 // 模拟大屏幕
-    console.log('🖥️ 已模拟大屏幕 (1400px高度)')
-    console.log('📊 月度统计面板现在应该:', shouldShowMonthlyStats.value ? '显示' : '隐藏')
   }
   window.simulate16InchScreen = () => {
     screenHeight.value = 1080 // 模拟16寸笔记本 1920x1080
-    console.log('💻 已模拟16寸屏幕 (1080px高度)')
-    console.log('📊 月度统计面板现在应该:', shouldShowMonthlyStats.value ? '显示' : '隐藏')
   }
   window.testFullScenario = () => {
-    console.log('🧪 开始完整测试场景...')
-    console.log('当前屏幕高度:', screenHeight.value + 'px')
-    console.log('是否小屏幕:', isSmallScreen.value)
-    console.log('是否正在打卡:', isCurrentlyCheckedIn.value)
-    console.log('面板是否展开:', isExpanded.value)
-    console.log('应该显示月度统计:', shouldShowMonthlyStats.value)
-    
     // 测试16寸屏幕 + 打卡状态
     window.simulate16InchScreen()
     if (!store.getters.checkinInfo.checkedIn) {
       window.toggleCheckinStatus()
     }
-    console.log('✅ 16寸屏幕 + 已打卡 → 月度统计应该隐藏:', !shouldShowMonthlyStats.value)
+  }
+  // 110教室座位图配置函数
+  window.customize110SeatMap = (customConfig) => {
+    if (seatMapRef.value) {
+      seatMapRef.value.updateRoom110Config(customConfig)
+    }
+  }
+  window.get110SeatConfig = () => {
+    if (seatMapRef.value) {
+      const config = seatMapRef.value.getRoom110Config()
+      return config
+    } else {
+      return null
+    }
+  }
+  window.regenerate110Seats = () => {
+    if (seatMapRef.value) {
+      seatMapRef.value.regenerateRoom110Seats()
+    }
+  }
+  // 快速配置示例
+  window.example110Configs = {
+    // 示例1: 只禁用第一排的边缘座位
+    config1: {
+      disabledSeats: ['L1-1', 'L1-6', 'R1-1', 'R1-3']
+    },
+    // 示例2: 禁用多个座位模拟真实情况
+    config2: {
+      disabledSeats: [
+        'L1-1', 'L1-6',    // 第1行边缘
+        'L3-3', 'L3-4',    // 第3行中间有设备
+        'R3-2',            // 第3行右侧
+        'L5-1', 'L5-2',    // 第5行左侧有柱子
+        'R5-3',            // 第5行右侧角落
+        'L7-5', 'L7-6',    // 第7行右侧
+      ]
+    },
+    // 示例3: 最小配置（只禁用几个关键位置）
+    config3: {
+      disabledSeats: ['L1-1', 'R7-3']
+    }
   }
 }
 </script>
@@ -1184,12 +1143,6 @@ if (typeof window !== 'undefined') {
 
 .theme-dark .online-stats .stats-value {
   color: #ffffff;
-}
-
-/* 不可见占位符样式 - 保持布局但隐藏内容 */
-.online-stats.invisible-placeholder {
-  opacity: 0;
-  pointer-events: none;
 }
 
 /* 网格布局列定位 */

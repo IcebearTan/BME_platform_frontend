@@ -1,21 +1,41 @@
 <template>
   <div class="seat-map-container" :class="{ dark: isDarkMode }">
-    <!-- 110教室暂未开发状态 -->
-    <div v-if="currentRoomId === '110'" class="room-unavailable">
-      <div class="unavailable-content">
-        <div class="unavailable-icon">
-          <svg width="80" height="80" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" fill="currentColor"/>
-            <circle cx="20" cy="4" r="2" fill="#f59e0b"/>
-          </svg>
-        </div>
-        <h3 class="unavailable-title">暂未开发</h3>
-        <p class="unavailable-description">110教室功能正在开发中，敬请期待...</p>
-        <div class="unavailable-progress">
-          <div class="progress-bar">
-            <div class="progress-fill" :style="{ width: '30%' }"></div>
+    <!-- 110教室座位图 -->
+    <div v-if="currentRoomId === '110'" class="room-110-layout">
+      <div class="room-110-seats">
+        <div v-for="row in room110SeatConfig.rows" 
+             :key="`row-${row}`" 
+             class="seat-row">
+          <!-- 左侧座位区域 -->
+          <div class="row-left-section">
+            <div v-for="seat in room110SeatsByRow[row].left" 
+                 :key="seat.id"
+                 class="seat-item-110"
+                 :class="{ 
+                   'seat-online': seat.status === 'occupied',
+                   'seat-disabled': seat.status === 'disabled'
+                 }"
+                 :title="`${seat.status === 'disabled' ? '不可用' : seat.status === 'occupied' ? '占用' : '空闲'}`">
+              <div class="seat-rectangle" :class="getSeatClass(seat)"></div>
+            </div>
           </div>
-          <span class="progress-text">开发进度 30%</span>
+          
+          <!-- 中间走道 -->
+          <div class="aisle"></div>
+          
+          <!-- 右侧座位区域 -->
+          <div class="row-right-section">
+            <div v-for="seat in room110SeatsByRow[row].right" 
+                 :key="seat.id"
+                 class="seat-item-110"
+                 :class="{ 
+                   'seat-online': seat.status === 'occupied',
+                   'seat-disabled': seat.status === 'disabled'
+                 }"
+                 :title="`${seat.status === 'disabled' ? '不可用' : seat.status === 'occupied' ? '占用' : '空闲'}`">
+              <div class="seat-rectangle" :class="getSeatClass(seat)"></div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -85,24 +105,127 @@ const emit = defineEmits(['layout-change'])
 const currentLayout = ref(props.defaultLayout)
 watch(() => props.defaultLayout, v => currentLayout.value = v)
 
-// 座位数据 - 左侧2个座位
+// 座位数据 - 左侧2个座位（106教室）
 const leftSection = reactive([
   { id: 'L1', label: 'A1', status: 'available', occupant: null },
   { id: 'L2', label: 'A2', status: 'occupied', occupant: '张三' }
 ])
 
-// 座位数据 - 右侧3个座位
+// 座位数据 - 右侧3个座位（106教室）
 const rightSection = reactive([
   { id: 'R1', label: 'B1', status: 'available', occupant: null },
   { id: 'R2', label: 'B2', status: 'occupied', occupant: '李四' },
   { id: 'R3', label: 'B3', status: 'available', occupant: null }
 ])
 
+// 110教室座位配置 - 7行，每行左6右3
+const room110SeatConfig = {
+  rows: 7,
+  leftSeatsPerRow: 6,
+  rightSeatsPerRow: 3,
+  // 不可用座位配置 - 用户可以自定义
+  disabledSeats: [
+    // 示例：第1行左侧第1个和第6个座位不可用
+    'L1-1', 'L1-6',
+    // 第3行右侧第2个座位不可用
+    'R3-2',
+    // 第5行左侧第3、4个座位不可用
+    'L5-3', 'L5-4',
+    // 第7行右侧第1个座位不可用
+    'R7-1'
+  ]
+}
+
+// 生成110教室座位数据
+const generateRoom110Seats = () => {
+  const seats = []
+  const { rows, leftSeatsPerRow, rightSeatsPerRow, disabledSeats } = room110SeatConfig
+  
+  // 生成左侧座位（每行6个）
+  for (let row = 1; row <= rows; row++) {
+    for (let seat = 1; seat <= leftSeatsPerRow; seat++) {
+      const seatId = `L${row}-${seat}`
+      const isDisabled = disabledSeats.includes(seatId)
+      
+      seats.push({
+        id: seatId,
+        label: `L${row}-${seat}`,
+        row: row,
+        column: seat,
+        side: 'left',
+        status: isDisabled ? 'disabled' : (Math.random() > 0.7 ? 'occupied' : 'available'),
+        occupant: null,
+        type: 'rectangle' // 使用圆角矩形
+      })
+    }
+  }
+  
+  // 生成右侧座位（每行3个）
+  for (let row = 1; row <= rows; row++) {
+    for (let seat = 1; seat <= rightSeatsPerRow; seat++) {
+      const seatId = `R${row}-${seat}`
+      const isDisabled = disabledSeats.includes(seatId)
+      
+      seats.push({
+        id: seatId,
+        label: `R${row}-${seat}`,
+        row: row,
+        column: seat,
+        side: 'right',
+        status: isDisabled ? 'disabled' : (Math.random() > 0.8 ? 'occupied' : 'available'),
+        occupant: null,
+        type: 'rectangle' // 使用圆角矩形
+      })
+    }
+  }
+  
+  return seats
+}
+
+// 110教室座位数据
+const room110Seats = reactive(generateRoom110Seats())
+
+// 获取110教室按行分组的座位数据
+const room110SeatsByRow = computed(() => {
+  const seatsByRow = {}
+  
+  for (let row = 1; row <= room110SeatConfig.rows; row++) {
+    seatsByRow[row] = {
+      left: room110Seats.filter(seat => seat.row === row && seat.side === 'left'),
+      right: room110Seats.filter(seat => seat.row === row && seat.side === 'right')
+    }
+  }
+  
+  return seatsByRow
+})
+
+// 更新座位配置的方法
+const updateRoom110Config = (newConfig) => {
+  Object.assign(room110SeatConfig, newConfig)
+  // 重新生成座位数据
+  room110Seats.splice(0, room110Seats.length, ...generateRoom110Seats())
+}
+
+// 获取110教室座位的CSS类
+const getSeatClass = (seat) => {
+  const baseClass = 'seat-base'
+  if (seat.status === 'disabled') {
+    return `${baseClass} seat-disabled-style`
+  } else if (seat.status === 'occupied') {
+    return `${baseClass} seat-occupied-style`
+  } else {
+    return `${baseClass} seat-available-style`
+  }
+}
+
 // 根据座位状态和主题获取颜色（若统一颜色则忽略状态）
 const getSeatColors = (seat) => {
   if (props.octagonUniformColor) return [props.octagonUniformColor]
   
-  if (seat.status === 'available') {
+  if (seat.status === 'disabled') {
+    // 不可用状态：深灰色
+    return ['#9ca3af', '#6b7280']
+  } else if (seat.status === 'available') {
     // 空闲状态：白天灰色，夜晚深灰色
     return props.isDarkMode ? ['#4a5568', '#6b7280'] : ['#e5e7eb', '#f3f4f6']
   } else {
@@ -113,13 +236,17 @@ const getSeatColors = (seat) => {
 
 // 计算在线人数和总座位数
 const onlineCount = computed(() => {
-  if (props.currentRoomId === '110') return 0
+  if (props.currentRoomId === '110') {
+    return room110Seats.filter(seat => seat.status === 'occupied').length
+  }
   const allSeats = [...leftSection, ...rightSection]
   return allSeats.filter(seat => seat.status === 'occupied').length
 })
 
 const totalSeats = computed(() => {
-  if (props.currentRoomId === '110') return 0
+  if (props.currentRoomId === '110') {
+    return room110Seats.filter(seat => seat.status !== 'disabled').length
+  }
   return leftSection.length + rightSection.length
 })
 
@@ -134,13 +261,22 @@ function changeLayout(layout) {
 defineExpose({
   getSeatById: (id) => {
     // 查找并返回指定ID的座位
+    if (props.currentRoomId === '110') {
+      return room110Seats.find(seat => seat.id === id)
+    }
     const allSeats = [...leftSection, ...rightSection]
     return allSeats.find(seat => seat.id === id)
   },
   updateSeatStatus: (id, status, occupant = null) => {
     // 更新座位状态
-    const allSeats = [...leftSection, ...rightSection]
-    const seat = allSeats.find(s => s.id === id)
+    let seat
+    if (props.currentRoomId === '110') {
+      seat = room110Seats.find(s => s.id === id)
+    } else {
+      const allSeats = [...leftSection, ...rightSection]
+      seat = allSeats.find(s => s.id === id)
+    }
+    
     if (seat) {
       seat.status = status
       seat.occupant = occupant
@@ -150,6 +286,9 @@ defineExpose({
   },
   getAllSeats: () => {
     // 获取所有座位
+    if (props.currentRoomId === '110') {
+      return [...room110Seats]
+    }
     return [...leftSection, ...rightSection]
   },
   getOnlineStats: () => {
@@ -157,6 +296,12 @@ defineExpose({
       onlineCount: onlineCount.value,
       totalSeats: totalSeats.value
     }
+  },
+  // 110教室专用方法
+  updateRoom110Config: updateRoom110Config,
+  getRoom110Config: () => room110SeatConfig,
+  regenerateRoom110Seats: () => {
+    room110Seats.splice(0, room110Seats.length, ...generateRoom110Seats())
   },
   onlineCount,
   totalSeats,
@@ -430,6 +575,148 @@ defineExpose({
   }
   50% {
     opacity: 0.7;
+  }
+}
+
+/* 110教室样式 */
+.room-110-layout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 50px 0 50px 0;
+}
+
+.room-110-seats {
+  display: flex;
+  flex-direction: column;
+  gap: 50px;
+  align-items: center;
+  width: 100%;
+  max-width: 800px;
+}
+
+.seat-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 60px;
+  width: 100%;
+}
+
+.row-left-section, .row-right-section {
+  display: flex;
+  gap: 16px;
+}
+
+.aisle {
+  width: 60px;
+  height: 0;
+}
+
+.seat-item-110 {
+  position: relative;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.seat-item-110:hover:not(.seat-disabled) {
+  transform: translateY(-2px) scale(1.1);
+  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.15));
+}
+
+.seat-map-container.dark .seat-item-110.seat-online {
+  filter: drop-shadow(0 4px 12px rgba(255, 255, 255, 0.4));
+}
+
+.seat-rectangle {
+  width: 48px;
+  height: 16px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  /* border: 2px solid transparent; */
+}
+
+.seat-rectangle.seat-base.seat-available-style {
+  background: #e5e7eb;
+  border-color: #d1d5db;
+}
+
+.seat-rectangle.seat-base.seat-occupied-style {
+  background: #6fdaa3;
+  border-color: #34d399;
+  box-shadow: 0 4px 12px rgba(109, 218, 163, 0.4);
+}
+
+.seat-rectangle.seat-base.seat-disabled-style {
+  background: #9ca3af;
+  border-color: #6b7280;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.seat-map-container.dark .seat-rectangle.seat-base.seat-available-style {
+  background: #4a5568;
+  border-color: #6b7280;
+}
+
+.seat-map-container.dark .seat-rectangle.seat-base.seat-occupied-style {
+  background: #ffffff;
+  border-color: #e5e7eb;
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.3);
+}
+
+/* 响应式设计 - 110教室 */
+@media (max-width: 768px) {
+  .room-110-seats {
+    gap: 16px;
+    max-width: 600px;
+  }
+  
+  .seat-row {
+    gap: 40px;
+  }
+  
+  .row-left-section, .row-right-section {
+    gap: 12px;
+  }
+  
+  .seat-rectangle {
+    width: 40px;
+    height: 30px;
+  }
+  
+  .aisle {
+    width: 40px;
+  }
+}
+
+@media (max-width: 480px) {
+  .room-110-seats {
+    gap: 12px;
+    max-width: 400px;
+  }
+  
+  .seat-rectangle {
+    width: 32px;
+    height: 24px;
+    border-radius: 6px;
+  }
+  
+  .row-left-section, .row-right-section {
+    gap: 8px;
+  }
+  
+  .seat-row {
+    gap: 30px;
+  }
+  
+  .aisle {
+    width: 30px;
   }
 }
 </style>

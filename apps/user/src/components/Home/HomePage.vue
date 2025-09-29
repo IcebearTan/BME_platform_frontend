@@ -83,16 +83,11 @@ onMounted(() => {
   <LivePanel />
   
   <div class="content-container">
-    <!-- 移动端专用签到模块 -->
-    <div class="mobile-attendance-section">
-      <DailyAttendence />
-    </div>
-    
     <div class="main-content">
-      <MainContent 
+      <!-- <MainContent 
         :articles="articles"
         @article-click="goToArticle"
-      />
+      /> -->
     </div>
     <div class="side-content">
       <SidebarContent @action-click="handleSidebarAction" />
