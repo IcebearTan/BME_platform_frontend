@@ -303,10 +303,10 @@ const submitCheckCode = async (code) => {
 const submitCheckOutCode = async (code) => {
   try {
     const res = await api({
-      url: '/checkout',
+      url: '/check',
       method: 'post',
       data: {
-        'checkout_code': code
+        'check_code': code
       }
     })
     if (res.status === 200) {
@@ -517,235 +517,475 @@ const saveCheckinToHistory = (checkinData) => {
 
 // 显示签到弹窗
 const showCheckinDialog = () => {
-  const codeValue = ref(['', '', '', '', '', ''])
-  let closeDialog = null
+  let currentIndex = 0
+  let codeValues = ['', '', '', '', '', '']
   
-  const inputContainer = h('div', { 
+  // 重置状态的函数
+  const resetInputState = () => {
+    currentIndex = 0
+    codeValues = ['', '', '', '', '', '']
+    const allInputs = document.querySelectorAll('.verification-digit-input')
+    allInputs.forEach((input, index) => {
+      input.value = ''
+      input.style.borderColor = index === 0 ? '#3b82f6' : '#e5e7eb'
+      input.style.background = index === 0 ? '#ffffff' : '#f9fafb'
+    })
+    if (allInputs[0]) {
+      allInputs[0].focus()
+    }
+  }
+  
+  // 将重置函数暴露到全局，供handleSubmitCheckin调用
+  window.__resetCheckinInput = resetInputState
+  
+  const inputContainer = h('div', {
     class: 'verification-code-container',
     style: {
       display: 'flex',
       justifyContent: 'center',
       alignItems: 'center',
-      gap: '12px',
-      padding: '24px 0'
+      gap: '16px',
+      padding: '32px 0'
     }
-  }, codeValue.value.map((value, index) => 
+  }, Array.from({ length: 6 }, (_, index) =>
     h('input', {
       key: index,
       type: 'text',
       maxlength: 1,
-      value: value,
       class: 'verification-digit-input',
+      'data-index': index,
       style: {
-        width: '40px',
-        height: '50px',
+        width: '48px',
+        height: '48px',
         textAlign: 'center',
-        fontSize: '24px',
+        fontSize: '20px',
         fontWeight: '600',
-        color: '#2c3e50',
-        background: '#f8f9fa',
-        border: '2px solid #e9ecef',
-        borderRadius: '10px',
+        color: '#1f2937',
+        background: index === 0 ? '#ffffff' : '#f9fafb',
+        border: index === 0 ? '2px solid #3b82f6' : '2px solid #e5e7eb',
+        borderRadius: '12px',
         transition: 'all 0.2s ease',
         outline: 'none'
       },
       onInput: (event) => {
-        const newValue = event.target.value
-        if (/^\d$/.test(newValue) || newValue === '') {
-          codeValue.value[index] = newValue
-          if (newValue && index < 5) {
-            nextTick(() => {
-              const nextInput = event.target.parentElement.children[index + 1]
-              if (nextInput) nextInput.focus()
-            })
+        const value = event.target.value
+        const inputIndex = parseInt(event.target.getAttribute('data-index'))
+        
+        // 只允许数字
+        if (value && !/^\d$/.test(value)) {
+          event.target.value = ''
+          return
+        }
+        
+        // 更新值
+        codeValues[inputIndex] = value
+        
+        if (value) {
+          // 输入了数字，移动到下一个
+          if (inputIndex < 5) {
+            const nextInput = document.querySelector(`.verification-digit-input[data-index="${inputIndex + 1}"]`)
+            if (nextInput) {
+              // 更新样式
+              event.target.style.borderColor = '#e5e7eb'
+              event.target.style.background = '#f9fafb'
+              nextInput.style.borderColor = '#3b82f6'
+              nextInput.style.background = '#ffffff'
+              nextInput.focus()
+              currentIndex = inputIndex + 1
+            }
           }
-        } else {
-          event.target.value = codeValue.value[index]
+          
+          // 检查是否完成
+          if (codeValues.every(v => v !== '')) {
+            const code = codeValues.join('')
+            setTimeout(() => {
+              handleSubmitCheckin(code)
+            }, 100)
+          }
         }
       },
       onKeydown: (event) => {
-        if (event.key === 'Backspace' && !codeValue.value[index] && index > 0) {
-          nextTick(() => {
-            const prevInput = event.target.parentElement.children[index - 1]
-            if (prevInput) prevInput.focus()
-          })
+        const inputIndex = parseInt(event.target.getAttribute('data-index'))
+        
+        if (event.key === 'Backspace') {
+          if (!event.target.value && inputIndex > 0) {
+            // 当前框为空且按退格，回到上一个
+            const prevInput = document.querySelector(`.verification-digit-input[data-index="${inputIndex - 1}"]`)
+            if (prevInput) {
+              prevInput.value = ''
+              codeValues[inputIndex - 1] = ''
+              // 更新样式
+              event.target.style.borderColor = '#e5e7eb'
+              event.target.style.background = '#f9fafb'
+              prevInput.style.borderColor = '#3b82f6'
+              prevInput.style.background = '#ffffff'
+              prevInput.focus()
+              currentIndex = inputIndex - 1
+            }
+          } else if (event.target.value) {
+            // 清除当前值
+            codeValues[inputIndex] = ''
+          }
         } else if (event.key === 'Enter') {
-          const code = codeValue.value.join('')
-          if (code.length === 6) {
-            handleSubmitCheckin(code, closeDialog)
+          if (codeValues.every(v => v !== '')) {
+            const code = codeValues.join('')
+            handleSubmitCheckin(code)
           }
         }
       },
       onFocus: (event) => {
-        event.target.style.borderColor = '#3498db'
-        event.target.style.boxShadow = '0 0 0 3px rgba(52, 152, 219, 0.1)'
+        const inputIndex = parseInt(event.target.getAttribute('data-index'))
+        // 只允许聚焦到第一个空位或当前位置
+        const emptyIndex = codeValues.findIndex(v => v === '')
+        if (emptyIndex !== -1 && inputIndex !== emptyIndex && inputIndex > emptyIndex) {
+          const correctInput = document.querySelector(`.verification-digit-input[data-index="${emptyIndex}"]`)
+          if (correctInput) {
+            correctInput.focus()
+            return
+          }
+        }
+        currentIndex = inputIndex
       },
-      onBlur: (event) => {
-        event.target.style.borderColor = '#e9ecef'
-        event.target.style.boxShadow = 'none'
+      onClick: (event) => {
+        const inputIndex = parseInt(event.target.getAttribute('data-index'))
+        // 点击时聚焦到第一个空位
+        const emptyIndex = codeValues.findIndex(v => v === '')
+        if (emptyIndex !== -1 && inputIndex !== emptyIndex) {
+          const correctInput = document.querySelector(`.verification-digit-input[data-index="${emptyIndex}"]`)
+          if (correctInput) {
+            correctInput.focus()
+          }
+        }
       }
     })
   ))
 
+  // 保存 MessageBox 实例引用 - 注意：ElMessageBox 返回的是 Promise，不是对象
   ElMessageBox({
-    title: '🎯 开始学习',
+    title: '开始学习',
     message: inputContainer,
-    showCancelButton: true,
-    confirmButtonText: '签到',
-    cancelButtonText: '取消',
-    showClose: true,
-    closeOnClickModal: false,
+    showCancelButton: false,
+    showConfirmButton: false,
+    showClose: false,
+    closeOnClickModal: true,
     closeOnPressEscape: true,
-    customClass: 'checkin-message-box',
-    beforeClose: (action, instance, done) => {
-      if (action === 'confirm') {
-        const code = codeValue.value.join('')
-        if (code.length !== 6) {
-          ElMessage.warning('请输入完整的6位签到码')
-          return
-        }
-        handleSubmitCheckin(code, done)
-      } else {
-        done()
-      }
-    },
-    callback: (action) => {
-      if (closeDialog) closeDialog()
-    }
-  }).then(() => {}).catch(() => {})
+    customClass: 'simple-checkin-box'
+  }).then(() => {
+    // 清理全局函数
+    delete window.__resetCheckinInput
+  }).catch(() => {
+    delete window.__resetCheckinInput
+  })
 
+  // 初始化聚焦
   nextTick(() => {
-    const firstInput = document.querySelector('.verification-digit-input')
-    if (firstInput) firstInput.focus()
+    setTimeout(() => {
+      const firstInput = document.querySelector('.verification-digit-input[data-index="0"]')
+      if (firstInput) {
+        firstInput.focus()
+        currentIndex = 0
+      }
+    }, 100)
   })
 }
 
 // 显示签退弹窗
 const showCheckoutDialog = () => {
-  const codeValue = ref(['', '', '', '', '', ''])
+  let currentIndex = 0
+  let codeValues = ['', '', '', '', '', '']
   
-  const inputContainer = h('div', { 
+  // 重置状态的函数
+  const resetInputState = () => {
+    currentIndex = 0
+    codeValues = ['', '', '', '', '', '']
+    const allInputs = document.querySelectorAll('.verification-digit-input')
+    allInputs.forEach((input, index) => {
+      input.value = ''
+      input.style.borderColor = index === 0 ? '#3b82f6' : '#e5e7eb'
+      input.style.background = index === 0 ? '#ffffff' : '#f9fafb'
+    })
+    if (allInputs[0]) {
+      allInputs[0].focus()
+    }
+  }
+  
+  // 将重置函数暴露到全局，供handleSubmitCheckout调用
+  window.__resetCheckoutInput = resetInputState
+  
+  const inputContainer = h('div', {
     class: 'verification-code-container',
     style: {
       display: 'flex',
       justifyContent: 'center',
       alignItems: 'center',
-      gap: '12px',
-      padding: '24px 0'
+      gap: '16px',
+      padding: '32px 0'
     }
-  }, codeValue.value.map((value, index) => 
+  }, Array.from({ length: 6 }, (_, index) =>
     h('input', {
       key: index,
       type: 'text',
       maxlength: 1,
-      value: value,
       class: 'verification-digit-input',
+      'data-index': index,
       style: {
-        width: '40px',
-        height: '50px',
+        width: '48px',
+        height: '48px',
         textAlign: 'center',
-        fontSize: '24px',
+        fontSize: '20px',
         fontWeight: '600',
-        color: '#2c3e50',
-        background: '#f8f9fa',
-        border: '2px solid #e9ecef',
-        borderRadius: '10px',
+        color: '#1f2937',
+        background: index === 0 ? '#ffffff' : '#f9fafb',
+        border: index === 0 ? '2px solid #3b82f6' : '2px solid #e5e7eb',
+        borderRadius: '12px',
         transition: 'all 0.2s ease',
         outline: 'none'
       },
       onInput: (event) => {
-        const newValue = event.target.value
-        if (/^\d$/.test(newValue) || newValue === '') {
-          codeValue.value[index] = newValue
-          if (newValue && index < 5) {
-            nextTick(() => {
-              const nextInput = event.target.parentElement.children[index + 1]
-              if (nextInput) nextInput.focus()
-            })
+        const value = event.target.value
+        const inputIndex = parseInt(event.target.getAttribute('data-index'))
+        
+        // 只允许数字
+        if (value && !/^\d$/.test(value)) {
+          event.target.value = ''
+          return
+        }
+        
+        // 更新值
+        codeValues[inputIndex] = value
+        
+        if (value) {
+          // 输入了数字，移动到下一个
+          if (inputIndex < 5) {
+            const nextInput = document.querySelector(`.verification-digit-input[data-index="${inputIndex + 1}"]`)
+            if (nextInput) {
+              // 更新样式
+              event.target.style.borderColor = '#e5e7eb'
+              event.target.style.background = '#f9fafb'
+              nextInput.style.borderColor = '#3b82f6'
+              nextInput.style.background = '#ffffff'
+              nextInput.focus()
+              currentIndex = inputIndex + 1
+            }
           }
-        } else {
-          event.target.value = codeValue.value[index]
+          
+          // 检查是否完成
+          if (codeValues.every(v => v !== '')) {
+            const code = codeValues.join('')
+            setTimeout(() => {
+              handleSubmitCheckout(code)
+            }, 100)
+          }
         }
       },
       onKeydown: (event) => {
-        if (event.key === 'Backspace' && !codeValue.value[index] && index > 0) {
-          nextTick(() => {
-            const prevInput = event.target.parentElement.children[index - 1]
-            if (prevInput) prevInput.focus()
-          })
+        const inputIndex = parseInt(event.target.getAttribute('data-index'))
+        
+        if (event.key === 'Backspace') {
+          if (!event.target.value && inputIndex > 0) {
+            // 当前框为空且按退格，回到上一个
+            const prevInput = document.querySelector(`.verification-digit-input[data-index="${inputIndex - 1}"]`)
+            if (prevInput) {
+              prevInput.value = ''
+              codeValues[inputIndex - 1] = ''
+              // 更新样式
+              event.target.style.borderColor = '#e5e7eb'
+              event.target.style.background = '#f9fafb'
+              prevInput.style.borderColor = '#3b82f6'
+              prevInput.style.background = '#ffffff'
+              prevInput.focus()
+              currentIndex = inputIndex - 1
+            }
+          } else if (event.target.value) {
+            // 清除当前值
+            codeValues[inputIndex] = ''
+          }
         } else if (event.key === 'Enter') {
-          const code = codeValue.value.join('')
-          if (code.length === 6) {
+          if (codeValues.every(v => v !== '')) {
+            const code = codeValues.join('')
             handleSubmitCheckout(code)
           }
         }
       },
       onFocus: (event) => {
-        event.target.style.borderColor = '#e74c3c'
-        event.target.style.boxShadow = '0 0 0 3px rgba(231, 76, 60, 0.1)'
+        const inputIndex = parseInt(event.target.getAttribute('data-index'))
+        // 只允许聚焦到第一个空位或当前位置
+        const emptyIndex = codeValues.findIndex(v => v === '')
+        if (emptyIndex !== -1 && inputIndex !== emptyIndex && inputIndex > emptyIndex) {
+          const correctInput = document.querySelector(`.verification-digit-input[data-index="${emptyIndex}"]`)
+          if (correctInput) {
+            correctInput.focus()
+            return
+          }
+        }
+        currentIndex = inputIndex
       },
-      onBlur: (event) => {
-        event.target.style.borderColor = '#e9ecef'
-        event.target.style.boxShadow = 'none'
+      onClick: (event) => {
+        const inputIndex = parseInt(event.target.getAttribute('data-index'))
+        // 点击时聚焦到第一个空位
+        const emptyIndex = codeValues.findIndex(v => v === '')
+        if (emptyIndex !== -1 && inputIndex !== emptyIndex) {
+          const correctInput = document.querySelector(`.verification-digit-input[data-index="${emptyIndex}"]`)
+          if (correctInput) {
+            correctInput.focus()
+          }
+        }
       }
     })
   ))
 
+  // 保存 MessageBox 实例引用 - 注意：ElMessageBox 返回的是 Promise，不是对象
   ElMessageBox({
-    title: '🏁 结束学习',
+    title: '结束学习',
     message: inputContainer,
-    showCancelButton: true,
-    confirmButtonText: '签退',
-    cancelButtonText: '取消',
-    showClose: true,
-    closeOnClickModal: false,
+    showCancelButton: false,
+    showConfirmButton: false,
+    showClose: false,
+    closeOnClickModal: true,
     closeOnPressEscape: true,
-    customClass: 'checkout-message-box',
-    beforeClose: (action, instance, done) => {
-      if (action === 'confirm') {
-        const code = codeValue.value.join('')
-        if (code.length !== 6) {
-          ElMessage.warning('请输入完整的6位签退码')
-          return
-        }
-        handleSubmitCheckout(code, done)
-      } else {
-        done()
-      }
-    }
-  }).then(() => {}).catch(() => {})
+    customClass: 'simple-checkout-box'
+  }).then(() => {
+    // 清理全局函数
+    delete window.__resetCheckoutInput
+  }).catch(() => {
+    delete window.__resetCheckoutInput
+  })
 
+  // 初始化聚焦
   nextTick(() => {
-    const firstInput = document.querySelector('.verification-digit-input')
-    if (firstInput) firstInput.focus()
+    setTimeout(() => {
+      const firstInput = document.querySelector('.verification-digit-input[data-index="0"]')
+      if (firstInput) {
+        firstInput.focus()
+        currentIndex = 0
+      }
+    }, 100)
   })
 }
 
 // 处理提交签到
-const handleSubmitCheckin = async (code, closeDialog) => {
+const handleSubmitCheckin = async (code) => {
   loading.value = true
   try {
     const success = await submitCheckCode(code)
-    if (success && closeDialog) {
-      closeDialog()
+    if (success) {
+      // 显示所有输入框的成功动画
+      const allInputs = document.querySelectorAll('.verification-digit-input')
+      allInputs.forEach(input => {
+        input.classList.add('input-success')
+      })
+      
+      // 延迟关闭对话框
+      setTimeout(() => {
+        // 先移除动画类
+        allInputs.forEach(input => {
+          input.classList.remove('input-success')
+        })
+        
+        // 使用 ElMessageBox.close() 静态方法关闭所有对话框
+        try {
+          ElMessageBox.close()
+        } catch (error) {
+          // 如果静态方法不可用，尝试通过 DOM 操作关闭
+          const messageBox = document.querySelector('.el-message-box')
+          if (messageBox) {
+            const closeBtn = messageBox.querySelector('.el-message-box__close')
+            if (closeBtn) {
+              closeBtn.click()
+            } else {
+              // 最后的备用方案：点击遮罩层
+              const wrapper = document.querySelector('.el-message-box__wrapper')
+              if (wrapper) {
+                wrapper.click()
+              }
+            }
+          }
+        }
+      }, 800)
     }
   } catch (error) {
     console.error('签到失败:', error)
+    // 显示所有输入框的错误动画
+    const allInputs = document.querySelectorAll('.verification-digit-input')
+    allInputs.forEach(input => {
+      input.classList.add('input-error')
+    })
+    
+    setTimeout(() => {
+      // 移除错误动画
+      allInputs.forEach(input => {
+        input.classList.remove('input-error')
+      })
+      
+      // 使用全局重置函数
+      if (window.__resetCheckinInput) {
+        window.__resetCheckinInput()
+      }
+    }, 400)
   } finally {
     loading.value = false
   }
 }
 
 // 处理提交签退
-const handleSubmitCheckout = async (code, closeDialog) => {
+const handleSubmitCheckout = async (code) => {
   loading.value = true
   try {
     const success = await submitCheckOutCode(code)
-    if (success && closeDialog) {
-      closeDialog()
+    if (success) {
+      // 显示所有输入框的成功动画
+      const allInputs = document.querySelectorAll('.verification-digit-input')
+      allInputs.forEach(input => {
+        input.classList.add('input-success')
+      })
+      
+      // 延迟关闭对话框
+      setTimeout(() => {
+        // 先移除动画类
+        allInputs.forEach(input => {
+          input.classList.remove('input-success')
+        })
+        
+        // 使用 ElMessageBox.close() 静态方法关闭所有对话框
+        try {
+          ElMessageBox.close()
+        } catch (error) {
+          // 如果静态方法不可用，尝试通过 DOM 操作关闭
+          const messageBox = document.querySelector('.el-message-box')
+          if (messageBox) {
+            const closeBtn = messageBox.querySelector('.el-message-box__close')
+            if (closeBtn) {
+              closeBtn.click()
+            } else {
+              // 最后的备用方案：点击遮罩层
+              const wrapper = document.querySelector('.el-message-box__wrapper')
+              if (wrapper) {
+                wrapper.click()
+              }
+            }
+          }
+        }
+      }, 800)
     }
   } catch (error) {
     console.error('签退失败:', error)
+    // 显示所有输入框的错误动画
+    const allInputs = document.querySelectorAll('.verification-digit-input')
+    allInputs.forEach(input => {
+      input.classList.add('input-error')
+    })
+    
+    setTimeout(() => {
+      // 移除错误动画
+      allInputs.forEach(input => {
+        input.classList.remove('input-error')
+      })
+      
+      // 使用全局重置函数
+      if (window.__resetCheckoutInput) {
+        window.__resetCheckoutInput()
+      }
+    }, 400)
   } finally {
     loading.value = false
   }
@@ -1398,60 +1638,106 @@ defineExpose({
   animation: fadeInScale 0.4s ease-out 0.2s forwards;
 }
 
-/* 签到对话框样式 */
-:global(.checkin-message-box) {
-  border-radius: 20px !important;
+/* 简化的签到对话框样式 */
+:global(.simple-checkin-box) {
+  border-radius: 16px !important;
   overflow: hidden !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12) !important;
+  border: none !important;
 }
 
-:global(.checkin-message-box .el-message-box__header) {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-  color: white !important;
-  padding: 20px 24px !important;
+:global(.simple-checkin-box .el-message-box__wrapper) {
+  background-color: rgba(0, 0, 0, 0.3) !important;
 }
 
-:global(.checkin-message-box .el-message-box__title) {
-  color: white !important;
+:global(.simple-checkin-box .el-message-box__header) {
+  background: #ffffff !important;
+  color: #333333 !important;
+  padding: 32px 24px 24px 24px !important;
+  border-bottom: none !important;
+  text-align: center !important;
+}
+
+:global(.simple-checkin-box .el-message-box__title) {
+  color: #1f2937 !important;
   font-weight: 600 !important;
+  font-size: 20px !important;
+  margin: 0 !important;
+  text-align: center !important;
 }
 
-:global(.checkout-message-box) {
-  border-radius: 20px !important;
+:global(.simple-checkin-box .el-message-box__content) {
+  padding: 0 24px 32px 24px !important;
+}
+
+:global(.simple-checkout-box) {
+  border-radius: 16px !important;
   overflow: hidden !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12) !important;
+  border: none !important;
 }
 
-:global(.checkout-message-box .el-message-box__header) {
-  background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%) !important;
-  color: white !important;
-  padding: 20px 24px !important;
+:global(.simple-checkout-box .el-message-box__wrapper) {
+  background-color: rgba(0, 0, 0, 0.3) !important;
 }
 
-:global(.checkout-message-box .el-message-box__title) {
-  color: white !important;
+:global(.simple-checkout-box .el-message-box__header) {
+  background: #ffffff !important;
+  color: #333333 !important;
+  padding: 32px 24px 24px 24px !important;
+  border-bottom: none !important;
+  text-align: center !important;
+}
+
+:global(.simple-checkout-box .el-message-box__title) {
+  color: #1f2937 !important;
   font-weight: 600 !important;
+  font-size: 20px !important;
+  margin: 0 !important;
+  text-align: center !important;
 }
 
-:global(.verification-code-container) {
-  display: flex !important;
-  justify-content: center !important;
-  align-items: center !important;
-  gap: 12px !important;
-  padding: 24px 0 !important;
+:global(.simple-checkout-box .el-message-box__content) {
+  padding: 0 24px 32px 24px !important;
 }
 
-:global(.verification-digit-input) {
-  width: 40px !important;
-  height: 50px !important;
-  font-size: 24px !important;
+/* 输入框动画效果 - 只在API成功/失败时播放 */
+:global(.input-success) {
+  animation: modern-success-pulse 0.6s ease-out !important;
+  border-color: #10b981 !important;
+  background-color: #f0fdf4 !important;
+  color: #065f46 !important;
+}
+
+:global(.input-error) {
+  animation: modern-error-shake 0.4s ease-out !important;
+  border-color: #ef4444 !important;
+  background-color: #fef2f2 !important;
+  color: #dc2626 !important;
+}
+
+@keyframes modern-success-pulse {
+  0% { 
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.3);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
+    transform: scale(1.05);
+  }
+  100% { 
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+    transform: scale(1);
+  }
+}
+
+@keyframes modern-error-shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-3px); }
+  20%, 40%, 60%, 80% { transform: translateX(3px); }
 }
 
 .theme-dark .timer-button-text {
   color: #000000;
-}
-
-:global(.verification-digit-input) {
-  width: 40px !important;
-  height: 50px !important;
-  font-size: 24px !important;
 }
 </style>

@@ -208,13 +208,6 @@ onMounted(async () => {
     timeTimer = setInterval(updateDateTime, 1000)
   }
   
-  // 实时更新当前时间
-  setInterval(() => {
-    nowTime.value = new Date()
-    // 每次更新时间时检查是否超时
-    checkOvertimeWarning()
-  }, 1000)
-  
   // 如果已登录，获取打卡状态和历史记录
   if (checkLogin()) {
     // 并行获取最新状态和历史记录
