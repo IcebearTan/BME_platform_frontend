@@ -469,11 +469,8 @@ const formatSecondsToTimeDuration = (totalSeconds) => {
 
 // 计算今日总时长 - 基于服务器API数据，不再依赖本地localStorage
 const calculateTodayTotalDuration = async () => {
-  console.log('🚀 开始计算今日总时长')
-  
   // 获取今日日期字符串，放在函数开始处确保全局可用
   const today = new Date().toISOString().split('T')[0]
-  console.log('📅 今日日期:', today)
   
   try {
     // 获取历史记录数据
@@ -483,65 +480,48 @@ const calculateTodayTotalDuration = async () => {
     })
     
     if (recordsRes.status === 200 && recordsRes.data) {
-      console.log('📊 /records API响应:', recordsRes.data)
-      
       // 从 current_month.records 和 previous_month.records 中查找今日记录
       const allRecords = [
         ...(recordsRes.data.current_month?.records || []),
         ...(recordsRes.data.previous_month?.records || [])
       ]
       
-      console.log('📋 所有记录:', allRecords)
-      
       const todayRecord = allRecords.find(record => record.date === today)
-      console.log('🎯 今日记录:', todayRecord)
       
       if (todayRecord && todayRecord.total_hours) {
-        console.log('✅ 找到今日记录，total_hours:', todayRecord.total_hours)
         // 如果有今日记录，直接使用服务器提供的总时长
         const formatted = formatHoursToTimeDuration(todayRecord.total_hours)
         todayTotalDuration.value = formatted
-        console.log('✅ 设置今日总时长为:', formatted)
         return
       }
     }
     
     // 如果没有历史记录，尝试从最新状态获取
-    console.log('⚠️ 没找到今日历史记录，尝试从最新状态获取')
     const latestRes = await api({
       url: '/lateset_checktime',
       method: 'get'
     })
     
-    console.log('📊 /lateset_checktime API响应:', latestRes.data)
-    
     if (latestRes.status === 200 && latestRes.data && latestRes.data.has_record) {
       // 检查返回的记录是否是今日的
       const recordDate = latestRes.data.date
-      console.log('📅 记录日期:', recordDate, '今日日期:', today)
       
       if (recordDate === today && latestRes.data.duration) {
         // 只有当记录是今日的时候才使用duration
         const duration = latestRes.data.duration
-        console.log('🕒 今日记录，获取到duration:', duration, '类型:', typeof duration)
         
         if (typeof duration === 'number') {
           const formatted = formatHoursToTimeDuration(duration)
           todayTotalDuration.value = formatted
-          console.log('✅ 数字类型duration，设置为:', formatted)
         } else if (typeof duration === 'string') {
           const formatted = parseDurationStringToTimeFormat(duration)
           todayTotalDuration.value = formatted
-          console.log('✅ 字符串类型duration，设置为:', formatted)
         }
         return
-      } else {
-        console.log('⚠️ 记录不是今日的，忽略duration')
       }
     }
     
     // 如果都没有数据，保持默认值
-    console.log('⚠️ 没有找到任何时长数据，保持默认值 0m')
     todayTotalDuration.value = '0m'
     
   } catch (error) {
@@ -553,11 +533,8 @@ const calculateTodayTotalDuration = async () => {
 
 // 将小时数格式化为 xxh xxm 格式（向下取整）
 const formatHoursToTimeDuration = (hours) => {
-  console.log('🔍 formatHoursToTimeDuration 输入:', hours)
-  
   // 更严格的验证：小于0.005小时（约18秒）就认为是0
   if (!hours || hours <= 0 || hours < 0.005) {
-    console.log('✅ 返回 0m (小时数为空、小于等于0或小于0.005)')
     return '0m'
   }
   
@@ -565,11 +542,8 @@ const formatHoursToTimeDuration = (hours) => {
   const h = Math.floor(totalMinutes / 60)
   const m = Math.floor(totalMinutes % 60) // 确保分钟数也是向下取整
   
-  console.log(`🔍 计算结果: ${hours}小时 -> ${totalMinutes}分钟 -> ${h}h ${m}m`)
-  
   // 如果计算出的分钟数为0，直接返回0m
   if (totalMinutes <= 0) {
-    console.log('✅ 返回 0m (计算出的分钟数小于等于0)')
     return '0m'
   }
   
@@ -582,10 +556,7 @@ const formatHoursToTimeDuration = (hours) => {
 
 // 解析服务器返回的时长字符串（如："1小时30分钟"）转为 xxh xxm 格式（向下取整）
 const parseDurationStringToTimeFormat = (durationStr) => {
-  console.log('🔍 parseDurationStringToTimeFormat 输入:', durationStr)
-  
   if (!durationStr || durationStr === '0小时0分钟') {
-    console.log('✅ 返回 0m (字符串为空或0小时0分钟)')
     return '0m'
   }
   
@@ -595,16 +566,10 @@ const parseDurationStringToTimeFormat = (durationStr) => {
   const hours = Math.floor(hourMatch ? parseInt(hourMatch[1]) : 0) // 向下取整小时
   const minutes = Math.floor(minuteMatch ? parseInt(minuteMatch[1]) : 0) // 向下取整分钟
   
-  console.log(`🔍 解析结果: 小时=${hours}, 分钟=${minutes}`)
-  
   if (hours > 0) {
-    const result = `${hours}h ${minutes}m`
-    console.log('✅ 返回:', result)
-    return result
+    return `${hours}h ${minutes}m`
   } else {
-    const result = `${minutes}m`
-    console.log('✅ 返回:', result)
-    return result
+    return `${minutes}m`
   }
 }
 
@@ -636,7 +601,6 @@ const loadTodayCheckinHistory = async () => {
     checkinHistory.value = savedHistory ? JSON.parse(savedHistory) : []
     
     // 不再自动计算总时长，因为现在使用API方法
-    console.log('📚 今日签到历史记录已加载（备用数据）:', checkinHistory.value)
   } catch (error) {
     console.error('❌ 加载今日签到历史记录失败:', error)
     checkinHistory.value = []
@@ -666,8 +630,6 @@ const loadCurrentCheckinStatus = async () => {
         updateStudyDuration()
       }
     }
-    
-    console.log('🎯 当前签到状态已加载:', checkinInfo.value)
   } catch (error) {
     console.error('❌ 加载当前签到状态失败:', error)
   }
@@ -693,7 +655,6 @@ const saveCheckinToHistory = (checkinData) => {
   localStorage.setItem(`checkin_history_${today}`, JSON.stringify(checkinHistory.value))
   
   // 不再自动调用本地计算方法，因为现在使用API方法
-  console.log('📝 签到记录已保存到本地（备用）:', record)
 }
 
 // 显示签到弹窗
@@ -1280,8 +1241,6 @@ onMounted(async () => {
   
   // 检查是否有token，只有登录状态下才发起API请求
   if (checkLogin()) {
-    console.log('🎫 检测到token，开始加载用户数据')
-    
     // 获取最新签到状态
     await getLatesetCheckStatus()
     
@@ -1291,7 +1250,6 @@ onMounted(async () => {
     // 使用基于API的方法计算今日总时长
     await calculateTodayTotalDuration()
   } else {
-    console.log('⚠️ 未检测到token，跳过数据加载')
     // 未登录状态下设置默认值
     checkinInfo.value.checkedIn = false
     checkinInfo.value.checkedOut = false
