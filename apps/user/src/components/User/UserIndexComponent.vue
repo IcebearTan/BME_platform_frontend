@@ -12,6 +12,11 @@ import UserIndexGroupComponent from './UserIndexGroupComponent.vue'
 // import SeatLayoutComponent from '../SeatLayoutComponent.vue'
 
 const User_Info = ref({})
+// 勋章列表与已获得勋章数量
+const Medal_List = ref([])
+const Medal_Count = ref(0)
+// 当前显示的勋章（如果有多个已获得的，以第一个为准）
+const CurrentMedal = ref(null)
 const router = useRouter()
 const store = useStore()
 
@@ -34,7 +39,8 @@ const fetchUserInfo = async () => {
     const res = await api({ url: '/user/user_index', method: 'get' })
     if (res?.data?.code === 200) {
       User_Info.value = res.data
-      console.log(User_Info.value)
+      return res.data
+    //   console.log(User_Info.value)
     } else {
       throw new Error(res?.data?.msg || '获取用户信息失败')
     }
@@ -43,10 +49,49 @@ const fetchUserInfo = async () => {
     if (error.response && error.response.status === 401) {
       router.push('/login')
     }
+    return null
   }
 }
 
-onMounted(fetchUserInfo)
+// 获取用户勋章列表并统计
+const fetchUserMedals = async () => {
+  try {
+    const res = await api({ url: '/medal/user_medal_show', method: 'get' })
+    // 返回的数据结构假定为 { Medal: [...] }
+    const list = res?.data?.Medal || []
+    Medal_List.value = list
+    // 计算 Get_Time 不为 null 的数量
+    const obtained = list.filter(m => m.Get_Time).length
+    Medal_Count.value = obtained
+    // console.log('勋章列表:', list)
+    // 优先选择：既有 Get_Time 且 Medal_Id === User_Info.User_Medal 的勋章
+    const userMedalId = Number(User_Info.value?.User_Medal)
+    let matched = null
+    if (userMedalId) {
+      matched = list.find(m => m.Get_Time && Number(m.Medal_Id) === userMedalId)
+    }
+    // 若找不到匹配的，则回退到第一个有 Get_Time 的勋章
+    CurrentMedal.value = matched || list.find(m => m.Get_Time) || null
+  } catch (error) {
+    // 错误交由全局拦截器处理（例如 401 跳转）
+    console.error('fetchUserMedals error', error)
+  }
+}
+
+onMounted(async () => {
+  // 先获取用户信息，以便在 fetchUserMedals 中使用 User_Info.value.User_Medal 做匹配
+  await fetchUserInfo()
+  await fetchUserMedals()
+})
+
+// 动态计算勋章图片路径：项目的 public/medals 下的图片可以通过 `/medals/<name>.png` 访问
+const medalImageSrc = computed(() => {
+  // 使用返回数据中的 Medal_Name 作为文件名（示例：VTK -> VTK.png）
+  const name = CurrentMedal.value?.Medal_Name
+  if (name) return `/medals/${name}.png`
+  // 回退图片（public/medals/Default.png）
+  return `/medals/Default.png`
+})
 </script>
 
 <template>
@@ -94,15 +139,15 @@ onMounted(fetchUserInfo)
               勋章成就: 
             </div>
             <div style="padding: 20px; display: flex; align-items: center; font-size: 25px; font-weight: bold; padding-bottom: 0;">
-              {{ User_Info.User_Medal }}
+              {{ Medal_Count }}
             </div>
             <div class="medalInfo">
-              <div class="medalTitle">VTK手术机器人</div>
-              <div class="medalDate">获取时间：2025.2.21</div>
+              <div class="medalTitle">{{ CurrentMedal?.Medal_Name_CN || '暂无勋章' }}</div>
+              <div class="medalDate">获取时间：{{ CurrentMedal?.Get_Time || '无' }}</div>
             </div>
           </span>
           <span style="display: flex; align-items: center; justify-content: center;">
-            <img src="../../assets/image.png" class="medal-image" />
+            <img :src="medalImageSrc" class="medal-image" />
           </span>
         </div>
       </div>
