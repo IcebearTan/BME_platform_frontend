@@ -207,59 +207,6 @@ onMounted(async () => {
     updateDateTime()
     timeTimer = setInterval(updateDateTime, 1000)
   }
-  
-  // 如果已登录，获取打卡状态和历史记录
-  // if (checkLogin()) {
-  //   // 并行获取最新状态和历史记录
-  //   const fetchPromises = [
-  //     getLatesetCheckStatus(),
-  //     fetchCheckStatus()
-  //   ]
-    
-  //   try {
-  //     await Promise.all(fetchPromises)
-  //     // 初始化完成后检查一次超时状态
-  //     checkOvertimeWarning()
-  //   } catch (error) {
-  //     console.error('打卡数据获取失败:', error)
-  //   }
-    
-  //   // 每30秒同步一次打卡状态，实现多端同步
-  //   setInterval(async () => {
-  //     const currentTodayRecord = { ...todayRecord.value }
-      
-  //     // 重新获取最新状态
-  //     todayRecord.value = await fetchLatestCheckTime()
-      
-  //     if (currentTodayRecord && todayRecord.value) {
-  //       // 检查状态变化（比如其他端签退了）
-  //       if (!currentTodayRecord.check_out_time && todayRecord.value.check_out_time) {
-  //         isVisible.value = false
-  //         ElMessage({
-  //           message: '检测到其他设备已签退，状态已同步',
-  //           type: 'info',
-  //           duration: 3000
-  //         })
-  //       }
-  //       // 检查是否其他端签到了
-  //       else if (!currentTodayRecord.check_in_time && todayRecord.value.check_in_time) {
-  //         const serverCheckTime = new Date(todayRecord.value.check_in_time)
-  //         checkTime.value = serverCheckTime
-  //         isVisible.value = true
-  //         ElMessage({
-  //           message: '检测到其他设备已签到，状态已同步',
-  //           type: 'info',
-  //           duration: 3000
-  //         })
-  //       }
-  //     }
-      
-  //     // 更新界面显示
-  //     checkIsVisible()
-  //     // 检查是否需要超时提示
-  //     checkOvertimeWarning()
-  //   }, 30000) // 30秒同步一次
-  // }
 })
 
 onUnmounted(() => {

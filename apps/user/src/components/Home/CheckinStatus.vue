@@ -295,6 +295,11 @@ const submitCheckCode = async (code) => {
         type: 'error',
         message: 'IP不在106或110网段，请连接正确的网络后重试',
       })
+    } else if (error?.response?.status === 400) {
+      ElMessage({
+        type: 'error',
+        message: '签到码错误或无效',
+      })
     } else {
       ElMessage({
         type: 'error',
@@ -365,6 +370,11 @@ const submitCheckOutCode = async (code) => {
       ElMessage({
         type: 'error',
         message: 'IP不在106或110网段，请连接正确的网络后重试',
+      })
+    } else if (error?.response?.status === 400) {
+      ElMessage({
+        type: 'error',
+        message: '签退码错误或无效',
       })
     } else {
       ElMessage({
@@ -811,7 +821,8 @@ const showCheckinDialog = () => {
     showClose: false,
     closeOnClickModal: true,
     closeOnPressEscape: true,
-    customClass: 'simple-checkin-box'
+    customClass: 'simple-checkin-box',
+    lockScroll: false,
   }).then(() => {
     // 清理全局函数
     delete window.__resetCheckinInput
@@ -985,7 +996,8 @@ const showCheckoutDialog = () => {
     showClose: false,
     closeOnClickModal: true,
     closeOnPressEscape: true,
-    customClass: 'simple-checkout-box'
+    customClass: 'simple-checkout-box',
+    lockScroll: false,
   }).then(() => {
     // 清理全局函数
     delete window.__resetCheckoutInput
