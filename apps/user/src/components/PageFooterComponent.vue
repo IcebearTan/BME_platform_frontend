@@ -1,5 +1,5 @@
 <template>
-  <div style="width: 1000px;">
+  <div class="footer-content">
     <div class="links-container">
         <div class="links">
             <router-link class="title" :to="{ path: '/'}" target="_blank">
@@ -94,6 +94,31 @@ export default defineComponent({
 </script>
 
 <style scoped>
+.footer-content {
+    width: 100%;
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 0 20px;
+    box-sizing: border-box;
+}
+
+@media (max-width: 1200px) {
+    .footer-content {
+        max-width: 900px;
+    }
+}
+
+@media (max-width: 768px) {
+    .footer-content {
+        padding: 0 15px;
+    }
+    
+    .links-container {
+        flex-direction: column;
+        gap: 30px;
+    }
+}
+
 .title{
     color: #fff;
     font-size: 15px;
@@ -157,14 +182,16 @@ export default defineComponent({
 }
 .links-container{
     display: flex;
-    justify-content: flex-start;
-
+    justify-content: space-between;
+    align-items: flex-start;
     width: 100%;
-
     margin-top: 20px;
+    gap: 20px;
 }
 .links{
     flex: 1;
+    display: flex;
+    flex-direction: column;
 }
 .custom-hr {
   border: none; /* 移除默认的边框 */

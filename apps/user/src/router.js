@@ -1,6 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router';
 
-import HomePage from './components/Home/HomePage.vue';
 import StudyDetailsComponent from './components/Course/StudyDetailsComponent.vue'
 import StudyComponent from './components/Course/StudyComponent.vue'
 import ExamListComponent from './components/ExamListComponent.vue'
@@ -36,14 +35,7 @@ const router = createRouter({
         {
             path: '/',
             name: 'home',
-            component: HomeView,
-            children: [
-                {
-                    path: '',
-                    name: 'home_default',
-                    component: HomePage,
-                },
-            ]
+            component: HomeView
         },
         {
             path: '/login',

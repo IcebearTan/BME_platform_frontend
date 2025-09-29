@@ -1,6 +1,6 @@
 <script>
 import { useStore } from 'vuex'
-import { User, DataLine, Close } from '@element-plus/icons-vue'
+import { User, DataLine, Close, Sunny, Moon } from '@element-plus/icons-vue'
 import NotificationComponent from './Notification/NotificationComponent.vue'
 
 export default {
@@ -28,7 +28,7 @@ export default {
 </script>
 
 <script setup>
-import { onMounted, ref, nextTick, onBeforeMount } from 'vue'
+import { onMounted, ref, nextTick, onBeforeMount, computed } from 'vue'
 import { ClickOutside as vClickOutside } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
@@ -182,12 +182,40 @@ const searchInputClass = ref('search-input')
 const searchInput = ref(null)
 const showNotificationHover = ref(false)
 
+// 主题状态管理
+const isDarkMode = computed(() => store.getters.isDarkMode)
+
+// 检查当前时间来决定主题（初始化时使用）
+const checkTimeTheme = () => {
+  const now = new Date()
+  const hour = now.getHours()
+  
+  // 6点到18点为白天模式，其他时间为黑夜模式
+  const isDay = hour >= 6 && hour < 18
+  const shouldBeDark = !isDay
+  
+  // 只在首次访问时自动设置主题
+  if (!localStorage.getItem('themeInitialized')) {
+    store.commit('setTheme', shouldBeDark)
+    localStorage.setItem('themeInitialized', 'true')
+  }
+}
+
+// 手动切换主题
+const toggleTheme = () => {
+  store.commit('toggleTheme')
+  console.log(`🎨 主题切换: ${isDarkMode.value ? '🌙 夜间模式' : '☀️ 白天模式'}`)
+}
+
 // 处理消息点击事件
 const handleNotificationClick = () => {
   router.push('/notifications')
 }
 
 onMounted(() => {
+    // 初始化主题
+    checkTimeTheme()
+    
     if (token) {
         checkLogin()
         // 检查用户角色，决定显示哪些菜单项
@@ -234,36 +262,64 @@ const handleUserGroup = () => {
 </script>
 
 <template>
-    <el-menu :default-active="activeIndex" class="el-menu-demo" mode="horizontal" :ellipsis="false"
-        @select="handleSelect" router>
-        <el-menu-item index="/" style="margin: 0;">
-            <img style="width: 50px" src="../assets/Logo_NewYear.png" />
+    <el-menu 
+        :default-active="activeIndex" 
+        :class="['el-menu-demo', { 'theme-dark': isDarkMode, 'theme-light': !isDarkMode }]" 
+        mode="horizontal" 
+        :ellipsis="false"
+        @select="handleSelect" 
+        router
+    >
+        <div class="menu-content-wrapper">
+            <!-- 左侧导航区域 -->
+            <div class="menu-left-section">
+                <el-menu-item index="/" class="home-menu-item" style="margin: 0;">
+                    <img style="width: 50px" src="../assets/Logo_NewYear.png" />
+                    <span class="ameii-text">AMEII</span>
+                </el-menu-item>
+                <el-menu-item index="/study">
+                    学习
+                </el-menu-item>
+                <el-menu-item index="/exam" disabled>
+                    考核
+                </el-menu-item>
+                <el-menu-item index="/order" disabled>
+                    资源库
+                </el-menu-item>
+                <el-menu-item index="/discuss" disabled>
+                    讨论
+                </el-menu-item>
+            </div>
+            
+            <!-- 右侧功能区域 -->
+            <div class="menu-right-section">
+                <el-input
+                     v-model="searchInput"
+                    placeholder="搜索"
+                    suffix-icon="Search"
+                    @focus="isSearchInputExpand()"
+                    @blur="isSearchInputExpand()"
+                    :class="searchInputClass"
+                />
+        
+        <!-- 主题切换按钮 -->
+        <el-menu-item class="custom-menu-item theme-menu-item" :class="{ 'theme-dark': isDarkMode, 'theme-light': !isDarkMode }">
+            <div 
+              class="theme-toggle-wrapper"
+              @click="toggleTheme"
+              :title="isDarkMode ? '切换到白天模式' : '切换到夜间模式'"
+            >
+              <div class="theme-toggle-button" :class="{ 'theme-dark': isDarkMode }">
+                <el-icon class="theme-icon">
+                  <Sunny v-if="!isDarkMode" />
+                  <Moon v-else />
+                </el-icon>
+              </div>
+            </div>
         </el-menu-item>
-        <el-menu-item index="/study">
-            学习
-        </el-menu-item>
-        <el-menu-item index="/exam" disabled>
-            考核
-        </el-menu-item>
-        <el-menu-item index="/order" disabled>
-            资源库
-        </el-menu-item>
-        <el-menu-item index="/discuss" style="margin-right: auto;" disabled>
-            讨论
-        </el-menu-item>
-        <div style="display: flex; align-items: center;">
-            <el-input
-                 v-model="searchInput"
-                placeholder="搜索"
-                suffix-icon="Search"
-                @focus="isSearchInputExpand()"
-                @blur="isSearchInputExpand()"
-                :class="searchInputClass"
-            />
-        </div>
         
         <!-- 消息提醒组件 -->
-        <el-menu-item v-if="isLogin" class="custom-menu-item notification-menu-item">
+        <el-menu-item v-if="isLogin" class="custom-menu-item notification-menu-item" :class="{ 'theme-dark': isDarkMode, 'theme-light': !isDarkMode }">
             <div 
               class="notification-wrapper"
               @click="handleNotificationClick"
@@ -277,16 +333,16 @@ const handleUserGroup = () => {
             </div>
         </el-menu-item>
         
-        <el-menu-item v-if="isLogin" class="custom-menu-item">
+        <el-menu-item v-if="isLogin" class="custom-menu-item theme-menu-item" :class="{ 'theme-dark': isDarkMode, 'theme-light': !isDarkMode }">
             <div class="user-avatar" style="cursor: pointer;">
                 <el-popover
                     :showArrow=false
                     trigger="click"
                     width="300px"
                     height="500px"
-                    popper-class="popover"
+                    :popper-class="`popover ${isDarkMode ? 'theme-dark' : 'theme-light'}`"
                 >
-                    <div>
+                    <div :class="{ 'theme-dark': isDarkMode, 'theme-light': !isDarkMode }">
                         <div style="display: flex; align-items: center; cursor: pointer;" @click="$router.push('/user')">
                             <div style="width: 50px; height: 50px;">
                                 <el-avatar @click="visible = !visible"
@@ -342,11 +398,14 @@ const handleUserGroup = () => {
                 
             </div>
         </el-menu-item>
+        
         <el-menu-item v-else class="custom-menu-item">
             <a href="/login" class="custom-link">登录</a>
             <span style="margin-left: 10px; margin-right: 10px;">或</span>
             <a href="/register" class="custom-link">注册</a>
         </el-menu-item>
+            </div> <!-- 关闭 menu-right-section -->
+        </div> <!-- 关闭 menu-content-wrapper -->
     </el-menu>
 </template>
 
@@ -354,11 +413,276 @@ const handleUserGroup = () => {
 <style scoped>
 
 .el-menu-demo{
-    width: 1325px;
+    width: 100% !important;
     border: none !important;
+    transition: all 0.3s ease;
+    display: flex !important;
+    justify-content: center !important;
+    padding: 0 20px;
+    box-sizing: border-box;
 }
-.el-menu--horizontal>.el-menu-item:nth-child(1) {
-    margin-right: auto;
+
+.menu-content-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    height: 100%;
+}
+
+.menu-left-section {
+    display: flex;
+    align-items: center;
+    gap: 0;
+}
+
+.menu-right-section {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* 响应式调整 */
+@media (max-width: 1400px) {
+    .menu-content-wrapper {
+        max-width: 1000px;
+    }
+}
+
+@media (max-width: 1200px) {
+    .menu-content-wrapper {
+        max-width: 900px;
+        padding: 0 15px;
+    }
+    
+    .menu-right-section {
+        gap: 8px;
+    }
+}
+
+@media (max-width: 1024px) {
+    .menu-content-wrapper {
+        max-width: 100%;
+        padding: 0 10px;
+    }
+    
+    .menu-right-section {
+        gap: 6px;
+    }
+}
+
+.el-menu-demo.theme-light {
+    background-color: #ffffff;
+    color: #333333;
+}
+
+.el-menu-demo.theme-dark {
+    background-color: #000000;
+    color: #ecf0f1;
+}
+
+/* 确保菜单项在新布局中正确显示 */
+.el-menu-demo :deep(.el-menu-item) {
+    height: 60px;
+    line-height: 60px;
+}
+
+.el-menu-demo :deep(.menu-content-wrapper) {
+    width: 100%;
+}
+/* 菜单项主题适配 - 优化版 */
+.el-menu-demo.theme-light :deep(.el-menu-item) {
+    color: #555555;
+    border-bottom: 2px solid transparent;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    font-size: 14px;
+    position: relative;
+}
+
+.el-menu-demo.theme-dark :deep(.el-menu-item) {
+    color: #bdc3c7;
+    border-bottom: 2px solid transparent;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    font-size: 14px;
+    position: relative;
+}
+
+.el-menu-demo.theme-light :deep(.el-menu-item:hover) {
+    background-color: rgba(52, 152, 219, 0.08);
+    color: #3498db;
+    transform: translateY(-1px);
+}
+
+.el-menu-demo.theme-dark :deep(.el-menu-item:hover) {
+    background-color: rgba(52, 152, 219, 0.15);
+    color: #5dade2;
+    transform: translateY(-1px);
+}
+
+.el-menu-demo.theme-light :deep(.el-menu-item.is-active) {
+    background: transparent;
+    color: #2980b9;
+    border-bottom: none;
+    font-weight: 700;
+    font-size: 16px;
+    position: relative;
+}
+
+.el-menu-demo.theme-light :deep(.el-menu-item.is-active::after) {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 30px;
+    height: 3px;
+    background-color: #3498db;
+    border-radius: 2px;
+    animation: slideInBottom 0.3s ease-out;
+    box-shadow: 0 1px 3px rgba(52, 152, 219, 0.4);
+}
+
+.el-menu-demo.theme-dark :deep(.el-menu-item.is-active) {
+    background: transparent;
+    color: #5dade2;
+    border-bottom: none;
+    font-weight: 700;
+    font-size: 16px;
+    position: relative;
+}
+
+.el-menu-demo.theme-dark :deep(.el-menu-item.is-active::after) {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 30px;
+    height: 3px;
+    background-color: #f39c12;
+    border-radius: 2px;
+    animation: slideInBottom 0.3s ease-out;
+    box-shadow: 0 1px 3px rgba(243, 156, 18, 0.4);
+}
+
+@keyframes slideInBottom {
+    from {
+        width: 0;
+        opacity: 0;
+    }
+    to {
+        width: 30px;
+        opacity: 1;
+    }
+}
+
+.el-menu-demo.theme-light :deep(.el-menu-item.is-disabled) {
+    color: #bdc3c7;
+    opacity: 0.6;
+}
+
+.el-menu-demo.theme-dark :deep(.el-menu-item.is-disabled) {
+    color: #95a5a6;
+    opacity: 0.8;
+}
+
+/* 移除原有的自动margin，使用新的flex布局 */
+.menu-left-section .el-menu-item {
+    margin-right: 0;
+}
+
+.menu-right-section .el-menu-item {
+    margin-left: 0;
+}
+
+/* 确保菜单项在新布局中正常显示 */
+.menu-content-wrapper .el-menu-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+/* 首页菜单项特殊样式 */
+.home-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.ameii-text {
+    font-size: 18px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-origin: center;
+}
+
+.theme-light .ameii-text {
+    background: linear-gradient(135deg, #f39c12, #e67e22);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-shadow: 0 1px 3px rgba(243, 156, 18, 0.3);
+}
+
+.theme-dark .ameii-text {
+    background: linear-gradient(135deg, #f1c40f, #f39c12);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-shadow: 0 1px 5px rgba(241, 196, 15, 0.4);
+}
+
+/* 首页项在激活状态下不显示特殊样式 */
+.el-menu-demo :deep(.home-menu-item.is-active) {
+    background: transparent !important;
+    border-bottom: none !important;
+    font-weight: normal !important;
+    font-size: inherit !important;
+}
+
+.el-menu-demo :deep(.home-menu-item.is-active::after) {
+    display: none !important;
+}
+
+/* 首页项悬停时只改变cursor，AMEII发光 */
+.el-menu-demo :deep(.home-menu-item:hover) {
+    background-color: transparent !important;
+    color: inherit !important;
+    transform: none !important;
+    cursor: pointer;
+}
+
+.home-menu-item:hover .ameii-text {
+    filter: drop-shadow(0 0 8px rgba(243, 156, 18, 0.8)) drop-shadow(0 0 16px rgba(243, 156, 18, 0.4));
+    transform: scale(1.08);
+    animation: glow-pulse 2s ease-in-out infinite alternate;
+}
+
+.theme-dark .home-menu-item:hover .ameii-text {
+    filter: drop-shadow(0 0 12px rgba(241, 196, 15, 0.9)) drop-shadow(0 0 24px rgba(241, 196, 15, 0.5));
+    transform: scale(1.08);
+    animation: glow-pulse-dark 2s ease-in-out infinite alternate;
+}
+
+@keyframes glow-pulse {
+    from {
+        filter: drop-shadow(0 0 8px rgba(243, 156, 18, 0.8)) drop-shadow(0 0 16px rgba(243, 156, 18, 0.4));
+    }
+    to {
+        filter: drop-shadow(0 0 12px rgba(243, 156, 18, 1)) drop-shadow(0 0 24px rgba(243, 156, 18, 0.6));
+    }
+}
+
+@keyframes glow-pulse-dark {
+    from {
+        filter: drop-shadow(0 0 12px rgba(241, 196, 15, 0.9)) drop-shadow(0 0 24px rgba(241, 196, 15, 0.5));
+    }
+    to {
+        filter: drop-shadow(0 0 16px rgba(241, 196, 15, 1)) drop-shadow(0 0 32px rgba(241, 196, 15, 0.7));
+    }
 }
 
 .user-avatar {
@@ -374,9 +698,17 @@ const handleUserGroup = () => {
     font-size: 18px;
     margin-left: 0px;
     width: 100%;
-
-    color: #000;
     font-weight: bold;
+    transition: color 0.3s ease;
+}
+
+/* 主题适配 */
+.theme-light .user-name {
+    color: #000000;
+}
+
+.theme-dark .user-name {
+    color: #ffffff;
 }
 .popli{
     display: flex;
@@ -391,8 +723,16 @@ const handleUserGroup = () => {
 }
 
 .popli:hover{
-    background-color: #f5f7fa;
     cursor: pointer;
+}
+
+/* 主题适配 */
+.theme-light .popli:hover {
+    background-color: #f5f7fa;
+}
+
+.theme-dark .popli:hover {
+    background-color: #333333;
 }
 
 .popli-exit{
@@ -410,71 +750,339 @@ const handleUserGroup = () => {
 }
 
 .popli-exit:hover{
-    background-color: #ffe9e9;
-    border: solid 1px #ff8888;
     cursor: pointer;
+}
+
+/* 主题适配 */
+.theme-light .popli-exit {
+    border-color: #ffffff;
+}
+
+.theme-dark .popli-exit {
+    border-color: #333333;
+}
+
+.theme-light .popli-exit:hover {
+    background-color: #ffe9e9;
+    border-color: #ff8888;
+}
+
+.theme-dark .popli-exit:hover {
+    background-color: rgba(255, 136, 136, 0.2);
+    border-color: #ff8888;
 }
 
 .user-type-instructor{
     position: relative;
     top: 0;
     font-size: 15px;
-    /* margin-left: 10px; */
     font-weight: bold;
-    color: #DA6AFC;
+    transition: all 0.3s ease;
+}
 
-    text-shadow: 0px 0px 5px #ecadff;
+.theme-light .user-type-instructor {
+    color: #9b59b6;
+    text-shadow: 0px 0px 6px rgba(155, 89, 182, 0.3);
+}
+
+.theme-dark .user-type-instructor {
+    color: #bb77c4;
+    text-shadow: 0px 0px 10px rgba(187, 119, 196, 0.4);
 }
 
 .user-type-student{
     position: relative;
     top: 0;
     font-size: 15px;
-    /* margin-left: 10px; */
     font-weight: bold;
-    color: #6AD5FC;
-
-    text-shadow: 0px 0px 5px #a5e7ff;
-
+    transition: all 0.3s ease;
 }
+
+.theme-light .user-type-student {
+    color: #3498db;
+    text-shadow: 0px 0px 6px rgba(52, 152, 219, 0.3);
+}
+
+.theme-dark .user-type-student {
+    color: #5dade2;
+    text-shadow: 0px 0px 10px rgba(93, 173, 226, 0.4);
+}
+/* 移除固定样式，使用主题适配 */
 .custom-menu-item {
+  cursor: auto !important;
+  transition: all 0.3s ease;
+}
+
+.theme-light .custom-menu-item {
   background-color: #ffffff !important;
   color: #777 !important;
-  cursor: auto !important;
+}
+
+.theme-dark .custom-menu-item {
+  background-color: #000000 !important;
+  color: #bdc3c7 !important;
 }
 
 .notification-menu-item {
+  padding: 0 !important;
+}
+
+.theme-menu-item {
   padding: 0 10px !important;
+}
+
+.theme-toggle-wrapper {
+  cursor: pointer;
+  transition: all 0.3s ease;
+  padding: 4px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.theme-toggle-wrapper:hover {
+  background-color: transparent;
+}
+
+.theme-toggle-button {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: linear-gradient(135deg, #f39c12, #e67e22);
+  border: 1px solid rgba(243, 156, 18, 0.3);
+  box-shadow: 0 3px 12px rgba(243, 156, 18, 0.2);
+}
+
+.theme-toggle-button.theme-dark {
+  background: linear-gradient(135deg, #2e3338, #313941);
+  border: 1px solid rgba(189, 195, 199, 0.2);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.3);
+}
+
+.theme-toggle-button:hover {
+  transform: scale(1.08) rotate(15deg);
+  box-shadow: 0 6px 20px rgba(243, 156, 18, 0.35);
+}
+
+.theme-toggle-button.theme-dark:hover {
+  transform: scale(1.08) rotate(-15deg);
+  box-shadow: 0 6px 20px rgba(52, 73, 94, 0.4);
+}
+
+.theme-toggle-button .theme-icon {
+  transition: all 0.3s ease;
+  color: #fff;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin: auto;
+}
+
+.theme-toggle-button .theme-icon :deep(.el-icon) {
+  font-size: 16px !important;
+  width: 16px !important;
+  height: 16px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+}
+
+.theme-toggle-button .theme-icon :deep(svg) {
+  width: 16px !important;
+  height: 16px !important;
+  margin: 0 auto !important;
+}
+
+.theme-toggle-button.theme-dark .theme-icon {
+  color: #ffd700;
 }
 
 .notification-wrapper {
   cursor: pointer;
   transition: all 0.3s ease;
+  padding: 4px;
+  border-radius: 4px;
 }
 
-.notification-wrapper:hover {
+.theme-light .notification-wrapper:hover {
   background-color: rgba(64, 158, 255, 0.1);
+}
+
+.theme-dark .notification-wrapper:hover {
+  background-color: rgba(64, 158, 255, 0.2);
+}
+
+/* 自定义菜单项主题适配 */
+.theme-light .custom-menu-item {
+  background-color: transparent;
+}
+
+.theme-dark .custom-menu-item {
+  background-color: transparent;
+}
+
+.theme-light .custom-menu-item:hover {
+  background-color: rgba(64, 158, 255, 0.1);
+}
+
+.theme-dark .custom-menu-item:hover {
+  background-color: rgba(64, 158, 255, 0.2);
+}
+
+/* 主题切换按钮区域适配 */
+.theme-menu-item {
+  transition: all 0.3s ease;
+}
+
+.theme-light .theme-menu-item {
+  background-color: transparent;
+}
+
+.theme-dark .theme-menu-item {
+  background-color: transparent;
+}
+
+.theme-light .theme-menu-item:hover {
+  background-color: transparent !important;
+}
+
+.theme-dark .theme-menu-item:hover {
+  background-color: transparent !important;
+}
+
+/* 主题切换按钮包装器适配 */
+.theme-toggle-wrapper {
+  padding: 4px;
   border-radius: 4px;
+  transition: all 0.3s ease;
+}
+
+.theme-light .theme-toggle-wrapper:hover {
+  background-color: transparent;
+}
+
+.theme-dark .theme-toggle-wrapper:hover {
+  background-color: transparent;
+}
+
+/* 消息提示区域适配 */
+.notification-menu-item {
+  transition: all 0.3s ease;
+}
+
+.theme-light .notification-menu-item {
+  background-color: transparent;
+}
+
+.theme-dark .notification-menu-item {
+  background-color: transparent;
+}
+
+.theme-light .notification-menu-item:hover {
+  background-color: rgba(64, 158, 255, 0.1);
+}
+
+.theme-dark .notification-menu-item:hover {
+  background-color: rgba(64, 158, 255, 0.2);
+}
+
+/* 用户头像区域适配 */
+.user-avatar {
+  transition: all 0.3s ease;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.theme-light .user-avatar:hover {
+  background-color: rgba(64, 158, 255, 0.1);
+}
+
+.theme-dark .user-avatar:hover {
+  background-color: rgba(64, 158, 255, 0.2);
 }
 
 .custom-link{
     text-decoration: none;
     transition: 0.3s;
 }
-.custom-link:hover{
-    color: #000 !important;
-    text-shadow: 0 0 3px #e6e6e6;
+
+/* 主题适配 */
+.theme-light .custom-link {
+    color: #333333;
 }
-:deep(.search-input .el-input__wrapper){
+
+.theme-dark .custom-link {
+    color: #ffffff;
+}
+
+.theme-light .custom-link:hover {
+    color: #409eff !important;
+    text-shadow: 0 0 3px rgba(64, 158, 255, 0.3);
+}
+
+.theme-dark .custom-link:hover {
+    color: #409eff !important;
+    text-shadow: 0 0 3px rgba(64, 158, 255, 0.5);
+}
+/* 搜索框主题适配 */
+.theme-light :deep(.search-input .el-input__wrapper) {
     border-radius: 20px;
     width: 100px;
     transition: all 0.2s ease-in-out;
+    background-color: #ffffff;
+    border-color: #dcdfe6;
+    color: #333333;
 }
-:deep(.search-input-expanded .el-input__wrapper){
+
+.theme-dark :deep(.search-input .el-input__wrapper) {
+    border-radius: 20px;
+    width: 100px;
+    transition: all 0.2s ease-in-out;
+    background-color: #565758;
+    border-color: #9b9b9b;
+    color: #ecf0f1;
+    box-shadow: 0 0 0 1px #606366 inset;
+}
+
+.theme-light :deep(.search-input-expanded .el-input__wrapper) {
     border-radius: 20px;
     width: 200px;
     transition: all 0.2s ease-in-out;
+    background-color: #ffffff;
+    border-color: #3498db;
+    box-shadow: 0 2px 8px rgba(52, 152, 219, 0.15);
+}
 
+.theme-dark :deep(.search-input-expanded .el-input__wrapper) {
+    border-radius: 20px;
+    width: 200px;
+    transition: all 0.2s ease-in-out;
+    background-color: #838383;
+    border-color: #ffffff;
+    box-shadow: 0 0 0 1px #ffffff inset, 0 2px 8px rgba(93, 173, 226, 0.2);
+}
+
+.theme-dark :deep(.el-input__inner) {
+    color: #ecf0f1;
+    background-color: transparent;
+}
+
+.theme-dark :deep(.el-input__inner::placeholder) {
+    color: #cccccc;
 }
 </style>
 
@@ -482,5 +1090,20 @@ const handleUserGroup = () => {
 .popover{
     padding: 20px !important;
     border-radius: 10px !important;
+    transition: all 0.3s ease;
+}
+
+/* 弹出框主题适配 */
+.theme-light .popover {
+    background-color: #ffffff !important;
+    border-color: #e4e7ed !important;
+    color: #333333 !important;
+}
+
+.theme-dark .popover {
+    background-color: #2c2c2c !important;
+    border-color: #4c4c4c !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
 }
 </style>

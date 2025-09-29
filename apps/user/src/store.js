@@ -19,7 +19,9 @@ export default new Vuex.Store({
             location: null,
             studyDuration: null,
             isOvertime: false
-        }
+        },
+        // 添加主题状态管理
+        isDarkMode: false
     },
     mutations: {
         setToken(state, token) {
@@ -59,6 +61,13 @@ export default new Vuex.Store({
                 studyDuration: null,
                 isOvertime: false
             }
+        },
+        // 添加主题状态管理的 mutations
+        setTheme(state, isDarkMode) {
+            state.isDarkMode = isDarkMode
+        },
+        toggleTheme(state) {
+            state.isDarkMode = !state.isDarkMode
         }
 
     },
@@ -86,7 +95,9 @@ export default new Vuex.Store({
         isLogin: (state) => !!state.token,
         // 添加打卡状态的 getters
         checkinInfo: (state) => state.checkinInfo,
-        isCurrentlyCheckedIn: (state) => state.checkinInfo.checkedIn && !state.checkinInfo.checkedOut
+        isCurrentlyCheckedIn: (state) => state.checkinInfo.checkedIn && !state.checkinInfo.checkedOut,
+        // 添加主题状态的 getters
+        isDarkMode: (state) => state.isDarkMode
     },
     plugins: [
         VuexPersist({

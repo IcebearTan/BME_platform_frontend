@@ -82,7 +82,7 @@ import { useStore } from 'vuex'
 
 }
 
-.footer {
+/* .footer {
   font-size: 15px;
 
   display: flex;
@@ -94,5 +94,5 @@ import { useStore } from 'vuex'
   width: 100%;
   
   color: #bababa;
-}
+} */
 </style>

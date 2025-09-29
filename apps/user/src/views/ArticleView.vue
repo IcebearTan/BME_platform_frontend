@@ -184,14 +184,14 @@ onUnmounted(() => {
 */
 </style>
 
-<style>
+<!-- <style>
 /* 全局样式 */
 .el-header {
   padding: 0 !important;
   background: #fff !important; /* 全局兜底，确保 header 始终为白色 */
 }
 
-.page-footer {
+/* .page-footer {
   display: flex;
   align-items: center;
   flex-direction: column;
@@ -200,5 +200,5 @@ onUnmounted(() => {
   width: 100%;
   min-height: 400px;
   color: #ffffff;
-}
-</style>
+} */
+</style> -->

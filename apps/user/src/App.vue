@@ -1,20 +1,67 @@
 <script>
+import { mapGetters } from 'vuex';
+
 export default {
-  name: 'App'
+  name: 'App',
+  computed: {
+    ...mapGetters(['isDarkMode'])
+  },
+  watch: {
+    isDarkMode: {
+      immediate: true,
+      handler(isDark) {
+        if (isDark) {
+          document.body.classList.add('theme-dark');
+          document.body.classList.remove('theme-light');
+        } else {
+          document.body.classList.add('theme-light');
+          document.body.classList.remove('theme-dark');
+        }
+      }
+    }
+  }
 };
-
-
-
 </script>
 
 <template>
-  <div id="app">
+  <div id="app" :class="isDarkMode ? 'theme-dark' : 'theme-light'">
     <router-view />
   </div>
 </template>
 
 <!-- 这个 style 块没有 scoped 属性，用于全局样式 -->
 <style>
+/* 全局主题样式 */
+html, body {
+  transition: all 0.3s ease;
+  margin: 0;
+  padding: 0;
+}
+
+.theme-light body {
+  background-color: #ffffff;
+  color: #303133;
+}
+
+.theme-dark body {
+  background-color: #1a1a1a;
+  color: #ffffff;
+}
+
+#app {
+  min-height: 100vh;
+  transition: all 0.3s ease;
+}
+
+.theme-light #app {
+  background-color: #ffffff;
+  color: #303133;
+}
+
+.theme-dark #app {
+  background-color: #1a1a1a;
+  color: #ffffff;
+}
 @media (max-width: 768px) {
 
   /*小屏幕时候强制禁止横向翻动*/

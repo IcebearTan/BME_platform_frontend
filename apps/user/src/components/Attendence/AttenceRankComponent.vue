@@ -1,5 +1,5 @@
 <template>
-  <div class="rank-container">
+  <div :class="['rank-container', { 'theme-dark': isDarkMode, 'theme-light': !isDarkMode }]">
     <div class="title">出勤月榜</div>
     <div class="student-container">
         <div class="single-student-container" v-for="(user, index) in userRanks" :key="index">
@@ -18,8 +18,13 @@
 
 <script setup>
 import { defineComponent } from 'vue'
-import { reactive, ref, onMounted } from 'vue';
+import { reactive, ref, onMounted, computed } from 'vue';
+import { useStore } from 'vuex';
 import api from '../../api';
+
+// 获取主题状态
+const store = useStore();
+const isDarkMode = computed(() => store.getters.isDarkMode);
 
 const users = reactive([
     {
@@ -113,24 +118,44 @@ onMounted(() => {
 
 <style scoped>
 .rank-container{
-    background-color: #ffffff;
-    /*order-radius: 12px;*/
-    padding: 32px;
+    /* background-color: #ffffff; */
+    border-radius: 20px;
+    padding: 20px;
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
     width: 100%;
-    max-width: 800px;
+    max-width: 100%; /* 改为100%以适应父容器 */
     margin: 0;
-    margin-right: 60px;
+    box-sizing: border-box; /* 确保padding不会增加总宽度 */
+    transition: all 0.3s ease;
+}
+
+.theme-light .rank-container {
+    background-color: #ffffff;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+}
+
+.theme-dark .rank-container {
+    background-color: #2c2c2c;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
 }
 .title{
   font-size: 20px;
   font-weight: bold;
-  color: #333;
   margin-bottom: 10px;
   padding-bottom: 15px;
   border-bottom: solid 3px #333;
-
   width: fit-content;
+  transition: all 0.3s ease;
+}
+
+.theme-light .title {
+  color: #333333;
+  border-bottom-color: #333333;
+}
+
+.theme-dark .title {
+  color: #ffffff;
+  border-bottom-color: #ffffff;
 }
 .single-student-container{
     display: flex;
@@ -138,8 +163,8 @@ onMounted(() => {
     /* justify-content: space-between; */
 
     width: 100%;
-    margin-right: 60px;
     margin-top: 20px;
+    box-sizing: border-box; /* 确保不会超出父容器 */
 }
 .block{
     display: flex;
@@ -204,19 +229,92 @@ onMounted(() => {
 .username{
     font-size: 18px;
     margin-left: 20px;
+    transition: color 0.3s ease;
+}
 
-    color: #333;
+.theme-light .username {
+    color: #333333;
+}
+
+.theme-dark .username {
+    color: #ffffff;
 }
 .progress{
     margin-left: auto;
-    width : 100px;
+    width : 80px; /* 减小宽度以适应较窄的右侧栏 */
     display: flex;
     align-items: center;
+    flex-shrink: 0; /* 防止被压缩 */
 }
 .label{
-    font-size: 15px;
+    font-size: 14px; /* 稍微减小字体以节省空间 */
     margin-right: 10px;
+    transition: color 0.3s ease;
+}
 
-    color: #999;
+.theme-light .label {
+    color: #999999;
+}
+
+.theme-dark .label {
+    color: #cccccc;
+}
+
+/* 添加响应式样式 */
+@media (max-width: 1200px) {
+    .rank-container {
+        padding: 16px;
+    }
+    
+    .username {
+        font-size: 16px;
+    }
+    
+    .progress {
+        width: 70px;
+    }
+    
+    .label {
+        font-size: 13px;
+        margin-right: 5px;
+    }
+}
+
+@media (max-width: 1024px) {
+    .rank-container {
+        padding: 12px;
+    }
+    
+    .title {
+        font-size: 18px;
+    }
+    
+    .username {
+        font-size: 15px;
+        margin-left: 15px;
+    }
+    
+    .block {
+        margin-left: 15px;
+    }
+    
+    .progress {
+        width: 60px;
+    }
+    
+    .label {
+        font-size: 12px;
+    }
+    
+    .single-student-container {
+        margin-top: 15px;
+    }
+}
+
+@media (max-width: 900px) {
+    .rank-container {
+        padding: 20px;
+        max-width: none;
+    }
 }
 </style>

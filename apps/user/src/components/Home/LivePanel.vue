@@ -16,13 +16,6 @@
       </el-icon>
     </div>
 
-    <!-- 主题调试按钮 -->
-    <div class="theme-debug-button" @click="toggleThemeDebug" title="点击切换主题（调试用）">
-      <el-icon class="theme-icon">
-        <component :is="isDarkMode ? 'Sunny' : 'Moon'" />
-      </el-icon>
-    </div>
-
     <!-- 展开/折叠控制按钮 -->
     <!-- <div class="panel-header" >
       <h2>实时状态面板</h2>
@@ -184,9 +177,7 @@ import { useStore } from 'vuex'
 import { ElIcon, ElTag, ElButton, ElDialog } from 'element-plus'
 import { 
   ArrowDown, 
-  Refresh,
-  Sunny,
-  Moon
+  Refresh
 } from '@element-plus/icons-vue'
 import SeatMap from './SeatMap.vue'
 import UserGreeting from './UserGreeting.vue'
@@ -232,24 +223,8 @@ const totalSeats = ref(5)
 const screenHeight = ref(window.innerHeight)
 const screenWidth = ref(window.innerWidth)
 
-// 白天黑夜模式
-const isDarkMode = ref(false)
-
-// 检查当前时间来决定主题
-const checkTimeTheme = () => {
-  const now = new Date()
-  const hour = now.getHours()
-  
-  // 6点到18点为白天模式，其他时间为黑夜模式
-  const isDay = hour >= 6 && hour < 18
-  isDarkMode.value = !isDay
-}
-
-// 测试不同时间的主题（开发调试用）
-const testThemeAtTime = (hour) => {
-  const isDay = hour >= 6 && hour < 18
-  isDarkMode.value = !isDay
-}
+// 白天黑夜模式 - 使用全局状态
+const isDarkMode = computed(() => store.getters.isDarkMode)
 
 // 用户信息
 const userInfo = ref({
@@ -452,12 +427,6 @@ function handleRoomChange(roomId) {
   emit('room-change', roomId)
 }
 
-// 主题调试切换方法
-function toggleThemeDebug() {
-  isDarkMode.value = !isDarkMode.value
-  console.log(`🎨 手动切换主题: ${isDarkMode.value ? '🌙 夜间模式' : '☀️ 白天模式'}`)
-}
-
 // 获取月度统计数据
 async function fetchMonthlyStats() {
   try {
@@ -496,12 +465,10 @@ function calculateMonthlyStatsFromRecords() {
 
 // 定时器
 let updateTimer = null
-let themeTimer = null
 
 // 生命周期
 onMounted(() => {
   updateLastUpdateTime()
-  checkTimeTheme() // 初始化主题
   
   // 获取月度统计数据
   fetchMonthlyStats()
@@ -513,19 +480,11 @@ onMounted(() => {
   updateTimer = setInterval(() => {
     updateLastUpdateTime()
   }, 30000)
-  
-  // 检查主题切换（每分钟检查一次，确保在6点和18点及时切换）
-  themeTimer = setInterval(() => {
-    checkTimeTheme()
-  }, 60000) // 1分钟检查一次主题
 })
 
 onUnmounted(() => {
   if (updateTimer) {
     clearInterval(updateTimer)
-  }
-  if (themeTimer) {
-    clearInterval(themeTimer)
   }
   // 移除屏幕尺寸监听器
   window.removeEventListener('resize', updateScreenSize)
@@ -576,8 +535,6 @@ watch(() => isCurrentlyCheckedIn.value, (newValue) => {
 
 // 暴露给全局用于测试（在浏览器控制台中可以调用）
 if (typeof window !== 'undefined') {
-  window.testTheme = testThemeAtTime
-  window.resetTheme = checkTimeTheme
   window.changeSeatMapSize = changeSeatMapSize
   window.getSeatMapConfig = () => seatMapConfig.value
   window.seatMapPresets = seatMapPresets
@@ -705,7 +662,7 @@ if (typeof window !== 'undefined') {
     #ecfffa 80%, /* 柔和桃色 */
     #ffffff 100% /* 淡粉色 */
   );
-  box-shadow: 0 20px 60px rgba(255, 223, 162, 0.25);
+  box-shadow: 0-10px 60px rgba(255, 223, 162, 0.25);
 }
 
 /* 黑夜主题 - 强烈黑色对比 */
@@ -718,7 +675,7 @@ if (typeof window !== 'undefined') {
     #525252 80%, 
     #666666 100%
   );
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+  box-shadow: 0 -10px 60px rgba(199, 199, 199, 0.432);
 }
 
 /* 添加星空效果（黑夜模式） */
@@ -834,59 +791,6 @@ if (typeof window !== 'undefined') {
 
 .panel-toggle-button .toggle-icon.rotated {
   transform: rotate(180deg);
-}
-
-/* 主题调试按钮样式 */
-.theme-debug-button {
-  position: absolute;
-  top: 20px;
-  right: 70px;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  z-index: 10;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.theme-light .theme-debug-button {
-  background: linear-gradient(135deg, #ffd700, #ffa500);
-  border: 1px solid rgba(255, 215, 0, 0.3);
-}
-
-.theme-dark .theme-debug-button {
-  background: linear-gradient(135deg, #4a5568, #2d3748);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.theme-debug-button:hover {
-  transform: scale(1.1);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-}
-
-.theme-light .theme-debug-button:hover {
-  box-shadow: 0 4px 16px rgba(255, 215, 0, 0.4);
-}
-
-.theme-dark .theme-debug-button:hover {
-  box-shadow: 0 4px 16px rgba(255, 255, 255, 0.2);
-}
-
-.theme-debug-button .theme-icon {
-  font-size: 18px;
-  transition: all 0.3s ease;
-}
-
-.theme-light .theme-debug-button .theme-icon {
-  color: #fff;
-}
-
-.theme-dark .theme-debug-button .theme-icon {
-  color: #ffd700;
 }
 
 /* @keyframes sunlight-dance {
