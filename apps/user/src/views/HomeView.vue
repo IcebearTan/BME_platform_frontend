@@ -300,7 +300,7 @@ const handleEntryClick = (entry) => {
   width: 100%;
   min-height: 400px;
   box-sizing: border-box;
-  overflow: hidden; /* 防止内容溢出 */
+  overflow: visible; /* 允许阴影等效果显示 */
 }
 
 .left-section {
@@ -308,13 +308,14 @@ const handleEntryClick = (entry) => {
   display: flex;
   flex-direction: column;
   min-width: 0; /* 允许flex项目收缩到最小尺寸 */
+  overflow: hidden; /* 左侧内容防止溢出，不影响右侧阴影 */
 }
 
 .right-section {
   width: 300px;
   flex-shrink: 0;
   min-width: 0; /* 允许内容在必要时收缩 */
-  overflow: hidden; /* 防止内容溢出 */
+  overflow: visible; /* 允许阴影等效果显示 */
 }
 
 /* 响应式设计 */
