@@ -105,7 +105,7 @@ const formatRank = (rank) => {
   border: 1px solid rgba(255, 255, 255, 0.2);
   box-shadow: 0 8px 32px rgba(135, 206, 250, 0.15);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  margin-top: 15px;
+  margin-top: 0px;
 }
 
 .monthly-stats-panel.theme-dark {

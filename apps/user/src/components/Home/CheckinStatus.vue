@@ -121,8 +121,8 @@ const props = defineProps({
   }
 })
 
-// Emits - 现在CheckinStatus自己管理，不需要emit事件了
-// const emit = defineEmits(['checkin', 'checkout', 'request-checkin', 'request-checkout'])
+// Emits - 恢复事件发射功能，用于向父组件传递状态变化
+const emit = defineEmits(['checkin', 'checkout', 'request-checkin', 'request-checkout', 'status-change'])
 
 // 响应式数据
 const loading = ref(false)
@@ -184,6 +184,9 @@ const getLatesetCheckStatus = async () => {
       checkinInfo.value.checkinTimestamp = new Date(todayRecord.value.check_in_time).getTime()
       checkTime.value = new Date(todayRecord.value.check_in_time)
       
+      // 发射状态变化事件
+      emit('status-change', { ...checkinInfo.value })
+      
       // 启动计时器 - 总是使用服务器的签到时间作为基准
       if (!studyTimer) {
         studyStartTime.value = todayRecord.value.check_in_time
@@ -198,11 +201,17 @@ const getLatesetCheckStatus = async () => {
       checkinInfo.value.checkedIn = false
       checkinInfo.value.checkedOut = true
       checkinInfo.value.checkoutTime = todayRecord.value.check_out_time
+      
+      // 发射状态变化事件
+      emit('status-change', { ...checkinInfo.value })
     }
   } else {
     // 没有打卡记录
     checkinInfo.value.checkedIn = false
     checkinInfo.value.checkedOut = false
+    
+    // 发射状态变化事件
+    emit('status-change', { ...checkinInfo.value })
   }
 }
 

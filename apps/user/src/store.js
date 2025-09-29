@@ -9,6 +9,17 @@ export default new Vuex.Store({
         token: localStorage.getItem('token') || null,
         isLogin: false,
         avatar: null,
+        // 添加打卡状态管理
+        checkinInfo: {
+            checkedIn: false,
+            checkedOut: false,
+            checkinTime: null,
+            checkinTimestamp: null,
+            checkoutTime: null,
+            location: null,
+            studyDuration: null,
+            isOvertime: false
+        }
     },
     mutations: {
         setToken(state, token) {
@@ -28,6 +39,26 @@ export default new Vuex.Store({
         },
         clearAvatar(state) {
             state.avatar = null
+        },
+        // 添加打卡状态管理的 mutations
+        setCheckinInfo(state, checkinInfo) {
+            state.checkinInfo = { ...state.checkinInfo, ...checkinInfo }
+        },
+        setCheckinStatus(state, { checkedIn, checkedOut }) {
+            state.checkinInfo.checkedIn = checkedIn
+            state.checkinInfo.checkedOut = checkedOut
+        },
+        clearCheckinInfo(state) {
+            state.checkinInfo = {
+                checkedIn: false,
+                checkedOut: false,
+                checkinTime: null,
+                checkinTimestamp: null,
+                checkoutTime: null,
+                location: null,
+                studyDuration: null,
+                isOvertime: false
+            }
         }
 
     },
@@ -53,6 +84,9 @@ export default new Vuex.Store({
     },
     getters: {
         isLogin: (state) => !!state.token,
+        // 添加打卡状态的 getters
+        checkinInfo: (state) => state.checkinInfo,
+        isCurrentlyCheckedIn: (state) => state.checkinInfo.checkedIn && !state.checkinInfo.checkedOut
     },
     plugins: [
         VuexPersist({

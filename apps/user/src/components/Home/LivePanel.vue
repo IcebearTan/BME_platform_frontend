@@ -51,6 +51,7 @@
               @checkout="handleCheckoutEvent"
               @request-checkin="showCheckinDialog"
               @request-checkout="showCheckoutDialog"
+              @status-change="handleStatusChange"
               key="greeting-expanded"
             />
           </transition>
@@ -58,7 +59,7 @@
           <!-- 月度统计面板 -->
           <transition name="monthly-stats-expand" appear>
             <MonthlyStatsPanel 
-              v-if="isExpanded"
+              v-if="shouldShowMonthlyStats"
               :monthly-stats="monthlyStatsData"
               :is-dark-mode="isDarkMode"
               key="monthly-stats-expanded"
@@ -160,6 +161,7 @@
               @checkout="handleCheckoutEvent"
               @request-checkin="showCheckinDialog"
               @request-checkout="showCheckoutDialog"
+              @status-change="handleStatusChange"
               key="greeting-collapsed"
             />
           </transition>
@@ -218,6 +220,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useStore } from 'vuex'
 import { ElIcon, ElTag, ElButton, ElDialog } from 'element-plus'
 import { 
   ArrowDown, 
@@ -229,6 +232,9 @@ import SeatMap from './SeatMap.vue'
 import UserGreeting from './UserGreeting.vue'
 import CheckinStatus from './CheckinStatus.vue'
 import MonthlyStatsPanel from './MonthlyStatsPanel.vue'
+
+// Store
+const store = useStore()
 
 // Props
 const props = defineProps({
@@ -261,6 +267,10 @@ const checkoutDialogVisible = ref(false)
 const checkoutStudyDuration = ref('')
 const onlineCount = ref(2)
 const totalSeats = ref(5)
+
+// 屏幕尺寸检测
+const screenHeight = ref(window.innerHeight)
+const screenWidth = ref(window.innerWidth)
 
 // 白天黑夜模式
 const isDarkMode = ref(false)
@@ -336,16 +346,8 @@ const changeSeatMapSize = (preset) => {
   }
 }
 
-// 打卡信息
-const checkinInfo = ref({
-  checkedIn: false,
-  checkedOut: false,
-  checkinTime: null,
-  checkinTimestamp: null,
-  checkoutTime: null,
-  location: null,
-  studyDuration: null
-})
+// 打卡信息 - 使用 store 中的状态
+const checkinInfo = computed(() => store.getters.checkinInfo)
 
 // 月度统计数据
 const monthlyStatsData = ref({
@@ -355,6 +357,28 @@ const monthlyStatsData = ref({
 })
 
 // 计算属性
+// 判断是否为小屏幕（16寸及以下笔记本，通常高度 <= 1100px）
+const isSmallScreen = computed(() => {
+  return screenHeight.value <= 900 // 调整阈值以包含16寸屏幕
+})
+
+// 判断用户是否正在打卡（已签到但未签退）- 使用 store 的 getter
+const isCurrentlyCheckedIn = computed(() => store.getters.isCurrentlyCheckedIn)
+
+// 判断是否应该显示月度统计面板
+const shouldShowMonthlyStats = computed(() => {
+  // 只有在展开状态下才考虑显示
+  if (!isExpanded.value) return false
+  
+  // 如果是小屏幕且用户正在打卡，则不显示月度统计面板
+  if (isSmallScreen.value && isCurrentlyCheckedIn.value) {
+    return false
+  }
+  
+  // 其他情况正常显示
+  return true
+})
+
 // (已移除 checkinStatus，现在由 CheckinStatus 组件内部处理)
 
 // 方法
@@ -369,6 +393,12 @@ function updateLastUpdateTime() {
     hour: '2-digit',
     minute: '2-digit'
   })
+}
+
+// 更新屏幕尺寸
+function updateScreenSize() {
+  screenHeight.value = window.innerHeight
+  screenWidth.value = window.innerWidth
 }
 
 function showCheckinDialog() {
@@ -423,13 +453,22 @@ async function handleCheckout() {
 }
 
 function handleCheckinEvent(checkinData) {
-  checkinInfo.value = checkinData
+  // 更新 store 中的打卡状态
+  store.commit('setCheckinInfo', checkinData)
   emit('checkin', checkinData)
 }
 
 function handleCheckoutEvent(checkoutData) {
-  checkinInfo.value = checkoutData
+  // 更新 store 中的打卡状态
+  store.commit('setCheckinInfo', checkoutData)
   emit('checkout', checkoutData)
+}
+
+// 处理CheckinStatus状态变化
+function handleStatusChange(checkinData) {
+  console.log('📍 LivePanel 接收到打卡状态变化:', checkinData)
+  // 更新 store 中的打卡状态
+  store.commit('setCheckinInfo', checkinData)
 }
 
 // 房间切换方法
@@ -530,6 +569,16 @@ onMounted(() => {
   // 获取月度统计数据
   fetchMonthlyStats()
   
+  // 添加屏幕尺寸变化监听器
+  window.addEventListener('resize', updateScreenSize)
+  
+  // 输出初始状态调试信息
+  console.log('🚀 LivePanel 组件已挂载，初始状态:')
+  console.log(`📱 屏幕尺寸: ${screenWidth.value}x${screenHeight.value}`)
+  console.log(`🖥️ 是否小屏幕: ${isSmallScreen.value}`)
+  console.log(`✅ 打卡状态: ${isCurrentlyCheckedIn.value}`)
+  console.log(`📊 是否显示月度统计: ${shouldShowMonthlyStats.value}`)
+  
   // 更新时间显示（30秒一次）
   updateTimer = setInterval(() => {
     updateLastUpdateTime()
@@ -548,6 +597,8 @@ onUnmounted(() => {
   if (themeTimer) {
     clearInterval(themeTimer)
   }
+  // 移除屏幕尺寸监听器
+  window.removeEventListener('resize', updateScreenSize)
 })
 
 // 监听 SeatMap 的在线人数变化
@@ -563,6 +614,30 @@ watch(() => seatMapRef.value?.totalSeats, (newTotal) => {
   }
 }, { immediate: true })
 
+// 监听月度统计面板显示状态变化（用于调试）
+watch(() => shouldShowMonthlyStats.value, (newValue, oldValue) => {
+  console.log(`📊 月度统计面板显示状态变化: ${oldValue} → ${newValue}`)
+  console.log(`📱 屏幕高度: ${screenHeight.value}px (小屏幕: ${isSmallScreen.value})`)
+  console.log(`✅ 打卡状态: ${isCurrentlyCheckedIn.value ? '已签到' : '未签到'}`)
+  console.log(`📂 面板展开: ${isExpanded.value}`)
+  console.log('🔍 详细判断逻辑:')
+  console.log(`  - 面板展开: ${isExpanded.value}`)
+  console.log(`  - 小屏幕判定: ${isSmallScreen.value} (高度 ${screenHeight.value}px <= 1100px)`)
+  console.log(`  - 正在打卡: ${isCurrentlyCheckedIn.value}`)
+  console.log(`  - 最终结果: ${newValue ? '显示' : '隐藏'}月度统计面板`)
+}, { immediate: true })
+
+// 监听屏幕尺寸变化
+watch(() => screenHeight.value, (newHeight) => {
+  console.log(`📏 屏幕高度变化: ${newHeight}px (小屏幕: ${isSmallScreen.value})`)
+}, { immediate: true })
+
+// 监听打卡状态变化
+watch(() => isCurrentlyCheckedIn.value, (newValue) => {
+  console.log(`✅ 打卡状态变化: ${newValue ? '已签到' : '未签到'}`)
+  console.log(`📊 月度统计面板应该显示: ${shouldShowMonthlyStats.value}`)
+}, { immediate: true })
+
 // 暴露给全局用于测试（在浏览器控制台中可以调用）
 if (typeof window !== 'undefined') {
   window.testTheme = testThemeAtTime
@@ -570,6 +645,70 @@ if (typeof window !== 'undefined') {
   window.changeSeatMapSize = changeSeatMapSize
   window.getSeatMapConfig = () => seatMapConfig.value
   window.seatMapPresets = seatMapPresets
+  // 添加月度统计面板显示状态调试
+  window.getScreenInfo = () => ({
+    height: screenHeight.value,
+    width: screenWidth.value,
+    isSmallScreen: isSmallScreen.value,
+    isCheckedIn: isCurrentlyCheckedIn.value,
+    shouldShowMonthlyStats: shouldShowMonthlyStats.value,
+    checkinInfo: checkinInfo.value
+  })
+  window.toggleCheckinStatus = () => {
+    const currentCheckedIn = store.getters.checkinInfo.checkedIn
+    const newCheckedIn = !currentCheckedIn
+    
+    // 更新 store 中的打卡状态
+    if (newCheckedIn) {
+      store.commit('setCheckinInfo', {
+        checkedIn: true,
+        checkedOut: false,
+        checkinTime: new Date().toLocaleTimeString(),
+        checkinTimestamp: Date.now()
+      })
+      console.log('✅ 模拟签到成功')
+    } else {
+      store.commit('setCheckinInfo', {
+        checkedIn: false,
+        checkedOut: false,
+        checkinTime: null,
+        checkinTimestamp: null
+      })
+      console.log('❌ 取消签到状态')
+    }
+    console.log('🔄 打卡状态已切换:', newCheckedIn ? '已签到' : '未签到')
+    console.log('📊 月度统计面板现在应该:', shouldShowMonthlyStats.value ? '显示' : '隐藏')
+  }
+  window.simulateSmallScreen = () => {
+    screenHeight.value = 1000 // 模拟16寸以下屏幕
+    console.log('📱 已模拟小屏幕 (1000px高度)')
+    console.log('📊 月度统计面板现在应该:', shouldShowMonthlyStats.value ? '显示' : '隐藏')
+  }
+  window.simulateLargeScreen = () => {
+    screenHeight.value = 1400 // 模拟大屏幕
+    console.log('🖥️ 已模拟大屏幕 (1400px高度)')
+    console.log('📊 月度统计面板现在应该:', shouldShowMonthlyStats.value ? '显示' : '隐藏')
+  }
+  window.simulate16InchScreen = () => {
+    screenHeight.value = 1080 // 模拟16寸笔记本 1920x1080
+    console.log('💻 已模拟16寸屏幕 (1080px高度)')
+    console.log('📊 月度统计面板现在应该:', shouldShowMonthlyStats.value ? '显示' : '隐藏')
+  }
+  window.testFullScenario = () => {
+    console.log('🧪 开始完整测试场景...')
+    console.log('当前屏幕高度:', screenHeight.value + 'px')
+    console.log('是否小屏幕:', isSmallScreen.value)
+    console.log('是否正在打卡:', isCurrentlyCheckedIn.value)
+    console.log('面板是否展开:', isExpanded.value)
+    console.log('应该显示月度统计:', shouldShowMonthlyStats.value)
+    
+    // 测试16寸屏幕 + 打卡状态
+    window.simulate16InchScreen()
+    if (!store.getters.checkinInfo.checkedIn) {
+      window.toggleCheckinStatus()
+    }
+    console.log('✅ 16寸屏幕 + 已打卡 → 月度统计应该隐藏:', !shouldShowMonthlyStats.value)
+  }
 }
 </script>
 
@@ -1336,6 +1475,17 @@ if (typeof window !== 'undefined') {
 }
 
 /* 响应式设计 */
+
+/* 小屏幕下的月度统计面板控制（16寸及以下笔记本） */
+@media (max-height: 1100px) {
+  /* 这个媒体查询作为JavaScript逻辑的补充，确保在极端情况下也能正确隐藏 */
+  .left-section {
+    /* 为月度统计面板预留空间，如果被JavaScript隐藏，空间会自动收缩 */
+    flex-direction: column;
+    gap: 20px;
+  }
+}
+
 @media (max-width: 1024px) {
   .content-grid {
     grid-template-columns: 1fr;

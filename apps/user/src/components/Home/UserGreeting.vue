@@ -32,6 +32,7 @@
       v-if="showCheckinStatus"
       :is-dark-mode="isDarkMode"
       :is-collapsed="false"
+      @status-change="handleCheckinStatusChange"
     />
   </div>
 
@@ -59,6 +60,7 @@
       v-if="showCheckinStatus"
       :is-dark-mode="isDarkMode"
       :is-collapsed="true"
+      @status-change="handleCheckinStatusChange"
     />
   </div>
 </template>
@@ -129,7 +131,7 @@ const props = defineProps({
 })
 
 // Emits
-const emit = defineEmits(['checkin', 'checkout', 'request-checkin', 'request-checkout'])
+const emit = defineEmits(['checkin', 'checkout', 'request-checkin', 'request-checkout', 'status-change'])
 
 // 响应式数据
 const currentTime = ref('')
@@ -175,6 +177,13 @@ const motivationText = computed(() => {
 })
 
 // 方法
+// 处理CheckinStatus状态变化
+function handleCheckinStatusChange(checkinData) {
+  console.log('📍 UserGreeting 接收到打卡状态变化:', checkinData)
+  // 将状态变化传递给父组件（LivePanel）
+  emit('status-change', checkinData)
+}
+
 function updateDateTime() {
   const now = new Date()
   
