@@ -879,18 +879,18 @@ if (typeof window !== 'undefined') {
   transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.collapsed-left-section, .collapsed-right-section {
+/* .collapsed-left-section, .collapsed-right-section {
   height: 100%;
-  animation: collapse 0.5s ease;
-}
-@keyframes collapse {
+  animation: collapse 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+} */
+/* @keyframes collapse {
   0% {
     transform: scaleY(2)
   }
   100% {
     transform: scaleY(1)
   }
-}
+} */
 
 .collapsed-placeholder {
   background: rgba(255, 255, 255, 0.1);

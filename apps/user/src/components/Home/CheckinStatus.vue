@@ -83,8 +83,8 @@
           <div class="status-content content-switching">
             <!-- 累计时长显示 -->
             <div class="status-info" :class="{ 'info-hidden': completedHovering }">
-              <span class="status-text" v-if="checkinInfo.totalDuration || checkinInfo.studyDuration">
-                今日已累计：{{ checkinInfo.totalDuration || checkinInfo.studyDuration }}
+              <span class="status-text" v-if="todayTotalDuration && todayTotalDuration !== '00:00:00'">
+                今日已累计：{{ todayTotalDuration }}
               </span>
               <span class="status-text" v-else>
                 今日还未打卡哦
@@ -103,21 +103,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { ElButton, ElDialog } from 'element-plus'
+import { ref, computed, onMounted, onUnmounted, watch, h, nextTick } from 'vue'
+import { ElButton, ElDialog, ElMessage, ElMessageBox } from 'element-plus'
+import api from '../../api'
 
 // Props
 const props = defineProps({
-  // 打卡信息
-  checkinInfo: {
-    type: Object,
-    default: () => ({
-      checkedIn: false,
-      checkedOut: false,
-      checkinTime: null,
-      checkoutTime: null
-    })
-  },
   // 主题模式
   isDarkMode: {
     type: Boolean,
@@ -130,8 +121,8 @@ const props = defineProps({
   }
 })
 
-// Emits
-const emit = defineEmits(['checkin', 'checkout', 'request-checkin', 'request-checkout'])
+// Emits - 现在CheckinStatus自己管理，不需要emit事件了
+// const emit = defineEmits(['checkin', 'checkout', 'request-checkin', 'request-checkout'])
 
 // 响应式数据
 const loading = ref(false)
@@ -139,11 +130,230 @@ const studyStartTime = ref(null)
 const currentStudyDuration = ref('00:00:00')
 const isHovering = ref(false)
 const completedHovering = ref(false)
+const todayTotalDuration = ref('00:00:00') // 今日总时长
+const checkinHistory = ref([]) // 今日签到历史记录
 
-// 监视 checkinInfo 变化
-watch(() => props.checkinInfo, (newInfo) => {
-  // console.log('CheckinStatus received checkinInfo:', newInfo)
-}, { deep: true, immediate: true })
+// 新增的签到相关状态
+const todayRecord = ref({}) // 今日打卡记录
+const formeCheckStatus = ref([]) // 历史记录，用于计算累计时长
+const isVisible = ref(false) // 是否显示签退界面
+const checkTime = ref(null) // 签到时间
+const hasShownOvertimeWarning = ref(false) // 是否已显示超时警告
+const hasShownSevereOvertimeWarning = ref(false) // 是否已显示严重超时警告
+const nowTime = ref(new Date())
+
+// 登录检查
+const checkLogin = () => {
+  const token = localStorage.getItem('token')
+  return !!token
+}
+
+// 获取今日最新打卡状态
+const fetchLatestCheckTime = async () => {
+  if (!checkLogin()) return null
+  
+  try {
+    const res = await api({
+      url: '/lateset_checktime',
+      method: 'get'
+    })
+    return res.data
+  } catch (error) {
+    console.error('获取今日最新打卡状态失败:', error)
+    return null
+  }
+}
+
+// 获取最新打卡状态并更新界面
+const getLatesetCheckStatus = async () => {
+  todayRecord.value = await fetchLatestCheckTime()
+  
+  if (!todayRecord.value) {
+    checkinInfo.value.checkedIn = false
+    checkinInfo.value.checkedOut = false
+    return
+  }
+  
+  // 基于服务器数据更新CheckinStatus状态
+  if (todayRecord.value.has_record && todayRecord.value.check_in_time) {
+    if (!todayRecord.value.check_out_time) {
+      // 已签到但未签退
+      checkinInfo.value.checkedIn = true
+      checkinInfo.value.checkedOut = false
+      checkinInfo.value.checkinTime = todayRecord.value.check_in_time
+      checkinInfo.value.checkinTimestamp = new Date(todayRecord.value.check_in_time).getTime()
+      checkTime.value = new Date(todayRecord.value.check_in_time)
+      
+      // 启动计时器
+      if (!studyTimer) {
+        studyStartTime.value = todayRecord.value.check_in_time
+        studyTimer = setInterval(() => {
+          updateStudyDuration()
+          calculateTodayTotalDuration()
+          checkOvertimeWarning() // 检查超时
+        }, 1000)
+        updateStudyDuration()
+      }
+    } else {
+      // 已签到且已签退
+      checkinInfo.value.checkedIn = false
+      checkinInfo.value.checkedOut = true
+      checkinInfo.value.checkoutTime = todayRecord.value.check_out_time
+    }
+  } else {
+    // 没有打卡记录
+    checkinInfo.value.checkedIn = false
+    checkinInfo.value.checkedOut = false
+  }
+}
+
+// 检查是否超时未签退（超过6小时）
+const isOvertime = () => {
+  if (!todayRecord.value || !todayRecord.value.check_in_time || todayRecord.value.check_out_time) {
+    return false // 未签到或已签退
+  }
+  
+  const checkInTime = new Date(todayRecord.value.check_in_time)
+  const diffHours = (nowTime.value - checkInTime) / (1000 * 60 * 60)
+  
+  return diffHours > 6 // 超过6小时
+}
+
+// 检查并显示超时提示
+const checkOvertimeWarning = () => {
+  // 更新超时状态
+  checkinInfo.value.isOvertime = isOvertime()
+  
+  if (isOvertime() && !hasShownOvertimeWarning.value) {
+    hasShownOvertimeWarning.value = true
+    
+    ElMessageBox({
+      type: 'error',
+      message: '⚠️ 学习时长已超过6小时，本次签到记录无效，请尽快签退！长时间学习记得适当休息哦～',
+      duration: 10000,
+      showClose: true,
+      lockScroll: false,
+    })
+    
+    setTimeout(() => {
+      if (isOvertime() && !hasShownSevereOvertimeWarning.value) {
+        hasShownSevereOvertimeWarning.value = true
+        ElMessageBox({
+          type: 'error',
+          message: '🚨 学习时长严重超时！请立即签退并注意休息！',
+          duration: 15000,
+          showClose: true,
+          lockScroll: false,
+        })
+      }
+    }, 5 * 60 * 1000)
+  }
+  
+  if (todayRecord.value?.check_out_time) {
+    hasShownOvertimeWarning.value = false
+    hasShownSevereOvertimeWarning.value = false
+  }
+}
+
+// 提交签到
+const submitCheckCode = async (code) => {
+  try {
+    const res = await api({
+      url: '/check',
+      method: 'post',
+      data: {
+        'check_code': code
+      }
+    })
+    if (res.status === 200) {
+      ElMessage({
+        type: 'success',
+        message: '签到成功！请在6小时内签退！',
+      })
+
+      // 重新获取最新状态
+      await getLatesetCheckStatus()
+      
+      hasShownOvertimeWarning.value = false
+      hasShownSevereOvertimeWarning.value = false
+      return true
+    }
+  } catch (error) {
+    if (error?.response?.status === 409) {
+      ElMessage({
+        type: 'error',
+        message: '签到码已被使用',
+      })
+    } else if (error?.response?.status === 403) {
+      ElMessage({
+        type: 'error',
+        message: 'IP不在106或110网段，请连接正确的网络后重试',
+      })
+    } else {
+      ElMessage({
+        type: 'error',
+        message: error?.response?.data?.message || error,
+      })
+    }
+    throw error
+  }
+}
+
+// 提交签退
+const submitCheckOutCode = async (code) => {
+  try {
+    const res = await api({
+      url: '/checkout',
+      method: 'post',
+      data: {
+        'checkout_code': code
+      }
+    })
+    if (res.status === 200) {
+      ElMessage({
+        type: 'success',
+        message: '签退成功！',
+      })
+
+      // 重新获取最新状态
+      await getLatesetCheckStatus()
+      
+      hasShownOvertimeWarning.value = false
+      hasShownSevereOvertimeWarning.value = false
+      return true
+    }
+  } catch (error) {
+    if (error?.response?.status === 409) {
+      ElMessage({
+        type: 'error',
+        message: '签退码已被使用',
+      })
+    } else if (error?.response?.status === 403) {
+      ElMessage({
+        type: 'error',
+        message: 'IP不在106或110网段，请连接正确的网络后重试',
+      })
+    } else {
+      ElMessage({
+        type: 'error',
+        message: error?.response?.data?.message || error,
+      })
+    }
+    throw error
+  }
+}
+
+// 签到状态管理 - CheckinStatus 自己维护
+const checkinInfo = ref({
+  checkedIn: false,
+  checkedOut: false,
+  checkinTime: null,
+  checkinTimestamp: null,
+  checkoutTime: null,
+  location: null,
+  studyDuration: null,
+  isOvertime: false
+})
 
 // 动画控制方法
 const startHoverAnimation = () => {
@@ -184,13 +394,370 @@ const updateStudyDuration = () => {
   currentStudyDuration.value = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
 }
 
+// 格式化时长字符串为秒数
+const parseDurationToSeconds = (durationStr) => {
+  if (!durationStr || durationStr === '00:00:00') return 0
+  
+  const parts = durationStr.split(':')
+  if (parts.length === 3) {
+    const hours = parseInt(parts[0]) || 0
+    const minutes = parseInt(parts[1]) || 0
+    const seconds = parseInt(parts[2]) || 0
+    return hours * 3600 + minutes * 60 + seconds
+  }
+  return 0
+}
+
+// 格式化秒数为时长字符串
+const formatSecondsToTimeDuration = (totalSeconds) => {
+  if (totalSeconds <= 0) return '00:00:00'
+  
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+  
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+}
+
+// 计算今日总时长
+const calculateTodayTotalDuration = () => {
+  let totalSeconds = 0
+  
+  // 计算历史记录的时长
+  checkinHistory.value.forEach(record => {
+    if (record.checkedOut && record.studyDuration) {
+      const seconds = parseDurationToSeconds(record.studyDuration)
+      if (seconds > 0) {
+        totalSeconds += seconds
+      }
+    }
+  })
+  
+  // 如果当前正在学习，加上当前这次的时长
+  if (checkinInfo.value.checkedIn && !checkinInfo.value.checkedOut && currentStudyDuration.value !== '00:00:00') {
+    const currentSeconds = parseDurationToSeconds(currentStudyDuration.value)
+    totalSeconds += currentSeconds
+  }
+  
+  todayTotalDuration.value = formatSecondsToTimeDuration(totalSeconds)
+}
+
+// 加载今日签到历史记录
+const loadTodayCheckinHistory = async () => {
+  try {
+    // 这里应该调用实际的API
+    // const response = await fetch('/api/today_checkin_history')
+    // const data = await response.json()
+    
+    // 临时使用模拟数据
+    const today = new Date().toDateString()
+    const savedHistory = localStorage.getItem(`checkin_history_${today}`)
+    checkinHistory.value = savedHistory ? JSON.parse(savedHistory) : []
+    
+    calculateTodayTotalDuration()
+    console.log('📚 今日签到历史记录已加载:', checkinHistory.value)
+  } catch (error) {
+    console.error('❌ 加载今日签到历史记录失败:', error)
+    checkinHistory.value = []
+  }
+}
+
+// 加载当前签到状态
+const loadCurrentCheckinStatus = async () => {
+  try {
+    // 这里应该调用实际的API获取当前签到状态
+    // const response = await fetch('/api/current_checkin_status')
+    // const data = await response.json()
+    
+    // 临时使用 localStorage 模拟持久化状态
+    const savedStatus = localStorage.getItem('current_checkin_status')
+    if (savedStatus) {
+      const status = JSON.parse(savedStatus)
+      checkinInfo.value = status
+      
+      // 如果正在学习中，恢复计时器
+      if (status.checkedIn && !status.checkedOut && status.checkinTimestamp) {
+        studyStartTime.value = new Date(status.checkinTimestamp).toISOString()
+        studyTimer = setInterval(() => {
+          updateStudyDuration()
+          calculateTodayTotalDuration()
+        }, 1000)
+        updateStudyDuration()
+      }
+    }
+    
+    console.log('🎯 当前签到状态已加载:', checkinInfo.value)
+  } catch (error) {
+    console.error('❌ 加载当前签到状态失败:', error)
+  }
+}
+
+// 保存当前签到状态
+const saveCurrentCheckinStatus = () => {
+  localStorage.setItem('current_checkin_status', JSON.stringify(checkinInfo.value))
+}
+
+// 保存签到记录到历史
+const saveCheckinToHistory = (checkinData) => {
+  const today = new Date().toDateString()
+  const record = {
+    ...checkinData,
+    date: today,
+    timestamp: Date.now()
+  }
+  
+  checkinHistory.value.push(record)
+  
+  // 保存到localStorage
+  localStorage.setItem(`checkin_history_${today}`, JSON.stringify(checkinHistory.value))
+  
+  calculateTodayTotalDuration()
+  console.log('📝 签到记录已保存:', record)
+}
+
+// 显示签到弹窗
+const showCheckinDialog = () => {
+  const codeValue = ref(['', '', '', '', '', ''])
+  let closeDialog = null
+  
+  const inputContainer = h('div', { 
+    class: 'verification-code-container',
+    style: {
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: '12px',
+      padding: '24px 0'
+    }
+  }, codeValue.value.map((value, index) => 
+    h('input', {
+      key: index,
+      type: 'text',
+      maxlength: 1,
+      value: value,
+      class: 'verification-digit-input',
+      style: {
+        width: '40px',
+        height: '50px',
+        textAlign: 'center',
+        fontSize: '24px',
+        fontWeight: '600',
+        color: '#2c3e50',
+        background: '#f8f9fa',
+        border: '2px solid #e9ecef',
+        borderRadius: '10px',
+        transition: 'all 0.2s ease',
+        outline: 'none'
+      },
+      onInput: (event) => {
+        const newValue = event.target.value
+        if (/^\d$/.test(newValue) || newValue === '') {
+          codeValue.value[index] = newValue
+          if (newValue && index < 5) {
+            nextTick(() => {
+              const nextInput = event.target.parentElement.children[index + 1]
+              if (nextInput) nextInput.focus()
+            })
+          }
+        } else {
+          event.target.value = codeValue.value[index]
+        }
+      },
+      onKeydown: (event) => {
+        if (event.key === 'Backspace' && !codeValue.value[index] && index > 0) {
+          nextTick(() => {
+            const prevInput = event.target.parentElement.children[index - 1]
+            if (prevInput) prevInput.focus()
+          })
+        } else if (event.key === 'Enter') {
+          const code = codeValue.value.join('')
+          if (code.length === 6) {
+            handleSubmitCheckin(code, closeDialog)
+          }
+        }
+      },
+      onFocus: (event) => {
+        event.target.style.borderColor = '#3498db'
+        event.target.style.boxShadow = '0 0 0 3px rgba(52, 152, 219, 0.1)'
+      },
+      onBlur: (event) => {
+        event.target.style.borderColor = '#e9ecef'
+        event.target.style.boxShadow = 'none'
+      }
+    })
+  ))
+
+  ElMessageBox({
+    title: '🎯 开始学习',
+    message: inputContainer,
+    showCancelButton: true,
+    confirmButtonText: '签到',
+    cancelButtonText: '取消',
+    showClose: true,
+    closeOnClickModal: false,
+    closeOnPressEscape: true,
+    customClass: 'checkin-message-box',
+    beforeClose: (action, instance, done) => {
+      if (action === 'confirm') {
+        const code = codeValue.value.join('')
+        if (code.length !== 6) {
+          ElMessage.warning('请输入完整的6位签到码')
+          return
+        }
+        handleSubmitCheckin(code, done)
+      } else {
+        done()
+      }
+    },
+    callback: (action) => {
+      if (closeDialog) closeDialog()
+    }
+  }).then(() => {}).catch(() => {})
+
+  nextTick(() => {
+    const firstInput = document.querySelector('.verification-digit-input')
+    if (firstInput) firstInput.focus()
+  })
+}
+
+// 显示签退弹窗
+const showCheckoutDialog = () => {
+  const codeValue = ref(['', '', '', '', '', ''])
+  
+  const inputContainer = h('div', { 
+    class: 'verification-code-container',
+    style: {
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: '12px',
+      padding: '24px 0'
+    }
+  }, codeValue.value.map((value, index) => 
+    h('input', {
+      key: index,
+      type: 'text',
+      maxlength: 1,
+      value: value,
+      class: 'verification-digit-input',
+      style: {
+        width: '40px',
+        height: '50px',
+        textAlign: 'center',
+        fontSize: '24px',
+        fontWeight: '600',
+        color: '#2c3e50',
+        background: '#f8f9fa',
+        border: '2px solid #e9ecef',
+        borderRadius: '10px',
+        transition: 'all 0.2s ease',
+        outline: 'none'
+      },
+      onInput: (event) => {
+        const newValue = event.target.value
+        if (/^\d$/.test(newValue) || newValue === '') {
+          codeValue.value[index] = newValue
+          if (newValue && index < 5) {
+            nextTick(() => {
+              const nextInput = event.target.parentElement.children[index + 1]
+              if (nextInput) nextInput.focus()
+            })
+          }
+        } else {
+          event.target.value = codeValue.value[index]
+        }
+      },
+      onKeydown: (event) => {
+        if (event.key === 'Backspace' && !codeValue.value[index] && index > 0) {
+          nextTick(() => {
+            const prevInput = event.target.parentElement.children[index - 1]
+            if (prevInput) prevInput.focus()
+          })
+        } else if (event.key === 'Enter') {
+          const code = codeValue.value.join('')
+          if (code.length === 6) {
+            handleSubmitCheckout(code)
+          }
+        }
+      },
+      onFocus: (event) => {
+        event.target.style.borderColor = '#e74c3c'
+        event.target.style.boxShadow = '0 0 0 3px rgba(231, 76, 60, 0.1)'
+      },
+      onBlur: (event) => {
+        event.target.style.borderColor = '#e9ecef'
+        event.target.style.boxShadow = 'none'
+      }
+    })
+  ))
+
+  ElMessageBox({
+    title: '🏁 结束学习',
+    message: inputContainer,
+    showCancelButton: true,
+    confirmButtonText: '签退',
+    cancelButtonText: '取消',
+    showClose: true,
+    closeOnClickModal: false,
+    closeOnPressEscape: true,
+    customClass: 'checkout-message-box',
+    beforeClose: (action, instance, done) => {
+      if (action === 'confirm') {
+        const code = codeValue.value.join('')
+        if (code.length !== 6) {
+          ElMessage.warning('请输入完整的6位签退码')
+          return
+        }
+        handleSubmitCheckout(code, done)
+      } else {
+        done()
+      }
+    }
+  }).then(() => {}).catch(() => {})
+
+  nextTick(() => {
+    const firstInput = document.querySelector('.verification-digit-input')
+    if (firstInput) firstInput.focus()
+  })
+}
+
+// 处理提交签到
+const handleSubmitCheckin = async (code, closeDialog) => {
+  loading.value = true
+  try {
+    const success = await submitCheckCode(code)
+    if (success && closeDialog) {
+      closeDialog()
+    }
+  } catch (error) {
+    console.error('签到失败:', error)
+  } finally {
+    loading.value = false
+  }
+}
+
+// 处理提交签退
+const handleSubmitCheckout = async (code, closeDialog) => {
+  loading.value = true
+  try {
+    const success = await submitCheckOutCode(code)
+    if (success && closeDialog) {
+      closeDialog()
+    }
+  } catch (error) {
+    console.error('签退失败:', error)
+  } finally {
+    loading.value = false
+  }
+}
+
 // 方法
 function requestCheckin() {
-  emit('request-checkin')
+  showCheckinDialog()
 }
 
 function requestCheckout() {
-  emit('request-checkout', { studyDuration: currentStudyDuration.value })
+  showCheckoutDialog()
 }
 
 function handleCheckin() {
@@ -200,18 +767,30 @@ function handleCheckin() {
   studyStartTime.value = now.toISOString()
   
   const checkinData = {
-    ...props.checkinInfo,
     checkedIn: true,
+    checkedOut: false,
     checkinTime: now.toLocaleTimeString('zh-CN', {
       hour12: false,
       hour: '2-digit',
       minute: '2-digit'
     }),
-    checkinTimestamp: now.toISOString() // 存储完整的签到时间戳
+    checkinTimestamp: now.getTime(),
+    checkoutTime: null,
+    location: null,
+    studyDuration: null,
+    isOvertime: false
   }
   
+  // 更新内部状态
+  checkinInfo.value = { ...checkinData }
+  saveCurrentCheckinStatus()
+  
   // 开始计时
-  studyTimer = setInterval(updateStudyDuration, 1000)
+  studyTimer = setInterval(() => {
+    updateStudyDuration()
+    // 实时更新今日总时长
+    calculateTodayTotalDuration()
+  }, 1000)
   
   emit('checkin', checkinData)
   loading.value = false
@@ -221,7 +800,7 @@ function handleCheckout() {
   loading.value = true
   
   const checkoutData = {
-    ...props.checkinInfo,
+    ...checkinInfo.value,
     checkedOut: true,
     checkoutTime: new Date().toLocaleTimeString('zh-CN', {
       hour12: false,
@@ -231,59 +810,44 @@ function handleCheckout() {
     studyDuration: currentStudyDuration.value
   }
   
+  // 更新内部状态
+  checkinInfo.value = { ...checkoutData }
+  saveCurrentCheckinStatus()
+  
   // 停止计时
   if (studyTimer) {
     clearInterval(studyTimer)
     studyTimer = null
   }
   
+  // 保存这次的签到记录到历史
+  saveCheckinToHistory(checkoutData)
+  
   emit('checkout', checkoutData)
   loading.value = false
 }
 
 // 生命周期
-onMounted(() => {
-  // 如果已经签到但未签退，恢复计时
-  if (props.checkinInfo.checkedIn && !props.checkinInfo.checkedOut) {
-    // 优先使用完整的签到时间戳
-    if (props.checkinInfo.checkinTimestamp) {
-      studyStartTime.value = props.checkinInfo.checkinTimestamp
-    } else if (props.checkinInfo.checkinTime) {
-      // 回退到旧的构造方式（为了兼容性）
-      const today = new Date().toDateString()
-      const checkinTimeStr = `${today} ${props.checkinInfo.checkinTime}`
-      studyStartTime.value = new Date(checkinTimeStr).toISOString()
-    } else {
-      // 如果没有具体的签到时间，使用当前时间作为开始时间
-      studyStartTime.value = new Date().toISOString()
-    }
-    studyTimer = setInterval(updateStudyDuration, 1000)
-    updateStudyDuration()
-  }
+onMounted(async () => {
+  // 更新当前时间
+  nowTime.value = new Date()
+  
+  // 启动时间更新定时器
+  const timeTimer = setInterval(() => {
+    nowTime.value = new Date()
+  }, 1000)
+  
+  // 获取最新签到状态
+  await getLatesetCheckStatus()
+  
+  // 加载今日签到历史记录
+  await loadTodayCheckinHistory()
+  
+  // 清理时间定时器
+  onUnmounted(() => {
+    clearInterval(timeTimer)
+  })
 })
-
-// 监听checkinInfo变化
-watch(() => props.checkinInfo, (newInfo) => {
-  if (newInfo.checkedIn && !newInfo.checkedOut && !studyTimer) {
-    // 优先使用完整的签到时间戳
-    if (newInfo.checkinTimestamp) {
-      studyStartTime.value = newInfo.checkinTimestamp
-    } else if (newInfo.checkinTime) {
-      // 回退到旧的构造方式（为了兼容性）
-      const today = new Date().toDateString()
-      const checkinTimeStr = `${today} ${newInfo.checkinTime}`
-      studyStartTime.value = new Date(checkinTimeStr).toISOString()
-    } else {
-      studyStartTime.value = new Date().toISOString()
-    }
-    studyTimer = setInterval(updateStudyDuration, 1000)
-    updateStudyDuration()
-  } else if ((!newInfo.checkedIn || newInfo.checkedOut) && studyTimer) {
-    // 停止计时
-    clearInterval(studyTimer)
-    studyTimer = null
-  }
-}, { deep: true })
 
 onUnmounted(() => {
   if (studyTimer) {
@@ -834,13 +1398,60 @@ defineExpose({
   animation: fadeInScale 0.4s ease-out 0.2s forwards;
 }
 
+/* 签到对话框样式 */
+:global(.checkin-message-box) {
+  border-radius: 20px !important;
+  overflow: hidden !important;
+}
+
+:global(.checkin-message-box .el-message-box__header) {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  color: white !important;
+  padding: 20px 24px !important;
+}
+
+:global(.checkin-message-box .el-message-box__title) {
+  color: white !important;
+  font-weight: 600 !important;
+}
+
+:global(.checkout-message-box) {
+  border-radius: 20px !important;
+  overflow: hidden !important;
+}
+
+:global(.checkout-message-box .el-message-box__header) {
+  background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%) !important;
+  color: white !important;
+  padding: 20px 24px !important;
+}
+
+:global(.checkout-message-box .el-message-box__title) {
+  color: white !important;
+  font-weight: 600 !important;
+}
+
+:global(.verification-code-container) {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  gap: 12px !important;
+  padding: 24px 0 !important;
+}
+
+:global(.verification-digit-input) {
+  width: 40px !important;
+  height: 50px !important;
+  font-size: 24px !important;
+}
+
 .theme-dark .timer-button-text {
   color: #000000;
 }
 
-.timer-value, .timer-label {
-  ...
+:global(.verification-digit-input) {
+  width: 40px !important;
+  height: 50px !important;
+  font-size: 24px !important;
 }
-
-*/
 </style>
