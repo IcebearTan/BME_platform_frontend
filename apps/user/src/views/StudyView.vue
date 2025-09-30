@@ -8,10 +8,13 @@ import PageFooterComponent from "../components/PageFooterComponent.vue";
 import { useStore } from 'vuex';
 import api from "../api";
 import { Expand } from '@element-plus/icons-vue'; // 只导入实际使用的图标
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 
 const store = useStore();
 const router = useRouter();
+
+// --- 主题管理 ---
+const isDarkMode = computed(() => store.state.isDarkMode);
 
 // --- 响应式 Header 逻辑 ---
 const isMobile = ref(window.innerWidth <= 768);
@@ -45,7 +48,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div>
+  <div class="study-page" :class="{ 'theme-dark': isDarkMode, 'theme-light': !isDarkMode }">
     <el-container class="common-layout">
       <el-header class="header-container">
         <!-- 桌面菜单 -->
@@ -78,15 +81,41 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+/* --- 整体页面样式 --- */
+.study-page {
+  min-height: 100vh;
+  transition: all 0.3s ease;
+}
+
+.theme-light .study-page {
+  background-color: #ffffff;
+  color: #333333;
+}
+
+.theme-dark .study-page {
+  background-color: #1a1a1a;
+  color: #ffffff;
+}
+
 /* --- Header 样式 --- */
 .header-container {
   display: flex;
   justify-content: center;
   align-items: center;
-  border-bottom: solid 1px #e6e6e6;
   padding: 0;
   height: 60px;
   position: relative;
+  transition: all 0.3s ease;
+}
+
+.theme-light .header-container {
+  background-color: #ffffff;
+  border-bottom: solid 1px #e6e6e6;
+}
+
+.theme-dark .header-container {
+  background-color: #1a1a1a;
+  border-bottom: solid 1px #333333;
 }
 
 .desktop-menu-container {
@@ -114,7 +143,27 @@ onUnmounted(() => {
   display: none;
   font-size: 24px;
   cursor: pointer;
+  transition: color 0.3s ease;
+}
+
+.theme-light .hamburger-icon {
   color: #606266;
+}
+
+.theme-dark .hamburger-icon {
+  color: #cbd5e0;
+}
+
+.hamburger-icon:hover {
+  transform: scale(1.1);
+}
+
+.theme-light .hamburger-icon:hover {
+  color: #409eff;
+}
+
+.theme-dark .hamburger-icon:hover {
+  color: #63b3ed;
 }
 
 @media (max-width: 768px) {
@@ -140,20 +189,24 @@ onUnmounted(() => {
 
 
 .common-layout {
-  min-height: 100%;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  position: relative;
 }
 
-.footer {
-  font-size: 15px;
-  display: flex;
-  padding: 10px;
-  background-color: #f5f5f5;
-  margin: 0;
-  width: 100%;
-  color: #bababa;
+/* 主要内容区域样式 */
+.common-layout :deep(.el-main) {
+  transition: background-color 0.3s ease;
+}
+
+.theme-light .common-layout :deep(.el-main) {
+  background-color: #ffffff;
+}
+
+.theme-dark .common-layout :deep(.el-main) {
+  background-color: #1a1a1a;
 }
 </style>
 
@@ -166,10 +219,57 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   flex-direction: column;
-  padding: 10px;
-  background-color: #252525;
+  padding: 20px 10px;
   width: 100%;
   min-height: 400px;
   color: #ffffff;
+  transition: all 0.3s ease;
+}
+
+.theme-light .page-footer {
+  background-color: #252525;
+}
+
+.theme-dark .page-footer {
+  background-color: #0f0f0f;
+}
+
+/* 滚动条美化 - 主题适配 */
+.theme-light ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.theme-light ::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+}
+
+.theme-light ::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.theme-light ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.theme-dark ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.theme-dark ::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+.theme-dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+}
+
+.theme-dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4);
 }
 </style>

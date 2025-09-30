@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div :class="themeClass">
     <!-- <div class="title">导师</div> -->
     <div class="instructor-container">
         <div class="block-instructor">
@@ -29,7 +29,11 @@
 
 <script setup>
 import { reactive, onMounted, defineProps, ref, computed, watch } from 'vue';
+import { useStore } from 'vuex';
 import api from '../../api';
+
+const store = useStore();
+const themeClass = computed(() => store.state.darkMode ? 'theme-dark' : 'theme-light');
 
 const props = defineProps({
     courseId: {
@@ -171,12 +175,21 @@ onMounted(() => {
 .title{
   font-size: 20px;
   font-weight: bold;
-  color: #333;
   margin-bottom: 10px;
   padding-bottom: 15px;
-  border-bottom: solid 3px #333;
-
+  border-bottom: solid 3px;
   width: fit-content;
+}
+
+/* 主题适配 - 标题 */
+.theme-light .title {
+  color: #333;
+  border-bottom-color: #333;
+}
+
+.theme-dark .title {
+  color: #e6e6e6;
+  border-bottom-color: #e6e6e6;
 }
 .single-student-container{
     display: flex;
@@ -210,8 +223,15 @@ onMounted(() => {
 .instructor-name{
     font-size: 18px;
     margin-left: 20px;
+}
 
+/* 主题适配 - 导师名称 */
+.theme-light .instructor-name {
     color: #333;
+}
+
+.theme-dark .instructor-name {
+    color: #e6e6e6;
 }
 .instructor-label{
     font-size: 20px;
@@ -250,8 +270,15 @@ onMounted(() => {
 .username{
     font-size: 18px;
     margin-left: 20px;
+}
 
+/* 主题适配 - 用户名 */
+.theme-light .username {
     color: #333;
+}
+
+.theme-dark .username {
+    color: #e6e6e6;
 }
 .progress{
     margin-left: auto;
@@ -262,7 +289,14 @@ onMounted(() => {
 .label{
     font-size: 15px;
     margin-right: 10px;
+}
 
+/* 主题适配 - 标签文本 */
+.theme-light .label {
     color: #999;
+}
+
+.theme-dark .label {
+    color: #bbb;
 }
 </style>

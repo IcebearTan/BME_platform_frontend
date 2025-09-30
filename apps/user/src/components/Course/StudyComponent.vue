@@ -1,12 +1,17 @@
 <script setup>
 import { ref, onMounted, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useStore } from 'vuex'
 // import api from '../../../api'
 // import LearningPathComponent from './LearningPathComponent.vue'
 import api from '../../api';
 import LearningPathComponent from './LearningPathComponent.vue'
 
 const router = useRouter()
+const store = useStore()
+
+// 主题计算属性
+const themeClass = computed(() => store.state.darkMode ? 'theme-dark' : 'theme-light')
 
 const colorPalette = [
     "#b391ff", // 蓝紫色: 和谐邻近色
@@ -107,14 +112,14 @@ onMounted(() => {
 </script>
 
 <template>
-    <div class="headContainer">
+    <div class="headContainer" :class="themeClass">
         <!-- 这里强制设置了缩放 -->
         <div style="min-width: 1500px;">
             <LearningPathComponent />
         </div>
 
     </div>
-    <div class="mainContainer">
+    <div class="mainContainer" :class="themeClass">
         <div style="width: 1300px;">
             <div class="button-group-container">
                 <el-button v-for="(button, index) in buttons" :key="index" :type="button.active ? 'primary' : 'text'"
@@ -126,12 +131,12 @@ onMounted(() => {
 
         <div class="columnContainer">
             <template v-if="filteredCourses.length === 0">
-                <el-card style="width: 100%; text-align: center; box-shadow: 0 0 0 0 ; border: none;">
-                    <div>暂时没有课程哦╮(╯▽╰)╭</div>
+                <el-card style="width: 100%; text-align: center; box-shadow: 0 0 0 0 ; border: none;" :class="themeClass">
+                    <div class="empty-message">暂时没有课程哦╮(╯▽╰)╭</div>
                 </el-card>
             </template>
             <template v-else>
-                <el-card class="boxCard" v-for="course in filteredCourses" :key="course.Course_Id"
+                <el-card class="boxCard" :class="themeClass" v-for="course in filteredCourses" :key="course.Course_Id"
                     @click="handleCourseClick(course.Course_Id)"
                     @mouseenter="handleMouseEnter(course, $event)"
                     @mouseleave="handleMouseLeave">
@@ -149,6 +154,7 @@ onMounted(() => {
                     <div
                         v-if="hoverCourse"
                         class="course-tooltip"
+                        :class="themeClass"
                         :style="{
                         left: hoverPosition.x + 20 + 'px',
                         top: hoverPosition.y + 20 + 'px'
@@ -172,15 +178,26 @@ onMounted(() => {
     max-width: 300px;
     padding: 18px 22px;
     border-radius: 16px;
-    background: rgba(255,255,255,0.7);
-    box-shadow: 0 4px 24px rgba(0,0,0,0.10);
     backdrop-filter: blur(10px);
-    color: #333;
     pointer-events: none;
-    transition: opacity 0.2s;
+    transition: all 0.2s ease;
     font-size: 15px;
-    /* 防止超出屏幕 */
     word-break: break-all;
+}
+
+/* 主题适配 - 课程悬浮提示（毛玻璃效果） */
+.theme-light .course-tooltip {
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid rgba(230, 230, 230, 0.6);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+    color: #333;
+}
+
+.theme-dark .course-tooltip {
+    background: rgba(45, 45, 45, 0.85);
+    border: 1px solid rgba(64, 64, 64, 0.6);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    color: #e6e6e6;
 }
 
 .tooltip-title {
@@ -192,12 +209,27 @@ onMounted(() => {
 .tooltip-intro {
     font-size: 14px;
     margin-bottom: 10px;
-    color: #666;
 }
 
 .tooltip-footer {
     font-size: 13px;
+}
+
+/* 主题适配 - 提示框文本颜色 */
+.theme-light .tooltip-intro {
+    color: #666;
+}
+
+.theme-light .tooltip-footer {
     color: #888;
+}
+
+.theme-dark .tooltip-intro {
+    color: #bbb;
+}
+
+.theme-dark .tooltip-footer {
+    color: #999;
 }
 .fade-tooltip-enter-active, .fade-tooltip-leave-active {
   transition: opacity 0.25s;
@@ -228,15 +260,21 @@ onMounted(() => {
     justify-content: center;
     align-items: center;
     width: 100%;
-
     height: 300px;
-    background-color: #f5f4f2;
-    background-image: 
-        repeating-radial-gradient(circle, rgb(255, 255, 255) 1px, transparent 3px, transparent 18px);
-    /* 1px为点大小，3px为点边界，18px为点间距，可根据需要调整 */
-    transition: 1s ease-in-out;
-    
+    transition: all 0.3s ease-in-out;
 }
+
+/* 主题适配 - 头部容器 */
+.theme-light .headContainer {
+    background-color: #f5f4f2;
+    background-image: repeating-radial-gradient(circle, rgb(255, 255, 255) 1px, transparent 3px, transparent 18px);
+}
+
+.theme-dark .headContainer {
+    background-color: #2a2a2a;
+    background-image: repeating-radial-gradient(circle, rgb(70, 70, 70) 1px, transparent 3px, transparent 18px);
+}
+
 .headContainer:hover{
     background-size: 180px 180px;
 }
@@ -285,18 +323,38 @@ onMounted(() => {
     height: 110px;
     margin: 10px;
     border-radius: 12px;
-    background: #fff;
-    box-shadow: 0 2px 12px 0 rgba(64, 158, 255, 0.07), 0 1.5px 8px 0 rgba(53,53,53,0.04);
-    transition: box-shadow 0.22s cubic-bezier(.4,0,.2,1), transform 0.22s cubic-bezier(.4,0,.2,1);
+    border: 1px solid;
+    transition: all 0.22s cubic-bezier(.4,0,.2,1);
     cursor: pointer;
-    border: 1px solid #f3f6fa;
+}
+
+/* 主题适配 - 课程卡片 */
+.theme-light .boxCard {
+    background-color: #ffffff;
+    border-color: #e6e6e6;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.theme-dark .boxCard {
+    background-color: #2d2d2d;
+    border-color: #404040;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }
 
 .boxCard:hover {
     transform: translateY(-6px) scale(1.025);
-    box-shadow: 0 8px 32px 0 rgba(64, 158, 255, 0.13), 0 2px 12px 0 rgba(53,53,53,0.08);
-    border: 1px solid #e0eaff;
-    background: #fafdff;
+}
+
+.theme-light .boxCard:hover {
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    border-color: #d0d0d0;
+    background-color: #f9f9f9;
+}
+
+.theme-dark .boxCard:hover {
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    border-color: #505050;
+    background-color: #353535;
 }
 
 /* 媒体查询：当屏幕宽度小于等于 768px 时 (竖屏模式) */
@@ -339,37 +397,68 @@ onMounted(() => {
 }
 
 .cardTitle {
-    font-size: 15px;
-    font-weight: normal;
+    font-size: 16px;
+    font-weight: 600;
     height: 25%;
+}
+
+/* 主题适配 - 卡片标题 */
+.theme-light .cardTitle {
+    color: #333;
+}
+
+.theme-dark .cardTitle {
+    color: #e6e6e6;
 }
 
 .cardText {
     font-size: 12px;
     height: 3em;
-    /* width: 95%; */
-    /* 限制高度为两行的高度 */
     line-height: 1.5em;
-    /* 设置行高 */
     overflow: hidden;
-    /* 超出部分隐藏 */
     display: -webkit-box;
-    /* 必须要用 webkit-box 才能支持 line-clamp */
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     text-overflow: ellipsis;
-    /* 添加省略号（可选） */
-
     margin-bottom: 20px;
     margin-top: 5px;
-    color: #888;
 }
 
 .cardFooter {
     position: relative;
-
     font-size: 12px;
     height: 25%;
+}
+
+/* 主题适配 - 卡片文本颜色 */
+.theme-light .cardText {
+    color: #666;
+}
+
+.theme-light .cardFooter {
+    color: #888;
+}
+
+.theme-dark .cardText {
+    color: #aaa;
+}
+
+.theme-dark .cardFooter {
+    color: #bbb;
+}
+
+/* 主题适配 - 空状态消息 */
+.empty-message {
+    font-size: 16px;
+    padding: 40px 20px;
+}
+
+.theme-light .empty-message {
+    color: #666;
+}
+
+.theme-dark .empty-message {
     color: #aaa;
 }
 
@@ -419,42 +508,67 @@ onMounted(() => {
 .styled-button {
     font-size: 17px;
     padding: 18px 20px;
-
     border-radius: 8px;
     transition: all 0.3s ease;
-
     margin-right: 20px;
-}
-
-.styled-button:hover {
-    background-color: #f0f0f0;
 }
 
 .styled-button:focus {
     outline: none;
 }
 
-.el-button--primary {
+/* 主题适配 - 按钮样式 */
+.theme-light .styled-button:hover {
+    background-color: #f0f0f0;
+}
+
+.theme-dark .styled-button:hover {
+    background-color: #404040;
+}
+
+/* 激活状态按钮 */
+.theme-light .el-button--primary {
     background-color: #f0f0f0;
     color: #444;
     border-color: #f0f0f0;
 }
 
-.el-button--primary:hover {
-    background-color: #f0f0f0;
+.theme-light .el-button--primary:hover {
+    background-color: #e8e8e8;
     color: #444;
-
 }
 
-.el-button--text {
+.theme-dark .el-button--primary {
+    background-color: #404040;
+    color: #e6e6e6;
+    border-color: #404040;
+}
+
+.theme-dark .el-button--primary:hover {
+    background-color: #4a4a4a;
+    color: #e6e6e6;
+}
+
+/* 普通状态按钮 */
+.theme-light .el-button--text {
     background-color: transparent;
     color: #333;
     border: 1px solid transparent;
 }
 
-.el-button--text:hover {
+.theme-light .el-button--text:hover {
     background-color: #f0f0f0;
     color: #444;
+}
 
+.theme-dark .el-button--text {
+    background-color: transparent;
+    color: #cccccc;
+    border: 1px solid transparent;
+}
+
+.theme-dark .el-button--text:hover {
+    background-color: #404040;
+    color: #e6e6e6;
 }
 </style>

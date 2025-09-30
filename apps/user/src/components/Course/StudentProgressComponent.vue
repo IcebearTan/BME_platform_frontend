@@ -1,5 +1,5 @@
 <template>
-  <div class="student-progress">
+  <div class="student-progress" :class="themeClass">
     <div>
       <div class="student-progress-title">个人进度</div>
       <div class="student-progress-content">上次学到：</div>
@@ -23,8 +23,12 @@
 </template>
 
 <script setup>
-import { defineComponent, onMounted, defineProps, watch } from 'vue'
+import { defineComponent, onMounted, defineProps, watch, computed } from 'vue'
 import { ref } from 'vue';
+import { useStore } from 'vuex';
+
+const store = useStore();
+const themeClass = computed(() => store.state.darkMode ? 'theme-dark' : 'theme-light');
 
 const props = defineProps({
   userProgress: {
@@ -89,20 +93,35 @@ watch(() => props.userProgress.chapter_num, () => {
 .student-progress-title{
     font-size: 20px;
     font-weight: bold;
-
     margin-bottom: 10px;
-    color: #444;
 }
+
 .student-progress-content{
     font-size: 15px;
-    color: #777;
     width: 150px;
     margin-bottom: 5px;
-
     display: -webkit-box;
-    -webkit-line-clamp: 2;      /* 限制为2行 */
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+/* 主题适配 - 学生进度文本 */
+.theme-light .student-progress-title {
+    color: #444;
+}
+
+.theme-light .student-progress-content {
+    color: #777;
+}
+
+.theme-dark .student-progress-title {
+    color: #e6e6e6;
+}
+
+.theme-dark .student-progress-content {
+    color: #bbb;
 }
 </style>

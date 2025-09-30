@@ -12,6 +12,9 @@ import StudentRankComponent from './StudentRankComponent.vue'
 const store = useStore()  // 获取 Vuex store
 const router = useRouter()  // 获取 Vue Router 实例
 
+// 主题计算属性
+const themeClass = computed(() => store.state.darkMode ? 'theme-dark' : 'theme-light')
+
 const courseDetails = ref(null)
 const courseId = ref(router.currentRoute.value.query.id)
 const courseInfo = ref([])
@@ -165,8 +168,8 @@ function hexToRgba(hex, alpha) {
 
 // 生成渐变色（可以根据 coverColor 调整深浅）
 const wrapperBg = computed(() => {
-  // 这里用 coverColor 作为主色，和白色做渐变
-  return `linear-gradient(360deg, ${hexToRgba(coverColor.value, 0.55)} 0%, #f8f9ff 100%)`;
+  // 简洁风格：使用纯色背景而不是渐变
+  return store.state.darkMode ? '#1a1a1a' : '#ffffff';
 });
 
 // 查询当前用户是否已经加入课程
@@ -259,7 +262,7 @@ const courseHour = computed(() => {
 </script>
 
 <template>
-  <div class="course-wrapper" :style="{ background: wrapperBg }">
+  <div class="course-wrapper" :class="themeClass" :style="{ background: wrapperBg }">
     <div class="course-details">
       <div class="course-info">
         <div class="course-info-left" 
@@ -308,7 +311,7 @@ const courseHour = computed(() => {
 
     <!-- 已经开始学习所展示的内容 -->
     <div v-if="isEnrolled" style="width: 300px;">
-      <div class="course-process">
+      <div class="course-process" :class="themeClass">
         <StudentProgressComponent :user-progress="userProgress" />
       </div>
       <div class="class-rank">
@@ -408,21 +411,37 @@ const courseHour = computed(() => {
   margin-bottom: 20px;
   padding: 20px;
   padding-bottom: 10px;
-
   border-radius: 16px;
-  background: rgba(255,255,255,0.7);
-  box-shadow: 0 4px 24px rgba(0,0,0,0.10);
-  backdrop-filter: blur(10px);
+  border: 1px solid;
   transition: all 0.15s ease-in-out;
-
   cursor: pointer;
 }
-.course-process:hover {
-  background: rgba(255,255,255,0.8);
-  box-shadow: 0 4px 24px rgba(0,0,0,0.15);
-  backdrop-filter: blur(20px);
 
+/* 主题适配 - 课程进度卡片 */
+.theme-light .course-process {
+  background-color: #ffffff;
+  border-color: #e6e6e6;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.theme-dark .course-process {
+  background-color: #2d2d2d;
+  border-color: #404040;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+.course-process:hover {
   transform: scale(1.02);
+}
+
+.theme-light .course-process:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  border-color: #d0d0d0;
+}
+
+.theme-dark .course-process:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  border-color: #505050;
 }
 
 .course-process h2 {
@@ -564,13 +583,24 @@ const courseHour = computed(() => {
 }
 
 .course-content-card {
-  background-color: #ffffff;
   width: 90%;
-
-  border-radius: 5px;
-  box-shadow: #e9e9e9 0px 0px 10px 2px;
-
+  border-radius: 12px;
+  border: 1px solid;
   margin-top: 20px;
+  transition: all 0.3s ease;
+}
+
+/* 主题适配 - 课程内容卡片 */
+.theme-light .course-content-card {
+  background-color: #ffffff;
+  border-color: #e6e6e6;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.theme-dark .course-content-card {
+  background-color: #2d2d2d;
+  border-color: #404040;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }
 
 .course-content-item {
@@ -597,21 +627,39 @@ const courseHour = computed(() => {
   display: flex;
   justify-content: space-between;
   font-size: 15px;
-  color: #555;
-  /* margin-bottom: 10px; */
   padding: 10px;
-
-  border-radius: 5px;
+  border-radius: 8px;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-.course-content-item-sub:hover {
-  background-color: #ededed;
+/* 主题适配 - 课程内容子项 */
+.theme-light .course-content-item-sub {
+  color: #555;
+}
+
+.theme-light .course-content-item-sub:hover {
+  background-color: #f5f5f5;
+}
+
+.theme-dark .course-content-item-sub {
+  color: #cccccc;
+}
+
+.theme-dark .course-content-item-sub:hover {
+  background-color: #404040;
 }
 
 .course-content-item-sub.locked {
-  color: #ccc;
   cursor: pointer;
+}
+
+.theme-light .course-content-item-sub.locked {
+  color: #ccc;
+}
+
+.theme-dark .course-content-item-sub.locked {
+  color: #666;
 }
 
 .lock-icon {
@@ -619,12 +667,20 @@ const courseHour = computed(() => {
 }
 
 .course-description {
-  color: #555;
-
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* 主题适配 - 课程描述 */
+.theme-light .course-description {
+  color: #555;
+}
+
+.theme-dark .course-description {
+  color: #bbb;
 }
 
 .course-wrapper {
