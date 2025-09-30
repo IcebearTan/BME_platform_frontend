@@ -342,14 +342,14 @@ const submitForm = async () => {
 
 /* 主题适配 - 浅色模式 */
 .theme-light .register-card {
-    background: rgba(255, 255, 255, 0.95);
-    border-color: rgba(255, 255, 255, 0.4);
+    background: rgba(255, 255, 255, 0.9);
+    border-color: rgba(255, 255, 255, 0.3);
     color: #333333;
 }
 
 /* 主题适配 - 深色模式 */
 .theme-dark .register-card {
-    background: rgba(44, 62, 80, 0.95);
+    background: rgba(26, 32, 44, 0.9);
     border-color: rgba(255, 255, 255, 0.1);
     color: #ffffff;
 }
@@ -718,5 +718,55 @@ const submitForm = async () => {
 
 .register-card {
     animation: fadeInUp 0.6s ease-out;
+}
+
+/* 解决浏览器自动填充问题 */
+.custom-input :deep(.el-input__inner:-webkit-autofill) {
+    -webkit-box-shadow: 0 0 0 1000px transparent inset !important;
+    background: transparent !important;
+    transition: background-color 5000s ease-in-out 0s;
+    font-size: 16px !important;
+    line-height: 1.5 !important;
+}
+
+.custom-input :deep(.el-input__inner:-webkit-autofill:hover) {
+    -webkit-box-shadow: 0 0 0 1000px transparent inset !important;
+    background: transparent !important;
+}
+
+.custom-input :deep(.el-input__inner:-webkit-autofill:focus) {
+    -webkit-box-shadow: 0 0 0 1000px transparent inset !important;
+    background: transparent !important;
+}
+
+/* 自动填充文字颜色 - 主题适配 */
+.theme-light .custom-input :deep(.el-input__inner:-webkit-autofill) {
+    -webkit-text-fill-color: #333333 !important;
+    color: #333333 !important;
+}
+
+.theme-dark .custom-input :deep(.el-input__inner:-webkit-autofill) {
+    -webkit-text-fill-color: #ffffff !important;
+    color: #ffffff !important;
+}
+
+.theme-light .custom-input :deep(.el-input__inner:-webkit-autofill:hover) {
+    -webkit-text-fill-color: #333333 !important;
+    color: #333333 !important;
+}
+
+.theme-dark .custom-input :deep(.el-input__inner:-webkit-autofill:hover) {
+    -webkit-text-fill-color: #ffffff !important;
+    color: #ffffff !important;
+}
+
+.theme-light .custom-input :deep(.el-input__inner:-webkit-autofill:focus) {
+    -webkit-text-fill-color: #333333 !important;
+    color: #333333 !important;
+}
+
+.theme-dark .custom-input :deep(.el-input__inner:-webkit-autofill:focus) {
+    -webkit-text-fill-color: #ffffff !important;
+    color: #ffffff !important;
 }
 </style>
