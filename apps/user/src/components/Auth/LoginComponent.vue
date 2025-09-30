@@ -305,49 +305,68 @@ async function submitForm() {
     width: 100%;
 }
 
-.custom-input :deep(.el-input) {
-    width: 100%;
-}
-
 .custom-input :deep(.el-input__wrapper) {
-    height: 52px;
     padding-left: 48px;
+    padding-right: 16px;
     border-radius: 16px;
-    border: 2px solid transparent;
-    transition: all 0.3s ease;
+    height: 56px;
     backdrop-filter: blur(10px);
+    border: 1px solid transparent;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
+.custom-input :deep(.el-input__inner) {
+    font-size: 16px;
+    line-height: 1.5;
+    color: inherit;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+}
+
+.custom-input :deep(.el-input__inner::placeholder) {
+    opacity: 0.6;
+}
+
+/* 主题适配 - 浅色模式 */
 .theme-light .custom-input :deep(.el-input__wrapper) {
     background: rgba(255, 255, 255, 0.8);
     border-color: rgba(64, 158, 255, 0.1);
 }
 
+.theme-light .custom-input:hover :deep(.el-input__wrapper) {
+    border-color: rgba(64, 158, 255, 0.3);
+    background: rgba(255, 255, 255, 0.9);
+}
+
+.theme-light .custom-input.is-focus :deep(.el-input__wrapper) {
+    border-color: #409eff;
+    background: rgba(255, 255, 255, 1);
+    box-shadow: 0 0 0 3px rgba(64, 158, 255, 0.1);
+}
+
+/* 主题适配 - 深色模式 */
 .theme-dark .custom-input :deep(.el-input__wrapper) {
     background: rgba(45, 55, 72, 0.8);
     border-color: rgba(255, 255, 255, 0.1);
 }
 
-.custom-input :deep(.el-input__wrapper):hover {
-    border-color: #409eff;
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(64, 158, 255, 0.15);
+.theme-dark .custom-input:hover :deep(.el-input__wrapper) {
+    border-color: rgba(255, 255, 255, 0.2);
+    background: rgba(45, 55, 72, 0.9);
 }
 
-.custom-input :deep(.el-input__wrapper.is-focus) {
+.theme-dark .custom-input.is-focus :deep(.el-input__wrapper) {
     border-color: #409eff;
-    box-shadow: 0 0 0 4px rgba(64, 158, 255, 0.1);
-}
-
-.custom-input:focus-within .input-icon {
-    color: #409eff;
-    transform: scale(1.1);
+    background: rgba(45, 55, 72, 1);
+    box-shadow: 0 0 0 3px rgba(64, 158, 255, 0.2);
 }
 
 /* 提交按钮 */
 .submit-button {
     width: 100%;
-    height: 52px;
+    height: 56px;
     border-radius: 16px;
     font-size: 16px;
     font-weight: 600;
@@ -493,5 +512,21 @@ async function submitForm() {
         rgba(64, 158, 255, 0.8) 75%);
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite;
+}
+
+/* 动画效果 */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.login-card {
+    animation: fadeInUp 0.6s ease-out;
 }
 </style>

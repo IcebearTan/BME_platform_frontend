@@ -1054,14 +1054,14 @@ const handleUserGroup = () => {
 .theme-light .custom-link:hover {
     color: #409eff !important;
     text-shadow: 0 0 3px rgba(64, 158, 255, 0.3);
-    background-color: rgba(64, 158, 255, 0.05);
+    /* background-color: rgba(64, 158, 255, 0.05); */
     transform: translateY(-1px);
 }
 
 .theme-dark .custom-link:hover {
     color: #409eff !important;
     text-shadow: 0 0 3px rgba(64, 158, 255, 0.5);
-    background-color: rgba(64, 158, 255, 0.1);
+    /* background-color: rgba(64, 158, 255, 0.1); */
     transform: translateY(-1px);
 }
 /* 搜索框主题适配 */
