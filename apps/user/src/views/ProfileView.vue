@@ -1,5 +1,19 @@
 <template>
   <div :class="['profile-container', { 'theme-dark': isDarkMode, 'theme-light': !isDarkMode }]">
+    <!-- 背景装饰 -->
+    <div class="background-decoration">
+      <div class="bg-circle bg-circle-1"></div>
+      <div class="bg-circle bg-circle-2"></div>
+      <div class="bg-circle bg-circle-3"></div>
+      <div class="bg-circle bg-circle-4"></div>
+      <div class="bg-circle bg-circle-5"></div>
+      <div class="bg-circle bg-circle-6"></div>
+      <div class="bg-circle bg-circle-7"></div>
+      <div class="bg-circle bg-circle-8"></div>
+      <div class="bg-circle bg-circle-9"></div>
+      <div class="bg-circle bg-circle-10"></div>
+    </div>
+    
     <!-- 导航栏 -->
     <div class="header-container">
       <!-- 桌面菜单 -->
@@ -181,6 +195,43 @@
         <h2 class="section-title">学生评价</h2>
         <div class="testimonials-wrapper">
           <div class="testimonials-scroll">
+            <!-- 第一组 -->
+            <div class="testimonial-item">
+              <p>"在AMEII平台学习让我对医工融合有了全新的认识，实践项目特别有意思！"</p>
+              <div class="testimonial-author">
+                <span class="name">李明</span>
+                <span class="info">生物医学工程 · 2022级</span>
+              </div>
+            </div>
+            <div class="testimonial-item">
+              <p>"导师们都很专业，课程设置也很合理，从基础到前沿都有涉及。"</p>
+              <div class="testimonial-author">
+                <span class="name">王小雨</span>
+                <span class="info">医学影像技术 · 2023级</span>
+              </div>
+            </div>
+            <div class="testimonial-item">
+              <p>"软件组的项目让我学会了很多实用的编程技能，对就业帮助很大。"</p>
+              <div class="testimonial-author">
+                <span class="name">张三</span>
+                <span class="info">计算机科学 · 2021级</span>
+              </div>
+            </div>
+            <div class="testimonial-item">
+              <p>"硬件组的实验室设备很先进，能接触到最新的医疗设备技术。"</p>
+              <div class="testimonial-author">
+                <span class="name">刘佳</span>
+                <span class="info">电子工程 · 2022级</span>
+              </div>
+            </div>
+            <div class="testimonial-item">
+              <p>"产学研结合的模式让我们能参与真实的医院项目，收获满满！"</p>
+              <div class="testimonial-author">
+                <span class="name">陈浩</span>
+                <span class="info">生物医学工程 · 2020级</span>
+              </div>
+            </div>
+            <!-- 第二组（重复内容实现无限轮播） -->
             <div class="testimonial-item">
               <p>"在AMEII平台学习让我对医工融合有了全新的认识，实践项目特别有意思！"</p>
               <div class="testimonial-author">
@@ -227,6 +278,53 @@
         <h2 class="section-title">学员风采</h2>
         <div class="showcase-wrapper">
           <div class="showcase-scroll">
+            <!-- 第一组 -->
+            <div class="showcase-item">
+              <div class="showcase-image">
+                <img src="../assets/ChenMinJie.jpg" alt="项目展示" />
+              </div>
+              <div class="showcase-content">
+                <h3>智能医疗监护系统</h3>
+                <p>软件组团队开发的实时生命体征监护平台</p>
+              </div>
+            </div>
+            <div class="showcase-item">
+              <div class="showcase-image">
+                <img src="../assets/LuMengXuan.jpg" alt="项目展示" />
+              </div>
+              <div class="showcase-content">
+                <h3>便携式心电检测仪</h3>
+                <p>硬件组设计的小型化心电监测设备</p>
+              </div>
+            </div>
+            <div class="showcase-item">
+              <div class="showcase-image">
+                <img src="../assets/Jerry_Scintilla_avatar.jpg" alt="项目展示" />
+              </div>
+              <div class="showcase-content">
+                <h3>3D打印医疗模型</h3>
+                <p>先进制造组制作的高精度解剖教学模型</p>
+              </div>
+            </div>
+            <div class="showcase-item">
+              <div class="showcase-image">
+                <img src="../assets/ジエ_avatar.png" alt="项目展示" />
+              </div>
+              <div class="showcase-content">
+                <h3>医疗器械市场分析</h3>
+                <p>行业分析组完成的深度市场研究报告</p>
+              </div>
+            </div>
+            <div class="showcase-item">
+              <div class="showcase-image">
+                <img src="../assets/ice_bear_avatar.jpg" alt="项目展示" />
+              </div>
+              <div class="showcase-content">
+                <h3>医工融合宣传片</h3>
+                <p>传媒组制作的专业宣传视频作品</p>
+              </div>
+            </div>
+            <!-- 第二组（重复内容实现无限轮播） -->
             <div class="showcase-item">
               <div class="showcase-image">
                 <img src="../assets/ChenMinJie.jpg" alt="项目展示" />
@@ -366,16 +464,234 @@ const scrollToAbout = () => {
   transition: all 0.3s ease;
   display: flex;
   flex-direction: column;
+  position: relative;
+  overflow-x: hidden;
 }
 
 .theme-light .profile-container {
-  background-color: #f8f9fa;
+  background: rgba(248, 249, 250, 0.7);
   color: #333333;
 }
 
 .theme-dark .profile-container {
-  background-color: #1a1a1a;
+  background: rgba(26, 26, 26, 0.7);
   color: #ecf0f1;
+}
+
+/* 背景装饰 */
+.background-decoration {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: calc(100% - 400px); /* 排除footer高度 */
+  pointer-events: none;
+  z-index: 1;
+  overflow: hidden;
+}
+
+.background-decoration::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.08;
+  z-index: -2;
+  filter: blur(40px);
+  backdrop-filter: blur(20px);
+}
+
+.theme-light .background-decoration::before {
+  background: 
+    radial-gradient(ellipse at 15% 20%, rgba(102, 126, 234, 0.4) 0%, transparent 60%),
+    radial-gradient(ellipse at 85% 80%, rgba(118, 75, 162, 0.4) 0%, transparent 60%),
+    radial-gradient(ellipse at 50% 50%, rgba(139, 100, 198, 0.3) 0%, transparent 70%);
+}
+
+.theme-dark .background-decoration::before {
+  background: 
+    radial-gradient(ellipse at 15% 20%, rgba(79, 172, 254, 0.5) 0%, transparent 60%),
+    radial-gradient(ellipse at 85% 80%, rgba(0, 242, 254, 0.5) 0%, transparent 60%),
+    radial-gradient(ellipse at 50% 50%, rgba(39, 207, 254, 0.4) 0%, transparent 70%);
+}
+
+.bg-circle {
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0.4;
+  filter: blur(8px);
+  backdrop-filter: blur(4px);
+  animation: floatAnimation 25s ease-in-out infinite;
+  box-shadow: 
+    0 0 60px rgba(0, 0, 0, 0.1),
+    inset 0 0 40px rgba(255, 255, 255, 0.2);
+}
+
+.bg-circle::before {
+  content: '';
+  position: absolute;
+  top: 10%;
+  left: 10%;
+  width: 80%;
+  height: 80%;
+  border-radius: 50%;
+  opacity: 0.6;
+  filter: blur(2px);
+  backdrop-filter: blur(8px);
+}
+
+.theme-light .bg-circle::before {
+  background: radial-gradient(ellipse at 25% 25%, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.4) 30%, rgba(255, 255, 255, 0.1) 60%, transparent 100%);
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+}
+
+.theme-dark .bg-circle::before {
+  background: radial-gradient(ellipse at 25% 25%, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.2) 30%, rgba(255, 255, 255, 0.05) 60%, transparent 100%);
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+}
+
+.bg-circle::after {
+  content: '';
+  position: absolute;
+  top: -20%;
+  left: -20%;
+  width: 140%;
+  height: 140%;
+  border-radius: 50%;
+  opacity: 0.2;
+  filter: blur(15px);
+  pointer-events: none;
+  z-index: -1;
+}
+
+.theme-light .bg-circle::after {
+  background: radial-gradient(circle, rgba(102, 126, 234, 0.4) 0%, rgba(118, 75, 162, 0.3) 50%, transparent 70%);
+}
+
+.theme-dark .bg-circle::after {
+  background: radial-gradient(circle, rgba(79, 172, 254, 0.5) 0%, rgba(0, 242, 254, 0.4) 50%, transparent 70%);
+}
+
+.theme-light .bg-circle {
+  background: 
+    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.6) 0%, transparent 50%),
+    linear-gradient(135deg, rgba(102, 126, 234, 0.8) 0%, rgba(118, 75, 162, 0.8) 100%);
+  box-shadow: 
+    0 0 80px rgba(102, 126, 234, 0.3),
+    0 0 40px rgba(118, 75, 162, 0.2),
+    inset 0 0 30px rgba(255, 255, 255, 0.3);
+}
+
+.theme-dark .bg-circle {
+  background: 
+    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.4) 0%, transparent 50%),
+    linear-gradient(135deg, rgba(79, 172, 254, 0.8) 0%, rgba(0, 242, 254, 0.8) 100%);
+  box-shadow: 
+    0 0 80px rgba(79, 172, 254, 0.4),
+    0 0 40px rgba(0, 242, 254, 0.3),
+    inset 0 0 30px rgba(255, 255, 255, 0.2);
+}
+
+.bg-circle-1 {
+  width: 400px;
+  height: 400px;
+  top: -200px;
+  right: -200px;
+  animation-delay: 0s;
+}
+
+.bg-circle-2 {
+  width: 300px;
+  height: 300px;
+  top: 20%;
+  left: -150px;
+  animation-delay: -5s;
+}
+
+.bg-circle-3 {
+  width: 500px;
+  height: 500px;
+  top: 50%;
+  right: -250px;
+  animation-delay: -10s;
+}
+
+.bg-circle-4 {
+  width: 200px;
+  height: 200px;
+  bottom: 20%;
+  left: -100px;
+  animation-delay: -15s;
+}
+
+.bg-circle-5 {
+  width: 350px;
+  height: 350px;
+  top: 85%;
+  right: 10%;
+  animation-delay: -8s;
+}
+
+.bg-circle-6 {
+  width: 250px;
+  height: 250px;
+  top: 70%;
+  left: 50%;
+  transform: translateX(-50%);
+  animation-delay: -12s;
+}
+
+.bg-circle-7 {
+  width: 180px;
+  height: 180px;
+  top: 10%;
+  left: 20%;
+  animation-delay: -3s;
+}
+
+.bg-circle-8 {
+  width: 320px;
+  height: 320px;
+  top: 80%;
+  right: 30%;
+  animation-delay: -18s;
+}
+
+.bg-circle-9 {
+  width: 160px;
+  height: 160px;
+  top: 35%;
+  right: 5%;
+  animation-delay: -6s;
+}
+
+.bg-circle-10 {
+  width: 280px;
+  height: 280px;
+  top: 60%;
+  left: 15%;
+  animation-delay: -21s;
+}
+
+@keyframes floatAnimation {
+  0%, 100% { 
+    transform: translateY(0px) scale(1) rotate(0deg);
+    filter: blur(8px) brightness(1);
+  }
+  25% { 
+    transform: translateY(-30px) scale(1.05) rotate(2deg);
+    filter: blur(6px) brightness(1.1);
+  }
+  50% { 
+    transform: translateY(20px) scale(0.95) rotate(-1deg);
+    filter: blur(10px) brightness(0.9);
+  }
+  75% { 
+    transform: translateY(-15px) scale(1.02) rotate(1deg);
+    filter: blur(7px) brightness(1.05);
+  }
 }
 
 /* 导航栏容器 */
@@ -419,16 +735,18 @@ const scrollToAbout = () => {
 /* 主内容区域 */
 .main-content {
   flex: 1;
-  padding-top: 80px; /* 为固定菜单留出空间 */
+  padding-top: 0;
+  position: relative;
+  z-index: 10;
 }
 
 /* 英雄区域 */
 .hero-section {
-  min-height: 90vh;
+  min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 40px 20px;
+  padding: 0 20px;
   position: relative;
 }
 
@@ -446,6 +764,7 @@ const scrollToAbout = () => {
   max-width: 1200px;
   width: 100%;
   gap: 60px;
+  margin-top: 80px; /* 为固定菜单留出空间 */
 }
 
 .hero-text {
@@ -605,11 +924,11 @@ const scrollToAbout = () => {
 }
 
 .theme-light .features-section {
-  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 50%, #ffffff 100%);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.6) 0%, rgba(248, 249, 250, 0.6) 50%, rgba(255, 255, 255, 0.6) 100%);
 }
 
 .theme-dark .features-section {
-  background: linear-gradient(135deg, #1a1a1a 0%, #1e1e1e 50%, #1a1a1a 100%);
+  background: linear-gradient(135deg, rgba(26, 26, 26, 0.6) 0%, rgba(30, 30, 30, 0.6) 50%, rgba(26, 26, 26, 0.6) 100%);
 }
 
 .features-grid {
@@ -711,11 +1030,11 @@ const scrollToAbout = () => {
 }
 
 .theme-light .stats-section {
-  background: linear-gradient(135deg, #f8f9fa 0%, #f1f3f4 50%, #f8f9fa 100%);
+  background: linear-gradient(135deg, rgba(248, 249, 250, 0.5) 0%, rgba(241, 243, 244, 0.5) 50%, rgba(248, 249, 250, 0.5) 100%);
 }
 
 .theme-dark .stats-section {
-  background: linear-gradient(135deg, #111111 0%, #0f0f0f 50%, #111111 100%);
+  background: linear-gradient(135deg, rgba(17, 17, 17, 0.5) 0%, rgba(15, 15, 15, 0.5) 50%, rgba(17, 17, 17, 0.5) 100%);
 }
 
 .stats-section::before {
@@ -800,11 +1119,11 @@ const scrollToAbout = () => {
 }
 
 .theme-light .curriculum-section {
-  background: linear-gradient(180deg, #f8f9fa 0%, #ffffff 50%, #f8f9fa 100%);
+  background: linear-gradient(180deg, rgba(248, 249, 250, 0.5) 0%, rgba(255, 255, 255, 0.5) 50%, rgba(248, 249, 250, 0.5) 100%);
 }
 
 .theme-dark .curriculum-section {
-  background: linear-gradient(180deg, #1e1e1e 0%, #1a1a1a 50%, #1e1e1e 100%);
+  background: linear-gradient(180deg, rgba(30, 30, 30, 0.5) 0%, rgba(26, 26, 26, 0.5) 50%, rgba(30, 30, 30, 0.5) 100%);
 }
 
 .curriculum-timeline {
@@ -885,11 +1204,11 @@ const scrollToAbout = () => {
 }
 
 .theme-light .teams-section {
-  background: radial-gradient(ellipse at center, #f1f3f4 0%, #f8f9fa 100%);
+  background: radial-gradient(ellipse at center, rgba(241, 243, 244, 0.5) 0%, rgba(248, 249, 250, 0.5) 100%);
 }
 
 .theme-dark .teams-section {
-  background: radial-gradient(ellipse at center, #1a1a1a 0%, #111111 100%);
+  background: radial-gradient(ellipse at center, rgba(26, 26, 26, 0.5) 0%, rgba(17, 17, 17, 0.5) 100%);
 }
 
 .teams-grid {
@@ -970,11 +1289,11 @@ const scrollToAbout = () => {
 }
 
 .theme-light .partners-section {
-  background: linear-gradient(45deg, #ffffff 0%, #f9fafb 25%, #ffffff 50%, #f9fafb 75%, #ffffff 100%);
+  background: linear-gradient(45deg, rgba(255, 255, 255, 0.5) 0%, rgba(249, 250, 251, 0.5) 25%, rgba(255, 255, 255, 0.5) 50%, rgba(249, 250, 251, 0.5) 75%, rgba(255, 255, 255, 0.5) 100%);
 }
 
 .theme-dark .partners-section {
-  background: linear-gradient(45deg, #1a1a1a 0%, #1e1e1e 25%, #1a1a1a 50%, #1e1e1e 75%, #1a1a1a 100%);
+  background: linear-gradient(45deg, rgba(26, 26, 26, 0.5) 0%, rgba(30, 30, 30, 0.5) 25%, rgba(26, 26, 26, 0.5) 50%, rgba(30, 30, 30, 0.5) 75%, rgba(26, 26, 26, 0.5) 100%);
 }
 
 .partners-grid {
@@ -1031,11 +1350,11 @@ const scrollToAbout = () => {
 }
 
 .theme-light .testimonials-section {
-  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 25%, #f8f9fa 50%, #e9ecef 75%, #f8f9fa 100%);
+  background: linear-gradient(135deg, rgba(248, 249, 250, 0.5) 0%, rgba(233, 236, 239, 0.5) 25%, rgba(248, 249, 250, 0.5) 50%, rgba(233, 236, 239, 0.5) 75%, rgba(248, 249, 250, 0.5) 100%);
 }
 
 .theme-dark .testimonials-section {
-  background: linear-gradient(135deg, #1a1a1a 0%, #1e1e1e 25%, #1a1a1a 50%, #1e1e1e 75%, #1a1a1a 100%);
+  background: linear-gradient(135deg, rgba(26, 26, 26, 0.5) 0%, rgba(30, 30, 30, 0.5) 25%, rgba(26, 26, 26, 0.5) 50%, rgba(30, 30, 30, 0.5) 75%, rgba(26, 26, 26, 0.5) 100%);
 }
 
 .testimonials-wrapper {
@@ -1082,7 +1401,8 @@ const scrollToAbout = () => {
 .testimonials-scroll {
   display: flex;
   gap: 30px;
-  animation: scrollTestimonials 20s linear infinite;
+  animation: scrollTestimonials 30s linear infinite;
+  width: calc(220px * 20 + 30px * 19); /* 计算总宽度：10个项目 * 2组 */
 }
 
 .testimonial-item {
@@ -1100,13 +1420,15 @@ const scrollToAbout = () => {
 }
 
 .theme-light .testimonial-item {
-  background-color: #ffffff;
+  background: rgba(255, 255, 255, 0.7);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  backdrop-filter: blur(10px);
 }
 
 .theme-dark .testimonial-item {
-  background-color: #2d3748;
+  background: rgba(45, 55, 72, 0.7);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
 }
 
 .testimonial-item:hover {
@@ -1160,7 +1482,7 @@ const scrollToAbout = () => {
 
 @keyframes scrollTestimonials {
   0% { transform: translateX(0); }
-  100% { transform: translateX(-100%); }
+  100% { transform: translateX(calc(-220px * 5 - 30px * 5)); } /* 移动一组的距离 */
 }
 
 /* 风采展示区域样式 */
@@ -1170,17 +1492,19 @@ const scrollToAbout = () => {
 }
 
 .theme-light .showcase-section {
-  background-color: #ffffff;
+  background: rgba(255, 255, 255, 0.5);
 }
 
 .theme-dark .showcase-section {
-  background-color: #2d3748;
+  background: rgba(45, 55, 72, 0.5);
 }
 
 .showcase-wrapper {
   position: relative;
   overflow: hidden;
   margin-top: 60px;
+  border-radius: 20px;
+  padding: 20px 0;
 }
 
 .showcase-wrapper::before,
@@ -1221,7 +1545,8 @@ const scrollToAbout = () => {
 .showcase-scroll {
   display: flex;
   gap: 30px;
-  animation: scrollShowcase 25s linear infinite reverse;
+  animation: scrollShowcase 35s linear infinite reverse;
+  width: calc(320px * 20 + 30px * 19); /* 计算总宽度：5个项目 * 2组 */
 }
 
 .showcase-item {
@@ -1233,13 +1558,15 @@ const scrollToAbout = () => {
 }
 
 .theme-light .showcase-item {
-  background-color: #f8f9fa;
+  background: rgba(248, 249, 250, 0.7);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  backdrop-filter: blur(10px);
 }
 
 .theme-dark .showcase-item {
-  background-color: #1a202c;
+  background: rgba(26, 32, 44, 0.7);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
 }
 
 .showcase-item:hover {
@@ -1305,7 +1632,7 @@ const scrollToAbout = () => {
 
 @keyframes scrollShowcase {
   0% { transform: translateX(0); }
-  100% { transform: translateX(-100%); }
+  100% { transform: translateX(calc(-320px * 5 - 30px * 5)); } /* 移动一组的距离 */
 }
 
 /* 联系我们区域 */
@@ -1315,11 +1642,11 @@ const scrollToAbout = () => {
 }
 
 .theme-light .contact-section {
-  background: linear-gradient(180deg, #ffffff 0%, #f8f9fa 50%, #ffffff 100%);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.5) 0%, rgba(248, 249, 250, 0.5) 50%, rgba(255, 255, 255, 0.5) 100%);
 }
 
 .theme-dark .contact-section {
-  background: linear-gradient(180deg, #1a1a1a 0%, #1e1e1e 50%, #1a1a1a 100%);
+  background: linear-gradient(180deg, rgba(26, 26, 26, 0.5) 0%, rgba(30, 30, 30, 0.5) 50%, rgba(26, 26, 26, 0.5) 100%);
 }
 
 .contact-section::before {
@@ -1398,14 +1725,11 @@ const scrollToAbout = () => {
 }
 
 @media (max-width: 768px) {
-  .main-content {
-    padding-top: 60px; /* 移动端的菜单高度较小 */
-  }
-  
   .hero-content {
     flex-direction: column;
     text-align: center;
     gap: 30px;
+    margin-top: 60px; /* 移动端的菜单高度较小 */
   }
   
   .hero-title {
@@ -1488,6 +1812,63 @@ const scrollToAbout = () => {
     font-size: 28px;
     margin-bottom: 48px;
     text-align: center;
+  }
+  
+  /* 移动端背景装饰调整 */
+  .bg-circle-1 {
+    width: 250px;
+    height: 250px;
+    top: -125px;
+    right: -125px;
+  }
+  
+  .bg-circle-2 {
+    width: 200px;
+    height: 200px;
+    left: -100px;
+  }
+  
+  .bg-circle-3 {
+    width: 300px;
+    height: 300px;
+    right: -150px;
+  }
+  
+  .bg-circle-4 {
+    width: 150px;
+    height: 150px;
+    left: -75px;
+  }
+  
+  .bg-circle-5 {
+    width: 220px;
+    height: 220px;
+    bottom: -110px;
+  }
+  
+  .bg-circle-6 {
+    width: 180px;
+    height: 180px;
+  }
+  
+  .bg-circle-7 {
+    width: 120px;
+    height: 120px;
+  }
+  
+  .bg-circle-8 {
+    width: 200px;
+    height: 200px;
+  }
+  
+  .bg-circle-9 {
+    width: 100px;
+    height: 100px;
+  }
+  
+  .bg-circle-10 {
+    width: 180px;
+    height: 180px;
   }
 }
 
