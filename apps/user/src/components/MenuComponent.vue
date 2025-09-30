@@ -402,9 +402,9 @@ const handleUserGroup = () => {
             </div>
         </el-menu-item>
         
-        <el-menu-item v-else class="custom-menu-item">
+        <el-menu-item v-else class="custom-menu-item auth-menu-item">
             <a href="/login" class="custom-link">登录</a>
-            <span style="margin-left: 10px; margin-right: 10px;">或</span>
+            <span class="auth-separator">或</span>
             <a href="/register" class="custom-link">注册</a>
         </el-menu-item>
             </div> <!-- 关闭 menu-right-section -->
@@ -951,6 +951,17 @@ const handleUserGroup = () => {
   background-color: rgba(64, 158, 255, 0.2);
 }
 
+/* 登录/注册菜单项特殊处理 - 取消整个菜单项的悬停效果 */
+.auth-menu-item:hover {
+  background-color: transparent !important;
+}
+
+.auth-separator {
+  margin-left: 10px; 
+  margin-right: 10px;
+  transition: none;
+}
+
 /* 主题切换按钮区域适配 */
 .theme-menu-item {
   transition: background-color 0.3s ease, color 0.3s ease;
@@ -1025,7 +1036,10 @@ const handleUserGroup = () => {
 
 .custom-link{
     text-decoration: none;
-    transition: 0.3s;
+    transition: all 0.3s ease;
+    padding: 2px 4px;
+    border-radius: 4px;
+    display: inline-block;
 }
 
 /* 主题适配 */
@@ -1040,11 +1054,15 @@ const handleUserGroup = () => {
 .theme-light .custom-link:hover {
     color: #409eff !important;
     text-shadow: 0 0 3px rgba(64, 158, 255, 0.3);
+    background-color: rgba(64, 158, 255, 0.05);
+    transform: translateY(-1px);
 }
 
 .theme-dark .custom-link:hover {
     color: #409eff !important;
     text-shadow: 0 0 3px rgba(64, 158, 255, 0.5);
+    background-color: rgba(64, 158, 255, 0.1);
+    transform: translateY(-1px);
 }
 /* 搜索框主题适配 */
 .theme-light :deep(.search-input .el-input__wrapper) {
