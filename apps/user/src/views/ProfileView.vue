@@ -103,32 +103,66 @@
         <h2 class="section-title">课程体系</h2>
         <div class="curriculum-timeline">
           <div class="timeline-item">
-            <div class="timeline-marker"></div>
+            <div class="timeline-marker">01</div>
             <div class="timeline-content">
               <h3>基础理论课程</h3>
               <p>医学基础、工程数学、生物医学工程原理</p>
             </div>
           </div>
           <div class="timeline-item">
-            <div class="timeline-marker"></div>
+            <div class="timeline-marker">02</div>
             <div class="timeline-content">
               <h3>专业核心课程</h3>
               <p>医疗器械设计、生物信号处理、医学影像技术</p>
             </div>
           </div>
           <div class="timeline-item">
-            <div class="timeline-marker"></div>
+            <div class="timeline-marker">03</div>
             <div class="timeline-content">
               <h3>实践项目课程</h3>
               <p>临床实习、产品开发、创新创业项目</p>
             </div>
           </div>
           <div class="timeline-item">
-            <div class="timeline-marker"></div>
+            <div class="timeline-marker">04</div>
             <div class="timeline-content">
               <h3>行业前沿课程</h3>
               <p>人工智能医学、精准医疗、数字医疗</p>
             </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 团队介绍区域 -->
+    <section class="teams-section">
+      <div class="container">
+        <h2 class="section-title">专业团队</h2>
+        <div class="teams-grid">
+          <div class="team-card">
+            <div class="team-icon">💻</div>
+            <h3>软件组</h3>
+            <p>专注于医疗软件开发、算法设计与数据分析，致力于打造智能化医疗解决方案</p>
+          </div>
+          <div class="team-card">
+            <div class="team-icon">🔧</div>
+            <h3>硬件组</h3>
+            <p>专业从事医疗设备硬件设计、电路开发与系统集成，推动医疗设备创新</p>
+          </div>
+          <div class="team-card">
+            <div class="team-icon">⚙️</div>
+            <h3>先进制造组</h3>
+            <p>运用3D打印、精密加工等先进制造技术，实现医疗器械的精准制造</p>
+          </div>
+          <div class="team-card">
+            <div class="team-icon">📊</div>
+            <h3>行业分析组</h3>
+            <p>深度研究医疗健康产业发展趋势，提供专业的市场分析与战略咨询</p>
+          </div>
+          <div class="team-card">
+            <div class="team-icon">📱</div>
+            <h3>传媒组</h3>
+            <p>负责品牌传播、内容创作与视觉设计，展现医工融合的创新魅力</p>
           </div>
         </div>
       </div>
@@ -313,11 +347,11 @@ const scrollToAbout = () => {
 }
 
 .theme-light .hero-section {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
 }
 
 .theme-dark .hero-section {
-  background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+  background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
 }
 
 .hero-content {
@@ -331,30 +365,62 @@ const scrollToAbout = () => {
 .hero-text {
   flex: 1;
   max-width: 600px;
+}
+
+.theme-light .hero-text {
+  color: #1a202c;
+}
+
+.theme-dark .hero-text {
   color: #ffffff;
 }
 
 .hero-title {
-  font-size: 48px;
-  font-weight: 700;
-  margin-bottom: 20px;
-  background: linear-gradient(45deg, #f39c12, #e74c3c);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  font-size: 56px;
+  font-weight: 900;
+  margin-bottom: 16px;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.theme-light .hero-title {
+  color: #1a202c;
+}
+
+.theme-dark .hero-title {
+  color: #ffffff;
 }
 
 .hero-subtitle {
-  font-size: 20px;
-  margin-bottom: 20px;
-  opacity: 0.9;
+  font-size: 18px;
+  font-weight: 300;
+  margin-bottom: 24px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.theme-light .hero-subtitle {
+  color: rgba(26, 32, 44, 0.7);
+}
+
+.theme-dark .hero-subtitle {
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .hero-description {
-  font-size: 16px;
-  line-height: 1.8;
-  margin-bottom: 40px;
-  opacity: 0.8;
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 1.6;
+  margin-bottom: 48px;
+  max-width: 500px;
+}
+
+.theme-light .hero-description {
+  color: rgba(26, 32, 44, 0.8);
+}
+
+.theme-dark .hero-description {
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .hero-buttons {
@@ -363,33 +429,48 @@ const scrollToAbout = () => {
 }
 
 .btn {
-  padding: 15px 30px;
-  font-size: 16px;
+  padding: 16px 32px;
+  font-size: 15px;
+  font-weight: 500;
   border: none;
-  border-radius: 50px;
+  border-radius: 0;
   cursor: pointer;
-  transition: all 0.3s ease;
-  font-weight: 600;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  min-width: 140px;
 }
 
 .btn-primary {
-  background: linear-gradient(45deg, #3498db, #2980b9);
+  background: #333333;
   color: white;
-  box-shadow: 0 4px 15px rgba(52, 152, 219, 0.4);
 }
 
 .btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(52, 152, 219, 0.6);
+  background: #000000;
 }
 
 .btn-secondary {
   background: transparent;
-  color: white;
-  border: 2px solid white;
+  border: 1px solid;
 }
 
-.btn-secondary:hover {
+.theme-light .btn-secondary {
+  color: #1a202c;
+  border-color: #1a202c;
+}
+
+.theme-dark .btn-secondary {
+  color: white;
+  border-color: white;
+}
+
+.theme-light .btn-secondary:hover {
+  background: #1a202c;
+  color: white;
+}
+
+.theme-dark .btn-secondary:hover {
   background: white;
   color: #333;
 }
@@ -416,28 +497,25 @@ const scrollToAbout = () => {
 }
 
 .section-title {
-  font-size: 32px;
-  font-weight: 700;
-  text-align: center;
-  margin-bottom: 60px;
-  position: relative;
+  font-size: 36px;
+  font-weight: 800;
+  text-align: left;
+  margin-bottom: 64px;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
 }
 
-.section-title::after {
-  content: '';
-  position: absolute;
-  bottom: -10px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 60px;
-  height: 4px;
-  background: linear-gradient(45deg, #f39c12, #e74c3c);
-  border-radius: 2px;
+.theme-light .section-title {
+  color: #1a1a1a;
+}
+
+.theme-dark .section-title {
+  color: #ffffff;
 }
 
 /* 特色介绍区域 */
 .features-section {
-  padding: 80px 0;
+  padding: 120px 0;
 }
 
 .theme-light .features-section {
@@ -445,72 +523,62 @@ const scrollToAbout = () => {
 }
 
 .theme-dark .features-section {
-  background-color: #2c2c2c;
+  background-color: #1a1a1a;
 }
 
 .features-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 40px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 80px;
 }
 
 .feature-card {
-  padding: 40px;
-  border-radius: 15px;
-  text-align: center;
-  transition: all 0.3s ease;
-  border: 1px solid;
-}
-
-.theme-light .feature-card {
-  background-color: #ffffff;
-  border-color: #e9ecef;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-}
-
-.theme-dark .feature-card {
-  background-color: #3a3a3a;
-  border-color: #4a4a4a;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
-}
-
-.feature-card:hover {
-  transform: translateY(-5px);
-}
-
-.theme-light .feature-card:hover {
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-}
-
-.theme-dark .feature-card:hover {
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+  padding: 0;
+  text-align: left;
 }
 
 .feature-icon {
-  width: 80px;
-  height: 80px;
-  background: linear-gradient(45deg, #3498db, #2980b9);
-  border-radius: 50%;
-  margin: 0 auto 20px;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 32px;
+  font-size: 48px;
   display: flex;
   align-items: center;
-  justify-content: center;
 }
 
 .feature-card h3 {
-  font-size: 20px;
-  margin-bottom: 20px;
-  font-weight: 600;
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  letter-spacing: -0.01em;
+}
+
+.theme-light .feature-card h3 {
+  color: #1a1a1a;
+}
+
+.theme-dark .feature-card h3 {
+  color: #ffffff;
 }
 
 .feature-card p {
+  font-size: 16px;
+  font-weight: 400;
   line-height: 1.6;
-  opacity: 0.9;
+  margin: 0;
+}
+
+.theme-light .feature-card p {
+  color: #6b7280;
+}
+
+.theme-dark .feature-card p {
+  color: #9ca3af;
 }
 
 /* 数据统计区域 */
 .stats-section {
-  padding: 80px 0;
+  padding: 100px 0;
 }
 
 .theme-light .stats-section {
@@ -518,37 +586,67 @@ const scrollToAbout = () => {
 }
 
 .theme-dark .stats-section {
-  background-color: #1e1e1e;
+  background-color: #111111;
 }
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 40px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
 }
 
 .stat-item {
-  text-align: center;
+  text-align: left;
+  padding: 40px 0;
+  border-right: 1px solid;
+}
+
+.theme-light .stat-item {
+  border-color: #e5e7eb;
+}
+
+.theme-dark .stat-item {
+  border-color: #374151;
+}
+
+.stat-item:last-child {
+  border-right: none;
 }
 
 .stat-number {
-  font-size: 36px;
-  font-weight: 700;
-  background: linear-gradient(45deg, #f39c12, #e74c3c);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  margin-bottom: 10px;
+  font-size: 48px;
+  font-weight: 900;
+  margin-bottom: 8px;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.theme-light .stat-number {
+  color: #1a1a1a;
+}
+
+.theme-dark .stat-number {
+  color: #ffffff;
 }
 
 .stat-label {
-  font-size: 16px;
-  opacity: 0.8;
+  font-size: 14px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.theme-light .stat-label {
+  color: #6b7280;
+}
+
+.theme-dark .stat-label {
+  color: #9ca3af;
 }
 
 /* 课程体系区域 */
 .curriculum-section {
-  padding: 80px 0;
+  padding: 120px 0;
 }
 
 .theme-light .curriculum-section {
@@ -556,142 +654,210 @@ const scrollToAbout = () => {
 }
 
 .theme-dark .curriculum-section {
-  background-color: #2c2c2c;
+  background-color: #1a1a1a;
 }
 
 .curriculum-timeline {
-  max-width: 800px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 80px 120px;
+  max-width: 1000px;
   margin: 0 auto;
-  position: relative;
-}
-
-.curriculum-timeline::before {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background: linear-gradient(to bottom, #3498db, #e74c3c);
-  transform: translateX(-50%);
 }
 
 .timeline-item {
-  position: relative;
-  margin-bottom: 60px;
   display: flex;
-  align-items: center;
-}
-
-.timeline-item:nth-child(odd) {
-  flex-direction: row;
-}
-
-.timeline-item:nth-child(even) {
-  flex-direction: row-reverse;
+  flex-direction: column;
+  position: relative;
 }
 
 .timeline-marker {
-  width: 20px;
-  height: 20px;
-  background: linear-gradient(45deg, #f39c12, #e74c3c);
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: 2px solid;
   border-radius: 50%;
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 2;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.theme-light .timeline-marker {
+  border-color: #1a1a1a;
+  color: #1a1a1a;
+}
+
+.theme-dark .timeline-marker {
+  border-color: #ffffff;
+  color: #ffffff;
 }
 
 .timeline-content {
-  padding: 30px;
-  border-radius: 15px;
-  width: 45%;
-  border: 1px solid;
-}
-
-.theme-light .timeline-content {
-  background-color: #ffffff;
-  border-color: #e9ecef;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-}
-
-.theme-dark .timeline-content {
-  background-color: #3a3a3a;
-  border-color: #4a4a4a;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+  padding: 0;
 }
 
 .timeline-content h3 {
-  font-size: 18px;
-  margin-bottom: 15px;
-  font-weight: 600;
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  letter-spacing: -0.01em;
+}
+
+.theme-light .timeline-content h3 {
+  color: #1a1a1a;
+}
+
+.theme-dark .timeline-content h3 {
+  color: #ffffff;
+}
+
+.timeline-content p {
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.theme-light .timeline-content p {
+  color: #6b7280;
+}
+
+.theme-dark .timeline-content p {
+  color: #9ca3af;
+}
+
+/* 团队介绍区域 */
+.teams-section {
+  padding: 120px 0;
+}
+
+.theme-light .teams-section {
+  background-color: #f8f9fa;
+}
+
+.theme-dark .teams-section {
+  background-color: #111111;
+}
+
+.teams-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 48px;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.team-card {
+  text-align: center;
+  padding: 0;
+}
+
+.team-icon {
+  font-size: 48px;
+  margin-bottom: 24px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.team-card h3 {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  letter-spacing: -0.01em;
+}
+
+.theme-light .team-card h3 {
+  color: #1a1a1a;
+}
+
+.theme-dark .team-card h3 {
+  color: #ffffff;
+}
+
+.team-card p {
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.6;
+  margin: 0;
+  max-width: 240px;
+  margin: 0 auto;
+}
+
+.theme-light .team-card p {
+  color: #6b7280;
+}
+
+.theme-dark .team-card p {
+  color: #9ca3af;
 }
 
 /* 合作伙伴区域 */
 .partners-section {
-  padding: 80px 0;
+  padding: 100px 0;
 }
 
 .theme-light .partners-section {
-  background-color: #f8f9fa;
+  background-color: #ffffff;
 }
 
 .theme-dark .partners-section {
-  background-color: #1e1e1e;
+  background-color: #1a1a1a;
 }
 
 .partners-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 40px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 60px;
 }
 
 .partner-card {
-  padding: 40px;
-  border-radius: 15px;
   text-align: center;
-  border: 1px solid;
+  opacity: 0.6;
   transition: all 0.3s ease;
-}
-
-.theme-light .partner-card {
-  background-color: #ffffff;
-  border-color: #e9ecef;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-}
-
-.theme-dark .partner-card {
-  background-color: #3a3a3a;
-  border-color: #4a4a4a;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+  flex: 1;
 }
 
 .partner-card:hover {
-  transform: translateY(-2px);
-}
-
-.theme-light .partner-card:hover {
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
-}
-
-.theme-dark .partner-card:hover {
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  opacity: 1;
 }
 
 .partner-card img {
-  width: 80px;
-  height: 80px;
-  margin-bottom: 20px;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 16px;
+  filter: grayscale(100%);
+  transition: all 0.3s ease;
+}
+
+.partner-card:hover img {
+  filter: grayscale(0%);
 }
 
 .partner-card h4 {
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 500;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.theme-light .partner-card h4 {
+  color: #6b7280;
+}
+
+.theme-dark .partner-card h4 {
+  color: #9ca3af;
 }
 
 /* 联系我们区域 */
 .contact-section {
-  padding: 60px 0;
+  padding: 120px 0;
 }
 
 .theme-light .contact-section {
@@ -699,36 +865,48 @@ const scrollToAbout = () => {
 }
 
 .theme-dark .contact-section {
-  background-color: #2c2c2c;
+  background-color: #1a1a1a;
 }
 
 .contact-content {
-  max-width: 600px;
+  max-width: 800px;
   margin: 0 auto;
 }
 
 .contact-info {
-  display: flex;
-  flex-direction: column;
-  gap: 30px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 60px;
 }
 
 .contact-item {
   display: flex;
-  align-items: center;
-  gap: 20px;
-  font-size: 16px;
+  flex-direction: column;
+  gap: 12px;
+  text-align: left;
 }
 
 .contact-item i {
-  width: 50px;
-  height: 50px;
-  background: linear-gradient(45deg, #3498db, #2980b9);
-  border-radius: 50%;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  color: white;
+  justify-content: flex-start;
+  font-size: 24px;
+}
+
+.contact-item span {
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.theme-light .contact-item span {
+  color: #6b7280;
+}
+
+.theme-dark .contact-item span {
+  color: #9ca3af;
 }
 
 /* 响应式设计 */
@@ -748,6 +926,11 @@ const scrollToAbout = () => {
   .section-title {
     font-size: 28px;
   }
+  
+  .teams-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 40px;
+  }
 }
 
 @media (max-width: 768px) {
@@ -758,7 +941,7 @@ const scrollToAbout = () => {
   }
   
   .hero-title {
-    font-size: 32px;
+    font-size: 40px;
   }
   
   .hero-subtitle {
@@ -766,81 +949,84 @@ const scrollToAbout = () => {
   }
   
   .hero-description {
-    font-size: 14px;
+    font-size: 18px;
   }
   
   .features-grid {
     grid-template-columns: 1fr;
-    gap: 30px;
+    gap: 60px;
+  }
+  
+  .feature-card {
+    text-align: center;
   }
   
   .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 30px;
+    grid-template-columns: 1fr;
+    gap: 0;
   }
   
-  .curriculum-timeline::before {
-    left: 20px;
+  .stat-item {
+    border-right: none;
+    border-bottom: 1px solid;
+    padding: 30px 0;
+    text-align: center;
   }
   
-  .timeline-item {
-    flex-direction: column;
-    align-items: flex-start;
-    padding-left: 60px;
+  .stat-item:last-child {
+    border-bottom: none;
   }
   
-  .timeline-marker {
-    left: 20px;
+  .curriculum-timeline {
+    grid-template-columns: 1fr;
+    gap: 40px;
   }
   
-  .timeline-content {
-    width: 100%;
+  .teams-grid {
+    grid-template-columns: 1fr;
+    gap: 40px;
   }
   
   .partners-grid {
+    flex-direction: column;
+    gap: 40px;
+  }
+  
+  .contact-info {
     grid-template-columns: 1fr;
+    gap: 40px;
+    text-align: center;
   }
   
   .section-title {
-    font-size: 24px;
-    margin-bottom: 40px;
+    font-size: 28px;
+    margin-bottom: 48px;
+    text-align: center;
   }
 }
 
 @media (max-width: 480px) {
   .hero-title {
-    font-size: 28px;
+    font-size: 32px;
   }
   
   .hero-buttons {
     flex-direction: column;
-    gap: 15px;
+    gap: 16px;
   }
   
   .btn {
     width: 100%;
-    padding: 12px 24px;
+    padding: 14px 28px;
     font-size: 14px;
-  }
-  
-  .stats-grid {
-    grid-template-columns: 1fr;
   }
   
   .stat-number {
-    font-size: 28px;
+    font-size: 36px;
   }
   
-  .feature-card {
-    padding: 30px 20px;
-  }
-  
-  .timeline-content {
-    padding: 20px;
-  }
-  
-  .contact-item {
-    font-size: 14px;
+  .section-title {
+    font-size: 24px;
   }
 }
 
