@@ -546,7 +546,7 @@ const handleUserGroup = () => {
 
 .el-menu-demo.theme-dark :deep(.el-menu-item.is-active) {
     background: transparent;
-    color: #5dade2;
+    color: #ffffff;
     border-bottom: none;
     font-weight: 700;
     font-size: 16px;
@@ -810,16 +810,15 @@ const handleUserGroup = () => {
 /* 移除固定样式，使用主题适配 */
 .custom-menu-item {
   cursor: auto !important;
-  transition: all 0.3s ease;
+  background-color: transparent !important;
+  transition: color 0.3s ease, border-color 0.3s ease;
 }
 
 .theme-light .custom-menu-item {
-  background-color: #ffffff !important;
   color: #777 !important;
 }
 
 .theme-dark .custom-menu-item {
-  background-color: #000000 !important;
   color: #bdc3c7 !important;
 }
 
@@ -833,7 +832,7 @@ const handleUserGroup = () => {
 
 .theme-toggle-wrapper {
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: background-color 0.3s ease, color 0.3s ease;
   padding: 4px;
   border-radius: 50%;
   display: flex;
@@ -853,8 +852,8 @@ const handleUserGroup = () => {
   align-items: center;
   justify-content: center;
   position: relative;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  background: linear-gradient(135deg, #f39c12, #e67e22);
+  transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
+  background: linear-gradient(135deg, #f3bf12, #e6b222);
   border: 1px solid rgba(243, 156, 18, 0.3);
   box-shadow: 0 3px 12px rgba(243, 156, 18, 0.2);
 }
@@ -876,7 +875,7 @@ const handleUserGroup = () => {
 }
 
 .theme-toggle-button .theme-icon {
-  transition: all 0.3s ease;
+  transition: color 0.3s ease, transform 0.3s ease;
   color: #fff;
   width: 32px;
   height: 32px;
@@ -913,7 +912,7 @@ const handleUserGroup = () => {
 
 .notification-wrapper {
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: background-color 0.3s ease, color 0.3s ease;
   padding: 4px;
   border-radius: 4px;
 }
@@ -926,7 +925,7 @@ const handleUserGroup = () => {
   background-color: rgba(64, 158, 255, 0.2);
 }
 
-/* 自定义菜单项主题适配 */
+/* 自定义菜单项主题适配 - 移除背景色，跟随导航栏背景 */
 .theme-light .custom-menu-item {
   background-color: transparent;
 }
@@ -945,7 +944,7 @@ const handleUserGroup = () => {
 
 /* 主题切换按钮区域适配 */
 .theme-menu-item {
-  transition: all 0.3s ease;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .theme-light .theme-menu-item {

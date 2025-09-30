@@ -121,7 +121,7 @@ onMounted(() => {
     /* background-color: #ffffff; */
     border-radius: 20px;
     padding: 20px;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 1px 12px rgba(136, 136, 136, 0.1);
     width: 100%;
     max-width: 100%; /* 改为100%以适应父容器 */
     margin: 0;
