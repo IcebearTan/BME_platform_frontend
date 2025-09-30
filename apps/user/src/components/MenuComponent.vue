@@ -533,7 +533,7 @@ const handleUserGroup = () => {
 }
 
 .el-menu-demo.theme-dark :deep(.el-menu-item:hover) {
-    background-color: rgba(52, 152, 219, 0.15);
+    background-color: transparent;
     color: #5dade2;
     transform: translateY(-1px);
 }
@@ -749,7 +749,7 @@ const handleUserGroup = () => {
 }
 
 .theme-dark .popli:hover {
-    background-color: #333333;
+    background-color: transparent;
 }
 
 .popli-exit{
@@ -861,6 +861,28 @@ const handleUserGroup = () => {
   background-color: transparent;
 }
 
+/* 最高优先级覆盖 - 确保主题按钮不被任何悬停效果影响 */
+/* 白天模式 - 菜单项悬停时按钮保持原色 */
+.el-menu-demo.theme-light :deep(.el-menu-item:hover .theme-toggle-button:not(.theme-dark)) {
+  background: linear-gradient(135deg, #f3bf12, #e6b222) !important;
+}
+
+/* 夜间模式 - 菜单项悬停时按钮保持原色 */
+.el-menu-demo.theme-dark :deep(.el-menu-item:hover .theme-toggle-button.theme-dark) {
+  background: linear-gradient(135deg, #2e3338, #313941) !important;
+}
+
+/* 当按钮本身悬停时的效果 */
+/* 白天模式 - 按钮悬停效果 */
+.el-menu-demo.theme-light :deep(.el-menu-item .theme-toggle-button:not(.theme-dark):hover) {
+  background: linear-gradient(135deg, #f3bf12, #e6b222) !important;
+}
+
+/* 夜间模式 - 按钮悬停效果 */
+.el-menu-demo.theme-dark :deep(.el-menu-item .theme-toggle-button.theme-dark:hover) {
+  background: linear-gradient(135deg, #2e3338, #313941) !important;
+}
+
 .theme-toggle-button {
   width: 34px;
   height: 34px;
@@ -881,14 +903,16 @@ const handleUserGroup = () => {
   box-shadow: 0 3px 12px rgba(0, 0, 0, 0.3);
 }
 
-.theme-toggle-button:hover {
+.theme-light .theme-toggle-button:hover {
   transform: scale(1.08) rotate(15deg);
   box-shadow: 0 6px 20px rgba(243, 156, 18, 0.35);
+  background: linear-gradient(135deg, #f3bf12, #e6b222) !important;
 }
 
 .theme-toggle-button.theme-dark:hover {
   transform: scale(1.08) rotate(-15deg);
   box-shadow: 0 6px 20px rgba(52, 73, 94, 0.4);
+  background: linear-gradient(135deg, #2e3338, #313941) !important;
 }
 
 .theme-toggle-button .theme-icon {
@@ -939,7 +963,7 @@ const handleUserGroup = () => {
 }
 
 .theme-dark .notification-wrapper:hover {
-  background-color: rgba(64, 158, 255, 0.2);
+  background-color: transparent;
 }
 
 /* 用户头像菜单项悬停效果 - 移除白天模式背景 */
@@ -961,11 +985,20 @@ const handleUserGroup = () => {
   background-color: transparent !important;
 }
 
-/* 强制覆盖所有可能的头像悬停背景 */
+/* 强制覆盖所有可能的头像悬停背景 - 白天模式 */
 .el-menu-demo.theme-light :deep(.el-menu-item.theme-menu-item):hover,
 .el-menu-demo.theme-light :deep(.el-menu-item.theme-menu-item):hover *,
 .theme-light .el-menu-item.theme-menu-item:hover,
 .theme-light .el-menu-item.theme-menu-item:hover * {
+  background-color: transparent !important;
+  background: transparent !important;
+}
+
+/* 强制覆盖所有可能的头像悬停背景 - 夜间模式 */
+.el-menu-demo.theme-dark :deep(.el-menu-item.theme-menu-item):hover,
+.el-menu-demo.theme-dark :deep(.el-menu-item.theme-menu-item):hover *,
+.theme-dark .el-menu-item.theme-menu-item:hover,
+.theme-dark .el-menu-item.theme-menu-item:hover * {
   background-color: transparent !important;
   background: transparent !important;
 }
