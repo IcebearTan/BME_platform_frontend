@@ -35,6 +35,14 @@ import { ElMessage } from 'element-plus'
 import api from '../api'
 import NotificationComponent from './Notification/NotificationComponent.vue'
 
+// 定义props
+const props = defineProps({
+  hideAuthButtons: {
+    type: Boolean,
+    default: false
+  }
+})
+
 const buttonRef = ref()
 const popoverRef = ref()
 const store = useStore()
@@ -402,7 +410,7 @@ const handleUserGroup = () => {
             </div>
         </el-menu-item>
         
-        <el-menu-item v-else class="custom-menu-item auth-menu-item">
+        <el-menu-item v-else-if="!props.hideAuthButtons" class="custom-menu-item auth-menu-item">
             <a href="/login" class="custom-link">登录</a>
             <span class="auth-separator">或</span>
             <a href="/register" class="custom-link">注册</a>

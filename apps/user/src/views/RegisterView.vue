@@ -1,6 +1,6 @@
 <script>
 import Register from '../components/Auth/RegisterComponent.vue';
-import MenuPlainComponent from '../components/MenuPlainComponent.vue';
+import MenuComponent from '../components/MenuComponent.vue';
 import PageFooterComponent from '../components/PageFooterComponent.vue';
 import { computed, onMounted } from 'vue';
 import { useStore } from 'vuex';
@@ -10,7 +10,7 @@ export default {
   components: {
     Register,
     PageFooterComponent,
-    MenuPlainComponent
+    MenuComponent
   },
   setup() {
     const store = useStore();
@@ -42,7 +42,7 @@ export default {
     
     <el-container class="common-layout">
       <el-header class="header">
-        <MenuPlainComponent />
+        <MenuComponent :hideAuthButtons="true" />
       </el-header>
       <el-main class="homeMainContainer">
         <div class="auth-content-wrapper">
