@@ -264,7 +264,7 @@ const courseHour = computed(() => {
 
 // 面包屑导航数据
 const breadcrumbItems = computed(() => [
-  { label: '学习中心', path: '/study' },
+  { label: '课程', path: '/study' },
   { label: courseInfo.value?.Course_Title || '课程详情', path: '' }
 ])
 

@@ -68,7 +68,11 @@ onUnmounted(() => {
       </el-header>
 
       <!-- 移动端菜单 -->
-      <MobileMenuComponent v-if="isMobile && isMobileMenuOpen" @close="toggleMobileMenu" />
+      <MobileMenuComponent 
+        v-if="isMobile && isMobileMenuOpen" 
+        @close="toggleMobileMenu"
+        style="z-index: 1001;" 
+      />
 
       <el-main style="padding: 0px; min-height: 100vh; overflow-x: hidden;">
         <RouterView />
@@ -109,15 +113,13 @@ onUnmounted(() => {
 }
 
 .theme-light .header-container {
-  background-color: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
   border-bottom: solid 1px #e6e6e6;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  background-color: #ffffff;
 }
 
 .theme-dark .header-container {
-  background-color: #1a1a1a;
-  border-bottom: solid 1px #333333;
+  border-bottom: solid 1px #34495e;
+  background-color: #2c3e50;
 }
 
 .desktop-menu-container {

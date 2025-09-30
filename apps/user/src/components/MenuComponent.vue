@@ -285,8 +285,8 @@ const handleUserGroup = () => {
                     <img style="width: 50px" src="../assets/Logo_NewYear.png" />
                     <span class="ameii-text">AMEII</span>
                 </el-menu-item>
-                <el-menu-item index="/home">
-                    学习
+                <el-menu-item index="/home" class="study-center-item">
+                    学习中心
                 </el-menu-item>
                 <el-menu-item index="/study">
                     课程
@@ -527,7 +527,7 @@ const handleUserGroup = () => {
 }
 
 .el-menu-demo.theme-light :deep(.el-menu-item:hover) {
-    background-color: rgba(52, 152, 219, 0.08);
+    background-color: transparent;
     color: #3498db;
     transform: translateY(-1px);
 }
@@ -745,7 +745,7 @@ const handleUserGroup = () => {
 
 /* 主题适配 */
 .theme-light .popli:hover {
-    background-color: #f5f7fa;
+    background-color: transparent;
 }
 
 .theme-dark .popli:hover {
@@ -780,7 +780,7 @@ const handleUserGroup = () => {
 }
 
 .theme-light .popli-exit:hover {
-    background-color: #ffe9e9;
+    background-color: transparent;
     border-color: #ff8888;
 }
 
@@ -935,11 +935,102 @@ const handleUserGroup = () => {
 }
 
 .theme-light .notification-wrapper:hover {
-  background-color: rgba(64, 158, 255, 0.1);
+  background-color: transparent;
 }
 
 .theme-dark .notification-wrapper:hover {
   background-color: rgba(64, 158, 255, 0.2);
+}
+
+/* 用户头像菜单项悬停效果 - 移除白天模式背景 */
+.el-menu-demo.theme-light :deep(.theme-menu-item:hover) {
+  background-color: transparent !important;
+}
+
+/* 更精确地定位头像容器的悬停效果 */
+.theme-light .user-avatar:hover {
+  background-color: transparent !important;
+}
+
+.el-menu-demo.theme-light :deep(.el-menu-item):has(.user-avatar):hover {
+  background-color: transparent !important;
+}
+
+/* Element Plus 头像组件悬停效果覆盖 */
+.theme-light :deep(.el-avatar):hover {
+  background-color: transparent !important;
+}
+
+/* 强制覆盖所有可能的头像悬停背景 */
+.el-menu-demo.theme-light :deep(.el-menu-item.theme-menu-item):hover,
+.el-menu-demo.theme-light :deep(.el-menu-item.theme-menu-item):hover *,
+.theme-light .el-menu-item.theme-menu-item:hover,
+.theme-light .el-menu-item.theme-menu-item:hover * {
+  background-color: transparent !important;
+  background: transparent !important;
+}
+
+/* 学习中心菜单项特殊样式 - 文字渐变和放大 */
+.el-menu-demo :deep(.study-center-item) {
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  position: relative;
+}
+
+/* 白天模式学习中心文字渐变 */
+.el-menu-demo.theme-light :deep(.study-center-item) {
+  background: linear-gradient(135deg, #3498db 0%, #9b59b6 50%, #e74c3c 100%) !important;
+  background-clip: text !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
+}
+
+/* 深色模式学习中心文字渐变 */
+.el-menu-demo.theme-dark :deep(.study-center-item) {
+  background: linear-gradient(135deg, #5dade2 0%, #bb8fce 50%, #f1948a 100%) !important;
+  background-clip: text !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
+}
+
+/* 学习中心悬停效果 - 文字放大和渐变变化 */
+.el-menu-demo.theme-light :deep(.study-center-item:hover) {
+  background-color: transparent !important;
+  background: linear-gradient(135deg, #2980b9 0%, #8e44ad 50%, #c0392b 100%) !important;
+  background-clip: text !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  transform: scale(1.1) !important;
+  transition: all 0.3s ease !important;
+}
+
+.el-menu-demo.theme-dark :deep(.study-center-item:hover) {
+  background-color: transparent !important;
+  background: linear-gradient(135deg, #85c1e9 0%, #d2b4de 50%, #fadbd8 100%) !important;
+  background-clip: text !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  transform: scale(1.1) !important;
+  transition: all 0.3s ease !important;
+}
+
+/* 学习中心激活状态 */
+.el-menu-demo.theme-light :deep(.study-center-item.is-active) {
+  background: linear-gradient(135deg, #1f4e79 0%, #6c3483 50%, #922b21 100%) !important;
+  background-clip: text !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  transform: scale(1.05) !important;
+}
+
+.el-menu-demo.theme-dark :deep(.study-center-item.is-active) {
+  background: linear-gradient(135deg, #a9cce3 0%, #e8daef 50%, #f9ebea 100%) !important;
+  background-clip: text !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  transform: scale(1.05) !important;
 }
 
 /* 自定义菜单项主题适配 - 移除背景色，跟随导航栏背景 */
