@@ -49,23 +49,14 @@
         <h2 class="section-title">平台特色</h2>
         <div class="features-grid">
           <div class="feature-card">
-            <div class="feature-icon">
-              <i class="icon-innovation"></i>
-            </div>
             <h3>创新教学模式</h3>
             <p>融合理论与实践，采用项目驱动的教学方法，培养学生的创新思维和实践能力</p>
           </div>
           <div class="feature-card">
-            <div class="feature-icon">
-              <i class="icon-collaboration"></i>
-            </div>
             <h3>产学研结合</h3>
             <p>与医院、科研院所深度合作，提供真实的医工融合项目实训机会</p>
           </div>
           <div class="feature-card">
-            <div class="feature-icon">
-              <i class="icon-technology"></i>
-            </div>
             <h3>前沿技术培训</h3>
             <p>涵盖人工智能、生物医学工程、医疗设备等前沿技术领域</p>
           </div>
@@ -140,27 +131,22 @@
         <h2 class="section-title">专业团队</h2>
         <div class="teams-grid">
           <div class="team-card">
-            <div class="team-icon">💻</div>
             <h3>软件组</h3>
             <p>专注于医疗软件开发、算法设计与数据分析，致力于打造智能化医疗解决方案</p>
           </div>
           <div class="team-card">
-            <div class="team-icon">🔧</div>
             <h3>硬件组</h3>
             <p>专业从事医疗设备硬件设计、电路开发与系统集成，推动医疗设备创新</p>
           </div>
           <div class="team-card">
-            <div class="team-icon">⚙️</div>
             <h3>先进制造组</h3>
             <p>运用3D打印、精密加工等先进制造技术，实现医疗器械的精准制造</p>
           </div>
           <div class="team-card">
-            <div class="team-icon">📊</div>
             <h3>行业分析组</h3>
             <p>深度研究医疗健康产业发展趋势，提供专业的市场分析与战略咨询</p>
           </div>
           <div class="team-card">
-            <div class="team-icon">📱</div>
             <h3>传媒组</h3>
             <p>负责品牌传播、内容创作与视觉设计，展现医工融合的创新魅力</p>
           </div>
@@ -189,6 +175,108 @@
       </div>
     </section>
 
+    <!-- 学生评论区域 -->
+    <section class="testimonials-section">
+      <div class="container">
+        <h2 class="section-title">学生评价</h2>
+        <div class="testimonials-wrapper">
+          <div class="testimonials-scroll">
+            <div class="testimonial-item">
+              <p>"在AMEII平台学习让我对医工融合有了全新的认识，实践项目特别有意思！"</p>
+              <div class="testimonial-author">
+                <span class="name">李明</span>
+                <span class="info">生物医学工程 · 2022级</span>
+              </div>
+            </div>
+            <div class="testimonial-item">
+              <p>"导师们都很专业，课程设置也很合理，从基础到前沿都有涉及。"</p>
+              <div class="testimonial-author">
+                <span class="name">王小雨</span>
+                <span class="info">医学影像技术 · 2023级</span>
+              </div>
+            </div>
+            <div class="testimonial-item">
+              <p>"软件组的项目让我学会了很多实用的编程技能，对就业帮助很大。"</p>
+              <div class="testimonial-author">
+                <span class="name">张三</span>
+                <span class="info">计算机科学 · 2021级</span>
+              </div>
+            </div>
+            <div class="testimonial-item">
+              <p>"硬件组的实验室设备很先进，能接触到最新的医疗设备技术。"</p>
+              <div class="testimonial-author">
+                <span class="name">刘佳</span>
+                <span class="info">电子工程 · 2022级</span>
+              </div>
+            </div>
+            <div class="testimonial-item">
+              <p>"产学研结合的模式让我们能参与真实的医院项目，收获满满！"</p>
+              <div class="testimonial-author">
+                <span class="name">陈浩</span>
+                <span class="info">生物医学工程 · 2020级</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 风采展示区域 -->
+    <section class="showcase-section">
+      <div class="container">
+        <h2 class="section-title">学员风采</h2>
+        <div class="showcase-wrapper">
+          <div class="showcase-scroll">
+            <div class="showcase-item">
+              <div class="showcase-image">
+                <img src="../assets/ChenMinJie.jpg" alt="项目展示" />
+              </div>
+              <div class="showcase-content">
+                <h3>智能医疗监护系统</h3>
+                <p>软件组团队开发的实时生命体征监护平台</p>
+              </div>
+            </div>
+            <div class="showcase-item">
+              <div class="showcase-image">
+                <img src="../assets/LuMengXuan.jpg" alt="项目展示" />
+              </div>
+              <div class="showcase-content">
+                <h3>便携式心电检测仪</h3>
+                <p>硬件组设计的小型化心电监测设备</p>
+              </div>
+            </div>
+            <div class="showcase-item">
+              <div class="showcase-image">
+                <img src="../assets/Jerry_Scintilla_avatar.jpg" alt="项目展示" />
+              </div>
+              <div class="showcase-content">
+                <h3>3D打印医疗模型</h3>
+                <p>先进制造组制作的高精度解剖教学模型</p>
+              </div>
+            </div>
+            <div class="showcase-item">
+              <div class="showcase-image">
+                <img src="../assets/ジエ_avatar.png" alt="项目展示" />
+              </div>
+              <div class="showcase-content">
+                <h3>医疗器械市场分析</h3>
+                <p>行业分析组完成的深度市场研究报告</p>
+              </div>
+            </div>
+            <div class="showcase-item">
+              <div class="showcase-image">
+                <img src="../assets/ice_bear_avatar.jpg" alt="项目展示" />
+              </div>
+              <div class="showcase-content">
+                <h3>医工融合宣传片</h3>
+                <p>传媒组制作的专业宣传视频作品</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- 联系我们区域 -->
     <section class="contact-section">
       <div class="container">
@@ -196,15 +284,12 @@
         <div class="contact-content">
           <div class="contact-info">
             <div class="contact-item">
-              <i class="icon-location"></i>
               <span>广州市海珠区新港西路135号</span>
             </div>
             <div class="contact-item">
-              <i class="icon-email"></i>
               <span>contact@ameii.sysu.edu.cn</span>
             </div>
             <div class="contact-item">
-              <i class="icon-phone"></i>
               <span>020-84110000</span>
             </div>
           </div>
@@ -499,7 +584,7 @@ const scrollToAbout = () => {
 .section-title {
   font-size: 36px;
   font-weight: 800;
-  text-align: left;
+  text-align: center;
   margin-bottom: 64px;
   letter-spacing: -0.01em;
   line-height: 1.2;
@@ -534,16 +619,7 @@ const scrollToAbout = () => {
 
 .feature-card {
   padding: 0;
-  text-align: left;
-}
-
-.feature-icon {
-  width: 48px;
-  height: 48px;
-  margin-bottom: 32px;
-  font-size: 48px;
-  display: flex;
-  align-items: center;
+  text-align: center;
 }
 
 .feature-card h3 {
@@ -596,7 +672,7 @@ const scrollToAbout = () => {
 }
 
 .stat-item {
-  text-align: left;
+  text-align: center;
   padding: 40px 0;
   border-right: 1px solid;
 }
@@ -755,15 +831,6 @@ const scrollToAbout = () => {
   padding: 0;
 }
 
-.team-icon {
-  font-size: 48px;
-  margin-bottom: 24px;
-  height: 64px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
 .team-card h3 {
   font-size: 20px;
   font-weight: 700;
@@ -855,6 +922,290 @@ const scrollToAbout = () => {
   color: #9ca3af;
 }
 
+/* 学生评论区域样式 */
+.testimonials-section {
+  padding: 120px 0;
+  overflow: hidden;
+}
+
+.theme-light .testimonials-section {
+  background-color: #f8f9fa;
+}
+
+.theme-dark .testimonials-section {
+  background-color: #1a1a1a;
+}
+
+.testimonials-wrapper {
+  position: relative;
+  overflow: hidden;
+  margin-top: 60px;
+}
+
+.testimonials-wrapper::before,
+.testimonials-wrapper::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 150px;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.testimonials-wrapper::before {
+  left: 0;
+}
+
+.theme-light .testimonials-wrapper::before {
+  background: linear-gradient(to right, #f8f9fa 0%, rgba(248, 249, 250, 0.8) 30%, rgba(248, 249, 250, 0) 100%);
+}
+
+.theme-dark .testimonials-wrapper::before {
+  background: linear-gradient(to right, #1a1a1a 0%, rgba(26, 26, 26, 0.8) 30%, rgba(26, 26, 26, 0) 100%);
+}
+
+.testimonials-wrapper::after {
+  right: 0;
+}
+
+.theme-light .testimonials-wrapper::after {
+  background: linear-gradient(to left, #f8f9fa 0%, rgba(248, 249, 250, 0.8) 30%, rgba(248, 249, 250, 0) 100%);
+}
+
+.theme-dark .testimonials-wrapper::after {
+  background: linear-gradient(to left, #1a1a1a 0%, rgba(26, 26, 26, 0.8) 30%, rgba(26, 26, 26, 0) 100%);
+}
+
+.testimonials-scroll {
+  display: flex;
+  gap: 30px;
+  animation: scrollTestimonials 20s linear infinite;
+}
+
+.testimonial-item {
+  min-width: 350px;
+  padding: 40px 30px;
+  border-radius: 16px;
+  text-align: center;
+  flex-shrink: 0;
+  transition: transform 0.3s ease;
+}
+
+.theme-light .testimonial-item {
+  background-color: #ffffff;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+}
+
+.theme-dark .testimonial-item {
+  background-color: #2d3748;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.testimonial-item:hover {
+  transform: translateY(-5px);
+}
+
+.testimonial-item p {
+  font-size: 16px;
+  line-height: 1.8;
+  margin-bottom: 30px;
+  font-style: italic;
+}
+
+.theme-light .testimonial-item p {
+  color: #4a5568;
+}
+
+.theme-dark .testimonial-item p {
+  color: #e2e8f0;
+}
+
+.testimonial-author .name {
+  display: block;
+  font-weight: 600;
+  font-size: 18px;
+  margin-bottom: 8px;
+}
+
+.theme-light .testimonial-author .name {
+  color: #2d3748;
+}
+
+.theme-dark .testimonial-author .name {
+  color: #f7fafc;
+}
+
+.testimonial-author .info {
+  font-size: 14px;
+}
+
+.theme-light .testimonial-author .info {
+  color: #718096;
+}
+
+.theme-dark .testimonial-author .info {
+  color: #a0aec0;
+}
+
+@keyframes scrollTestimonials {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-100%); }
+}
+
+.testimonials-scroll:hover {
+  animation-play-state: paused;
+}
+
+/* 风采展示区域样式 */
+.showcase-section {
+  padding: 120px 0;
+  overflow: hidden;
+}
+
+.theme-light .showcase-section {
+  background-color: #ffffff;
+}
+
+.theme-dark .showcase-section {
+  background-color: #2d3748;
+}
+
+.showcase-wrapper {
+  position: relative;
+  overflow: hidden;
+  margin-top: 60px;
+}
+
+.showcase-wrapper::before,
+.showcase-wrapper::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 150px;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.showcase-wrapper::before {
+  left: 0;
+}
+
+.theme-light .showcase-wrapper::before {
+  background: linear-gradient(to right, #ffffff 0%, rgba(255, 255, 255, 0.8) 30%, rgba(255, 255, 255, 0) 100%);
+}
+
+.theme-dark .showcase-wrapper::before {
+  background: linear-gradient(to right, #2d3748 0%, rgba(45, 55, 72, 0.8) 30%, rgba(45, 55, 72, 0) 100%);
+}
+
+.showcase-wrapper::after {
+  right: 0;
+}
+
+.theme-light .showcase-wrapper::after {
+  background: linear-gradient(to left, #ffffff 0%, rgba(255, 255, 255, 0.8) 30%, rgba(255, 255, 255, 0) 100%);
+}
+
+.theme-dark .showcase-wrapper::after {
+  background: linear-gradient(to left, #2d3748 0%, rgba(45, 55, 72, 0.8) 30%, rgba(45, 55, 72, 0) 100%);
+}
+
+.showcase-scroll {
+  display: flex;
+  gap: 30px;
+  animation: scrollShowcase 25s linear infinite reverse;
+}
+
+.showcase-item {
+  min-width: 320px;
+  border-radius: 16px;
+  overflow: hidden;
+  flex-shrink: 0;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.theme-light .showcase-item {
+  background-color: #f8f9fa;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+}
+
+.theme-dark .showcase-item {
+  background-color: #1a202c;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.showcase-item:hover {
+  transform: translateY(-8px);
+}
+
+.theme-light .showcase-item:hover {
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.15);
+}
+
+.theme-dark .showcase-item:hover {
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+}
+
+.showcase-image {
+  width: 100%;
+  height: 200px;
+  overflow: hidden;
+}
+
+.showcase-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.showcase-item:hover .showcase-image img {
+  transform: scale(1.08);
+}
+
+.showcase-content {
+  padding: 30px;
+  text-align: center;
+}
+
+.showcase-content h3 {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.theme-light .showcase-content h3 {
+  color: #2d3748;
+}
+
+.theme-dark .showcase-content h3 {
+  color: #f7fafc;
+}
+
+.showcase-content p {
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.theme-light .showcase-content p {
+  color: #718096;
+}
+
+.theme-dark .showcase-content p {
+  color: #a0aec0;
+}
+
+@keyframes scrollShowcase {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-100%); }
+}
+
+.showcase-scroll:hover {
+  animation-play-state: paused;
+}
+
 /* 联系我们区域 */
 .contact-section {
   padding: 120px 0;
@@ -883,16 +1234,7 @@ const scrollToAbout = () => {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  text-align: left;
-}
-
-.contact-item i {
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  font-size: 24px;
+  text-align: center;
 }
 
 .contact-item span {
@@ -957,10 +1299,6 @@ const scrollToAbout = () => {
     gap: 60px;
   }
   
-  .feature-card {
-    text-align: center;
-  }
-  
   .stats-grid {
     grid-template-columns: 1fr;
     gap: 0;
@@ -998,6 +1336,19 @@ const scrollToAbout = () => {
     text-align: center;
   }
   
+  .testimonial-item {
+    min-width: 280px;
+    padding: 30px 20px;
+  }
+  
+  .showcase-item {
+    min-width: 260px;
+  }
+  
+  .showcase-content {
+    padding: 20px;
+  }
+  
   .section-title {
     font-size: 28px;
     margin-bottom: 48px;
@@ -1028,6 +1379,35 @@ const scrollToAbout = () => {
   .section-title {
     font-size: 24px;
   }
+  
+  .testimonial-item {
+    min-width: 240px;
+    padding: 24px 16px;
+  }
+  
+  .testimonial-item p {
+    font-size: 14px;
+  }
+  
+  .showcase-item {
+    min-width: 220px;
+  }
+  
+  .showcase-image {
+    height: 160px;
+  }
+  
+  .showcase-content {
+    padding: 16px;
+  }
+  
+  .showcase-content h3 {
+    font-size: 16px;
+  }
+  
+  .showcase-content p {
+    font-size: 13px;
+  }
 }
 
 /* 页脚样式 */
@@ -1053,11 +1433,5 @@ const scrollToAbout = () => {
   background-color: #0f0f0f;
 }
 
-/* 图标样式 */
-.icon-innovation::before { content: "💡"; font-size: 24px; }
-.icon-collaboration::before { content: "🤝"; font-size: 24px; }
-.icon-technology::before { content: "🔬"; font-size: 24px; }
-.icon-location::before { content: "📍"; font-size: 20px; }
-.icon-email::before { content: "📧"; font-size: 20px; }
-.icon-phone::before { content: "📞"; font-size: 20px; }
+
 </style>
