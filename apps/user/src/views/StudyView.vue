@@ -88,7 +88,7 @@ onUnmounted(() => {
 }
 
 .theme-light .study-page {
-  background-color: #ffffff;
+  background: linear-gradient(135deg, #fafbfc 0%, #f5f7fa 100%);
   color: #333333;
 }
 
@@ -109,8 +109,10 @@ onUnmounted(() => {
 }
 
 .theme-light .header-container {
-  background-color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
   border-bottom: solid 1px #e6e6e6;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .theme-dark .header-container {
@@ -202,7 +204,7 @@ onUnmounted(() => {
 }
 
 .theme-light .common-layout :deep(.el-main) {
-  background-color: #ffffff;
+  background: linear-gradient(135deg, #fafbfc 0%, #f5f7fa 100%);
 }
 
 .theme-dark .common-layout :deep(.el-main) {

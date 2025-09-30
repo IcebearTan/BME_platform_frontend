@@ -5,7 +5,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import api from '../../api'
 import { API_URL } from '../../api'
-import { Star, StarFilled, Lock, Unlock } from '@element-plus/icons-vue'
+import { Star, StarFilled, Lock, Unlock, ArrowRight } from '@element-plus/icons-vue'
 import StudentProgressComponent from './StudentProgressComponent.vue'
 import StudentRankComponent from './StudentRankComponent.vue'
 
@@ -13,7 +13,7 @@ const store = useStore()  // 获取 Vuex store
 const router = useRouter()  // 获取 Vue Router 实例
 
 // 主题计算属性
-const themeClass = computed(() => store.state.darkMode ? 'theme-dark' : 'theme-light')
+const themeClass = computed(() => store.state.isDarkMode ? 'theme-dark' : 'theme-light')
 
 const courseDetails = ref(null)
 const courseId = ref(router.currentRoute.value.query.id)
@@ -168,8 +168,10 @@ function hexToRgba(hex, alpha) {
 
 // 生成渐变色（可以根据 coverColor 调整深浅）
 const wrapperBg = computed(() => {
-  // 简洁风格：使用纯色背景而不是渐变
-  return store.state.darkMode ? '#1a1a1a' : '#ffffff';
+  // 简洁风格：使用微妙的渐变背景
+  return store.state.isDarkMode 
+    ? '#1a1a1a' 
+    : 'linear-gradient(135deg, #fafbfc 0%, #f5f7fa 100%)';
 });
 
 // 查询当前用户是否已经加入课程
@@ -259,113 +261,372 @@ const courseDifficulty = computed(() => {
 const courseHour = computed(() => {
   return courseInfo.value?.Course_Class_Hour ? courseInfo.value.Course_Class_Hour + ' 学时' : '未知'
 })
+
+// 面包屑导航数据
+const breadcrumbItems = computed(() => [
+  { label: '学习中心', path: '/study' },
+  { label: courseInfo.value?.Course_Title || '课程详情', path: '' }
+])
+
+// 返回学习中心
+const goBack = () => {
+  router.push('/study')
+}
 </script>
 
 <template>
   <div class="course-wrapper" :class="themeClass" :style="{ background: wrapperBg }">
-    <div class="course-details">
-      <div class="course-info">
-        <div class="course-info-left" 
-        :style="{backgroundColor: courseInfo?.Course_Title ? randomColor(courseInfo.Course_Title) : colorPalette[0]}">
-        {{ courseInfo.Course_Title }}</div>
-        <div class="course-info-right">
-          <h2 style="height: 20%;margin: 0;">
-            {{ courseInfo.Course_Title }}
-          </h2>
-          <div class="course-description">
-            {{ courseInfo.Introduction }}
-          </div>
-          <div class="course-bottom">
-            <el-button type="primary" plain size="large" disabled="true" @click="caution()" class="no-cursor">{{ isEnrolled ? '正在学习' : '加入学习'}}</el-button>
-            <el-button type="primary" size="large" @click="handleDownload()">下载内容</el-button>
-          </div>
+    <!-- 居中容器 -->
+    <div class="main-container">
+      <!-- 面包屑导航 -->
+      <div class="breadcrumb-container" :class="themeClass">
+        <div class="breadcrumb-nav">
+          <span 
+            v-for="(item, index) in breadcrumbItems" 
+            :key="index"
+            class="breadcrumb-item"
+            :class="{ 'breadcrumb-active': index === breadcrumbItems.length - 1 }"
+            @click="index === 0 ? goBack() : null"
+          >
+            {{ item.label }}
+            <span v-if="index < breadcrumbItems.length - 1" class="breadcrumb-separator"> / </span>
+          </span>
         </div>
       </div>
-      <div class="course-contents">
-        <div style="height: 50px;width: 90%; padding-bottom: 20px; border-bottom: solid 1px #ddd; margin-bottom: 10px;">
-          <span
-            style="font-size: 25px; font-weight: bold; padding-bottom: 19px; border-bottom: solid 3px #000;">目录</span>
-        </div>
-        <div class="course-content-card">
-          <div class="course-content-item" v-for="(item, index) in formatedCourseDetails" :key="index">
-            <div style="font-size: 20px; font-weight: 500; margin-bottom: 10px;">
-              <span class="course-content-item-index">{{ index + 1 }}</span>
-              <span style="position: relative; left: -15px">{{ item.name }}</span>
-            </div>
-            <div class="course-content-item-sub" v-for="(subItem, subIndex) in item.subChapters" :key="subIndex"
-                 :class="{ 'locked': !isEnrolled || !checkUnlock(index + 1) }">
-              <div>{{ subItem.name }}</div>
-              <div v-if="!isEnrolled || !checkUnlock(index + 1)">
-                <el-icon class="lock-icon">
-                  <Lock />
-                </el-icon>
+
+      <!-- 主要内容区域 -->
+      <div class="content-area">
+        <!-- 左侧主要内容 -->
+        <div class="left-content">
+          <div class="course-info">
+            <div class="course-info-left" 
+            :style="{backgroundColor: courseInfo?.Course_Title ? randomColor(courseInfo.Course_Title) : colorPalette[0]}">
+            {{ courseInfo.Course_Title }}</div>
+            <div class="course-info-right">
+              <h2 class="course-title" :class="themeClass">
+                {{ courseInfo.Course_Title }}
+              </h2>
+              <div class="course-description" :class="themeClass">
+                {{ courseInfo.Introduction }}
+              </div>
+              <div class="course-bottom">
+                <el-button type="primary" plain size="large" disabled="true" @click="caution()" class="no-cursor">{{ isEnrolled ? '正在学习' : '加入学习'}}</el-button>
+                <el-button type="primary" size="large" @click="handleDownload()">下载内容</el-button>
               </div>
             </div>
           </div>
-          <div
-            style="display: flex; justify-content: center; align-items: center; height: 50px; margin-bottom: 20px; font-size: 15px; color: #999;">
-            没有更多内容啦~</div>
+
+          <div class="course-contents">
+            <div class="course-contents-header" :class="themeClass">
+              <span class="course-contents-title" :class="themeClass">目录</span>
+            </div>
+            <div class="course-content-card">
+              <div class="course-content-item" v-for="(item, index) in formatedCourseDetails" :key="index">
+                <div style="font-size: 20px; font-weight: 500; margin-bottom: 10px;">
+                  <span class="course-content-item-index">{{ index + 1 }}</span>
+                  <span style="position: relative; left: -15px">{{ item.name }}</span>
+                </div>
+                <div class="course-content-item-sub" v-for="(subItem, subIndex) in item.subChapters" :key="subIndex"
+                     :class="{ 'locked': !isEnrolled || !checkUnlock(index + 1) }">
+                  <div>{{ subItem.name }}</div>
+                  <div v-if="!isEnrolled || !checkUnlock(index + 1)">
+                    <el-icon class="lock-icon">
+                      <Lock />
+                    </el-icon>
+                  </div>
+                </div>
+              </div>
+              <div class="no-more-content" :class="themeClass">
+                没有更多内容啦~
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 右侧边栏 -->
+        <div class="right-sidebar">
+          <!-- 已经开始学习所展示的内容 -->
+          <div v-if="isEnrolled">
+            <div class="course-process" :class="themeClass">
+              <StudentProgressComponent :user-progress="userProgress" />
+            </div>
+            <div class="class-rank">
+              <StudentRankComponent :course-id="courseId" :chapters="courseInfo.Chapters" />
+            </div>
+          </div>
+
+          <!-- 未加入学习展示的内容 -->
+          <div v-else>
+            <div class="course-difficulty" :class="themeClass">
+              <span class="difficulty-label" :class="themeClass">课程难度</span>
+              <div class="difficulty-stars-container">
+                <el-icon
+                  v-for="n in 5"
+                  :key="n"
+                  :class="n <= (courseInfo.Course_Difficulty == null ? 0 : courseInfo.Course_Difficulty) ? 'star-icon' : 'star-outline-icon'"
+                >
+                  <component :is="n <= (courseInfo.Course_Difficulty == null ? 0 : courseInfo.Course_Difficulty) ? StarFilled : Star" />
+                </el-icon>
+                <span class="difficulty-text" :class="themeClass">{{ courseDifficulty }}</span>
+              </div>
+            </div>
+            <div class="course-period" :class="themeClass">
+              <span class="period-item" :class="themeClass">
+                <div class="period-value" :class="themeClass">{{ courseInfo.Chapters || 0 }} 章 / {{ courseInfo.Sections || 0 }} 节</div>
+                <div class="period-label" :class="themeClass">章节数量</div>
+              </span>
+              <span class="period-item" :class="themeClass">
+                <div class="period-value" :class="themeClass">{{ courseHour }}</div>
+                <div class="period-label" :class="themeClass">预计时长</div>
+              </span>
+            </div>
+            <div class="course-tags">
+              <el-tag
+                v-for="item in items"
+                :key="item.label"
+                :type="item.type"
+                effect="light"
+                round
+              >
+                {{ item.label }}
+              </el-tag>
+            </div>
+          </div>
         </div>
       </div>
     </div>
-
-    <!-- 已经开始学习所展示的内容 -->
-    <div v-if="isEnrolled" style="width: 300px;">
-      <div class="course-process" :class="themeClass">
-        <StudentProgressComponent :user-progress="userProgress" />
-      </div>
-      <div class="class-rank">
-        <StudentRankComponent :course-id="courseId" :chapters="courseInfo.Chapters" />
-      </div>
-    </div>
-
-    <!-- 未加入学习展示的内容 -->
-    <div v-else style="width: 300px;">
-      <div class="course-difficulty">
-        <span style="margin-left: 8px; color: #888; font-size: 15px; top: 2px; position: relative;">课程难度</span>
-        <div>
-          <el-icon
-            v-for="n in 5"
-            :key="n"
-            :class="n <= (courseInfo.Course_Difficulty == null ? 0 : courseInfo.Course_Difficulty) ? 'star-icon' : 'star-outline-icon'"
-          >
-            <component :is="n <= (courseInfo.Course_Difficulty == null ? 0 : courseInfo.Course_Difficulty) ? StarFilled : Star" />
-          </el-icon>
-          <span style="margin-left: 8px; color: #888; font-size: 15px; top: 2px; position: relative;">{{ courseDifficulty }}</span>
-        </div>
-      </div>
-      <div class="course-period">
-        <span style="width: 50%; border-right: solid 1px #ddd;">
-          <div style="color: #111;">{{ courseInfo.Chapters || 0 }} 章 / {{ courseInfo.Sections || 0 }} 节</div>
-          <div style="font-size: 13px; color:#999; margin-top: 10px;">章节数量</div>
-        </span>
-        <span style="width: 40%;">
-          <div style="color: #111;">{{ courseHour }}</div>
-          <div style="font-size: 13px; color:#999; margin-top: 10px;">预计时长</div>
-        </span>
-      </div>
-      <div class="course-tags">
-        <el-tag
-          v-for="item in items"
-          :key="item.label"
-          :type="item.type"
-          effect="light"
-          round
-        >
-          {{ item.label }}
-        </el-tag>
-      </div>
-    </div>
-
   </div>
 </template>
 
 <style scoped>
-.course-tags{
+/* 面包屑导航样式 */
+.breadcrumb-container {
+  width: 100%;
+  padding: 16px 0;
+  margin-bottom: 24px;
+}
+
+.breadcrumb-nav {
   display: flex;
-  justify-content:first baseline;
+  align-items: center;
+  font-size: 14px;
+}
+
+.breadcrumb-item {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.breadcrumb-item:not(.breadcrumb-active):hover {
+  opacity: 0.8;
+}
+
+.breadcrumb-item.breadcrumb-active {
+  cursor: default;
+  font-weight: 500;
+}
+
+.theme-light .breadcrumb-item {
+  color: #666;
+}
+
+.theme-light .breadcrumb-item.breadcrumb-active {
+  color: #333;
+}
+
+.theme-light .breadcrumb-item:not(.breadcrumb-active):hover {
+  color: #1976d2;
+}
+
+.theme-dark .breadcrumb-item {
+  color: #bbb;
+}
+
+.theme-dark .breadcrumb-item.breadcrumb-active {
+  color: #fff;
+}
+
+.theme-dark .breadcrumb-item:not(.breadcrumb-active):hover {
+  color: #64b5f6;
+}
+
+.breadcrumb-separator {
+  margin: 0 12px;
+  font-weight: normal;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* 课程标题主题适配 */
+.course-title {
+  height: 20%;
+  margin: 0;
+  font-size: 24px;
+  font-weight: bold;
+  margin-bottom: 12px;
+}
+
+.theme-light .course-title {
+  color: #333;
+}
+
+.theme-dark .course-title {
+  color: #fff;
+}
+
+/* 课程内容标题主题适配 */
+.course-contents-header {
+  height: 50px;
+  width: 100%;
+  padding-bottom: 20px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid;
+}
+
+.theme-light .course-contents-header {
+  border-color: #e6e6e6;
+}
+
+.theme-dark .course-contents-header {
+  border-color: #404040;
+}
+
+.course-contents-title {
+  font-size: 25px;
+  font-weight: bold;
+  padding-bottom: 19px;
+  border-bottom: 3px solid;
+}
+
+.theme-light .course-contents-title {
+  border-color: #333;
+  color: #333;
+}
+
+.theme-dark .course-contents-title {
+  border-color: #fff;
+  color: #fff;
+}
+
+/* 难度和时长信息主题适配 */
+.difficulty-label {
+  font-size: 15px;
+  align-self: center;
+}
+
+.difficulty-stars-container {
+  display: flex;
+  align-items: center;
+}
+
+.difficulty-text {
+  margin-left: 8px;
+  font-size: 15px;
+}
+
+.theme-light .difficulty-label,
+.theme-light .difficulty-text {
+  color: #666;
+}
+
+.theme-dark .difficulty-label,
+.theme-dark .difficulty-text {
+  color: #bbb;
+}
+
+.period-item {
+  width: 50%;
+  padding-right: 15px;
+}
+
+.period-item:first-child {
+  border-right: 1px solid;
+  padding-right: 15px;
+}
+
+.period-item:last-child {
+  padding-left: 15px;
+}
+
+.theme-light .period-item:first-child {
+  border-color: #e6e6e6;
+}
+
+.theme-dark .period-item:first-child {
+  border-color: #404040;
+}
+
+.period-value {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.theme-light .period-value {
+  color: #333;
+}
+
+.theme-dark .period-value {
+  color: #fff;
+}
+
+.period-label {
+  font-size: 13px;
+  margin-top: 10px;
+}
+
+.theme-light .period-label {
+  color: #666;
+}
+
+.theme-dark .period-label {
+  color: #bbb;
+}
+
+.course-tags {
+  display: flex;
+  justify-content: first baseline;
   flex-wrap: wrap;
   gap: 8px 5px;
+}
+
+/* 课程标签主题适配 */
+.theme-dark .course-tags .el-tag {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  color: #ccc !important;
+}
+
+/* Element Plus 按钮主题适配 */
+.theme-dark .el-button {
+  background-color: #404040 !important;
+  border-color: #555 !important;
+  color: #fff !important;
+}
+
+.theme-dark .el-button:hover {
+  background-color: #505050 !important;
+  border-color: #666 !important;
+}
+
+.theme-dark .el-button--primary {
+  background-color: #409eff !important;
+  border-color: #409eff !important;
+}
+
+.theme-dark .el-button--primary:hover {
+  background-color: #66b1ff !important;
+  border-color: #66b1ff !important;
+}
+
+.theme-dark .el-button.is-plain {
+  background-color: transparent !important;
+  color: #409eff !important;
+  border-color: #409eff !important;
+}
+
+.theme-dark .el-button.is-plain:hover {
+  background-color: #409eff !important;
+  color: #fff !important;
 }
 .course-period {
   display: flex;
@@ -373,8 +634,6 @@ const courseHour = computed(() => {
   justify-content: space-between;
   margin-top: 20px;
   margin-bottom: 20px;
-
-  padding-left: 8px;
 }
 .course-difficulty{
   display: flex;
@@ -389,19 +648,53 @@ const courseHour = computed(() => {
   margin-right: 2px;
   vertical-align: middle;
 }
-.star-outline-icon {
+/* 星级图标主题适配 */
+.theme-light .star-outline-icon {
   color: #e0e0e0;
+}
+
+.theme-dark .star-outline-icon {
+  color: #555;
+}
+
+.star-outline-icon {
   font-size: 22px;
   margin-right: 2px;
   vertical-align: middle;
 }
 
 .course-wrapper {
-  padding-top: 20px;
-  min-height: 950px;
-  /* background-color: #eeefff; 这一行可以去掉 */
+  padding: 20px;
+  min-height: 100vh;
   display: flex;
   justify-content: center;
+}
+
+/* 主容器 - 居中显示 */
+.main-container {
+  width: 100%;
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 0 40px;
+}
+
+/* 内容区域 - 左右布局 */
+.content-area {
+  display: flex;
+  gap: 30px;
+  align-items: flex-start;
+}
+
+/* 左侧主要内容 */
+.left-content {
+  flex: 1;
+  min-width: 0; /* 防止flex子元素溢出 */
+}
+
+/* 右侧边栏 */
+.right-sidebar {
+  width: 300px;
+  flex-shrink: 0;
 }
 
 .course-process {
@@ -450,53 +743,50 @@ const courseHour = computed(() => {
   margin-bottom: 10px;
 }
 
-.course-details {
-  display: flex;
-  flex-direction: column;
-
-  width: 750px;
-  /* height: 250px; */
-
-  margin-top: 20px;
-  margin-bottom: 20px;
-
-}
+/* 移除旧的 course-details 样式，因为现在使用 left-content */
 
 .class-rank{
   padding-right: 5px;
   width: 320px;
 }
 
+/* 响应式设计 */
 @media (max-width: 768px) {
-  .course-wrapper {
-    flex-direction: column;
-    align-items: center;
+  .main-container {
+    padding: 0 20px;
+    max-width: none;
   }
 
-  .course-details {
-    width: 90% !important;
-    /* 可以尝试加 !important 提高优先级 */
+  .content-area {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .right-sidebar {
+    width: 100%;
+  }
+
+  .course-info {
+    flex-direction: column;
+  }
+
+  .course-info-left {
+    width: 100% !important;
+    height: 120px !important;
     margin-right: 0 !important;
     margin-bottom: 20px !important;
   }
 
-  .course-process,
-  .class-rank {
-    /* 确保 .class-rank 也有定义，或者右侧栏的容器有统一的类名 */
-    width: 90% !important;
-    margin-left: 0 !important;
-    margin-right: auto;
-    /* 可以尝试让右侧栏在垂直堆叠时也居中 */
-    margin-left: auto;
-
+  .course-info-right {
+    width: 100% !important;
+    height: auto !important;
   }
 }
 
 .course-info {
   display: flex;
   flex-direction: row;
-  justify-content: center;
-
+  width: 100%;
   margin-bottom: 20px;
 }
 
@@ -508,7 +798,6 @@ const courseHour = computed(() => {
   font-weight: bold;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   background-color: #91bdff;
-  box-shadow: 0 0 12px 2px #d2dbe9;
   color: #fff;
 
   margin-right: 35px;
@@ -537,8 +826,21 @@ const courseHour = computed(() => {
   border-radius: 0 0 10px 10px;
 }
 
-.course-info-left:hover {
+/* 课程封面主题适配 */
+.theme-light .course-info-left {
+  box-shadow: 0 0 12px 2px #d2dbe9;
+}
+
+.theme-dark .course-info-left {
+  box-shadow: 0 0 12px 2px rgba(0, 0, 0, 0.4);
+}
+
+.theme-light .course-info-left:hover {
   box-shadow: 0 0 16px 2px #d0d1d2;
+}
+
+.theme-dark .course-info-left:hover {
+  box-shadow: 0 0 16px 2px rgba(255, 255, 255, 0.1);
 }
 
 .course-info-left:hover::before {
@@ -547,21 +849,17 @@ const courseHour = computed(() => {
 
 .course-info-right {
   position: relative;
-
   display: flex;
   flex-direction: column;
-
-  width: 500px;
+  flex: 1;
   height: 200px;
 }
 
 .course-contents {
-  height: 50%;
   display: flex;
-  /* justify-content: center; */
   align-items: center;
   flex-direction: column;
-  margin-top: 20px;
+  margin-top: 30px;
 }
 
 .course-bottom {
@@ -583,7 +881,7 @@ const courseHour = computed(() => {
 }
 
 .course-content-card {
-  width: 90%;
+  width: 100%;
   border-radius: 12px;
   border: 1px solid;
   margin-top: 20px;
@@ -604,23 +902,38 @@ const courseHour = computed(() => {
 }
 
 .course-content-item {
-  border-bottom: solid 1px #d1d1d1;
   margin: 20px;
-
   padding-bottom: 10px;
+  border-bottom: 1px solid;
+}
+
+.theme-light .course-content-item {
+  border-color: #e6e6e6;
+}
+
+.theme-dark .course-content-item {
+  border-color: #404040;
 }
 
 .course-content-item-index {
   display: inline-block;
-
   position: relative;
   left: -35px;
   width: 50px;
   text-align: center;
   border-radius: 50px;
+  color: #fff;
+  transition: all 0.3s ease;
+}
+
+.theme-light .course-content-item-index {
   background-color: #333;
   box-shadow: 0 0 8px rgba(0, 0, 0, 0.3);
-  color: #fff;
+}
+
+.theme-dark .course-content-item-index {
+  background-color: #555;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
 }
 
 .course-content-item-sub {
@@ -662,8 +975,13 @@ const courseHour = computed(() => {
   color: #666;
 }
 
-.lock-icon {
+/* 锁定图标主题适配 */
+.theme-light .lock-icon {
   color: #ccc;
+}
+
+.theme-dark .lock-icon {
+  color: #666;
 }
 
 .course-description {
@@ -675,6 +993,12 @@ const courseHour = computed(() => {
 }
 
 /* 主题适配 - 课程描述 */
+.course-description {
+  font-size: 14px;
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
 .theme-light .course-description {
   color: #555;
 }
@@ -683,12 +1007,39 @@ const courseHour = computed(() => {
   color: #bbb;
 }
 
-.course-wrapper {
-  display: flex;
-  justify-content: center;
+/* 主题过渡效果 */
+.course-wrapper * {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* 全局主题适配 */
+.theme-light {
+  color: #333;
+}
+
+.theme-dark {
+  color: #fff;
 }
 
 .no-cursor {
   cursor: auto !important;
+}
+
+/* 没有更多内容提示 */
+.no-more-content {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 50px;
+  margin-bottom: 20px;
+  font-size: 15px;
+}
+
+.theme-light .no-more-content {
+  color: #999;
+}
+
+.theme-dark .no-more-content {
+  color: #666;
 }
 </style>

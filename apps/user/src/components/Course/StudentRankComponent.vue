@@ -33,7 +33,7 @@ import { useStore } from 'vuex';
 import api from '../../api';
 
 const store = useStore();
-const themeClass = computed(() => store.state.darkMode ? 'theme-dark' : 'theme-light');
+const themeClass = computed(() => store.state.isDarkMode ? 'theme-dark' : 'theme-light');
 
 const props = defineProps({
     courseId: {

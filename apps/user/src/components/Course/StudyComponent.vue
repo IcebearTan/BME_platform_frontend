@@ -11,7 +11,7 @@ const router = useRouter()
 const store = useStore()
 
 // 主题计算属性
-const themeClass = computed(() => store.state.darkMode ? 'theme-dark' : 'theme-light')
+const themeClass = computed(() => store.state.isDarkMode ? 'theme-dark' : 'theme-light')
 
 const colorPalette = [
     "#b391ff", // 蓝紫色: 和谐邻近色
@@ -221,6 +221,15 @@ onMounted(() => {
     margin-bottom: 8px;
 }
 
+/* 主题适配 - 提示框标题 */
+.theme-light .tooltip-title {
+    color: #2d3748;
+}
+
+.theme-dark .tooltip-title {
+    color: #e6e6e6;
+}
+
 .tooltip-intro {
     font-size: 14px;
     margin-bottom: 10px;
@@ -371,6 +380,10 @@ onMounted(() => {
     background-color: #ffffff;
 }
 
+.theme-light .course-card:hover .course-title {
+    color: #2d3748;
+}
+
 .theme-dark .course-card:hover {
     box-shadow: 0 8px 24px rgba(0,0,0,0.5);
     border-color: #505050;
@@ -441,15 +454,15 @@ onMounted(() => {
 
 /* 主题适配 - 课程卡片文本 */
 .theme-light .course-title {
-    color: #333;
+    color: #4a5568;
 }
 
 .theme-light .course-description {
-    color: #666;
+    color: #718096;
 }
 
 .theme-light .course-stats {
-    color: #888;
+    color: #a0aec0;
 }
 
 .theme-dark .course-title {
