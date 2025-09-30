@@ -106,6 +106,17 @@ const handleMouseLeave = () => {
     hoverCourse.value = null
 }
 
+// 根据课程标题长度返回合适的CSS类
+const getTextSizeClass = (title) => {
+    if (!title) return 'medium-text';
+    const length = title.length;
+    if (length <= 4) return 'short-text';
+    if (length <= 8) return 'medium-text';
+    return 'long-text';
+}
+
+
+
 onMounted(() => {
     getCourseList()  // 在组件挂载时调用获取课程列表的方法
 })
@@ -136,19 +147,23 @@ onMounted(() => {
                 </el-card>
             </template>
             <template v-else>
-                <el-card class="boxCard" :class="themeClass" v-for="course in filteredCourses" :key="course.Course_Id"
+                <div class="course-card" :class="themeClass" v-for="course in filteredCourses" :key="course.Course_Id"
                     @click="handleCourseClick(course.Course_Id)"
                     @mouseenter="handleMouseEnter(course, $event)"
                     @mouseleave="handleMouseLeave">
-                    <div style="width: 100%; height: 100%; display: flex;">
-                        <div class="bookCover" :style="{ backgroundColor: randomColor(course.Course_title) }">{{ course.Course_title }}</div>
-                        <div class="bookInfo">
-                            <div class="cardTitle">{{ course.Course_title }}</div>
-                            <div class="cardText">{{ course.Course_Introduction }}</div>
-                            <div class="cardFooter">共 {{ course.Course_Chapters }} 章</div>
-                        </div>
+                    <div class="book-cover" 
+                         :class="getTextSizeClass(course.Course_title)"
+                         :style="{ backgroundColor: randomColor(course.Course_title) }">
+                        {{ course.Course_title }}
                     </div>
-                </el-card>
+                    <div class="book-info">
+                        <div class="course-content">
+                            <div class="course-title">{{ course.Course_title }}</div>
+                            <div class="course-description">{{ course.Course_Introduction }}</div>
+                        </div>
+                        <div class="course-stats">共 {{ course.Course_Chapters }} 章</div>
+                    </div>
+                </div>
 
                 <transition name="fade-tooltip">
                     <div
@@ -318,40 +333,45 @@ onMounted(() => {
     margin-top: 25px;
 }
 
-.boxCard {
+.course-card {
     width: 31%;
-    height: 110px;
+    height: 120px;
     margin: 10px;
+    padding: 0 6px 0 6px;
     border-radius: 12px;
     border: 1px solid;
+    display: flex;
+    align-items: center;
     transition: all 0.22s cubic-bezier(.4,0,.2,1);
     cursor: pointer;
+    overflow: hidden;
+    box-sizing: border-box;
 }
 
 /* 主题适配 - 课程卡片 */
-.theme-light .boxCard {
+.theme-light .course-card {
     background-color: #ffffff;
     border-color: #e6e6e6;
     box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
 
-.theme-dark .boxCard {
+.theme-dark .course-card {
     background-color: #2d2d2d;
     border-color: #404040;
     box-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }
 
-.boxCard:hover {
-    transform: translateY(-6px) scale(1.025);
+.course-card:hover {
+    transform: translateY(-4px) scale(1.02);
 }
 
-.theme-light .boxCard:hover {
-    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
-    border-color: #d0d0d0;
-    background-color: #f9f9f9;
+.theme-light .course-card:hover {
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    /* border-color: #c0c0c0; */
+    background-color: #ffffff;
 }
 
-.theme-dark .boxCard:hover {
+.theme-dark .course-card:hover {
     box-shadow: 0 8px 24px rgba(0,0,0,0.5);
     border-color: #505050;
     background-color: #353535;
@@ -372,79 +392,75 @@ onMounted(() => {
     .columnContainer {
         /* 确保这个类名与 StudyComponent.vue 中包裹卡片的容器一致 */
         flex-direction: column !important;
-        /* 关键：改为纵向排列, !important 增加优先级以防万一 */
         align-items: center !important;
-        /* 让卡片在纵向排列时居中 */
         width: 100% !important;
-        /* 竖屏时占满父容器宽度 */
     }
 
-    .boxCard {
-        /* 确保这个类名与 StudyComponent.vue 中的卡片一致 */
+    .course-card {
         width: 90% !important;
-        /* 竖屏时卡片宽度 */
         max-width: 400px !important;
         margin: 10px 0 !important;
-        /* 调整上下外边距 */
+        padding: 15px !important;
+        height: 110px !important;
     }
 }
 
-.boxCard:hover {
-    transform: translateY(-5px);
 
-    box-shadow: 0 5px 10px 0 rgba(0, 0, 0, 0.1);
 
-}
-
-.cardTitle {
+.course-title {
     font-size: 16px;
     font-weight: 600;
-    height: 25%;
+    line-height: 1.3;
+    flex-shrink: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    margin-bottom: 2px;
 }
 
-/* 主题适配 - 卡片标题 */
-.theme-light .cardTitle {
-    color: #333;
-}
-
-.theme-dark .cardTitle {
-    color: #e6e6e6;
-}
-
-.cardText {
+.course-description {
     font-size: 12px;
-    height: 3em;
-    line-height: 1.5em;
+    line-height: 1.3;
+    height: 2.6em;
+    max-height: 2.6em;
     overflow: hidden;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     line-clamp: 2;
     -webkit-box-orient: vertical;
     text-overflow: ellipsis;
-    margin-bottom: 20px;
-    margin-top: 5px;
+    word-wrap: break-word;
+    word-break: break-word;
 }
 
-.cardFooter {
-    position: relative;
+.course-stats {
     font-size: 12px;
-    height: 25%;
+    line-height: 1.2;
+    flex-shrink: 0;
 }
 
-/* 主题适配 - 卡片文本颜色 */
-.theme-light .cardText {
+/* 主题适配 - 课程卡片文本 */
+.theme-light .course-title {
+    color: #333;
+}
+
+.theme-light .course-description {
     color: #666;
 }
 
-.theme-light .cardFooter {
+.theme-light .course-stats {
     color: #888;
 }
 
-.theme-dark .cardText {
+.theme-dark .course-title {
+    color: #e6e6e6;
+}
+
+.theme-dark .course-description {
     color: #aaa;
 }
 
-.theme-dark .cardFooter {
+.theme-dark .course-stats {
     color: #bbb;
 }
 
@@ -462,39 +478,90 @@ onMounted(() => {
     color: #aaa;
 }
 
-.boxCard :deep(.el-card__body) {
-    padding: 0px;
-}
-
-.bookCover {
-    /* background-color: #91bdff; */
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-
-    font-weight: bold;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-    min-width: 65px;
-    max-width: 65px;
-    height: 90px;
-
-    border-radius: 5px;
-    margin: 5px;
-    padding: 5px;
-
+.book-cover {
+    width: 75px;
+    height: 100px;
+    border-radius: 8px;
+    /* margin-right: 12px; */
+    padding: 6px;
     display: flex;
     justify-content: center;
     align-items: center;
     text-align: center;
-
     color: #fff;
-
-    /* padding: 5px; */
+    font-size: 12px;
+    line-height: 1.2;
+    font-weight: bold;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    word-break: break-all;
+    overflow: hidden;
+    flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    box-sizing: border-box;
 }
 
-.bookInfo {
-    height: 100px;
-    width: 75%;
-    margin-top: 5px;
-    margin-left: 5px;
+/* 根据文字长度的响应式字体大小类 */
+.book-cover.short-text {
+    font-size: 14px;
+}
+
+.book-cover.medium-text {
+    font-size: 11px;
+}
+
+.book-cover.long-text {
+    font-size: 9px;
+}
+
+/* 当屏幕较小时调整封面 */
+@media (max-width: 768px) {
+    .book-cover {
+        width: 50px;
+        height: 70px;
+        margin-right: 10px;
+        padding: 5px;
+    }
+    
+    .book-cover.short-text {
+        font-size: 10px;
+    }
+
+    .book-cover.medium-text {
+        font-size: 8px;
+    }
+
+    .book-cover.long-text {
+        font-size: 7px;
+    }
+    
+    .book-info {
+        height: 70px;
+    }
+    
+    .course-description {
+        height: 2.2em;
+        max-height: 2.2em;
+        line-height: 1.1;
+        margin: 4px 0;
+    }
+}
+
+.book-info {
+    flex: 1;
+    height: 95px;
+    padding-left: 10px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    overflow: hidden;
+    min-width: 0;
+}
+
+.course-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
 .button-group-container {
