@@ -49,14 +49,16 @@
                 支持我们
             </div>
         </div>
-        <div style="position: relative;" v-show="isVisible ">
-            <div style="position: absolute; width: 50px; top: 10px; left: -15px;">公众号</div>
-            <img src="/wechatQRcode.png" alt="wechatQRcode" class="QRcode" >
-        </div>
+    </div>
+    <div class="wechat-container">
         <img src="/wechat_1.png" alt="wechat" class="foot-icon"
         @mouseover="isVisible = true"
         @mouseleave="isVisible = false"
         >
+        <div v-show="isVisible" class="qrcode-popup">
+            <div class="qrcode-label">公众号</div>
+            <img src="/wechatQRcode.png" alt="wechatQRcode" class="QRcode" >
+        </div>
     </div>
     <hr class="custom-hr"></hr>
     <div style="font-size: 15px; color: #fff; margin-bottom: 10px;">©2024-2025 中山大学医工融创训练营</div>
@@ -200,27 +202,67 @@ export default defineComponent({
   width: 100%; /* 设置宽度 */
   margin: 20px auto; /* 设置上下间距并居中 */
 }
+.wechat-container {
+    position: relative;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    margin: 10px 0;
+}
+
 .foot-icon{
     width: 25px;
     height: 25px;
 
-    margin-top: auto;
     /* opacity: 0.5; */
     filter: grayscale(100%);
 
     cursor: pointer;
+    transition: filter 0.3s ease;
 }
 .foot-icon:hover{
     filter: grayscale(0%);
 }
+
+.qrcode-popup {
+    position: absolute;
+    top: -120px;
+    right: 0;
+    transform: translateX(0);
+    z-index: 1000;
+    pointer-events: none;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+.qrcode-label {
+    position: absolute;
+    top: -25px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
 .QRcode{
     width: 100px;
     height: 100px;
-
     border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    background: white;
+}
 
-    position: absolute;
-    top: 40px;
-    right: -60px;
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 </style>
