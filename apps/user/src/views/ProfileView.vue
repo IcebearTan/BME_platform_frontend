@@ -419,6 +419,7 @@ const scrollToAbout = () => {
 /* 主内容区域 */
 .main-content {
   flex: 1;
+  padding-top: 80px; /* 为固定菜单留出空间 */
 }
 
 /* 英雄区域 */
@@ -604,11 +605,11 @@ const scrollToAbout = () => {
 }
 
 .theme-light .features-section {
-  background-color: #ffffff;
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 50%, #ffffff 100%);
 }
 
 .theme-dark .features-section {
-  background-color: #1a1a1a;
+  background: linear-gradient(135deg, #1a1a1a 0%, #1e1e1e 50%, #1a1a1a 100%);
 }
 
 .features-grid {
@@ -618,8 +619,59 @@ const scrollToAbout = () => {
 }
 
 .feature-card {
-  padding: 0;
+  padding: 40px 30px;
   text-align: center;
+  border-radius: 16px;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.theme-light .feature-card {
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+}
+
+.theme-dark .feature-card {
+  background: rgba(45, 55, 72, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.feature-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.theme-light .feature-card::before {
+  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+}
+
+.theme-dark .feature-card::before {
+  background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+}
+
+.feature-card:hover {
+  transform: translateY(-8px);
+}
+
+.theme-light .feature-card:hover {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+}
+
+.theme-dark .feature-card:hover {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.feature-card:hover::before {
+  opacity: 1;
 }
 
 .feature-card h3 {
@@ -655,14 +707,36 @@ const scrollToAbout = () => {
 /* 数据统计区域 */
 .stats-section {
   padding: 100px 0;
+  position: relative;
 }
 
 .theme-light .stats-section {
-  background-color: #f8f9fa;
+  background: linear-gradient(135deg, #f8f9fa 0%, #f1f3f4 50%, #f8f9fa 100%);
 }
 
 .theme-dark .stats-section {
-  background-color: #111111;
+  background: linear-gradient(135deg, #111111 0%, #0f0f0f 50%, #111111 100%);
+}
+
+.stats-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  opacity: 0.03;
+  pointer-events: none;
+}
+
+.theme-light .stats-section::before {
+  background: radial-gradient(circle at 30% 70%, #667eea 0%, transparent 50%),
+              radial-gradient(circle at 70% 30%, #764ba2 0%, transparent 50%);
+}
+
+.theme-dark .stats-section::before {
+  background: radial-gradient(circle at 30% 70%, #4facfe 0%, transparent 50%),
+              radial-gradient(circle at 70% 30%, #00f2fe 0%, transparent 50%);
 }
 
 .stats-grid {
@@ -726,11 +800,11 @@ const scrollToAbout = () => {
 }
 
 .theme-light .curriculum-section {
-  background-color: #ffffff;
+  background: linear-gradient(180deg, #f8f9fa 0%, #ffffff 50%, #f8f9fa 100%);
 }
 
 .theme-dark .curriculum-section {
-  background-color: #1a1a1a;
+  background: linear-gradient(180deg, #1e1e1e 0%, #1a1a1a 50%, #1e1e1e 100%);
 }
 
 .curriculum-timeline {
@@ -811,11 +885,11 @@ const scrollToAbout = () => {
 }
 
 .theme-light .teams-section {
-  background-color: #f8f9fa;
+  background: radial-gradient(ellipse at center, #f1f3f4 0%, #f8f9fa 100%);
 }
 
 .theme-dark .teams-section {
-  background-color: #111111;
+  background: radial-gradient(ellipse at center, #1a1a1a 0%, #111111 100%);
 }
 
 .teams-grid {
@@ -828,7 +902,34 @@ const scrollToAbout = () => {
 
 .team-card {
   text-align: center;
-  padding: 0;
+  padding: 32px 24px;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.theme-light .team-card {
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.03);
+}
+
+.theme-dark .team-card {
+  background: rgba(26, 26, 26, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+}
+
+.team-card:hover {
+  transform: translateY(-4px);
+}
+
+.theme-light .team-card:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.theme-dark .team-card:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
 }
 
 .team-card h3 {
@@ -869,11 +970,11 @@ const scrollToAbout = () => {
 }
 
 .theme-light .partners-section {
-  background-color: #ffffff;
+  background: linear-gradient(45deg, #ffffff 0%, #f9fafb 25%, #ffffff 50%, #f9fafb 75%, #ffffff 100%);
 }
 
 .theme-dark .partners-section {
-  background-color: #1a1a1a;
+  background: linear-gradient(45deg, #1a1a1a 0%, #1e1e1e 25%, #1a1a1a 50%, #1e1e1e 75%, #1a1a1a 100%);
 }
 
 .partners-grid {
@@ -926,14 +1027,15 @@ const scrollToAbout = () => {
 .testimonials-section {
   padding: 120px 0;
   overflow: hidden;
+  position: relative;
 }
 
 .theme-light .testimonials-section {
-  background-color: #f8f9fa;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 25%, #f8f9fa 50%, #e9ecef 75%, #f8f9fa 100%);
 }
 
 .theme-dark .testimonials-section {
-  background-color: #1a1a1a;
+  background: linear-gradient(135deg, #1a1a1a 0%, #1e1e1e 25%, #1a1a1a 50%, #1e1e1e 75%, #1a1a1a 100%);
 }
 
 .testimonials-wrapper {
@@ -984,12 +1086,17 @@ const scrollToAbout = () => {
 }
 
 .testimonial-item {
-  min-width: 350px;
-  padding: 40px 30px;
+  min-width: 220px;
+  max-width: 220px;
+  padding: 24px 20px;
   border-radius: 16px;
   text-align: center;
   flex-shrink: 0;
   transition: transform 0.3s ease;
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .theme-light .testimonial-item {
@@ -1007,10 +1114,13 @@ const scrollToAbout = () => {
 }
 
 .testimonial-item p {
-  font-size: 16px;
-  line-height: 1.8;
-  margin-bottom: 30px;
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: 20px;
   font-style: italic;
+  flex: 1;
+  display: flex;
+  align-items: center;
 }
 
 .theme-light .testimonial-item p {
@@ -1024,8 +1134,8 @@ const scrollToAbout = () => {
 .testimonial-author .name {
   display: block;
   font-weight: 600;
-  font-size: 18px;
-  margin-bottom: 8px;
+  font-size: 15px;
+  margin-bottom: 6px;
 }
 
 .theme-light .testimonial-author .name {
@@ -1037,7 +1147,7 @@ const scrollToAbout = () => {
 }
 
 .testimonial-author .info {
-  font-size: 14px;
+  font-size: 12px;
 }
 
 .theme-light .testimonial-author .info {
@@ -1051,10 +1161,6 @@ const scrollToAbout = () => {
 @keyframes scrollTestimonials {
   0% { transform: translateX(0); }
   100% { transform: translateX(-100%); }
-}
-
-.testimonials-scroll:hover {
-  animation-play-state: paused;
 }
 
 /* 风采展示区域样式 */
@@ -1202,21 +1308,37 @@ const scrollToAbout = () => {
   100% { transform: translateX(-100%); }
 }
 
-.showcase-scroll:hover {
-  animation-play-state: paused;
-}
-
 /* 联系我们区域 */
 .contact-section {
   padding: 120px 0;
+  position: relative;
 }
 
 .theme-light .contact-section {
-  background-color: #ffffff;
+  background: linear-gradient(180deg, #ffffff 0%, #f8f9fa 50%, #ffffff 100%);
 }
 
 .theme-dark .contact-section {
-  background-color: #1a1a1a;
+  background: linear-gradient(180deg, #1a1a1a 0%, #1e1e1e 50%, #1a1a1a 100%);
+}
+
+.contact-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  opacity: 0.015;
+  pointer-events: none;
+}
+
+.theme-light .contact-section::before {
+  background: radial-gradient(ellipse at top, #667eea 0%, transparent 70%);
+}
+
+.theme-dark .contact-section::before {
+  background: radial-gradient(ellipse at top, #4facfe 0%, transparent 70%);
 }
 
 .contact-content {
@@ -1276,6 +1398,10 @@ const scrollToAbout = () => {
 }
 
 @media (max-width: 768px) {
+  .main-content {
+    padding-top: 60px; /* 移动端的菜单高度较小 */
+  }
+  
   .hero-content {
     flex-direction: column;
     text-align: center;
@@ -1336,9 +1462,18 @@ const scrollToAbout = () => {
     text-align: center;
   }
   
-  .testimonial-item {
-    min-width: 280px;
+  .feature-card {
     padding: 30px 20px;
+  }
+  
+  .team-card {
+    padding: 24px 20px;
+  }
+  
+  .testimonial-item {
+    min-width: 200px;
+    max-width: 200px;
+    padding: 20px 16px;
   }
   
   .showcase-item {
@@ -1380,9 +1515,18 @@ const scrollToAbout = () => {
     font-size: 24px;
   }
   
-  .testimonial-item {
-    min-width: 240px;
+  .feature-card {
     padding: 24px 16px;
+  }
+  
+  .team-card {
+    padding: 20px 16px;
+  }
+  
+  .testimonial-item {
+    min-width: 180px;
+    max-width: 180px;
+    padding: 16px 12px;
   }
   
   .testimonial-item p {

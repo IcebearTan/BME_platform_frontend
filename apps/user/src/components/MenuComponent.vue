@@ -423,6 +423,12 @@ const handleUserGroup = () => {
     justify-content: center !important;
     padding: 0 20px;
     box-sizing: border-box;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 1000 !important;
+    backdrop-filter: blur(10px);
 }
 
 .menu-content-wrapper {
@@ -477,12 +483,12 @@ const handleUserGroup = () => {
 }
 
 .el-menu-demo.theme-light {
-    background-color: #ffffff;
+    background-color: rgba(255, 255, 255, 0.85);
     color: #333333;
 }
 
 .el-menu-demo.theme-dark {
-    background-color: #000000;
+    background-color: rgba(0, 0, 0, 0.85);
     color: #ecf0f1;
 }
 
