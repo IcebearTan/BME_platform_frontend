@@ -5,6 +5,7 @@ import StudyComponent from './components/Course/StudyComponent.vue'
 import ExamListComponent from './components/ExamListComponent.vue'
 
 import HomeView from './views/HomeView.vue'
+import ProfileView from './views/ProfileView.vue'
 import LoginView from './views/LoginView.vue'
 import RegisterView from './views/RegisterView.vue'
 import ArticleView from './views/ArticleView.vue';
@@ -34,6 +35,11 @@ const router = createRouter({
     routes: [
         {
             path: '/',
+            name: 'profile',
+            component: ProfileView
+        },
+        {
+            path: '/home',
             name: 'home',
             component: HomeView
         },

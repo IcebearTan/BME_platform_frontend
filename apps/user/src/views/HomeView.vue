@@ -83,8 +83,8 @@ const handleEntryClick = (entry) => {
       <MobileMenuComponent v-if="isMobile && isMobileMenuOpen" @close="toggleMobileMenu" />
 
       <el-main class="homeMainContainer">
-        <!-- 如果当前路由是首页，显示自定义布局 -->
-        <div v-if="$route.path === '/' || $route.path === '/home'">
+        <!-- 如果当前路由是学习页面，显示自定义布局 -->
+        <div v-if="$route.path === '/home'">
           <!-- 顶部通知公告 -->
           <UpdateAnnouncement />
           

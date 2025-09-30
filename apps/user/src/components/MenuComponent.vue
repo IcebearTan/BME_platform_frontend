@@ -277,8 +277,11 @@ const handleUserGroup = () => {
                     <img style="width: 50px" src="../assets/Logo_NewYear.png" />
                     <span class="ameii-text">AMEII</span>
                 </el-menu-item>
-                <el-menu-item index="/study">
+                <el-menu-item index="/home">
                     学习
+                </el-menu-item>
+                <el-menu-item index="/study">
+                    课程
                 </el-menu-item>
                 <el-menu-item index="/exam" disabled>
                     考核
