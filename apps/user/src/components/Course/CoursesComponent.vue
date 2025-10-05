@@ -2,8 +2,6 @@
 import { ref, onMounted, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useStore } from 'vuex'
-// import api from '../../../api'
-// import LearningPathComponent from './LearningPathComponent.vue'
 import api from '../../api';
 import LearningPathComponent from './LearningPathComponent.vue'
 
@@ -392,7 +390,7 @@ onMounted(() => {
 
 /* 媒体查询：当屏幕宽度小于等于 768px 时 (竖屏模式) */
 @media (max-width: 768px) {
-    /* .mainContainer 的调整如果 StudyComponent 内部有这个类，也一并移动 */
+    /* .mainContainer 的调整如果 CoursesComponent 内部有这个类，也一并移动 */
     /* 如果 .mainContainer 是 StudyView 的，则保留在 StudyView */
     /* .mainContainer {
     margin-left: 0;
@@ -403,7 +401,7 @@ onMounted(() => {
   } */
 
     .columnContainer {
-        /* 确保这个类名与 StudyComponent.vue 中包裹卡片的容器一致 */
+        /* 确保这个类名与 CoursesComponent.vue 中包裹卡片的容器一致 */
         flex-direction: column !important;
         align-items: center !important;
         width: 100% !important;

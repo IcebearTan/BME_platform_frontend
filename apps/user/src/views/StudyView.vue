@@ -2,8 +2,8 @@
 import { RouterView, useRouter } from "vue-router";
 import MenuComponent from "../components/MenuComponent.vue";
 import MobileMenuComponent from "../components/MobileMenuComponent.vue";
-// StudyComponent 的导入看起来没有在模板中使用，如果确实不需要，可以移除
-// import StudyComponent from '../components/StudyComponent.vue'
+// CoursesComponent 的导入看起来没有在模板中使用，如果确实不需要，可以移除
+// import CoursesComponent from '../components/CoursesComponent.vue'
 import PageFooterComponent from "../components/PageFooterComponent.vue";
 import { useStore } from 'vuex';
 import api from "../api";

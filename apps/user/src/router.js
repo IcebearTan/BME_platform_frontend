@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 
-import StudyDetailsComponent from './components/Course/StudyDetailsComponent.vue'
-import StudyComponent from './components/Course/StudyComponent.vue'
+import CourseDetailsComponent from './components/Course/CourseDetailsComponent.vue'
+import CoursesComponent from './components/Course/CoursesComponent.vue'
 import ExamListComponent from './components/ExamListComponent.vue'
 
 import HomeView from './views/HomeView.vue'
@@ -96,12 +96,12 @@ const router = createRouter({
                 {
                     path: '/study/details',
                     name: 'study_details',
-                    component: StudyDetailsComponent,
+                    component: CourseDetailsComponent,
                 },
                 {
                     path: '',
                     name: 'study_default',
-                    component: StudyComponent,
+                    component: CoursesComponent,
                 }
             ]
         },
@@ -125,7 +125,7 @@ const router = createRouter({
         {
             path: '/discuss',
             name: 'discuss',
-            component: StudyDetailsComponent,
+            component: CourseDetailsComponent,
         },
         {
             path: '/medal',
