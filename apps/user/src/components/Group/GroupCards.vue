@@ -32,11 +32,7 @@
 
     <!-- 空状态 -->
     <div class="empty-state" v-else-if="!loading">
-      <h3 class="empty-title">{{ emptyStateTitle }}</h3>
-      <p class="empty-description">{{ emptyStateDescription }}</p>
-      <button class="create-course-btn" @click="handleCreateCourse">
-        <span class="btn-text">创建新小组</span>
-      </button>
+      <p class="empty-message">{{ emptyStateMessage }}</p>
     </div>
 
     <!-- 加载状态 -->
@@ -67,8 +63,7 @@ const props = defineProps({
 // Emits
 const emit = defineEmits([
   'course-click',
-  'edit-course', 
-  'create-course'
+  'edit-course'
 ]);
 
 // Vuex store
@@ -151,25 +146,23 @@ const filteredCourses = computed(() => {
   );
 });
 
-const emptyStateTitle = computed(() => {
-  return props.courseType === 'my-courses' ? '暂无学习课程' : '暂无教学课程';
-});
-
-const emptyStateDescription = computed(() => {
-  return props.courseType === 'my-courses' 
-    ? '您还没有加入任何课程，快去发现感兴趣的课程吧！'
-    : '您还没有创建任何课程，开始分享您的知识吧！';
+// 空状态消息
+const emptyStateMessage = computed(() => {
+  return props.courseType === 'my-courses' ? '还没有加入小组' : '还没有管理的小组';
 });
 
 // 方法
 const loadCourses = async () => {
   loading.value = true;
   
-  // 模拟API调用
+  // 清空当前数据，立即显示加载状态
+  courses.value = [];
+  
+  // 模拟API调用，减少延迟
   setTimeout(() => {
     courses.value = mockCourses[props.courseType] || [];
     loading.value = false;
-  }, 800);
+  }, 400);
 };
 
 const getStatusText = (status) => {
@@ -365,50 +358,11 @@ onMounted(() => {
   text-align: center;
 }
 
-.empty-icon {
-  font-size: 64px;
-  margin-bottom: 24px;
-  opacity: 0.6;
-}
-
-.empty-title {
-  font-size: 24px;
-  font-weight: 600;
-  color: #4a4a4a;
-  margin: 0 0 12px 0;
-}
-
-.empty-description {
-  font-size: 16px;
-  color: #8a8a8a;
-  line-height: 1.5;
-  margin: 0 0 32px 0;
-  max-width: 400px;
-}
-
-.create-course-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 24px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  border-radius: 12px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-}
-
-.create-course-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
-}
-
-.btn-icon {
+.empty-message {
   font-size: 18px;
+  color: #8a8a8a;
+  font-weight: 500;
+  margin: 0;
 }
 
 /* 加载状态样式 */
@@ -512,6 +466,33 @@ onMounted(() => {
 }
 
 .theme-dark .empty-description,
+.theme-dark .loading-text {
+  color: #a1a1aa;
+}
+
+/* 暗黑主题适配 */
+.theme-dark .course-card {
+  background: rgba(40, 40, 40, 0.8);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.theme-dark .course-card:hover {
+  border-color: rgba(102, 126, 234, 0.4);
+}
+
+.theme-dark .course-title {
+  color: #ffffff;
+}
+
+.theme-dark .course-description,
+.theme-dark .meta-text {
+  color: #a1a1aa;
+}
+
+.theme-dark .empty-message {
+  color: #a1a1aa;
+}
+
 .theme-dark .loading-text {
   color: #a1a1aa;
 }

@@ -5,7 +5,7 @@ import MobileMenuComponent from "../components/MobileMenuComponent.vue";
 import PageFooterComponent from "../components/PageFooterComponent.vue";
 import GroupCards from "../components/Group/GroupCards.vue";
 import { useStore } from 'vuex';
-import { Expand, Search } from '@element-plus/icons-vue';
+import { Expand, Search, Plus } from '@element-plus/icons-vue';
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 
 const store = useStore();
@@ -41,9 +41,9 @@ const toggleMobileMenu = () => {
 };
 
 const handleTabChange = (tabId) => {
-  activeTab.value = tabId;
-  // 这里可以添加路由导航逻辑，例如：
-  // router.push(`/group/${tabId}`);
+  if (activeTab.value === tabId) return; // 如果是同一个标签，不执行切换
+  
+  activeTab.value = tabId; // 直接切换，不显示切换动画
 };
 
 // --- 课程管理事件处理 ---
@@ -65,6 +65,12 @@ function handleCreateCourse() {
 // --- 搜索功能 ---
 function handleSearchInput(value) {
   searchQuery.value = value;
+}
+
+// --- 创建小组功能 ---
+function handleCreateGroup() {
+  console.log('Create new group');
+  // TODO: 实现创建小组功能
 }
 
 onMounted(() => {
@@ -127,22 +133,37 @@ onUnmounted(() => {
 
           <!-- 右侧主内容区 -->
           <div class="content-area">
-            <!-- 顶部搜索栏 -->
-            <div class="search-section">
-              <div class="search-container" :class="{ 'focused': isSearchFocused }">
-                <el-icon class="search-icon">
-                  <Search />
-                </el-icon>
-                <input 
-                  v-model="searchQuery"
-                  type="text" 
-                  class="search-input"
-                  placeholder="搜索课程..."
-                  @input="handleSearchInput"
-                  @focus="isSearchFocused = true"
-                  @blur="isSearchFocused = false"
-                />
+            <!-- 顶部搜索栏和操作区 -->
+            <div class="top-section">
+              <div class="search-section">
+                <div class="search-container" :class="{ 'focused': isSearchFocused }">
+                  <el-icon class="search-icon">
+                    <Search />
+                  </el-icon>
+                  <input 
+                    v-model="searchQuery"
+                    type="text" 
+                    class="search-input"
+                    placeholder="搜索小组..."
+                    @input="handleSearchInput"
+                    @focus="isSearchFocused = true"
+                    @blur="isSearchFocused = false"
+                  />
+                </div>
+                
+                <!-- 创建小组按钮 (仅在我教的课时显示) -->
+                <div class="action-buttons" v-if="activeTab === 'my-teachings'">
+                  <button class="create-group-btn" @click="handleCreateGroup">
+                    <el-icon class="btn-icon">
+                      <Plus />
+                    </el-icon>
+                    <span class="btn-text">创建小组</span>
+                  </button>
+                </div>
               </div>
+              
+              <!-- 分隔线 -->
+              <div class="section-divider"></div>
             </div>
             
             <!-- 课程卡片管理组件 -->
@@ -151,8 +172,7 @@ onUnmounted(() => {
                 :search-query="searchQuery"
                 :course-type="activeTab"
                 @course-click="handleCourseClick"
-                @edit-course="handleEditCourse" 
-                @create-course="handleCreateCourse"
+                @edit-course="handleEditCourse"
               />
             </div>
           </div>
@@ -456,6 +476,26 @@ onUnmounted(() => {
     padding: 20px 16px;
   }
   
+  .search-section {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+    padding-bottom: 16px;
+  }
+  
+  .search-container {
+    max-width: 100%;
+  }
+  
+  .action-buttons {
+    justify-content: flex-end;
+  }
+  
+  .create-group-btn {
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+  
   .content-title {
     font-size: 24px;
   }
@@ -493,16 +533,38 @@ onUnmounted(() => {
   }
 }
 
-/* --- 搜索栏样式 --- */
+/* --- 顶部区域和搜索栏样式 --- */
+.top-section {
+  width: 100%;
+}
+
 .search-section {
   width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  padding-bottom: 20px;
+}
+
+.section-divider {
+  width: 100%;
+  height: 1px;
+  background-color: rgba(0, 0, 0, 0.08);
+  margin-bottom: 4px;
+}
+
+.theme-dark .section-divider {
+  background-color: rgba(255, 255, 255, 0.1);
 }
 
 .search-container {
   position: relative;
-  max-width: 400px;
+  max-width: 320px;
   width: 100%;
+  flex-shrink: 0;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: visible;
 }
 
 .search-container.focused {
@@ -519,6 +581,7 @@ onUnmounted(() => {
   font-size: 18px;
   pointer-events: none;
   transition: color 0.3s ease;
+  z-index: 10;
 }
 
 .search-container.focused .search-icon {
@@ -574,9 +637,57 @@ onUnmounted(() => {
   color: #666666;
 }
 
+.theme-dark .search-icon {
+  color: #a1a1aa;
+}
+
+.theme-dark .search-container.focused .search-icon {
+  color: #8fa4f3;
+}
+
+/* --- 操作按钮样式 --- */
+.action-buttons {
+  display: flex;
+  gap: 12px;
+}
+
+.create-group-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background-color: #667eea;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.create-group-btn:hover {
+  background-color: #5a6fd8;
+}
+
+.create-group-btn:active {
+  background-color: #4c63d2;
+  transform: scale(0.98);
+}
+
+.btn-icon {
+  font-size: 16px;
+}
+
+.btn-text {
+  font-weight: 600;
+}
+
 /* --- 课程区域样式 --- */
 .courses-section {
   flex: 1;
   width: 100%;
+  padding-top: 20px;
 }
 </style>
