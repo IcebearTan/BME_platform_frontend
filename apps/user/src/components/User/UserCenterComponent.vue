@@ -6,7 +6,7 @@ import { ElMessage } from 'element-plus'
 import { useRouter, useRoute } from 'vue-router'
 import { useStore } from 'vuex';
 import { el } from 'element-plus/es/locales.mjs';
-import { DataLine, Message, Setting, User } from '@element-plus/icons-vue';
+import { Message, User } from '@element-plus/icons-vue';
 
 const User_Info = ref({})
 const User_Avatar = ref('');
@@ -86,20 +86,6 @@ const vertifyUserMode = () => {
 const getActiveMenuIndex = (currentPath) => {
   console.log('路由匹配检查 - 当前路径:', currentPath)
   
-  // 处理teaching相关的路由 (包括 /user-center/teaching-management 和 /user-center/teaching/:groupId)
-  if (currentPath.startsWith('/user-center/teaching')) {
-    console.log('匹配到teaching路由')
-    return '/user-center/teaching-management'
-  }
-  
-  // 处理学习小组相关的路由 (包括study-groups、my-groups重定向和study-group详情页)
-  if (currentPath.startsWith('/user-center/study-groups') || 
-      currentPath.startsWith('/user-center/my-groups') ||
-      currentPath.includes('/user-center/study-group/')) {
-    console.log('匹配到my-groups路由 (study-groups/my-groups/study-group)')
-    return '/user-center/my-groups'
-  }
-  
   // 处理user-info的子路由
   if (currentPath.startsWith('/user-center/user-info')) {
     console.log('匹配到user-info路由')
@@ -161,19 +147,6 @@ onMounted(() => {
             <el-menu-item index="/user-center/user-info" @click="router.push('/user-center/user-info')">
               <el-icon><User /></el-icon>
               <span>账户设置</span>
-            </el-menu-item>
-            <el-menu-item index="/user-center/my-groups" @click="router.push('/user-center/study-groups')">
-              <el-icon><DataLine /></el-icon>
-              <span>我的小组</span>
-            </el-menu-item>
-            <!-- 导师专用菜单项 -->
-            <el-menu-item 
-              v-if="vertifyUserMode()" 
-              index="/user-center/teaching-management" 
-              @click="router.push('/user-center/teaching-management')"
-            >
-              <el-icon><Setting /></el-icon>
-              <span>管理小组</span>
             </el-menu-item>
           </div>
           <div class="functionSection">
