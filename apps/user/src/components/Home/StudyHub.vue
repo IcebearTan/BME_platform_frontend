@@ -80,7 +80,7 @@ const banners = ref([
     title: '加入学习小组',
     description: '与同学一起学习，共同进步',
     image: '/src/assets/back_groud.jpg',
-    route: '/user-center/study-groups'
+    route: '/group'
   },
   {
     id: 3,
@@ -106,7 +106,7 @@ const studyEntries = ref([
     title: '学习小组',
     description: '协作学习与交流',
     icon: '👥',
-    route: '/user-center/study-groups',
+    route: '/group',
     color: '#67C23A'
   },
   {

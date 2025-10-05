@@ -21,6 +21,7 @@ import MedalWallComponent from './components/User/MedalWallComponent.vue';
 
 import MedalView from './views/MedalView.vue';
 import NotificationView from './views/NotificationView.vue';
+import GroupView from './views/GroupView.vue';
 
 import MyFeedbacksComponent from './components/User/MyFeedbacksComponent.vue';
 
@@ -143,6 +144,11 @@ const router = createRouter({
             path: '/notifications',
             name: 'notifications',
             component: NotificationView,
+        },
+        {
+            path: '/group',
+            name: 'group',
+            component: GroupView,
         },
     ]
 })
