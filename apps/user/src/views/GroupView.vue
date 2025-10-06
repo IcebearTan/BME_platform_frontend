@@ -4,6 +4,10 @@ import MenuComponent from "../components/MenuComponent.vue";
 import MobileMenuComponent from "../components/MobileMenuComponent.vue";
 import PageFooterComponent from "../components/PageFooterComponent.vue";
 import GroupCards from "../components/Group/GroupCards.vue";
+import GroupSidebar from "../components/Group/GroupSidebar.vue";
+import GroupMembers from "../components/Group/GroupMembers.vue";
+import GroupOverview from "../components/Group/GroupOverview.vue";
+import GroupAnnouncements from "../components/Group/GroupAnnouncements.vue";
 import { useStore } from 'vuex';
 import { Expand, Search, Plus } from '@element-plus/icons-vue';
 import { ref, onMounted, onUnmounted, computed } from 'vue';
@@ -18,12 +22,11 @@ const isDarkMode = computed(() => store.state.isDarkMode);
 const isMobile = ref(window.innerWidth <= 768);
 const isMobileMenuOpen = ref(false);
 
-// --- 侧边栏状态 ---
+// --- 页面状态管理 ---
+const currentMode = ref('list'); // 'list' | 'detail'
 const activeTab = ref('my-courses'); // 默认选择"我听的课"
-const sidebarItems = [
-  { id: 'my-courses', label: '我听的课', icon: '📚' },
-  { id: 'my-teachings', label: '我教的课', icon: '🎓' }
-];
+const activeDetailTab = ref('overview'); // 详情页导航
+const currentGroup = ref(null); // 当前选中的小组
 
 // --- 搜索功能 ---
 const searchQuery = ref('');
@@ -84,9 +87,12 @@ const handleTabChange = (tabId) => {
 };
 
 // --- 课程管理事件处理 ---
-function handleCourseClick(courseId, courseData) {
-  console.log('Course clicked:', courseId, courseData);
-  // TODO: 实现课程详情页导航
+function handleCourseClick(course) {
+  console.log('Course clicked:', course);
+  // 切换到详情模式并设置当前小组
+  currentMode.value = 'detail';
+  currentGroup.value = course;
+  activeDetailTab.value = 'overview';
 }
 
 function handleEditCourse(courseId) {
@@ -134,6 +140,104 @@ function handleFormCancel() {
   isCreateFormVisible.value = false;
 }
 
+// --- 侧边栏事件处理 ---
+function handleSidebarTabChange(tabId) {
+  handleTabChange(tabId);
+}
+
+function handleDetailNavChange(navKey) {
+  activeDetailTab.value = navKey;
+  console.log('Detail nav changed to:', navKey);
+  // TODO: 根据导航项切换详情页内容
+}
+
+function handleBackToList() {
+  currentMode.value = 'list';
+  currentGroup.value = null;
+  activeDetailTab.value = 'overview';
+}
+
+// --- 详情页相关函数 ---
+function getDetailTabLabel(tabKey) {
+  const labelMap = {
+    'overview': '概览',
+    'members': '成员',
+    'announcements': '公告',
+    'tasks': activeTab.value === 'my-teachings' ? '任务管理' : '我的任务',
+    'files': activeTab.value === 'my-teachings' ? '文件管理' : '文件资料',
+    'settings': '小组设置'
+  };
+  return labelMap[tabKey] || '未知功能';
+}
+
+// --- 成员管理事件处理 ---
+function handleMemberAdd() {
+  console.log('添加成员');
+  // TODO: 实现添加成员逻辑
+}
+
+function handleMemberEdit(member) {
+  console.log('编辑成员:', member);
+  // TODO: 实现编辑成员逻辑
+}
+
+function handleMemberRemove(member) {
+  console.log('移除成员:', member);
+  // TODO: 实现移除成员逻辑
+}
+
+function handleMemberRoleChange(member) {
+  console.log('更改成员角色:', member);
+  // TODO: 实现角色更改逻辑
+}
+
+// --- 概览页面事件处理 ---
+function handleQuickAction(actionType) {
+  console.log('快速操作:', actionType);
+  
+  switch (actionType) {
+    case 'announcement':
+      // 切换到公告页面或打开发布公告对话框
+      activeDetailTab.value = 'announcements';
+      break;
+    case 'task':
+      // 切换到任务页面或打开创建任务对话框
+      activeDetailTab.value = 'tasks';
+      break;
+    case 'member':
+      // 切换到成员页面或打开添加成员对话框
+      activeDetailTab.value = 'members';
+      break;
+    case 'file':
+      // 切换到文件页面或打开文件上传对话框
+      activeDetailTab.value = 'files';
+      break;
+    default:
+      console.warn('未知的快速操作类型:', actionType);
+  }
+}
+
+function handleViewActivities() {
+  console.log('查看所有活动');
+  // TODO: 实现查看所有活动逻辑，可能打开活动历史页面或模态框
+}
+
+// --- 公告管理事件处理 ---
+function handleAnnouncementCreate(announcement) {
+  console.log('创建公告:', announcement);
+  // TODO: 实现公告创建逻辑
+}
+
+function handleAnnouncementEdit(announcement) {
+  console.log('编辑公告:', announcement);
+  // TODO: 实现公告编辑逻辑
+}
+
+function handleAnnouncementDelete(announcement) {
+  console.log('删除公告:', announcement);
+  // TODO: 实现公告删除逻辑
+}
+
 onMounted(() => {
   checkScreenSize();
   window.addEventListener('resize', checkScreenSize);
@@ -173,69 +277,127 @@ onUnmounted(() => {
 
       <el-main class="main-container">
         <div class="group-content">
-          <!-- 左侧边栏 -->
-          <div class="sidebar">
-            <div class="sidebar-header">
-              <h2 class="sidebar-title">课程管理</h2>
-            </div>
-            <div class="sidebar-menu">
-              <div 
-                v-for="item in sidebarItems" 
-                :key="item.id"
-                class="sidebar-item"
-                :class="{ 'active': activeTab === item.id }"
-                @click="handleTabChange(item.id)"
-              >
-                <span class="sidebar-icon">{{ item.icon }}</span>
-                <span class="sidebar-label">{{ item.label }}</span>
-              </div>
-            </div>
-          </div>
+          <!-- 独立的侧边栏组件 -->
+          <GroupSidebar 
+            :mode="currentMode"
+            :active-tab="activeTab"
+            :active-detail-tab="activeDetailTab"
+            :current-group="currentGroup"
+            :course-type="activeTab"
+            @tab-change="handleSidebarTabChange"
+            @detail-nav-change="handleDetailNavChange"
+            @back-to-list="handleBackToList"
+          />
 
           <!-- 右侧主内容区 -->
           <div class="content-area">
-            <!-- 顶部搜索栏和操作区 -->
-            <div class="top-section">
-              <div class="search-section">
-                <div class="search-container" :class="{ 'focused': isSearchFocused }">
-                  <el-icon class="search-icon">
-                    <Search />
-                  </el-icon>
-                  <input 
-                    v-model="searchQuery"
-                    type="text" 
-                    class="search-input"
-                    placeholder="搜索小组..."
-                    @input="handleSearchInput"
-                    @focus="isSearchFocused = true"
-                    @blur="isSearchFocused = false"
-                  />
+            <!-- 列表模式：显示搜索栏和课程卡片 -->
+            <template v-if="currentMode === 'list'">
+              <!-- 顶部搜索栏和操作区 -->
+              <div class="top-section">
+                <div class="search-section">
+                  <div class="search-container" :class="{ 'focused': isSearchFocused }">
+                    <el-icon class="search-icon">
+                      <Search />
+                    </el-icon>
+                    <input 
+                      v-model="searchQuery"
+                      type="text" 
+                      class="search-input"
+                      placeholder="搜索小组..."
+                      @input="handleSearchInput"
+                      @focus="isSearchFocused = true"
+                      @blur="isSearchFocused = false"
+                    />
+                  </div>
+                  
+                  <!-- 创建小组按钮 (仅在我教的课时显示) -->
+                  <div class="action-buttons" v-if="activeTab === 'my-teachings'">
+                    <button class="create-group-btn" @click="handleCreateGroup">
+                      <el-icon class="btn-icon">
+                        <Plus />
+                      </el-icon>
+                      <span class="btn-text">创建小组</span>
+                    </button>
+                  </div>
                 </div>
                 
-                <!-- 创建小组按钮 (仅在我教的课时显示) -->
-                <div class="action-buttons" v-if="activeTab === 'my-teachings'">
-                  <button class="create-group-btn" @click="handleCreateGroup">
-                    <el-icon class="btn-icon">
-                      <Plus />
-                    </el-icon>
-                    <span class="btn-text">创建小组</span>
-                  </button>
-                </div>
+                <!-- 分隔线 -->
+                <div class="section-divider"></div>
               </div>
               
-              <!-- 分隔线 -->
-              <div class="section-divider"></div>
-            </div>
-            
-            <!-- 课程卡片管理组件 -->
-            <div class="courses-section">
-              <GroupCards 
-                :search-query="searchQuery"
-                :course-type="activeTab"
-                @course-click="handleCourseClick"
-                @edit-course="handleEditCourse"
-              />
-            </div>
+              <!-- 课程卡片管理组件 -->
+              <div class="courses-section">
+                <GroupCards 
+                  :search-query="searchQuery"
+                  :course-type="activeTab"
+                  @course-click="handleCourseClick"
+                  @edit-course="handleEditCourse"
+                />
+              </div>
+            </template>
+
+            <!-- 详情模式：显示小组详情内容 -->
+            <template v-else-if="currentMode === 'detail'">
+              <div class="detail-content">
+                <div class="detail-header">
+                  <h1 class="detail-title">{{ currentGroup?.title || '小组详情' }}</h1>
+                  <div class="detail-subtitle">当前功能：{{ getDetailTabLabel(activeDetailTab) }}</div>
+                </div>
+                
+                <!-- 详情内容区域 - 根据activeDetailTab显示不同内容 -->
+                <div class="detail-body">
+                  <div v-if="activeDetailTab === 'overview'" class="detail-section">
+                    <GroupOverview 
+                      :group-data="currentGroup"
+                      :course-type="activeTab"
+                      @quick-action="handleQuickAction"
+                      @view-activities="handleViewActivities"
+                    />
+                  </div>
+                  
+                  <div v-else-if="activeDetailTab === 'members'" class="detail-section">
+                    <GroupMembers 
+                      :group-data="currentGroup"
+                      :course-type="activeTab"
+                      @member-add="handleMemberAdd"
+                      @member-edit="handleMemberEdit"
+                      @member-remove="handleMemberRemove"
+                      @member-role-change="handleMemberRoleChange"
+                    />
+                  </div>
+                  
+                  <div v-else-if="activeDetailTab === 'announcements'" class="detail-section">
+                    <GroupAnnouncements 
+                      :group-data="currentGroup"
+                      :course-type="activeTab"
+                      @announcement-create="handleAnnouncementCreate"
+                      @announcement-edit="handleAnnouncementEdit"
+                      @announcement-delete="handleAnnouncementDelete"
+                    />
+                  </div>
+                  
+                  <div v-else-if="activeDetailTab === 'tasks'" class="detail-section">
+                    <h3>{{ activeTab === 'my-teachings' ? '任务管理' : '我的任务' }}</h3>
+                    <p>这里显示任务相关功能...</p>
+                  </div>
+                  
+                  <div v-else-if="activeDetailTab === 'files'" class="detail-section">
+                    <h3>{{ activeTab === 'my-teachings' ? '文件管理' : '文件资料' }}</h3>
+                    <p>这里显示文件相关功能...</p>
+                  </div>
+                  
+                  <div v-else-if="activeDetailTab === 'settings'" class="detail-section">
+                    <h3>小组设置</h3>
+                    <p>这里显示小组设置功能（仅管理员可见）...</p>
+                  </div>
+                  
+                  <div v-else class="detail-section">
+                    <p>功能开发中...</p>
+                  </div>
+                </div>
+              </div>
+            </template>
           </div>
         </div>
       </el-main>
@@ -426,104 +588,79 @@ onUnmounted(() => {
   min-height: calc(100vh - 120px);
 }
 
-/* --- 左侧边栏样式 --- */
-.sidebar {
-  width: 280px;
-  min-width: 280px;
-  padding: 24px 0;
-  border-right: 1px solid rgba(0, 0, 0, 0.06);
+/* --- 详情页样式 --- */
+.detail-content {
+  width: 100%;
+  padding: 20px 0;
 }
 
-.theme-light .sidebar {
-  background-color: rgba(255, 255, 255, 0.8);
-  border-right-color: rgba(0, 0, 0, 0.06);
-}
-
-.theme-dark .sidebar {
-  background-color: rgba(30, 30, 30, 0.8);
-  border-right-color: rgba(255, 255, 255, 0.1);
-}
-
-.sidebar-header {
-  padding: 0 24px 16px 24px;
+.detail-header {
+  margin-bottom: 32px;
+  padding-bottom: 20px;
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-  margin-bottom: 16px;
 }
 
-.theme-dark .sidebar-header {
+.theme-dark .detail-header {
   border-bottom-color: rgba(255, 255, 255, 0.1);
 }
 
-.sidebar-title {
-  font-size: 20px;
-  font-weight: 600;
-  margin: 0;
+.detail-title {
+  font-size: 32px;
+  font-weight: 700;
+  margin: 0 0 8px 0;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
-.sidebar-menu {
-  padding: 0 16px;
-}
-
-.sidebar-item {
-  display: flex;
-  align-items: center;
-  padding: 12px 16px;
-  margin: 4px 0;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  position: relative;
-}
-
-.sidebar-item:hover {
-  transform: translateY(-1px);
-}
-
-.theme-light .sidebar-item:hover {
-  background-color: rgba(102, 126, 234, 0.08);
-}
-
-.theme-dark .sidebar-item:hover {
-  background-color: rgba(102, 126, 234, 0.15);
-}
-
-.sidebar-item.active {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.25);
-}
-
-.theme-light .sidebar-item.active {
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
-  border: 1px solid rgba(102, 126, 234, 0.2);
-}
-
-.theme-dark .sidebar-item.active {
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.2) 100%);
-  border: 1px solid rgba(102, 126, 234, 0.3);
-}
-
-.sidebar-icon {
-  font-size: 20px;
-  margin-right: 12px;
-  flex-shrink: 0;
-}
-
-.sidebar-label {
+.detail-subtitle {
   font-size: 16px;
-  font-weight: 500;
-  flex: 1;
+  color: #6b7280;
+  margin: 0;
 }
 
-.theme-light .sidebar-item.active .sidebar-label {
-  color: #667eea;
+.theme-dark .detail-subtitle {
+  color: #9ca3af;
 }
 
-.theme-dark .sidebar-item.active .sidebar-label {
-  color: #8fa4f3;
+.detail-body {
+  width: 100%;
+}
+
+.detail-section {
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  padding: 24px;
+  margin-bottom: 20px;
+}
+
+.theme-dark .detail-section {
+  background: rgba(40, 40, 40, 0.8);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.detail-section h3 {
+  margin: 0 0 16px 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.theme-dark .detail-section h3 {
+  color: #ffffff;
+}
+
+.detail-section p {
+  margin: 0;
+  color: #6b7280;
+  line-height: 1.6;
+}
+
+.theme-dark .detail-section p {
+  color: #a1a1aa;
 }
 
 /* --- 右侧内容区样式 --- */
@@ -609,29 +746,6 @@ onUnmounted(() => {
     flex-direction: column;
   }
   
-  .sidebar {
-    width: 100%;
-    min-width: auto;
-    border-right: none;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-  }
-  
-  .theme-dark .sidebar {
-    border-bottom-color: rgba(255, 255, 255, 0.1);
-  }
-  
-  .sidebar-menu {
-    display: flex;
-    overflow-x: auto;
-    padding: 0 16px;
-    gap: 8px;
-  }
-  
-  .sidebar-item {
-    flex-shrink: 0;
-    white-space: nowrap;
-  }
-  
   .content-area {
     padding: 20px 16px;
   }
@@ -656,8 +770,12 @@ onUnmounted(() => {
     font-size: 13px;
   }
   
-  .content-title {
+  .detail-title {
     font-size: 24px;
+  }
+  
+  .detail-section {
+    padding: 16px;
   }
   
   .placeholder-content {
@@ -667,21 +785,12 @@ onUnmounted(() => {
 }
 
 @media (max-width: 480px) {
-  .sidebar-item {
-    padding: 10px 12px;
-  }
-  
-  .sidebar-icon {
-    font-size: 18px;
-    margin-right: 8px;
-  }
-  
-  .sidebar-label {
-    font-size: 14px;
-  }
-  
-  .content-title {
+  .detail-title {
     font-size: 20px;
+  }
+  
+  .detail-section {
+    padding: 12px;
   }
   
   .placeholder-icon {
