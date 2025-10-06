@@ -205,16 +205,6 @@
             <div class="action-desc">添加新的小组成员</div>
           </div>
         </div>
-
-        <div class="action-card" @click="handleQuickAction('file')">
-          <div class="action-icon">
-            <el-icon><Upload /></el-icon>
-          </div>
-          <div class="action-content">
-            <div class="action-title">上传资料</div>
-            <div class="action-desc">分享学习资源文件</div>
-          </div>
-        </div>
       </div>
     </div>
 
@@ -344,15 +334,7 @@ const recentActivities = ref([
     timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1天前
     userAvatar: null
   },
-  {
-    id: 4,
-    userName: '赵六',
-    action: '上传了文件',
-    target: '实验报告模板.docx',
-    type: 'file',
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2), // 2天前
-    userAvatar: null
-  }
+
 ]);
 
 // 计算属性
@@ -770,10 +752,6 @@ onMounted(() => {
 
 .type-member {
   background: #667eea;
-}
-
-.type-file {
-  background: #ffa726;
 }
 
 .no-activity {

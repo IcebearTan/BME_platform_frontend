@@ -22,6 +22,7 @@ import MedalWallComponent from './components/User/MedalWallComponent.vue';
 import MedalView from './views/MedalView.vue';
 import NotificationView from './views/NotificationView.vue';
 import GroupView from './views/GroupView.vue';
+import ExerciseSolveView from './views/ExerciseSolveView.vue';
 
 import MyFeedbacksComponent from './components/User/MyFeedbacksComponent.vue';
 
@@ -149,6 +150,12 @@ const router = createRouter({
             path: '/group',
             name: 'group',
             component: GroupView,
+        },
+        {
+            path: '/exercise/:id',
+            name: 'exercise-solve',
+            component: ExerciseSolveView,
+            props: true
         },
     ]
 })

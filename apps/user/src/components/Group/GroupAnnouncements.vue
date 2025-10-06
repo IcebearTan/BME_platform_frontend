@@ -87,10 +87,11 @@
         <!-- 公告内容 -->
         <div class="announcement-content" @click="handleAnnouncementClick(announcement)">
           <div class="announcement-header">
-            <h4 class="announcement-title">{{ announcement.title }}</h4>
-            <div class="announcement-meta">
-              <span class="announcement-author">{{ announcement.author }}</span>
-              <span class="announcement-date">{{ formatDate(announcement.publishDate) }}</span>
+            <div class="announcement-title-row">
+              <h4 class="announcement-title">{{ announcement.title }}</h4>
+              <span class="announcement-category-tag" :class="`category-${announcement.category}`">
+                {{ getCategoryText(announcement.category) }}
+              </span>
             </div>
           </div>
           
@@ -109,11 +110,8 @@
                 <span>{{ announcement.attachments.length }}</span>
               </div>
             </div>
-            
-            <div class="announcement-category">
-              <span class="category-tag" :class="`category-${announcement.category}`">
-                {{ getCategoryText(announcement.category) }}
-              </span>
+            <div class="announcement-date">
+              {{ formatDate(announcement.publishDate) }}
             </div>
           </div>
         </div>
@@ -1114,34 +1112,39 @@ onMounted(() => {
   margin-bottom: 12px;
 }
 
+.announcement-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex: 1;
+}
+
 .announcement-title {
   font-size: 16px;
   font-weight: 600;
   margin: 0;
   color: #1a1a1a;
-  line-height: 1.4;
+  line-height: 1.2;
 }
 
 .theme-dark .announcement-title {
   color: #ffffff;
 }
 
-.announcement-meta {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
-  font-size: 12px;
-  color: #6b7280;
-}
-
-.theme-dark .announcement-meta {
-  color: #9ca3af;
-}
-
-.announcement-author {
+.announcement-category-tag {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 11px;
   font-weight: 500;
+  flex-shrink: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-left: 4px;
+  display: inline-flex;
+  align-items: center;
 }
+
+
 
 .announcement-preview {
   color: #374151;
@@ -1165,6 +1168,16 @@ onMounted(() => {
   gap: 16px;
 }
 
+.announcement-date {
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.theme-dark .announcement-date {
+  color: #9ca3af;
+}
+
 .stat-item {
   display: flex;
   align-items: center;
@@ -1175,18 +1188,6 @@ onMounted(() => {
 
 .theme-dark .stat-item {
   color: #9ca3af;
-}
-
-.announcement-category {
-  display: flex;
-  align-items: center;
-}
-
-.category-tag {
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 500;
 }
 
 .category-notice {

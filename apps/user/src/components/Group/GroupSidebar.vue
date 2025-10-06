@@ -134,15 +134,13 @@ const detailNavItems = computed(() => {
     return [
       ...baseItems,
       { key: 'tasks', label: '任务管理', icon: Document },
-      { key: 'files', label: '文件管理', icon: Document },
       { key: 'settings', label: '小组设置', icon: Setting }
     ];
   } else {
     // 我听的课：学生视角
     return [
       ...baseItems,
-      { key: 'tasks', label: '我的任务', icon: Document },
-      { key: 'files', label: '文件资料', icon: Document }
+      { key: 'tasks', label: '任务单', icon: Document }
     ];
   }
 });

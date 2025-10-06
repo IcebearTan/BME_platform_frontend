@@ -1,5 +1,5 @@
 <script setup>
-import { RouterView, useRouter } from "vue-router";
+import { RouterView, useRouter, useRoute } from "vue-router";
 import MenuComponent from "../components/MenuComponent.vue";
 import MobileMenuComponent from "../components/MobileMenuComponent.vue";
 import PageFooterComponent from "../components/PageFooterComponent.vue";
@@ -8,12 +8,14 @@ import GroupSidebar from "../components/Group/GroupSidebar.vue";
 import GroupMembers from "../components/Group/GroupMembers.vue";
 import GroupOverview from "../components/Group/GroupOverview.vue";
 import GroupAnnouncements from "../components/Group/GroupAnnouncements.vue";
+import GroupTasks from "../components/Group/GroupTasks.vue";
 import { useStore } from 'vuex';
 import { Expand, Search, Plus } from '@element-plus/icons-vue';
-import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 
 const store = useStore();
 const router = useRouter();
+const route = useRoute();
 
 // --- 主题管理 ---
 const isDarkMode = computed(() => store.state.isDarkMode);
@@ -27,6 +29,82 @@ const currentMode = ref('list'); // 'list' | 'detail'
 const activeTab = ref('my-courses'); // 默认选择"我听的课"
 const activeDetailTab = ref('overview'); // 详情页导航
 const currentGroup = ref(null); // 当前选中的小组
+
+// --- 路由状态管理 ---
+const initializeFromRoute = () => {
+  const query = route.query;
+  
+  // 恢复选项卡状态
+  if (query.tab && ['my-courses', 'my-teachings'].includes(query.tab)) {
+    activeTab.value = query.tab;
+  }
+  
+  // 恢复模式状态
+  if (query.mode && ['list', 'detail'].includes(query.mode)) {
+    currentMode.value = query.mode;
+  }
+  
+  // 恢复详情页标签
+  if (query.detailTab && ['overview', 'members', 'announcements', 'tasks', 'settings'].includes(query.detailTab)) {
+    activeDetailTab.value = query.detailTab;
+  }
+  
+  // 恢复当前小组（这里可以根据实际需要从ID获取小组信息）
+  if (query.groupId) {
+    // TODO: 根据 groupId 获取小组信息
+    currentGroup.value = {
+      id: query.groupId,
+      title: query.groupTitle || '小组详情'
+    };
+  }
+  
+  // 恢复搜索状态
+  if (query.search) {
+    searchQuery.value = query.search;
+  }
+};
+
+const updateRouteQuery = () => {
+  const query = {};
+  
+  // 只在非默认状态时添加到URL
+  if (activeTab.value !== 'my-courses') {
+    query.tab = activeTab.value;
+  }
+  
+  if (currentMode.value !== 'list') {
+    query.mode = currentMode.value;
+  }
+  
+  if (activeDetailTab.value !== 'overview' && currentMode.value === 'detail') {
+    query.detailTab = activeDetailTab.value;
+  }
+  
+  if (currentGroup.value?.id) {
+    query.groupId = currentGroup.value.id;
+    if (currentGroup.value.title) {
+      query.groupTitle = currentGroup.value.title;
+    }
+  }
+  
+  if (searchQuery.value) {
+    query.search = searchQuery.value;
+  }
+  
+  // 检查是否需要更新路由
+  const currentQuery = route.query;
+  const queryChanged = JSON.stringify(query) !== JSON.stringify(currentQuery);
+  
+  if (queryChanged) {
+    // 更新路由，但不触发页面刷新
+    router.replace({ 
+      path: route.path, 
+      query: Object.keys(query).length > 0 ? query : {}
+    }).catch(() => {
+      // 忽略导航重复错误
+    });
+  }
+};
 
 // --- 搜索功能 ---
 const searchQuery = ref('');
@@ -84,6 +162,17 @@ const handleTabChange = (tabId) => {
   if (activeTab.value === tabId) return; // 如果是同一个标签，不执行切换
   
   activeTab.value = tabId; // 直接切换，不显示切换动画
+  
+  // 切换标签时重置搜索和详情状态
+  searchQuery.value = '';
+  if (currentMode.value === 'detail') {
+    currentMode.value = 'list';
+    currentGroup.value = null;
+    activeDetailTab.value = 'overview';
+  }
+  
+  // 更新路由状态
+  updateRouteQuery();
 };
 
 // --- 课程管理事件处理 ---
@@ -93,6 +182,9 @@ function handleCourseClick(course) {
   currentMode.value = 'detail';
   currentGroup.value = course;
   activeDetailTab.value = 'overview';
+  
+  // 更新路由状态
+  updateRouteQuery();
 }
 
 function handleEditCourse(courseId) {
@@ -148,13 +240,18 @@ function handleSidebarTabChange(tabId) {
 function handleDetailNavChange(navKey) {
   activeDetailTab.value = navKey;
   console.log('Detail nav changed to:', navKey);
-  // TODO: 根据导航项切换详情页内容
+  
+  // 更新路由状态
+  updateRouteQuery();
 }
 
 function handleBackToList() {
   currentMode.value = 'list';
   currentGroup.value = null;
   activeDetailTab.value = 'overview';
+  
+  // 更新路由状态
+  updateRouteQuery();
 }
 
 // --- 详情页相关函数 ---
@@ -164,7 +261,6 @@ function getDetailTabLabel(tabKey) {
     'members': '成员',
     'announcements': '公告',
     'tasks': activeTab.value === 'my-teachings' ? '任务管理' : '我的任务',
-    'files': activeTab.value === 'my-teachings' ? '文件管理' : '文件资料',
     'settings': '小组设置'
   };
   return labelMap[tabKey] || '未知功能';
@@ -208,13 +304,11 @@ function handleQuickAction(actionType) {
       // 切换到成员页面或打开添加成员对话框
       activeDetailTab.value = 'members';
       break;
-    case 'file':
-      // 切换到文件页面或打开文件上传对话框
-      activeDetailTab.value = 'files';
-      break;
     default:
       console.warn('未知的快速操作类型:', actionType);
   }
+  
+  // 路由状态会通过 watch 自动更新
 }
 
 function handleViewActivities() {
@@ -238,9 +332,55 @@ function handleAnnouncementDelete(announcement) {
   // TODO: 实现公告删除逻辑
 }
 
+// --- 任务管理事件处理 ---
+function handleTaskCreate(task) {
+  console.log('创建任务:', task);
+  // TODO: 实现任务创建逻辑
+}
+
+function handleTaskEdit(task) {
+  console.log('编辑任务:', task);
+  // TODO: 实现任务编辑逻辑
+}
+
+function handleTaskDelete(task) {
+  console.log('删除任务:', task);
+  // TODO: 实现任务删除逻辑
+}
+
+function handleTaskSubmit(task) {
+  console.log('提交任务:', task);
+  // TODO: 实现任务提交逻辑
+}
+
+// --- 监听器和生命周期 ---
+// 标记是否正在从路由初始化，避免循环更新
+const isInitializingFromRoute = ref(false);
+
+// 监听路由变化
+watch(() => route.query, () => {
+  isInitializingFromRoute.value = true;
+  initializeFromRoute();
+  // 延迟重置标记，确保所有状态更新完成
+  setTimeout(() => {
+    isInitializingFromRoute.value = false;
+  }, 100);
+}, { immediate: false });
+
+// 监听状态变化，自动更新路由
+watch([currentMode, activeTab, activeDetailTab, currentGroup, searchQuery], () => {
+  // 只在非路由初始化时更新路由
+  if (!isInitializingFromRoute.value) {
+    updateRouteQuery();
+  }
+}, { deep: true });
+
 onMounted(() => {
   checkScreenSize();
   window.addEventListener('resize', checkScreenSize);
+  
+  // 从路由初始化状态
+  initializeFromRoute();
 });
 
 onUnmounted(() => {
@@ -378,13 +518,14 @@ onUnmounted(() => {
                   </div>
                   
                   <div v-else-if="activeDetailTab === 'tasks'" class="detail-section">
-                    <h3>{{ activeTab === 'my-teachings' ? '任务管理' : '我的任务' }}</h3>
-                    <p>这里显示任务相关功能...</p>
-                  </div>
-                  
-                  <div v-else-if="activeDetailTab === 'files'" class="detail-section">
-                    <h3>{{ activeTab === 'my-teachings' ? '文件管理' : '文件资料' }}</h3>
-                    <p>这里显示文件相关功能...</p>
+                    <GroupTasks 
+                      :group-data="currentGroup"
+                      :course-type="activeTab"
+                      @task-create="handleTaskCreate"
+                      @task-edit="handleTaskEdit"
+                      @task-delete="handleTaskDelete"
+                      @task-submit="handleTaskSubmit"
+                    />
                   </div>
                   
                   <div v-else-if="activeDetailTab === 'settings'" class="detail-section">
