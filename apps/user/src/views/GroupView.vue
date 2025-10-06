@@ -29,6 +29,43 @@ const sidebarItems = [
 const searchQuery = ref('');
 const isSearchFocused = ref(false);
 
+// --- 创建小组表单 ---
+const isCreateFormVisible = ref(false);
+const createGroupForm = ref({
+  courseBinding: '',
+  groupType: 'study', // 'study' or 'project'
+  tutor: '当前用户', // 默认绑定自己
+  academicYear: '',
+  semester: '',
+  studentLimit: 30
+});
+
+const courseOptions = [
+  { value: 'course1', label: '生物医学工程导论' },
+  { value: 'course2', label: '医学图像处理' },
+  { value: 'course3', label: '生物信号处理' },
+  { value: 'course4', label: '医疗器械设计' },
+  { value: 'course5', label: '人工智能在医学中的应用' }
+];
+
+const academicYearOptions = [
+  { value: '2024', label: '2024年' },
+  { value: '2025', label: '2025年' },
+  { value: '2026', label: '2026年' }
+];
+
+const semesterOptions = [
+  { value: 'spring', label: '春季' },
+  { value: 'summer', label: '夏季' },
+  { value: 'autumn', label: '秋季' },
+  { value: 'winter', label: '冬季' }
+];
+
+const groupTypeOptions = [
+  { value: 'study', label: '学习组', disabled: false },
+  { value: 'project', label: '项目组', disabled: true }
+];
+
 const checkScreenSize = () => {
   isMobile.value = window.innerWidth <= 768;
   if (!isMobile.value) {
@@ -69,8 +106,32 @@ function handleSearchInput(value) {
 
 // --- 创建小组功能 ---
 function handleCreateGroup() {
-  console.log('Create new group');
-  // TODO: 实现创建小组功能
+  isCreateFormVisible.value = true;
+  // 重置表单
+  createGroupForm.value = {
+    courseBinding: '',
+    groupType: 'study',
+    tutor: '当前用户',
+    academicYear: '',
+    semester: '',
+    studentLimit: 30
+  };
+}
+
+function handleFormSubmit() {
+  console.log('Creating group with data:', createGroupForm.value);
+  // TODO: 实现创建小组API调用
+  
+  // 模拟创建成功
+  setTimeout(() => {
+    isCreateFormVisible.value = false;
+    // 可以添加成功提示
+    console.log('小组创建成功！');
+  }, 1000);
+}
+
+function handleFormCancel() {
+  isCreateFormVisible.value = false;
 }
 
 onMounted(() => {
@@ -183,6 +244,105 @@ onUnmounted(() => {
         <PageFooterComponent />
       </el-footer>
     </el-container>
+
+    <!-- 创建小组表单对话框 -->
+    <el-dialog 
+      v-model="isCreateFormVisible" 
+      title="创建小组" 
+      width="500px"
+      :before-close="handleFormCancel"
+    >
+      <el-form :model="createGroupForm" label-width="100px">
+        <el-form-item label="绑定课程" required>
+          <el-select 
+            v-model="createGroupForm.courseBinding" 
+            placeholder="请选择课程"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="option in courseOptions"
+              :key="option.value"
+              :label="option.label"
+              :value="option.value"
+            />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="小组类型" required>
+          <el-radio-group v-model="createGroupForm.groupType">
+            <el-radio 
+              v-for="option in groupTypeOptions"
+              :key="option.value"
+              :label="option.value"
+              :disabled="option.disabled"
+            >
+              {{ option.label }}
+              <span v-if="option.disabled" class="disabled-tip">（暂不可选）</span>
+            </el-radio>
+          </el-radio-group>
+        </el-form-item>
+
+        <el-form-item label="导生">
+          <el-input 
+            v-model="createGroupForm.tutor" 
+            disabled
+            placeholder="导生姓名"
+          />
+          <div class="form-tip">默认绑定为当前用户</div>
+        </el-form-item>
+
+        <el-form-item label="学年学期" required>
+          <div class="year-semester-container">
+            <el-select 
+              v-model="createGroupForm.academicYear" 
+              placeholder="选择学年"
+            >
+              <el-option
+                v-for="option in academicYearOptions"
+                :key="option.value"
+                :label="option.label"
+                :value="option.value"
+              />
+            </el-select>
+            <el-select 
+              v-model="createGroupForm.semester" 
+              placeholder="选择学期"
+            >
+              <el-option
+                v-for="option in semesterOptions"
+                :key="option.value"
+                :label="option.label"
+                :value="option.value"
+              />
+            </el-select>
+          </div>
+        </el-form-item>
+
+        <el-form-item label="人数限制" required>
+          <el-input-number 
+            v-model="createGroupForm.studentLimit"
+            :min="1"
+            :max="100"
+            controls-position="right"
+            style="width: 100%"
+          />
+          <div class="form-tip">建议设置为10-50人</div>
+        </el-form-item>
+      </el-form>
+
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="handleFormCancel">取消</el-button>
+          <el-button 
+            type="primary" 
+            @click="handleFormSubmit"
+            :disabled="!createGroupForm.courseBinding || !createGroupForm.academicYear || !createGroupForm.semester"
+          >
+            创建小组
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -689,5 +849,83 @@ onUnmounted(() => {
   flex: 1;
   width: 100%;
   padding-top: 20px;
+}
+
+/* --- 创建小组表单样式 --- */
+.form-tip {
+  font-size: 12px;
+  color: #999999;
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+.theme-dark .form-tip {
+  color: #888888;
+}
+
+.year-semester-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.year-semester-container .el-select {
+  flex: 1;
+}
+
+/* 确保下拉选择框的显示 */
+:deep(.year-semester-container .el-select .el-input) {
+  width: 100%;
+}
+
+:deep(.year-semester-container .el-select .el-input__inner) {
+  border-radius: 8px;
+}
+
+.disabled-tip {
+  font-size: 12px;
+  color: #999999;
+  margin-left: 4px;
+}
+
+.theme-dark .disabled-tip {
+  color: #888888;
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+/* Element Plus 对话框样式自定义 */
+:deep(.el-dialog) {
+  border-radius: 12px;
+}
+
+:deep(.el-dialog__header) {
+  padding: 20px 20px 10px 20px;
+}
+
+:deep(.el-dialog__body) {
+  padding: 10px 20px 20px 20px;
+}
+
+:deep(.el-dialog__footer) {
+  padding: 10px 20px 20px 20px;
+}
+
+:deep(.el-form-item__label) {
+  font-weight: 500;
+}
+
+:deep(.el-input__inner) {
+  border-radius: 8px;
+}
+
+:deep(.el-select .el-input__inner) {
+  border-radius: 8px;
 }
 </style>

@@ -12,6 +12,9 @@
           <div class="course-status" :class="getStatusClass(course.status)">
             {{ getStatusText(course.status) }}
           </div>
+          <div class="academic-year">
+            {{ formatAcademicYear(course.academicYear, course.semester) }}
+          </div>
         </div>
         
         <div class="course-card-content">
@@ -86,6 +89,8 @@ const mockCourses = {
       status: 'active',
       studentCount: 156,
       tutorName: '张教授',
+      academicYear: '2024',
+      semester: 'autumn',
       lastUpdated: new Date('2024-10-01'),
       createdAt: new Date('2024-09-15')
     },
@@ -96,6 +101,8 @@ const mockCourses = {
       status: 'completed',
       studentCount: 89,
       tutorName: '李老师',
+      academicYear: '2024',
+      semester: 'summer',
       lastUpdated: new Date('2024-09-20'),
       createdAt: new Date('2024-08-01')
     },
@@ -106,6 +113,8 @@ const mockCourses = {
       status: 'completed',
       studentCount: 234,
       tutorName: '王博士',
+      academicYear: '2024',
+      semester: 'spring',
       lastUpdated: new Date('2024-09-25'),
       createdAt: new Date('2024-09-01')
     }
@@ -118,6 +127,8 @@ const mockCourses = {
       status: 'active',
       studentCount: 45,
       tutorName: '陈老师',
+      academicYear: '2024',
+      semester: 'autumn',
       lastUpdated: new Date('2024-10-05'),
       createdAt: new Date('2024-09-10')
     },
@@ -128,6 +139,8 @@ const mockCourses = {
       status: 'active',
       studentCount: 12,
       tutorName: '刘教授',
+      academicYear: '2025',
+      semester: 'winter',
       lastUpdated: new Date('2024-10-02'),
       createdAt: new Date('2024-09-28')
     }
@@ -184,6 +197,20 @@ const getStatusClass = (status) => {
     'draft': 'status-active' // 草稿状态显示为进行中
   };
   return statusClassMap[status] || 'status-active';
+};
+
+const formatAcademicYear = (year, semester) => {
+  const semesterMap = {
+    'spring': '春',
+    'summer': '夏',
+    'autumn': '秋',
+    'winter': '冬'
+  };
+  
+  if (year && semester) {
+    return `${year}年${semesterMap[semester] || semester}季`;
+  }
+  return year ? `${year}年` : '';
 };
 
 const formatDuration = (seconds) => {
@@ -271,6 +298,15 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px 0 20px;
+}
+
+.academic-year {
+  font-size: 12px;
+  font-weight: 500;
+  color: #6b7280;
+  padding: 2px 8px;
+  border-radius: 8px;
+  background-color: rgba(107, 114, 128, 0.1);
 }
 
 .course-status {
@@ -495,5 +531,10 @@ onMounted(() => {
 
 .theme-dark .loading-text {
   color: #a1a1aa;
+}
+
+.theme-dark .academic-year {
+  color: #a1a1aa;
+  background-color: rgba(161, 161, 170, 0.15);
 }
 </style>
