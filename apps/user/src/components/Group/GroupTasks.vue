@@ -4,7 +4,7 @@
     <div class="tasks-header">
       <div class="header-info">
         <h3 class="tasks-title">{{ isTeacher ? '任务管理' : '我的任务单' }}</h3>
-        <div class="tasks-count">共 {{ filteredTasks.length }} 个任务</div>
+        <div class="tasks-count">共 {{ tasks.length }} 个任务</div>
       </div>
       
       <!-- 管理员操作 -->
@@ -26,217 +26,24 @@
       </div>
     </div>
 
-    <!-- 搜索和筛选 -->
-    <div class="tasks-filters">
-      <div class="search-container">
-        <el-icon class="search-icon">
-          <Search />
-        </el-icon>
-        <input 
-          v-model="searchQuery"
-          type="text" 
-          class="search-input"
-          placeholder="搜索任务单标题或内容..."
-        />
-      </div>
-      
-      <div class="filter-section">
-        <!-- 截止时间筛选 -->
-        <div class="filter-group">
-          <span class="filter-group-label">按截止时间：</span>
-          <div class="filter-tabs">
-            <div 
-              v-for="filter in taskFilters"
-              :key="filter.key"
-              class="filter-tab"
-              :class="{ 'active': activeFilter === filter.key }"
-              @click="activeFilter = filter.key"
-            >
-              <span class="filter-label">{{ filter.label }}</span>
-              <span class="filter-count">({{ getFilterCount(filter.key) }})</span>
-            </div>
-          </div>
-        </div>
-        
-        <!-- 类型筛选 -->
-        <div class="filter-group">
-          <span class="filter-group-label">类型筛选：</span>
-          <div class="filter-tabs">
-            <div 
-              v-for="typeFilter in taskTypeFilters"
-              :key="typeFilter.key"
-              class="filter-tab"
-              :class="{ 'active': activeTypeFilter === typeFilter.key }"
-              @click="activeTypeFilter = typeFilter.key"
-            >
-              <span class="filter-label">{{ typeFilter.label }}</span>
-              <span class="filter-count">({{ getTypeFilterCount(typeFilter.key) }})</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 任务列表 -->
-    <div class="tasks-list" v-if="filteredTasks.length > 0">
-      <div 
-        v-for="(group, groupKey) in groupedTasks"
-        :key="groupKey"
-        class="date-group"
-      >
-        <!-- 日期分组标题 -->
-        <div class="date-group-header">
-          <h4 class="date-group-title">{{ group.label }}</h4>
-          <div class="date-group-count">{{ group.tasks.length }} 个任务单</div>
-        </div>
-        
-        <!-- 该日期组的任务 -->
-        <div 
-          v-for="task in group.tasks" 
-          :key="task.id"
-          class="task-card"
-          :class="{ 
-            'selected': selectedTasks.includes(task.id),
-            'overdue': isOverdue(task)
-          }"
-        >
-          <!-- 选择框（仅管理员批量模式可见） -->
-          <div v-if="isTeacher && batchMode" class="task-checkbox">
-            <el-checkbox 
-              v-model="selectedTasks"
-              :label="task.id"
-            />
-          </div>
-
-          <!-- 任务状态指示器 -->
-          <div class="task-status-indicator" :class="`status-${getTaskActualStatus(task)}`"></div>
-
-          <!-- 任务内容 -->
-          <div class="task-content" @click="handleTaskClick(task)">
-            <div class="task-header">
-              <div class="task-title-row">
-                <h4 class="task-title">{{ task.title }}</h4>
-                <span class="task-type-badge" :class="`type-${task.type}`">
-                  {{ getTaskTypeText(task.type) }}
-                </span>
-              </div>
-            </div>
-            
-            <div class="task-description" v-if="task.description">
-              {{ getPreviewText(task.description) }}
-            </div>
-            
-            <div class="task-footer">
-              <div class="task-info">
-                <div class="task-deadline">
-                  <el-icon><Clock /></el-icon>
-                  <span>
-                    截止：{{ formatDueDate(task.dueDate) }}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- 操作菜单（仅管理员可见） -->
-          <div v-if="isTeacher" class="task-actions">
-            <el-dropdown trigger="click" @command="handleTaskAction">
-              <el-button type="text" class="action-btn">
-                <el-icon><MoreFilled /></el-icon>
-              </el-button>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item :command="{ action: 'edit', task }">编辑任务</el-dropdown-item>
-                  <el-dropdown-item :command="{ action: 'duplicate', task }">复制任务</el-dropdown-item>
-                  <el-dropdown-item :command="{ action: 'stats', task }">查看统计</el-dropdown-item>
-                  <el-dropdown-item 
-                    :command="{ action: 'delete', task }"
-                    class="danger-item"
-                  >
-                    删除任务
-                  </el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-          </div>
-
-          <!-- 学生操作区域 -->
-          <div v-else class="student-actions">
-            <div class="action-section">
-              <!-- 状态显示 -->
-              <div class="task-status">
-                <span class="status-tag" :class="`status-${getTaskActualStatus(task)}`">
-                  {{ getStatusText(getTaskActualStatus(task)) }}
-                </span>
-              </div>
-              
-              <!-- 操作按钮 -->
-              <div class="action-buttons">
-                <template v-if="task.type === 'exercise'">
-                  <!-- 题目任务单：解题按钮 -->
-                  <el-button 
-                    v-if="getTaskActualStatus(task) !== 'completed'"
-                    :type="getTaskActualStatus(task) === 'overdue' ? 'danger' : 'primary'"
-                    @click.stop="handleSolveExercise(task)"
-                  >
-                    <el-icon><EditPen /></el-icon>
-                    {{ getTaskActualStatus(task) === 'overdue' ? '补做题目' : '开始解题' }}
-                  </el-button>
-                </template>
-                
-                <template v-else>
-                  <!-- 自定义任务单：提交按钮 -->
-                  <el-button 
-                    v-if="getTaskActualStatus(task) !== 'completed'"
-                    :type="getTaskActualStatus(task) === 'overdue' ? 'danger' : 'primary'"
-                    @click.stop="handleSubmitTask(task)"
-                  >
-                    <el-icon><Upload /></el-icon>
-                    {{ getTaskActualStatus(task) === 'overdue' ? '补交任务' : '提交任务' }}
-                  </el-button>
-                </template>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 空状态 -->
-    <div v-else-if="!loading" class="empty-state">
-      <div class="empty-icon">📋</div>
-      <p class="empty-message">{{ getEmptyMessage() }}</p>
-      <div v-if="isTeacher" class="empty-actions">
-        <el-button type="primary" @click="handleCreateTask('custom')">
-          创建自定义任务
-        </el-button>
-        <el-button type="success" @click="handleCreateTask('exercise')">
-          创建题目
-        </el-button>
-      </div>
-    </div>
-
-    <!-- 加载状态 -->
-    <div v-else class="loading-state">
-      <div class="loading-spinner"></div>
-      <p class="loading-text">加载任务中...</p>
-    </div>
-
-    <!-- 批量操作栏 -->
-    <div v-if="isTeacher && batchMode" class="batch-actions">
-      <div class="batch-info">
-        已选择 {{ selectedTasks.length }} 个任务单
-      </div>
-      <div class="batch-buttons">
-        <el-button size="small" @click="handleSelectAll">
-          {{ isAllSelected ? '取消全选' : '全选' }}
-        </el-button>
-        <el-button size="small" type="danger" @click="handleBatchDelete" :disabled="selectedTasks.length === 0">
-          批量删除
-        </el-button>
-        <el-button size="small" @click="cancelBatchMode">取消</el-button>
-      </div>
-    </div>
+    <!-- 任务列表组件 -->
+    <TaskList
+      :tasks="tasks"
+      :is-teacher="isTeacher"
+      :loading="loading"
+      :batch-mode="batchMode"
+      :selected-tasks="selectedTasks"
+      :is-dark-mode="isDarkMode"
+      @task-click="handleTaskClick"
+      @task-action="handleTaskAction"
+      @solve-exercise="handleSolveExercise"
+      @submit-task="handleSubmitTask"
+      @create-task="handleCreateTask"
+      @cancel-batch-mode="cancelBatchMode"
+      @batch-delete="handleBatchDelete"
+      @select-all="handleSelectAll"
+      @update:selected-tasks="selectedTasks = $event"
+    />
 
     <!-- 创建/编辑任务单对话框 -->
     <el-dialog 
@@ -579,6 +386,7 @@ import {
   VideoPlay,
   Upload
 } from '@element-plus/icons-vue';
+import TaskList from './TaskList.vue';
 
 // Props
 const props = defineProps({
@@ -608,9 +416,6 @@ const router = useRouter();
 // 响应式数据
 const tasks = ref([]);
 const loading = ref(true);
-const searchQuery = ref('');
-const activeFilter = ref('all');
-const activeTypeFilter = ref('all');
 const selectedTasks = ref([]);
 const batchMode = ref(false);
 const saving = ref(false);
@@ -723,28 +528,11 @@ const hasActiveFilters = computed(() => {
   }
 });
 
-// 按截止时间筛选选项
-const taskFilters = [
-  { key: 'all', label: '全部任务' },
-  { key: 'today', label: '今日截止' },
-  { key: 'tomorrow', label: '明日截止' },
-  { key: 'week', label: '本周截止' },
-  { key: 'overdue', label: '已逾期' },
-  { key: 'no_due', label: '无截止时间' }
-];
-
 // 任务状态选项（简化为三种状态）
 const taskStatusOptions = [
   { value: 'pending', label: '未完成' },
   { value: 'completed', label: '已完成' },
   { value: 'overdue', label: '已逾期' }
-];
-
-// 任务类型筛选选项
-const taskTypeFilters = [
-  { key: 'all', label: '全部类型' },
-  { key: 'exercise', label: '题目' },
-  { key: 'custom', label: '自定义任务' }
 ];
 
 // 优先级选项
@@ -882,105 +670,6 @@ const mockTasks = [
 ];
 
 // 计算属性
-const filteredTasks = computed(() => {
-  let filtered = tasks.value;
-
-  // 搜索过滤
-  if (searchQuery.value) {
-    filtered = filtered.filter(task => 
-      task.title.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      task.description.toLowerCase().includes(searchQuery.value.toLowerCase())
-    );
-  }
-
-  // 按截止时间筛选
-  if (activeFilter.value !== 'all') {
-    filtered = filtered.filter(task => {
-      const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const tomorrow = new Date(today);
-      tomorrow.setDate(today.getDate() + 1);
-      const weekEnd = new Date(today);
-      weekEnd.setDate(today.getDate() + (7 - today.getDay())); // 本周日
-      
-      const dueDate = task.dueDate ? new Date(task.dueDate) : null;
-      
-      switch (activeFilter.value) {
-        case 'today':
-          return dueDate && dueDate >= today && dueDate < tomorrow;
-        case 'tomorrow':
-          const dayAfterTomorrow = new Date(tomorrow);
-          dayAfterTomorrow.setDate(tomorrow.getDate() + 1);
-          return dueDate && dueDate >= tomorrow && dueDate < dayAfterTomorrow;
-        case 'week':
-          return dueDate && dueDate > tomorrow && dueDate <= weekEnd;
-        case 'overdue':
-          return dueDate && dueDate < today && task.status !== 'completed';
-        case 'no_due':
-          return !dueDate;
-        default:
-          return true;
-      }
-    });
-  }
-
-  // 类型过滤
-  if (activeTypeFilter.value !== 'all') {
-    filtered = filtered.filter(task => {
-      return task.type === activeTypeFilter.value;
-    });
-  }
-
-  // 按优先级和创建时间排序
-  return filtered.sort((a, b) => {
-    const priorityOrder = { high: 3, medium: 2, low: 1 };
-    if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
-      return priorityOrder[b.priority] - priorityOrder[a.priority];
-    }
-    return new Date(b.createDate) - new Date(a.createDate);
-  });
-});
-
-// 按日期分组的任务
-const groupedTasks = computed(() => {
-  const groups = {};
-  
-  filteredTasks.value.forEach(task => {
-    const dateKey = getDateGroup(task.createDate || task.assignedDate);
-    if (!groups[dateKey]) {
-      groups[dateKey] = {
-        label: getDateGroupLabel(task.createDate || task.assignedDate),
-        tasks: [],
-        date: task.createDate || task.assignedDate
-      };
-    }
-    groups[dateKey].tasks.push(task);
-  });
-  
-  // 按日期排序分组，最新的在前
-  const sortedGroups = {};
-  Object.keys(groups)
-    .sort((a, b) => new Date(groups[b].date) - new Date(groups[a].date))
-    .forEach(key => {
-      sortedGroups[key] = groups[key];
-      // 每个分组内的任务按优先级排序
-      sortedGroups[key].tasks.sort((a, b) => {
-        const priorityOrder = { high: 3, medium: 2, low: 1 };
-        if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
-          return priorityOrder[b.priority] - priorityOrder[a.priority];
-        }
-        return new Date(b.createDate || b.assignedDate) - new Date(a.createDate || a.assignedDate);
-      });
-    });
-  
-  return sortedGroups;
-});
-
-// 是否全选
-const isAllSelected = computed(() => {
-  return filteredTasks.value.length > 0 && 
-         selectedTasks.value.length === filteredTasks.value.length;
-});
 
 // 方法
 const loadTasks = async () => {
@@ -994,166 +683,13 @@ const loadTasks = async () => {
   }, 500);
 };
 
-const getFilterCount = (filterKey) => {
-  if (filterKey === 'all') return tasks.value.length;
-  
-  return tasks.value.filter(task => {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const tomorrow = new Date(today);
-    tomorrow.setDate(today.getDate() + 1);
-    const weekEnd = new Date(today);
-    weekEnd.setDate(today.getDate() + (7 - today.getDay()));
-    
-    const dueDate = task.dueDate ? new Date(task.dueDate) : null;
-    
-    switch (filterKey) {
-      case 'today':
-        return dueDate && dueDate >= today && dueDate < tomorrow;
-      case 'tomorrow':
-        const dayAfterTomorrow = new Date(tomorrow);
-        dayAfterTomorrow.setDate(tomorrow.getDate() + 1);
-        return dueDate && dueDate >= tomorrow && dueDate < dayAfterTomorrow;
-      case 'week':
-        return dueDate && dueDate > tomorrow && dueDate <= weekEnd;
-      case 'overdue':
-        return dueDate && dueDate < today && task.status !== 'completed';
-      case 'no_due':
-        return !dueDate;
-      default:
-        return true;
-    }
-  }).length;
-};
 
-const getTypeFilterCount = (typeKey) => {
-  if (typeKey === 'all') return tasks.value.length;
-  
-  return tasks.value.filter(task => {
-    return task.type === typeKey;
-  }).length;
-};
 
-const getTaskTypeText = (type) => {
-  const typeMap = {
-    'exercise': '题目',
-    'custom': '自定义'
-  };
-  return typeMap[type] || type;
-};
 
-const getPriorityText = (priority) => {
-  const priorityMap = {
-    'high': '高优先级',
-    'medium': '中优先级',
-    'low': '低优先级'
-  };
-  return priorityMap[priority] || priority;
-};
 
-// 获取任务的实际状态（简化为三种状态）
-const getTaskActualStatus = (task) => {
-  // 如果已完成，返回已完成状态
-  if (task.status === 'completed') {
-    return 'completed';
-  }
-  
-  // 如果未完成但超过截止时间，返回逾期状态
-  if (task.dueDate && new Date() > new Date(task.dueDate)) {
-    return 'overdue';
-  }
-  
-  // 其他情况都是未完成状态
-  return 'pending';
-};
 
-const getStatusText = (status) => {
-  const statusMap = {
-    'pending': '未完成',
-    'completed': '已完成', 
-    'overdue': '已逾期'
-  };
-  return statusMap[status] || status;
-};
 
-// 日期分组函数 - 精确到具体日期
-const getDateGroup = (date) => {
-  const taskDate = new Date(date);
-  // 返回 YYYY-MM-DD 格式的日期字符串
-  return taskDate.getFullYear() + '-' + 
-         String(taskDate.getMonth() + 1).padStart(2, '0') + '-' + 
-         String(taskDate.getDate()).padStart(2, '0');
-};
 
-const getDateGroupLabel = (date) => {
-  const taskDate = new Date(date);
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const yesterday = new Date(today);
-  yesterday.setDate(today.getDate() - 1);
-  
-  // 判断是否为今天
-  if (taskDate.getFullYear() === today.getFullYear() && 
-      taskDate.getMonth() === today.getMonth() && 
-      taskDate.getDate() === today.getDate()) {
-    return '今天 (' + formatDateShort(taskDate) + ')';
-  }
-  
-  // 判断是否为昨天
-  if (taskDate.getFullYear() === yesterday.getFullYear() && 
-      taskDate.getMonth() === yesterday.getMonth() && 
-      taskDate.getDate() === yesterday.getDate()) {
-    return '昨天 (' + formatDateShort(taskDate) + ')';
-  }
-  
-  // 判断是否为明天
-  const tomorrow = new Date(today);
-  tomorrow.setDate(today.getDate() + 1);
-  if (taskDate.getFullYear() === tomorrow.getFullYear() && 
-      taskDate.getMonth() === tomorrow.getMonth() && 
-      taskDate.getDate() === tomorrow.getDate()) {
-    return '明天 (' + formatDateShort(taskDate) + ')';
-  }
-  
-  // 其他日期显示具体日期和星期
-  const weekDays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-  const weekDay = weekDays[taskDate.getDay()];
-  
-  // 如果是本年，不显示年份
-  if (taskDate.getFullYear() === now.getFullYear()) {
-    return `${taskDate.getMonth() + 1}月${taskDate.getDate()}日 ${weekDay}`;
-  } else {
-    return `${taskDate.getFullYear()}年${taskDate.getMonth() + 1}月${taskDate.getDate()}日 ${weekDay}`;
-  }
-};
-
-// 格式化日期为简短形式
-const formatDateShort = (date) => {
-  return `${date.getMonth() + 1}/${date.getDate()}`;
-};
-
-const getPreviewText = (text) => {
-  return text.length > 60 ? text.substring(0, 60) + '...' : text;
-};
-
-const formatDueDate = (date) => {
-  if (!date) return '';
-  
-  const now = new Date();
-  const dueDate = new Date(date);
-  const diffTime = dueDate - now;
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  
-  if (diffDays < 0) {
-    // 逾期的情况直接显示日期，不显示"已逾期"文字
-    return dueDate.toLocaleDateString('zh-CN');
-  }
-  if (diffDays === 0) return '今天截止';
-  if (diffDays === 1) return '明天截止';
-  if (diffDays <= 7) return `${diffDays}天后截止`;
-  
-  return dueDate.toLocaleDateString('zh-CN');
-};
 
 const formatDateTime = (date) => {
   if (!date) return '';
@@ -1185,37 +721,7 @@ const formatAssignedDate = (date) => {
   }
 };
 
-const isOverdue = (task) => {
-  return getTaskActualStatus(task) === 'overdue';
-};
 
-const getProgressText = (task) => {
-  const actualStatus = getTaskActualStatus(task);
-  if (actualStatus === 'completed') return '已完成';
-  if (actualStatus === 'overdue') return '已逾期';
-  return '未完成';
-};
-
-const getProgressPercentage = (task) => {
-  const actualStatus = getTaskActualStatus(task);
-  if (actualStatus === 'completed') return 100;
-  if (task.status === 'in_progress') return 50;
-  return 0;
-};
-
-const getEmptyMessage = () => {
-  if (searchQuery.value) {
-    return '没有找到匹配的任务单';
-  }
-  if (activeFilter.value !== 'all') {
-    return '该状态下暂无任务单';
-  }
-  if (activeTypeFilter.value !== 'all') {
-    const typeText = activeTypeFilter.value === 'exercise' ? '题目任务单' : '自定义任务单';
-    return `暂无${typeText}`;
-  }
-  return '还没有布置任务单';
-};
 
 // 事件处理
 const handleCreateTask = (taskType = 'custom') => {
@@ -1325,12 +831,14 @@ const handleBatchManage = () => {
   selectedTasks.value = [];
 };
 
+const cancelBatchMode = () => {
+  batchMode.value = false;
+  selectedTasks.value = [];
+};
+
 const handleSelectAll = () => {
-  if (isAllSelected.value) {
-    selectedTasks.value = [];
-  } else {
-    selectedTasks.value = filteredTasks.value.map(task => task.id);
-  }
+  // 这个方法现在由 TaskList 组件处理
+  // 这里可以添加一些额外的逻辑，比如通知后端等
 };
 
 const handleTaskClick = (task) => {
@@ -1423,11 +931,6 @@ const handleBatchDelete = () => {
     ElMessage.success(`已删除 ${selectedTasks.value.length} 个任务`);
     selectedTasks.value = [];
   });
-};
-
-const cancelBatchMode = () => {
-  batchMode.value = false;
-  selectedTasks.value = [];
 };
 
 const handleStartTask = (task) => {
