@@ -813,6 +813,41 @@ const getExerciseTypeLabel = (type) => {
   return typeMap[type] || type;
 };
 
+// 获取优先级文本
+const getPriorityText = (priority) => {
+  const priorityMap = {
+    low: '低优先级',
+    medium: '中优先级',
+    high: '高优先级',
+    urgent: '紧急'
+  };
+  return priorityMap[priority] || '普通';
+};
+
+// 获取状态文本
+const getStatusText = (status) => {
+  const statusMap = {
+    pending: '未完成',
+    in_progress: '进行中',
+    completed: '已完成',
+    overdue: '已逾期'
+  };
+  return statusMap[status] || '未知状态';
+};
+
+// 判断任务是否逾期
+const isOverdue = (task) => {
+  if (!task.dueDate || task.status === 'completed') return false;
+  return new Date(task.dueDate) < new Date();
+};
+
+// 获取任务实际状态
+const getTaskActualStatus = (task) => {
+  if (task.status === 'completed') return 'completed';
+  if (isOverdue(task)) return 'overdue';
+  return 'pending';
+};
+
 // 清除所有筛选条件
 const clearExerciseFilters = () => {
   try {
