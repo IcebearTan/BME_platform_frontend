@@ -52,7 +52,7 @@
     <!-- 创建/编辑任务单对话框 -->
     <el-dialog 
       v-model="isTaskDialogVisible" 
-      :title="editingTask ? '编辑任务单' : getCreateDialogTitle()"
+      :title="editingTask ? '编辑任务' : getCreateDialogTitle()"
       width="700px"
       class="task-dialog"
       :class="{ 'theme-dark': isDarkMode }"
@@ -65,8 +65,8 @@
       >
         <el-form-item label="任务类型" prop="type">
           <el-radio-group v-model="taskForm.type" @change="handleTaskTypeChange">
-            <el-radio label="exercise">题目任务单</el-radio>
-            <el-radio label="custom">自定义任务单</el-radio>
+            <el-radio label="exercise">题目任务</el-radio>
+            <el-radio label="custom">自定义任务</el-radio>
           </el-radio-group>
         </el-form-item>
 

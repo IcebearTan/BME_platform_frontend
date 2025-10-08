@@ -61,7 +61,7 @@
         <!-- 日期分组标题 -->
         <div class="date-group-header">
           <h4 class="date-group-title">{{ group.label }}</h4>
-          <div class="date-group-count">{{ group.tasks.length }} 个任务单</div>
+          <div class="date-group-count">{{ group.tasks.length }} 个任务</div>
         </div>
         
         <!-- 该日期组的任务 -->
@@ -200,7 +200,7 @@
     <!-- 批量操作栏 -->
     <div v-if="isTeacher && batchMode" class="batch-actions">
       <div class="batch-info">
-        已选择 {{ selectedTasks.length }} 个任务单
+        已选择 {{ selectedTasks.length }} 个任务
       </div>
       <div class="batch-buttons">
         <el-button size="small" @click="handleSelectAll">
@@ -394,7 +394,7 @@ const getDateGroupLabel = (createDate) => {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   
-  return `${year}年${month}月${day}日 布置`;
+  return `${year}年${month}月${day}日`;
 };
 
 const isOverdue = (task) => {
@@ -449,16 +449,16 @@ const getTypeFilterCount = (typeKey) => {
 
 const getEmptyMessage = () => {
   if (searchQuery.value) {
-    return '没有找到匹配的任务单';
+    return '没有找到匹配的任务';
   }
   if (activeFilter.value !== 'all') {
-    return '该状态下暂无任务单';
+    return '该状态下暂无任务';
   }
   if (activeTypeFilter.value !== 'all') {
-    const typeText = activeTypeFilter.value === 'exercise' ? '题目任务单' : '自定义任务单';
+    const typeText = activeTypeFilter.value === 'exercise' ? '题目任务' : '自定义任务';
     return `暂无${typeText}`;
   }
-  return '还没有布置任务单';
+  return '还没有布置任务';
 };
 
 // 事件处理

@@ -55,7 +55,7 @@
 
       <!-- 详情导航菜单 -->
       <div class="detail-nav">
-        <div class="nav-title">小组管理</div>
+        <!-- <div class="nav-title">小组管理</div> -->
         <div 
           v-for="item in detailNavItems" 
           :key="item.key"

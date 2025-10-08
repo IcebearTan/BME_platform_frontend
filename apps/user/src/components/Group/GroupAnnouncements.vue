@@ -4,7 +4,7 @@
     <div class="announcements-header">
       <div class="header-info">
         <h3 class="announcements-title">{{ isTeacher ? '公告管理' : '公告通知' }}</h3>
-        <div class="announcements-count">共 {{ filteredAnnouncements.length }} 条公告</div>
+        <div class="announcements-count">共 {{ announcements.length }} 条公告</div>
       </div>
       
       <!-- 管理员操作 -->
@@ -20,156 +20,24 @@
       </div>
     </div>
 
-    <!-- 搜索和筛选 -->
-    <div class="announcements-filters">
-      <div class="search-container">
-        <el-icon class="search-icon">
-          <Search />
-        </el-icon>
-        <input 
-          v-model="searchQuery"
-          type="text" 
-          class="search-input"
-          placeholder="搜索公告标题或内容..."
-        />
-      </div>
-      
-      <div class="filter-tabs">
-        <div 
-          v-for="filter in announcementFilters"
-          :key="filter.key"
-          class="filter-tab"
-          :class="{ 'active': activeFilter === filter.key }"
-          @click="activeFilter = filter.key"
-        >
-          <span class="filter-label">{{ filter.label }}</span>
-          <span class="filter-count">({{ getFilterCount(filter.key) }})</span>
-        </div>
-      </div>
-    </div>
+    <!-- 使用新的AnnouncementList组件 -->
+    <AnnouncementList
+      :announcements="announcements"
+      :isTeacher="isTeacher"
+      :loading="loading"
+      :batchMode="batchMode"
+      :selectedAnnouncements="selectedAnnouncements"
+      :isDarkMode="isDarkMode"
+      @announcement-click="handleAnnouncementClick"
+      @announcement-action="handleAnnouncementAction"
+      @create-announcement="handleCreateAnnouncement"
+      @cancel-batch-mode="handleCancelBatchMode"
+      @batch-delete="handleBatchDelete"
+      @select-all="handleSelectAll"
+      @update:selected-announcements="selectedAnnouncements = $event"
+    />
 
-    <!-- 公告列表 -->
-    <div class="announcements-list" v-if="filteredAnnouncements.length > 0">
-      <div 
-        v-for="(group, groupKey) in groupedAnnouncements"
-        :key="groupKey"
-        class="date-group"
-      >
-        <!-- 日期分组标题 -->
-        <div class="date-group-header">
-          <h4 class="date-group-title">{{ group.label }}</h4>
-          <div class="date-group-count">{{ group.announcements.length }} 条公告</div>
-        </div>
-        
-        <!-- 该日期组的公告 -->
-        <div 
-          v-for="announcement in group.announcements" 
-          :key="announcement.id"
-          class="announcement-card"
-          :class="{ 
-            'selected': selectedAnnouncements.includes(announcement.id),
-            'unread': !announcement.isRead && !isTeacher
-          }"
-        >
-        <!-- 选择框（仅管理员批量模式可见） -->
-        <div v-if="isTeacher && batchMode" class="announcement-checkbox">
-          <el-checkbox 
-            v-model="selectedAnnouncements"
-            :label="announcement.id"
-          />
-        </div>
 
-        <!-- 公告状态标识 -->
-        <div class="announcement-badges">
-          <div v-if="!announcement.isRead && !isTeacher" class="unread-dot"></div>
-        </div>
-
-        <!-- 公告内容 -->
-        <div class="announcement-content" @click="handleAnnouncementClick(announcement)">
-          <div class="announcement-header">
-            <div class="announcement-title-row">
-              <h4 class="announcement-title">{{ announcement.title }}</h4>
-              <span class="announcement-category-tag" :class="`category-${announcement.category}`">
-                {{ getCategoryText(announcement.category) }}
-              </span>
-            </div>
-          </div>
-          
-          <div class="announcement-preview">
-            {{ getPreviewText(announcement.content) }}
-          </div>
-          
-          <div class="announcement-footer">
-            <div class="announcement-stats">
-              <div class="stat-item">
-                <el-icon><View /></el-icon>
-                <span>{{ announcement.readCount || 0 }}</span>
-              </div>
-              <div class="stat-item" v-if="announcement.attachments?.length > 0">
-                <el-icon><Paperclip /></el-icon>
-                <span>{{ announcement.attachments.length }}</span>
-              </div>
-            </div>
-            <div class="announcement-date">
-              {{ formatDate(announcement.publishDate) }}
-            </div>
-          </div>
-        </div>
-
-        <!-- 操作菜单（仅管理员可见） -->
-        <div v-if="isTeacher" class="announcement-actions">
-          <el-dropdown trigger="click" @command="handleAnnouncementAction">
-            <el-button type="text" class="action-btn">
-              <el-icon><MoreFilled /></el-icon>
-            </el-button>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item :command="{ action: 'edit', announcement }">编辑公告</el-dropdown-item>
-                <el-dropdown-item :command="{ action: 'stats', announcement }">查看统计</el-dropdown-item>
-                <el-dropdown-item 
-                  :command="{ action: 'delete', announcement }"
-                  class="danger-item"
-                >
-                  删除公告
-                </el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
-        </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 空状态 -->
-    <div v-else-if="!loading" class="empty-state">
-      <div class="empty-icon">📢</div>
-      <p class="empty-message">{{ getEmptyMessage() }}</p>
-      <el-button v-if="isTeacher" type="primary" @click="handleCreateAnnouncement">
-        发布第一条公告
-      </el-button>
-    </div>
-
-    <!-- 加载状态 -->
-    <div v-else class="loading-state">
-      <div class="loading-spinner"></div>
-      <p class="loading-text">加载公告中...</p>
-    </div>
-
-    <!-- 批量操作栏 -->
-    <div v-if="isTeacher && batchMode" class="batch-actions">
-      <div class="batch-info">
-        已选择 {{ selectedAnnouncements.length }} 条公告
-      </div>
-      <div class="batch-buttons">
-        <el-button size="small" @click="handleSelectAll">
-          {{ isAllSelected ? '取消全选' : '全选' }}
-        </el-button>
-        <el-button size="small" type="danger" @click="handleBatchDelete" :disabled="selectedAnnouncements.length === 0">
-          批量删除
-        </el-button>
-        <el-button size="small" @click="cancelBatchMode">取消</el-button>
-      </div>
-    </div>
 
     <!-- 发布/编辑公告对话框 -->
     <el-dialog 
@@ -263,10 +131,6 @@
         
         <div class="detail-meta">
           <div class="meta-item">
-            <span class="meta-label">发布者：</span>
-            <span class="meta-value">{{ selectedAnnouncementDetail.author }}</span>
-          </div>
-          <div class="meta-item">
             <span class="meta-label">发布时间：</span>
             <span class="meta-value">{{ formatDateTime(selectedAnnouncementDetail.publishDate) }}</span>
           </div>
@@ -320,6 +184,7 @@ import {
   Upload,
   Document
 } from '@element-plus/icons-vue';
+import AnnouncementList from './AnnouncementList.vue';
 
 // Props
 const props = defineProps({
@@ -778,7 +643,7 @@ const handleBatchDelete = () => {
   });
 };
 
-const cancelBatchMode = () => {
+const handleCancelBatchMode = () => {
   batchMode.value = false;
   selectedAnnouncements.value = [];
 };
@@ -844,7 +709,6 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* 继承之前组件的基础样式，这里只定义公告特有的样式 */
 .group-announcements {
   width: 100%;
   padding: 20px 0;

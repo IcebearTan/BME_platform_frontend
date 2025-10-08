@@ -89,19 +89,16 @@
           </div>
         </div>
 
-        <div class="stat-card">
+        <!-- 预留位置，用于未来功能扩展 -->
+        <div class="stat-card placeholder">
           <div class="stat-header">
-            <div class="stat-icon activity">
-              <el-icon><DataAnalysis /></el-icon>
-            </div>
-            <div class="stat-trend" :class="getActivityTrend()">
-              <el-icon :class="getActivityTrendIcon()"></el-icon>
-              <span>{{ statsData.activityChange || '+12' }}%</span>
+            <div class="stat-icon placeholder-icon">
+              <el-icon><Upload /></el-icon>
             </div>
           </div>
           <div class="stat-content">
-            <div class="stat-number">{{ statsData.activeMembers || 21 }}</div>
-            <div class="stat-label">活跃成员</div>
+            <div class="stat-number">--</div>
+            <div class="stat-label">待扩展功能</div>
           </div>
         </div>
 
@@ -168,81 +165,7 @@
       </div>
     </div>
 
-    <!-- 快速操作 -->
-    <div v-if="isTeacher" class="overview-section">
-      <div class="section-header">
-        <h3 class="section-title">快速操作</h3>
-        <div class="section-subtitle">常用管理功能</div>
-      </div>
 
-      <div class="quick-actions">
-        <div class="action-card" @click="handleQuickAction('announcement')">
-          <div class="action-icon">
-            <el-icon><Bell /></el-icon>
-          </div>
-          <div class="action-content">
-            <div class="action-title">发布公告</div>
-            <div class="action-desc">向小组成员发送通知</div>
-          </div>
-        </div>
-
-        <div class="action-card" @click="handleQuickAction('task')">
-          <div class="action-icon">
-            <el-icon><DocumentAdd /></el-icon>
-          </div>
-          <div class="action-content">
-            <div class="action-title">创建任务</div>
-            <div class="action-desc">布置新的学习任务</div>
-          </div>
-        </div>
-
-        <div class="action-card" @click="handleQuickAction('member')">
-          <div class="action-icon">
-            <el-icon><UserFilled /></el-icon>
-          </div>
-          <div class="action-content">
-            <div class="action-title">邀请成员</div>
-            <div class="action-desc">添加新的小组成员</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 学习进度 (学生视图) -->
-    <div v-if="!isTeacher" class="overview-section">
-      <div class="section-header">
-        <h3 class="section-title">我的进度</h3>
-        <div class="section-subtitle">个人学习情况</div>
-      </div>
-
-      <div class="progress-cards">
-        <div class="progress-card">
-          <div class="progress-header">
-            <div class="progress-title">任务完成率</div>
-            <div class="progress-value">{{ studentProgress.taskCompletion || 85 }}%</div>
-          </div>
-          <div class="progress-bar">
-            <div 
-              class="progress-fill"
-              :style="{ width: `${studentProgress.taskCompletion || 85}%` }"
-            ></div>
-          </div>
-        </div>
-
-        <div class="progress-card">
-          <div class="progress-header">
-            <div class="progress-title">参与度</div>
-            <div class="progress-value">{{ studentProgress.participation || 92 }}%</div>
-          </div>
-          <div class="progress-bar">
-            <div 
-              class="progress-fill participation"
-              :style="{ width: `${studentProgress.participation || 92}%` }"
-            ></div>
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -282,7 +205,6 @@ const props = defineProps({
 
 // Emits
 const emit = defineEmits([
-  'quick-action',
   'view-activities'
 ]);
 
@@ -295,15 +217,8 @@ const statsData = ref({
   memberGrowth: 3,
   totalTasks: 20,
   completedTasks: 17,
-  activeMembers: 21,
-  activityChange: 12,
   totalAnnouncements: 8,
   unreadCount: 3
-});
-
-const studentProgress = ref({
-  taskCompletion: 85,
-  participation: 92
 });
 
 const recentActivities = ref([
@@ -374,21 +289,7 @@ const formatRelativeTime = (timestamp) => {
   }
 };
 
-const getActivityTrend = () => {
-  const change = statsData.value.activityChange || 0;
-  return change >= 0 ? 'positive' : 'negative';
-};
-
-const getActivityTrendIcon = () => {
-  const change = statsData.value.activityChange || 0;
-  return change >= 0 ? 'ArrowUp' : 'ArrowDown';
-};
-
 // 事件处理
-const handleQuickAction = (actionType) => {
-  console.log('Quick action:', actionType);
-  emit('quick-action', actionType);
-};
 
 const handleViewAllActivities = () => {
   console.log('View all activities');
@@ -588,6 +489,26 @@ onMounted(() => {
   background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
 }
 
+.stat-icon.placeholder-icon {
+  background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%);
+}
+
+.theme-dark .stat-icon.placeholder-icon {
+  background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+}
+
+.stat-card.placeholder {
+  opacity: 0.6;
+}
+
+.stat-card.placeholder .stat-number {
+  color: #9ca3af;
+}
+
+.theme-dark .stat-card.placeholder .stat-number {
+  color: #6b7280;
+}
+
 .stat-trend {
   display: flex;
   align-items: center;
@@ -771,141 +692,7 @@ onMounted(() => {
   margin: 0;
 }
 
-/* 快速操作 */
-.quick-actions {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
-}
-
-.action-card {
-  display: flex;
-  align-items: center;
-  padding: 16px;
-  background: #ffffff;
-  border: 2px solid rgba(102, 126, 234, 0.1);
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.action-card:hover {
-  border-color: #667eea;
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.15);
-}
-
-.theme-dark .action-card {
-  background: rgba(60, 60, 60, 0.8);
-  border-color: rgba(255, 255, 255, 0.1);
-}
-
-.theme-dark .action-card:hover {
-  border-color: #667eea;
-  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.2);
-}
-
-.action-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-right: 12px;
-  font-size: 18px;
-}
-
-.action-content {
-  flex: 1;
-}
-
-.action-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #1a1a1a;
-  margin-bottom: 4px;
-}
-
-.theme-dark .action-title {
-  color: #ffffff;
-}
-
-.action-desc {
-  font-size: 12px;
-  color: #6b7280;
-}
-
-.theme-dark .action-desc {
-  color: #9ca3af;
-}
-
-/* 学习进度 */
-.progress-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 20px;
-}
-
-.progress-card {
-  padding: 20px;
-  background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  border-radius: 12px;
-}
-
-.theme-dark .progress-card {
-  background: linear-gradient(135deg, rgba(60, 60, 60, 0.8) 0%, rgba(40, 40, 40, 0.9) 100%);
-  border-color: rgba(255, 255, 255, 0.1);
-}
-
-.progress-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.progress-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #374151;
-}
-
-.theme-dark .progress-title {
-  color: #e5e7eb;
-}
-
-.progress-value {
-  font-size: 18px;
-  font-weight: 700;
-  color: #667eea;
-}
-
-.progress-bar {
-  height: 8px;
-  background: rgba(0, 0, 0, 0.06);
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.theme-dark .progress-bar {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-  border-radius: 4px;
-  transition: width 0.6s ease;
-}
-
-.progress-fill.participation {
-  background: linear-gradient(90deg, #43e97b 0%, #38f9d7 100%);
-}
-
+/* 响应式设计 */
 /* 响应式设计 */
 @media (max-width: 768px) {
   .overview-section {
@@ -920,9 +707,7 @@ onMounted(() => {
   }
   
   .info-grid,
-  .stats-grid,
-  .quick-actions,
-  .progress-cards {
+  .stats-grid {
     grid-template-columns: 1fr;
   }
   
@@ -936,15 +721,13 @@ onMounted(() => {
 }
 
 @media (max-width: 480px) {
-  .info-card,
-  .action-card {
+  .info-card {
     flex-direction: column;
     text-align: center;
     gap: 8px;
   }
   
-  .info-icon,
-  .action-icon {
+  .info-icon {
     margin-right: 0;
     margin-bottom: 8px;
   }
