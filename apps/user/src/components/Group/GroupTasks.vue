@@ -1,7 +1,31 @@
 <template>
   <div class="group-tasks" :class="{ 'theme-dark': isDarkMode }">
+    <!-- 任务管理视图 -->
+    <div v-if="showTaskManagement" class="task-management-view">
+      <div class="management-header">
+        <el-button 
+          type="text" 
+          @click="handleBackToTaskList"
+          class="back-button"
+        >
+          <el-icon><ArrowLeft /></el-icon>
+          返回任务列表
+        </el-button>
+      </div>
+      
+      <TaskManagement 
+        v-if="currentManagedTask"
+        :task="currentManagedTask"
+        :is-teacher="isTeacher"
+        @close="handleCloseTaskManagement"
+        @grade-updated="handleGradeUpdated"
+        @download-all="handleDownloadAll"
+        @export-stats="handleExportStats"
+      />
+    </div>
+
     <!-- 任务列表视图 -->
-    <div v-if="!showSubmissionComponent">
+    <div v-else-if="!showSubmissionComponent">
       <!-- 头部操作区 -->
       <div class="tasks-header">
         <div class="header-info">
@@ -37,6 +61,7 @@
         :selected-tasks="selectedTasks"
         :is-dark-mode="isDarkMode"
         @task-click="handleTaskClick"
+        @manage-task="handleManageTask"
         @task-action="handleTaskAction"
         @solve-exercise="handleSolveExercise"
         @submit-task="handleSubmitTask"
@@ -249,6 +274,7 @@ import {
   Search, 
   Clock,
   ArrowDown,
+  ArrowLeft,
   MoreFilled,
   CircleCheck,
   CircleClose,
@@ -256,6 +282,7 @@ import {
 } from '@element-plus/icons-vue';
 import TaskList from './TaskList.vue';
 import TaskSubmission from './TaskSubmission.vue';
+import TaskManagement from './TaskManagement.vue';
 
 // Props
 const props = defineProps({
@@ -275,7 +302,8 @@ const emit = defineEmits([
   'task-create',
   'task-edit',
   'task-delete',
-  'task-submit'
+  'task-submit',
+  'manage-task'
 ]);
 
 // Vuex store 和 Router
@@ -289,6 +317,10 @@ const selectedTasks = ref([]);
 const batchMode = ref(false);
 const saving = ref(false);
 const currentTaskType = ref('custom'); // 当前创建的任务类型
+
+// 任务管理相关状态
+const showTaskManagement = ref(false); // 是否显示任务管理组件
+const currentManagedTask = ref(null);  // 当前管理的任务
 
 // 题目筛选相关数据
 const exerciseFilters = ref({
@@ -727,9 +759,15 @@ const handleSelectAll = () => {
 };
 
 const handleTaskClick = (task) => {
-  // 点击任务卡片时显示提交组件
+  // 学生点击任务卡片时显示提交组件
   selectedTask.value = task;
   showSubmissionComponent.value = true;
+};
+
+const handleManageTask = (task) => {
+  // 导师点击任务卡片时显示管理组件
+  currentManagedTask.value = task;
+  showTaskManagement.value = true;
 };
 
 const handleTaskAction = ({ action, task }) => {
@@ -924,6 +962,35 @@ const handleSaveTask = async () => {
   }
 };
 
+// 任务管理相关事件处理
+const handleBackToTaskList = () => {
+  showTaskManagement.value = false;
+  currentManagedTask.value = null;
+};
+
+const handleCloseTaskManagement = () => {
+  showTaskManagement.value = false;
+  currentManagedTask.value = null;
+};
+
+const handleGradeUpdated = (submission) => {
+  console.log('成绩已更新:', submission);
+  ElMessage.success('成绩已更新');
+  // TODO: 刷新任务数据或更新统计
+};
+
+const handleDownloadAll = () => {
+  console.log('批量下载所有提交');
+  ElMessage.success('批量下载完成');
+  // TODO: 实现批量下载逻辑
+};
+
+const handleExportStats = () => {
+  console.log('导出统计数据');
+  ElMessage.success('统计数据导出完成');
+  // TODO: 实现导出统计逻辑
+};
+
 onMounted(() => {
   loadTasks();
 });
@@ -934,6 +1001,43 @@ onMounted(() => {
 .group-tasks {
   width: 100%;
   padding: 20px 0;
+}
+
+/* 任务管理视图样式 */
+.task-management-view {
+  width: 100%;
+  min-height: 600px;
+}
+
+.management-header {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.theme-dark .management-header {
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+.back-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: #667eea;
+  padding: 8px 0;
+}
+
+.back-button:hover {
+  color: #4f46e5;
+}
+
+.theme-dark .back-button {
+  color: #8fa4f3;
+}
+
+.theme-dark .back-button:hover {
+  color: #a5b4fc;
 }
 
 /* 头部样式 */

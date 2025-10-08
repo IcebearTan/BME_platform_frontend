@@ -89,19 +89,6 @@
           </div>
         </div>
 
-        <!-- 预留位置，用于未来功能扩展 -->
-        <div class="stat-card placeholder">
-          <div class="stat-header">
-            <div class="stat-icon placeholder-icon">
-              <el-icon><Upload /></el-icon>
-            </div>
-          </div>
-          <div class="stat-content">
-            <div class="stat-number">--</div>
-            <div class="stat-label">待扩展功能</div>
-          </div>
-        </div>
-
         <div class="stat-card">
           <div class="stat-header">
             <div class="stat-icon announcements">
@@ -112,6 +99,20 @@
           <div class="stat-content">
             <div class="stat-number">{{ statsData.totalAnnouncements || 8 }}</div>
             <div class="stat-label">公告消息</div>
+          </div>
+        </div>
+
+        
+        <!-- 预留位置，用于未来功能扩展 -->
+        <div class="stat-card placeholder">
+          <div class="stat-header">
+            <div class="stat-icon placeholder-icon">
+              <el-icon><Upload /></el-icon>
+            </div>
+          </div>
+          <div class="stat-content">
+            <div class="stat-number">--</div>
+            <div class="stat-label">待扩展功能</div>
           </div>
         </div>
       </div>
@@ -290,7 +291,6 @@ const formatRelativeTime = (timestamp) => {
 };
 
 // 事件处理
-
 const handleViewAllActivities = () => {
   console.log('View all activities');
   emit('view-activities');

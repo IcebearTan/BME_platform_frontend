@@ -76,7 +76,7 @@
 <script setup>
 import { computed } from 'vue';
 import { useStore } from 'vuex';
-import { ArrowLeft, User, Bell, Document, Setting, HomeFilled, UserFilled } from '@element-plus/icons-vue';
+import { ArrowLeft, User, Bell, Document, Setting, HomeFilled, UserFilled, DataAnalysis } from '@element-plus/icons-vue';
 
 // Props
 const props = defineProps({

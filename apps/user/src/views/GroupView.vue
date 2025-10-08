@@ -9,6 +9,7 @@ import GroupMembers from "../components/Group/GroupMembers.vue";
 import GroupOverview from "../components/Group/GroupOverview.vue";
 import GroupAnnouncements from "../components/Group/GroupAnnouncements.vue";
 import GroupTasks from "../components/Group/GroupTasks.vue";
+import GroupActivityList from "../components/Group/GroupActivityList.vue";
 import { useStore } from 'vuex';
 import { Expand, Search, Plus } from '@element-plus/icons-vue';
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
@@ -45,7 +46,7 @@ const initializeFromRoute = () => {
   }
   
   // 恢复详情页标签
-  if (query.detailTab && ['overview', 'members', 'announcements', 'tasks', 'settings'].includes(query.detailTab)) {
+  if (query.detailTab && ['overview', 'members', 'announcements', 'tasks', 'activities', 'settings'].includes(query.detailTab)) {
     activeDetailTab.value = query.detailTab;
   }
   
@@ -261,6 +262,7 @@ function getDetailTabLabel(tabKey) {
     'members': '成员',
     'announcements': '公告',
     'tasks': activeTab.value === 'my-teachings' ? '任务管理' : '我的任务',
+    'activities': '活动记录',
     'settings': '小组设置'
   };
   return labelMap[tabKey] || '未知功能';
@@ -313,7 +315,9 @@ function handleQuickAction(actionType) {
 
 function handleViewActivities() {
   console.log('查看所有活动');
-  // TODO: 实现查看所有活动逻辑，可能打开活动历史页面或模态框
+  // 切换到活动列表标签
+  activeDetailTab.value = 'activities';
+  updateRouteQuery();
 }
 
 // --- 公告管理事件处理 ---
@@ -351,6 +355,17 @@ function handleTaskDelete(task) {
 function handleTaskSubmit(task) {
   console.log('提交任务:', task);
   // TODO: 实现任务提交逻辑
+}
+
+// --- 活动管理事件处理 ---
+function handleActivityClick(activity) {
+  console.log('点击活动:', activity);
+  // TODO: 实现活动详情查看逻辑
+}
+
+function handleActivityRefresh() {
+  console.log('刷新活动列表');
+  // TODO: 实现活动列表刷新逻辑
 }
 
 // --- 监听器和生命周期 ---
@@ -528,6 +543,15 @@ onUnmounted(() => {
                     />
                   </div>
                   
+                  <div v-else-if="activeDetailTab === 'activities'" class="detail-section">
+                    <GroupActivityList 
+                      :group-data="currentGroup"
+                      :course-type="activeTab"
+                      @activity-click="handleActivityClick"
+                      @refresh="handleActivityRefresh"
+                    />
+                  </div>
+                  
                   <div v-else-if="activeDetailTab === 'settings'" class="detail-section">
                     <h3>小组设置</h3>
                     <p>这里显示小组设置功能（仅管理员可见）...</p>
@@ -646,6 +670,8 @@ onUnmounted(() => {
         </span>
       </template>
     </el-dialog>
+
+
   </div>
 </template>
 
@@ -1178,4 +1204,6 @@ onUnmounted(() => {
 :deep(.el-select .el-input__inner) {
   border-radius: 8px;
 }
+
+
 </style>

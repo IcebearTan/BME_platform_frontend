@@ -271,6 +271,7 @@ const props = defineProps({
 const emit = defineEmits([
   'update:selectedTasks',
   'task-click',
+  'manage-task', // 新增：导师管理任务事件
   'task-action',
   'solve-exercise',
   'submit-task',
@@ -477,7 +478,13 @@ const handleTaskSelection = (taskId, checked) => {
 };
 
 const handleTaskClick = (task) => {
-  emit('task-click', task);
+  if (props.isTeacher) {
+    // 导师点击：打开任务管理页面
+    emit('manage-task', task);
+  } else {
+    // 学生点击：进入任务详情
+    emit('task-click', task);
+  }
 };
 
 const handleTaskAction = (command) => {
