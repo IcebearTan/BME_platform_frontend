@@ -785,30 +785,10 @@ const handleTaskAction = ({ action, task }) => {
       };
       isTaskDialogVisible.value = true;
       break;
-    case 'duplicate':
-      handleDuplicateTask(task);
-      break;
     case 'delete':
       handleDeleteTask(task);
       break;
-    case 'stats':
-      // TODO: 显示统计信息
-      break;
   }
-};
-
-const handleDuplicateTask = (task) => {
-  const newTask = {
-    ...task,
-    id: Date.now(),
-    title: `${task.title} (副本)`,
-    createDate: new Date(),
-    status: 'pending',
-    completedCount: 0,
-    pendingCount: task.totalCount
-  };
-  tasks.value.unshift(newTask);
-  ElMessage.success('任务已复制');
 };
 
 const handleDeleteTask = (task) => {

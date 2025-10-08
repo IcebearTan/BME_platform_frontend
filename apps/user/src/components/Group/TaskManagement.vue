@@ -23,17 +23,18 @@
       </div>
       
       <div class="header-actions">
-        <el-button type="primary" @click="handleDownloadAll" :loading="downloadingAll">
+        <el-button 
+          v-if="!isExerciseTask" 
+          type="primary" 
+          @click="handleDownloadAll" 
+          :loading="downloadingAll"
+        >
           <el-icon><Download /></el-icon>
           批量下载
         </el-button>
         <el-button type="default" @click="handleExportStats">
           <el-icon><Document /></el-icon>
           导出统计
-        </el-button>
-        <el-button type="text" @click="emit('close')">
-          <el-icon><Close /></el-icon>
-          返回
         </el-button>
       </div>
     </div>
@@ -62,7 +63,7 @@
           </div>
         </div>
         
-        <div class="stat-card graded">
+        <div v-if="!isExerciseTask" class="stat-card graded">
           <div class="stat-icon">
             <el-icon><EditPen /></el-icon>
           </div>
@@ -98,7 +99,7 @@
           />
         </div>
         
-        <div class="progress-item">
+        <div v-if="!isExerciseTask" class="progress-item">
           <div class="progress-header">
             <span class="progress-title">批改进度</span>
             <span class="progress-value">{{ stats.gradedCount }}/{{ stats.submittedCount }}</span>
@@ -141,11 +142,12 @@
     </div>
 
     <!-- 学生提交列表 -->
-    <div class="submissions-list">
+    <div class="submissions-list" :class="{ 'exercise-task': isExerciseTask }">
       <div class="list-header">
         <div class="header-item name">学生信息</div>
         <div class="header-item submit-time">提交时间</div>
-        <div class="header-item score">成绩</div>
+        <div class="header-item score">{{ isExerciseTask ? '分数' : '成绩' }}</div>
+        <div v-if="isExerciseTask" class="header-item attempts">提交次数</div>
         <div class="header-item status">状态</div>
         <div class="header-item actions">操作</div>
       </div>
@@ -185,8 +187,14 @@
               </span>
               <span class="score-total">/{{ task.totalScore || 100 }}</span>
             </div>
-            <div v-else-if="submission.submitTime" class="not-graded">未批改</div>
+            <div v-else-if="submission.submitTime && !isExerciseTask" class="not-graded">未批改</div>
             <div v-else class="not-available">--</div>
+          </div>
+          
+          <div v-if="isExerciseTask" class="item-content attempts">
+            <div class="attempts-count">
+              {{ submission.attemptCount || (submission.submitTime ? 1 : 0) }}
+            </div>
           </div>
           
           <div class="item-content status">
@@ -197,50 +205,63 @@
           
           <div class="item-content actions">
             <div class="action-buttons">
-              <el-tooltip content="查看提交" v-if="submission.submitTime">
-                <el-button type="text" @click="handleViewSubmission(submission)" size="small">
-                  <el-icon><View /></el-icon>
-                </el-button>
-              </el-tooltip>
+              <!-- 题目类型只显示基本操作 -->
+              <template v-if="isExerciseTask">
+                <el-dropdown trigger="click" @command="(command) => handleMoreAction(command, submission)">
+                  <el-button type="text" size="small">
+                    <el-icon><MoreFilled /></el-icon>
+                  </el-button>
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item command="resubmit" v-if="submission.submitTime">允许重新提交</el-dropdown-item>
+                      <el-dropdown-item command="extend" v-if="!submission.submitTime">延长截止时间</el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
+              </template>
               
-              <el-tooltip content="批改作业" v-if="submission.submitTime && !submission.isGraded">
-                <el-button type="text" @click="handleGradeSubmission(submission)" size="small">
-                  <el-icon><EditPen /></el-icon>
-                </el-button>
-              </el-tooltip>
-              
-              <el-tooltip content="修改成绩" v-if="submission.isGraded">
-                <el-button type="text" @click="handleEditGrade(submission)" size="small">
-                  <el-icon><Edit /></el-icon>
-                </el-button>
-              </el-tooltip>
-              
-              <el-tooltip content="下载附件" v-if="submission.files && submission.files.length > 0">
-                <el-button type="text" @click="handleDownloadSubmission(submission)" size="small">
-                  <el-icon><Download /></el-icon>
-                </el-button>
-              </el-tooltip>
-              
-              <el-dropdown trigger="click" @command="(command) => handleMoreAction(command, submission)">
-                <el-button type="text" size="small">
-                  <el-icon><MoreFilled /></el-icon>
-                </el-button>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item command="comment">添加评语</el-dropdown-item>
-                    <el-dropdown-item command="resubmit" v-if="submission.submitTime">允许重新提交</el-dropdown-item>
-                    <el-dropdown-item command="extend" v-if="!submission.submitTime">延长截止时间</el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
+              <!-- 自定义任务显示完整功能 -->
+              <template v-else>
+                <el-tooltip content="批改作业" v-if="submission.submitTime && !submission.isGraded">
+                  <el-button type="text" @click="handleGradeSubmission(submission)" size="small">
+                    <el-icon><EditPen /></el-icon>
+                  </el-button>
+                </el-tooltip>
+                
+                <el-tooltip content="修改成绩" v-if="submission.isGraded">
+                  <el-button type="text" @click="handleEditGrade(submission)" size="small">
+                    <el-icon><Edit /></el-icon>
+                  </el-button>
+                </el-tooltip>
+                
+                <el-tooltip content="下载附件" v-if="submission.files && submission.files.length > 0">
+                  <el-button type="text" @click="handleDownloadSubmission(submission)" size="small">
+                    <el-icon><Download /></el-icon>
+                  </el-button>
+                </el-tooltip>
+                
+                <el-dropdown trigger="click" @command="(command) => handleMoreAction(command, submission)">
+                  <el-button type="text" size="small">
+                    <el-icon><MoreFilled /></el-icon>
+                  </el-button>
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item command="comment">添加评语</el-dropdown-item>
+                      <el-dropdown-item command="resubmit" v-if="submission.submitTime">允许重新提交</el-dropdown-item>
+                      <el-dropdown-item command="extend" v-if="!submission.submitTime">延长截止时间</el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
+              </template>
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- 批改对话框 -->
+    <!-- 批改对话框 - 只有自定义任务才显示 -->
     <el-dialog
+      v-if="!isExerciseTask"
       v-model="gradingDialogVisible"
       title="批改作业"
       width="800px"
@@ -384,20 +405,31 @@ const gradingFormRef = ref();
 // 统计数据
 const stats = ref({
   totalStudents: 25,
-  submittedCount: 4, // 实际提交的学生数量
-  gradedCount: 2,    // 已批改的作业数量
-  averageScore: 90.0 // 平均分
+  submittedCount: 4,   // 实际提交的学生数量
+  gradedCount: 2,      // 已批改的作业数量
+  averageScore: 90.0,  // 平均分
+  totalAttempts: 12    // 总提交次数（练习题用）
 });
 
-// 筛选选项
-const statusFilters = [
-  { key: 'all', label: '全部学生' },
-  { key: 'submitted', label: '已提交' },
-  { key: 'not-submitted', label: '未提交' },
-  { key: 'graded', label: '已批改' },
-  { key: 'not-graded', label: '待批改' },
-  { key: 'late', label: '逾期提交' }
-];
+// 筛选选项 - 根据任务类型动态生成
+const statusFilters = computed(() => {
+  const baseFilters = [
+    { key: 'all', label: '全部学生' },
+    { key: 'submitted', label: '已提交' },
+    { key: 'not-submitted', label: '未提交' },
+    { key: 'late', label: '逾期提交' }
+  ];
+  
+  // 只有自定义任务才有批改相关筛选
+  if (!isExerciseTask.value) {
+    baseFilters.splice(3, 0, 
+      { key: 'graded', label: '已批改' },
+      { key: 'not-graded', label: '待批改' }
+    );
+  }
+  
+  return baseFilters;
+});
 
 // 表单验证规则
 const gradingRules = {
@@ -425,7 +457,8 @@ const submissions = ref([
     score: 88,
     comment: '作业完成质量较好，实验数据分析到位。',
     isGraded: true,
-    gradedTime: new Date('2024-10-07T16:45:00')
+    gradedTime: new Date('2024-10-07T16:45:00'),
+    attemptCount: 2  // 提交次数
   },
   {
     studentId: 'S002',
@@ -439,10 +472,11 @@ const submissions = ref([
     files: [
       { id: 3, name: '作业报告.docx', size: 1024000 }
     ],
-    score: null,
+    score: 75,
     comment: null,
     isGraded: false,
-    gradedTime: null
+    gradedTime: null,
+    attemptCount: 1  // 提交次数
   },
   {
     studentId: 'S003',
@@ -474,7 +508,8 @@ const submissions = ref([
     score: 92,
     comment: '实验报告质量优秀，分析深入，格式规范。',
     isGraded: true,
-    gradedTime: new Date('2024-10-06T15:30:00')
+    gradedTime: new Date('2024-10-06T15:30:00'),
+    attemptCount: 3  // 提交次数
   },
   {
     studentId: 'S005',
@@ -489,15 +524,19 @@ const submissions = ref([
       { id: 5, name: '课程作业.docx', size: 1536000 },
       { id: 6, name: '附录数据.xlsx', size: 819200 }
     ],
-    score: null,
+    score: 82,
     comment: null,
     isGraded: false,
-    gradedTime: null
+    gradedTime: null,
+    attemptCount: 4  // 提交次数
   }
 ]);
 
 // 计算属性
 const isDarkMode = computed(() => store.getters.isDarkMode);
+
+// 判断是否为题目类型任务
+const isExerciseTask = computed(() => props.task?.type === 'exercise');
 
 const submissionRate = computed(() => {
   if (stats.value.totalStudents === 0) return 0;
@@ -548,6 +587,7 @@ const filteredSubmissions = computed(() => {
 const getTaskTypeText = (type) => {
   const typeMap = {
     'exercise': '练习题',
+    'custom': '自定义',
     'assignment': '作业',
     'project': '项目',
     'report': '报告'
@@ -615,9 +655,9 @@ const getFilterCount = (filterKey) => {
     case 'not-submitted':
       return stats.value.totalStudents - stats.value.submittedCount;
     case 'graded':
-      return stats.value.gradedCount;
+      return isExerciseTask.value ? 0 : stats.value.gradedCount;
     case 'not-graded':
-      return stats.value.submittedCount - stats.value.gradedCount;
+      return isExerciseTask.value ? 0 : stats.value.submittedCount - stats.value.gradedCount;
     case 'late':
       return submissions.value.filter(s => s.submitTime && isLateSubmission(s.submitTime)).length;
     default:
@@ -635,16 +675,30 @@ const getScoreClass = (score) => {
 
 const getStatusType = (submission) => {
   if (!submission.submitTime) return 'info';
-  if (submission.isGraded) return 'success';
-  if (isLateSubmission(submission.submitTime)) return 'warning';
-  return 'primary';
+  if (isExerciseTask.value) {
+    // 练习题只显示提交状态
+    if (isLateSubmission(submission.submitTime)) return 'warning';
+    return 'success';
+  } else {
+    // 自定义任务显示批改状态
+    if (submission.isGraded) return 'success';
+    if (isLateSubmission(submission.submitTime)) return 'warning';
+    return 'primary';
+  }
 };
 
 const getStatusText = (submission) => {
   if (!submission.submitTime) return '未提交';
-  if (submission.isGraded) return '已批改';
-  if (isLateSubmission(submission.submitTime)) return '逾期提交';
-  return '待批改';
+  if (isExerciseTask.value) {
+    // 练习题只显示提交状态
+    if (isLateSubmission(submission.submitTime)) return '逾期提交';
+    return '已提交';
+  } else {
+    // 自定义任务显示批改状态
+    if (submission.isGraded) return '已批改';
+    if (isLateSubmission(submission.submitTime)) return '逾期提交';
+    return '待批改';
+  }
 };
 
 // 事件处理
@@ -769,16 +823,34 @@ onMounted(() => {
   // 计算实际统计数据
   const actualSubmittedCount = submissions.value.filter(s => s.submitTime).length;
   const actualGradedCount = submissions.value.filter(s => s.isGraded).length;
-  const gradedSubmissions = submissions.value.filter(s => s.isGraded);
-  const actualAverageScore = gradedSubmissions.length > 0 
-    ? gradedSubmissions.reduce((sum, s) => sum + s.score, 0) / gradedSubmissions.length 
-    : 0;
+  
+  // 计算平均分
+  let actualAverageScore = 0;
+  if (isExerciseTask.value) {
+    // 练习题：计算所有有分数的提交的平均分
+    const scoredSubmissions = submissions.value.filter(s => s.score !== null);
+    actualAverageScore = scoredSubmissions.length > 0 
+      ? scoredSubmissions.reduce((sum, s) => sum + s.score, 0) / scoredSubmissions.length 
+      : 0;
+  } else {
+    // 自定义任务：只计算已批改的平均分
+    const gradedSubmissions = submissions.value.filter(s => s.isGraded);
+    actualAverageScore = gradedSubmissions.length > 0 
+      ? gradedSubmissions.reduce((sum, s) => sum + s.score, 0) / gradedSubmissions.length 
+      : 0;
+  }
+  
+  // 计算总提交次数（练习题可能有多次提交）
+  const actualTotalAttempts = submissions.value.reduce((sum, s) => {
+    return sum + (s.attemptCount || (s.submitTime ? 1 : 0));
+  }, 0);
     
   stats.value = {
     totalStudents: 25,
     submittedCount: actualSubmittedCount,
     gradedCount: actualGradedCount,
-    averageScore: Math.round(actualAverageScore * 10) / 10
+    averageScore: Math.round(actualAverageScore * 10) / 10,
+    totalAttempts: actualTotalAttempts
   };
 });
 </script>
@@ -1061,6 +1133,13 @@ onMounted(() => {
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 
+/* 练习题类型的布局（包含提交次数列） */
+.submissions-list.exercise-task .list-header {
+  grid-template-columns: 2fr 1.5fr 1fr 1fr 1fr 1.5fr;
+}
+
+
+
 .theme-dark .list-header {
   background: rgba(255, 255, 255, 0.03);
   border-bottom-color: rgba(255, 255, 255, 0.1);
@@ -1089,6 +1168,13 @@ onMounted(() => {
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
   transition: all 0.3s ease;
 }
+
+/* 练习题类型的布局（包含提交次数列） */
+.submissions-list.exercise-task .submission-item {
+  grid-template-columns: 2fr 1.5fr 1fr 1fr 1fr 1.5fr;
+}
+
+
 
 .submission-item:hover {
   background: rgba(102, 126, 234, 0.02);
@@ -1226,6 +1312,17 @@ onMounted(() => {
 .score-total {
   font-size: 14px;
   color: #9ca3af;
+}
+
+.attempts-count {
+  font-size: 16px;
+  font-weight: 600;
+  color: #374151;
+  text-align: center;
+}
+
+.theme-dark .attempts-count {
+  color: #e5e7eb;
 }
 
 .action-buttons {

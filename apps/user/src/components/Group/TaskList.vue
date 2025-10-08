@@ -122,7 +122,6 @@
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item :command="{ action: 'edit', task }">编辑任务</el-dropdown-item>
-                  <el-dropdown-item :command="{ action: 'duplicate', task }">复制任务</el-dropdown-item>
                   <el-dropdown-item :command="{ action: 'stats', task }">查看统计</el-dropdown-item>
                   <el-dropdown-item 
                     :command="{ action: 'delete', task }"
@@ -488,7 +487,13 @@ const handleTaskClick = (task) => {
 };
 
 const handleTaskAction = (command) => {
-  emit('task-action', command);
+  if (command.action === 'stats') {
+    // 查看统计直接进入任务管理组件
+    emit('manage-task', command.task);
+  } else {
+    // 其他操作继续传递给父组件
+    emit('task-action', command);
+  }
 };
 
 const handleSolveExercise = (task) => {
