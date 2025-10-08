@@ -41,9 +41,9 @@
       </div>
       
       <div class="filter-section">
-        <!-- 状态筛选 -->
+        <!-- 截止时间筛选 -->
         <div class="filter-group">
-          <span class="filter-group-label">状态筛选：</span>
+          <span class="filter-group-label">按截止时间：</span>
           <div class="filter-tabs">
             <div 
               v-for="filter in taskFilters"
@@ -109,7 +109,7 @@
           </div>
 
           <!-- 任务状态指示器 -->
-          <div class="task-status-indicator" :class="`status-${task.status}`"></div>
+          <div class="task-status-indicator" :class="`status-${getTaskActualStatus(task)}`"></div>
 
           <!-- 任务内容 -->
           <div class="task-content" @click="handleTaskClick(task)">
@@ -130,7 +130,7 @@
               <div class="task-info">
                 <div class="task-deadline">
                   <el-icon><Clock /></el-icon>
-                  <span :class="{ 'overdue-text': isOverdue(task) }">
+                  <span>
                     截止：{{ formatDueDate(task.dueDate) }}
                   </span>
                 </div>
@@ -165,8 +165,8 @@
             <div class="action-section">
               <!-- 状态显示 -->
               <div class="task-status">
-                <span class="status-tag" :class="`status-${task.status}`">
-                  {{ getStatusText(task.status) }}
+                <span class="status-tag" :class="`status-${getTaskActualStatus(task)}`">
+                  {{ getStatusText(getTaskActualStatus(task)) }}
                 </span>
               </div>
               
@@ -175,24 +175,24 @@
                 <template v-if="task.type === 'exercise'">
                   <!-- 题目任务单：解题按钮 -->
                   <el-button 
-                    v-if="task.status !== 'completed'"
-                    :type="task.status === 'overdue' ? 'danger' : 'primary'"
+                    v-if="getTaskActualStatus(task) !== 'completed'"
+                    :type="getTaskActualStatus(task) === 'overdue' ? 'danger' : 'primary'"
                     @click.stop="handleSolveExercise(task)"
                   >
                     <el-icon><EditPen /></el-icon>
-                    {{ task.status === 'overdue' ? '补做题目' : (task.status === 'pending' ? '开始解题' : '继续解题') }}
+                    {{ getTaskActualStatus(task) === 'overdue' ? '补做题目' : '开始解题' }}
                   </el-button>
                 </template>
                 
                 <template v-else>
                   <!-- 自定义任务单：提交按钮 -->
                   <el-button 
-                    v-if="task.status !== 'completed'"
-                    :type="task.status === 'overdue' ? 'danger' : 'primary'"
+                    v-if="getTaskActualStatus(task) !== 'completed'"
+                    :type="getTaskActualStatus(task) === 'overdue' ? 'danger' : 'primary'"
                     @click.stop="handleSubmitTask(task)"
                   >
                     <el-icon><Upload /></el-icon>
-                    {{ task.status === 'overdue' ? '补交任务' : '提交任务' }}
+                    {{ getTaskActualStatus(task) === 'overdue' ? '补交任务' : '提交任务' }}
                   </el-button>
                 </template>
               </div>
@@ -363,10 +363,6 @@
         
         <div class="detail-meta">
           <div class="meta-item">
-            <span class="meta-label">布置者：</span>
-            <span class="meta-value">{{ selectedTaskDetail.assignBy }}</span>
-          </div>
-          <div class="meta-item">
             <span class="meta-label">创建时间：</span>
             <span class="meta-value">{{ formatDateTime(selectedTaskDetail.createDate) }}</span>
           </div>
@@ -386,29 +382,66 @@
           <div v-if="selectedTaskDetail.requirements" class="content-text">{{ selectedTaskDetail.requirements }}</div>
         </div>
 
-        <!-- 学生提交区域 -->
-        <div v-if="!isTeacher && selectedTaskDetail.status !== 'completed'" class="submission-area">
-          <h4>任务提交</h4>
-          <el-form>
-            <el-form-item label="提交说明">
-              <el-input 
-                v-model="submissionForm.note"
-                type="textarea"
-                :rows="3"
-                placeholder="请描述您的完成情况..."
-                maxlength="500"
-                show-word-limit
-              />
-            </el-form-item>
-          </el-form>
-          <div class="submission-actions">
+        <!-- 学生操作区域 -->
+        <div v-if="!isTeacher && getTaskActualStatus(selectedTaskDetail) !== 'completed'" class="student-action-area">
+          <!-- 题目任务：前往解题按钮 -->
+          <div v-if="selectedTaskDetail.type === 'exercise'" class="exercise-action">
             <el-button 
               type="primary" 
-              @click="handleSubmitTaskDetail"
-              :disabled="selectedTaskDetail.status === 'overdue'"
+              size="large"
+              @click="handleGoToExercise(selectedTaskDetail)"
+              :type="getTaskActualStatus(selectedTaskDetail) === 'overdue' ? 'danger' : 'primary'"
             >
-              提交任务
+              <el-icon><EditPen /></el-icon>
+              {{ getTaskActualStatus(selectedTaskDetail) === 'overdue' ? '补做题目' : '前往解题' }}
             </el-button>
+          </div>
+          
+          <!-- 自定义任务：提交区域 -->
+          <div v-else class="custom-task-submission">
+            <h4>任务提交</h4>
+            <el-form :model="submissionForm" ref="submissionFormRef" label-width="100px">
+              <el-form-item label="文字内容" prop="content">
+                <el-input 
+                  v-model="submissionForm.content"
+                  type="textarea"
+                  :rows="4"
+                  placeholder="请输入任务完成的文字说明..."
+                  maxlength="1000"
+                  show-word-limit
+                />
+              </el-form-item>
+
+              <el-form-item label="文件上传">
+                <el-upload
+                  class="task-upload"
+                  :file-list="submissionForm.files"
+                  :on-change="handleFileChange"
+                  :on-remove="handleFileRemove"
+                  :before-upload="() => false"
+                  multiple
+                  drag
+                >
+                  <el-icon class="upload-icon"><Upload /></el-icon>
+                  <div class="upload-text">点击或拖拽文件到此区域上传</div>
+                  <template #tip>
+                    <div class="upload-tip">支持文档、图片等格式，单个文件不超过10MB</div>
+                  </template>
+                </el-upload>
+              </el-form-item>
+
+            </el-form>
+            
+            <div class="submission-actions">
+              <el-button 
+                type="primary" 
+                @click="handleSubmitTaskInDetail"
+                :disabled="getTaskActualStatus(selectedTaskDetail) === 'overdue'"
+                :loading="submitting"
+              >
+                提交任务
+              </el-button>
+            </div>
           </div>
         </div>
 
@@ -437,55 +470,7 @@
       </div>
     </el-dialog>
 
-    <!-- 自定义任务提交对话框 -->
-    <el-dialog 
-      v-model="isSubmissionDialogVisible" 
-      title="提交任务"
-      width="600px"
-      class="submission-dialog"
-      :class="{ 'theme-dark': isDarkMode }"
-    >
-      <el-form :model="submissionForm" ref="submissionFormRef" label-width="100px">
-        <el-form-item label="文字内容" prop="content">
-          <el-input 
-            v-model="submissionForm.content"
-            type="textarea"
-            :rows="6"
-            placeholder="请输入提交内容"
-            maxlength="1000"
-            show-word-limit
-          />
-        </el-form-item>
 
-        <el-form-item label="附件上传">
-          <el-upload
-            class="task-upload"
-            :file-list="submissionForm.files"
-            :on-change="handleFileChange"
-            :on-remove="handleFileRemove"
-            :before-upload="() => false"
-            multiple
-          >
-            <el-button size="small">
-              <el-icon><Upload /></el-icon>
-              添加文件（可选）
-            </el-button>
-            <template #tip>
-              <div class="upload-tip">支持上传各种类型文件，单个文件不超过10MB</div>
-            </template>
-          </el-upload>
-        </el-form-item>
-      </el-form>
-
-      <template #footer>
-        <div class="dialog-footer">
-          <el-button @click="isSubmissionDialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="handleSaveSubmission" :loading="submitting">
-            提交
-          </el-button>
-        </div>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
@@ -548,7 +533,7 @@ const currentTaskType = ref('custom'); // 当前创建的任务类型
 // 对话框状态
 const isTaskDialogVisible = ref(false);
 const isDetailDialogVisible = ref(false);
-const isSubmissionDialogVisible = ref(false);
+
 const selectedTaskDetail = ref(null);
 const editingTask = ref(null);
 const submitting = ref(false);
@@ -585,13 +570,21 @@ const isDarkMode = computed(() => store.getters.isDarkMode);
 // 是否为教师（管理员）
 const isTeacher = computed(() => props.courseType === 'my-teachings');
 
-// 任务筛选选项
+// 按截止时间筛选选项
 const taskFilters = [
-  { key: 'all', label: '全部' },
-  { key: 'pending', label: '待完成' },
-  { key: 'in_progress', label: '进行中' },
-  { key: 'completed', label: '已完成' },
-  { key: 'overdue', label: '已逾期' }
+  { key: 'all', label: '全部任务' },
+  { key: 'today', label: '今日截止' },
+  { key: 'tomorrow', label: '明日截止' },
+  { key: 'week', label: '本周截止' },
+  { key: 'overdue', label: '已逾期' },
+  { key: 'no_due', label: '无截止时间' }
+];
+
+// 任务状态选项（简化为三种状态）
+const taskStatusOptions = [
+  { value: 'pending', label: '未完成' },
+  { value: 'completed', label: '已完成' },
+  { value: 'overdue', label: '已逾期' }
 ];
 
 // 任务类型筛选选项
@@ -669,8 +662,8 @@ const mockTasks = [
     title: '实验报告：心电信号分析',
     description: '基于实验数据，分析心电信号的特征，撰写实验报告。',
     createDate: new Date('2024-10-06'),
-    dueDate: new Date('2024-10-12'),
-    status: 'in_progress',
+    dueDate: new Date('2024-10-07'), // 昨天截止，应该显示为逾期
+    status: 'pending', // 改为pending，会根据截止时间自动计算为overdue
     assignedDate: new Date('2024-10-06')
   },
   {
@@ -691,8 +684,30 @@ const mockTasks = [
     description: '使用Python实现简单的数字滤波器设计。',
     createDate: new Date('2024-10-04'),
     dueDate: new Date('2024-10-11'),
-    status: 'overdue',
+    status: 'pending',
     assignedDate: new Date('2024-10-04')
+  },
+  {
+    id: 5,
+    type: 'exercise',
+    title: '信号处理基础练习',
+    description: '完成关于傅里叶变换和频域分析的练习题。',
+    exerciseId: 101,
+    createDate: new Date('2024-10-08'),
+    dueDate: new Date('2024-10-15'),
+    status: 'pending',
+    assignedDate: new Date('2024-10-08')
+  },
+  {
+    id: 6,
+    type: 'exercise', 
+    title: '数据结构算法测试',
+    description: '测试二叉树遍历和图论基础算法的理解。',
+    exerciseId: 102,
+    createDate: new Date('2024-10-07'),
+    dueDate: new Date('2024-10-14'),
+    status: 'pending',
+    assignedDate: new Date('2024-10-07')
   }
 ];
 
@@ -708,10 +723,34 @@ const filteredTasks = computed(() => {
     );
   }
 
-  // 状态过滤
+  // 按截止时间筛选
   if (activeFilter.value !== 'all') {
     filtered = filtered.filter(task => {
-      return task.status === activeFilter.value;
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const tomorrow = new Date(today);
+      tomorrow.setDate(today.getDate() + 1);
+      const weekEnd = new Date(today);
+      weekEnd.setDate(today.getDate() + (7 - today.getDay())); // 本周日
+      
+      const dueDate = task.dueDate ? new Date(task.dueDate) : null;
+      
+      switch (activeFilter.value) {
+        case 'today':
+          return dueDate && dueDate >= today && dueDate < tomorrow;
+        case 'tomorrow':
+          const dayAfterTomorrow = new Date(tomorrow);
+          dayAfterTomorrow.setDate(tomorrow.getDate() + 1);
+          return dueDate && dueDate >= tomorrow && dueDate < dayAfterTomorrow;
+        case 'week':
+          return dueDate && dueDate > tomorrow && dueDate <= weekEnd;
+        case 'overdue':
+          return dueDate && dueDate < today && task.status !== 'completed';
+        case 'no_due':
+          return !dueDate;
+        default:
+          return true;
+      }
     });
   }
 
@@ -741,13 +780,30 @@ const groupedTasks = computed(() => {
     if (!groups[dateKey]) {
       groups[dateKey] = {
         label: getDateGroupLabel(task.createDate || task.assignedDate),
-        tasks: []
+        tasks: [],
+        date: task.createDate || task.assignedDate
       };
     }
     groups[dateKey].tasks.push(task);
   });
   
-  return groups;
+  // 按日期排序分组，最新的在前
+  const sortedGroups = {};
+  Object.keys(groups)
+    .sort((a, b) => new Date(groups[b].date) - new Date(groups[a].date))
+    .forEach(key => {
+      sortedGroups[key] = groups[key];
+      // 每个分组内的任务按优先级排序
+      sortedGroups[key].tasks.sort((a, b) => {
+        const priorityOrder = { high: 3, medium: 2, low: 1 };
+        if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
+          return priorityOrder[b.priority] - priorityOrder[a.priority];
+        }
+        return new Date(b.createDate || b.assignedDate) - new Date(a.createDate || a.assignedDate);
+      });
+    });
+  
+  return sortedGroups;
 });
 
 // 是否全选
@@ -762,13 +818,8 @@ const loadTasks = async () => {
   
   // 模拟API调用
   setTimeout(() => {
-    tasks.value = mockTasks.map(task => ({
-      ...task,
-      // 根据当前时间和截止时间判断是否逾期
-      status: task.status === 'pending' && task.dueDate && new Date() > new Date(task.dueDate) 
-        ? 'overdue' 
-        : task.status
-    }));
+    // 直接使用模拟数据，状态计算交给 getTaskActualStatus 函数
+    tasks.value = [...mockTasks];
     loading.value = false;
   }, 500);
 };
@@ -777,7 +828,31 @@ const getFilterCount = (filterKey) => {
   if (filterKey === 'all') return tasks.value.length;
   
   return tasks.value.filter(task => {
-    return task.status === filterKey;
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+    const weekEnd = new Date(today);
+    weekEnd.setDate(today.getDate() + (7 - today.getDay()));
+    
+    const dueDate = task.dueDate ? new Date(task.dueDate) : null;
+    
+    switch (filterKey) {
+      case 'today':
+        return dueDate && dueDate >= today && dueDate < tomorrow;
+      case 'tomorrow':
+        const dayAfterTomorrow = new Date(tomorrow);
+        dayAfterTomorrow.setDate(tomorrow.getDate() + 1);
+        return dueDate && dueDate >= tomorrow && dueDate < dayAfterTomorrow;
+      case 'week':
+        return dueDate && dueDate > tomorrow && dueDate <= weekEnd;
+      case 'overdue':
+        return dueDate && dueDate < today && task.status !== 'completed';
+      case 'no_due':
+        return !dueDate;
+      default:
+        return true;
+    }
   }).length;
 };
 
@@ -806,45 +881,38 @@ const getPriorityText = (priority) => {
   return priorityMap[priority] || priority;
 };
 
+// 获取任务的实际状态（简化为三种状态）
+const getTaskActualStatus = (task) => {
+  // 如果已完成，返回已完成状态
+  if (task.status === 'completed') {
+    return 'completed';
+  }
+  
+  // 如果未完成但超过截止时间，返回逾期状态
+  if (task.dueDate && new Date() > new Date(task.dueDate)) {
+    return 'overdue';
+  }
+  
+  // 其他情况都是未完成状态
+  return 'pending';
+};
+
 const getStatusText = (status) => {
   const statusMap = {
-    'pending': '待完成',
-    'in_progress': '进行中',
-    'completed': '已完成',
+    'pending': '未完成',
+    'completed': '已完成', 
     'overdue': '已逾期'
   };
   return statusMap[status] || status;
 };
 
-// 日期分组函数
+// 日期分组函数 - 精确到具体日期
 const getDateGroup = (date) => {
   const taskDate = new Date(date);
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const yesterday = new Date(today);
-  yesterday.setDate(today.getDate() - 1);
-  
-  if (taskDate >= today) {
-    return 'today';
-  } else if (taskDate >= yesterday) {
-    return 'yesterday';
-  } else {
-    // 按周分组
-    const weekStart = new Date(today);
-    weekStart.setDate(today.getDate() - today.getDay());
-    if (taskDate >= weekStart) {
-      return 'thisWeek';
-    }
-    
-    // 按月分组
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    if (taskDate >= monthStart) {
-      return 'thisMonth';
-    }
-    
-    // 更早的按月份分组
-    return `${taskDate.getFullYear()}-${taskDate.getMonth() + 1}`;
-  }
+  // 返回 YYYY-MM-DD 格式的日期字符串
+  return taskDate.getFullYear() + '-' + 
+         String(taskDate.getMonth() + 1).padStart(2, '0') + '-' + 
+         String(taskDate.getDate()).padStart(2, '0');
 };
 
 const getDateGroupLabel = (date) => {
@@ -854,31 +922,44 @@ const getDateGroupLabel = (date) => {
   const yesterday = new Date(today);
   yesterday.setDate(today.getDate() - 1);
   
-  if (taskDate >= today) {
-    return '今天';
-  } else if (taskDate >= yesterday) {
-    return '昨天';
-  } else {
-    const weekStart = new Date(today);
-    weekStart.setDate(today.getDate() - today.getDay());
-    if (taskDate >= weekStart) {
-      return '本周早些时候';
-    }
-    
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    if (taskDate >= monthStart) {
-      return '本月早些时候';
-    }
-    
-    // 更早的显示具体月份
-    const year = taskDate.getFullYear();
-    const month = taskDate.getMonth() + 1;
-    if (year === now.getFullYear()) {
-      return `${month}月`;
-    } else {
-      return `${year}年${month}月`;
-    }
+  // 判断是否为今天
+  if (taskDate.getFullYear() === today.getFullYear() && 
+      taskDate.getMonth() === today.getMonth() && 
+      taskDate.getDate() === today.getDate()) {
+    return '今天 (' + formatDateShort(taskDate) + ')';
   }
+  
+  // 判断是否为昨天
+  if (taskDate.getFullYear() === yesterday.getFullYear() && 
+      taskDate.getMonth() === yesterday.getMonth() && 
+      taskDate.getDate() === yesterday.getDate()) {
+    return '昨天 (' + formatDateShort(taskDate) + ')';
+  }
+  
+  // 判断是否为明天
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
+  if (taskDate.getFullYear() === tomorrow.getFullYear() && 
+      taskDate.getMonth() === tomorrow.getMonth() && 
+      taskDate.getDate() === tomorrow.getDate()) {
+    return '明天 (' + formatDateShort(taskDate) + ')';
+  }
+  
+  // 其他日期显示具体日期和星期
+  const weekDays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+  const weekDay = weekDays[taskDate.getDay()];
+  
+  // 如果是本年，不显示年份
+  if (taskDate.getFullYear() === now.getFullYear()) {
+    return `${taskDate.getMonth() + 1}月${taskDate.getDate()}日 ${weekDay}`;
+  } else {
+    return `${taskDate.getFullYear()}年${taskDate.getMonth() + 1}月${taskDate.getDate()}日 ${weekDay}`;
+  }
+};
+
+// 格式化日期为简短形式
+const formatDateShort = (date) => {
+  return `${date.getMonth() + 1}/${date.getDate()}`;
 };
 
 const getPreviewText = (text) => {
@@ -893,7 +974,10 @@ const formatDueDate = (date) => {
   const diffTime = dueDate - now;
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   
-  if (diffDays < 0) return '已逾期';
+  if (diffDays < 0) {
+    // 逾期的情况直接显示日期，不显示"已逾期"文字
+    return dueDate.toLocaleDateString('zh-CN');
+  }
   if (diffDays === 0) return '今天截止';
   if (diffDays === 1) return '明天截止';
   if (diffDays <= 7) return `${diffDays}天后截止`;
@@ -932,19 +1016,19 @@ const formatAssignedDate = (date) => {
 };
 
 const isOverdue = (task) => {
-  return task.status === 'overdue' || 
-    (task.dueDate && new Date() > new Date(task.dueDate) && task.status !== 'completed');
+  return getTaskActualStatus(task) === 'overdue';
 };
 
 const getProgressText = (task) => {
-  if (task.status === 'completed') return '已完成';
-  if (task.status === 'in_progress') return '进行中';
-  if (task.status === 'overdue') return '已逾期';
-  return '未开始';
+  const actualStatus = getTaskActualStatus(task);
+  if (actualStatus === 'completed') return '已完成';
+  if (actualStatus === 'overdue') return '已逾期';
+  return '未完成';
 };
 
 const getProgressPercentage = (task) => {
-  if (task.status === 'completed') return 100;
+  const actualStatus = getTaskActualStatus(task);
+  if (actualStatus === 'completed') return 100;
   if (task.status === 'in_progress') return 50;
   return 0;
 };
@@ -1010,6 +1094,13 @@ const handleSelectAll = () => {
 
 const handleTaskClick = (task) => {
   selectedTaskDetail.value = task;
+  
+  // 重置提交表单
+  submissionForm.value = {
+    content: '',
+    files: []
+  };
+  
   isDetailDialogVisible.value = true;
 };
 
@@ -1104,36 +1195,37 @@ const handleStartTask = (task) => {
 };
 
 const handleSubmitTask = (task) => {
-  // 打开自定义任务提交对话框
+  // 直接打开任务详情弹窗，在其中进行提交
   selectedTaskDetail.value = task;
+  
+  // 重置提交表单
   submissionForm.value = {
     content: '',
     files: []
   };
-  isSubmissionDialogVisible.value = true;
+  
+  isDetailDialogVisible.value = true;
 };
 
 const handleSolveExercise = (task) => {
   // 跳转到解题页面
   router.push({
-    name: 'ExerciseSolveView',
-    params: { id: task.exerciseId || task.id },
+    name: 'exercise-solve',
+    params: { 
+      id: task.exerciseId || task.id 
+    },
     query: { 
+      taskId: task.id,
       title: task.title,
       type: task.type,
-      from: 'group'
+      from: 'group-card'
     }
   });
+  
+  ElMessage.success(`正在跳转到解题页面：${task.title}`);
 };
 
-const handleSubmitTaskDetail = () => {
-  if (selectedTaskDetail.value) {
-    selectedTaskDetail.value.status = 'completed';
-    ElMessage.success('任务已提交');
-    isDetailDialogVisible.value = false;
-    emit('task-submit', selectedTaskDetail.value);
-  }
-};
+
 
 const handleSaveTask = async () => {
   if (!taskFormRef.value) return;
@@ -1188,8 +1280,29 @@ const handleFileRemove = (file, fileList) => {
   submissionForm.value.files = fileList;
 };
 
-// 保存提交
-const handleSaveSubmission = async () => {
+// 前往解题（题目任务）
+const handleGoToExercise = (task) => {
+  // 关闭详情弹窗
+  isDetailDialogVisible.value = false;
+  
+  // 跳转到解题页面
+  router.push({
+    name: 'exercise-solve',
+    params: { 
+      id: task.exerciseId || task.id 
+    },
+    query: { 
+      taskId: task.id,
+      title: task.title,
+      from: 'group-task'
+    }
+  });
+  
+  ElMessage.success(`正在跳转到解题页面：${task.title}`);
+};
+
+// 在详情弹窗中提交任务（自定义任务）
+const handleSubmitTaskInDetail = async () => {
   if (!submissionForm.value.content && submissionForm.value.files.length === 0) {
     ElMessage.warning('请至少输入文字内容或上传文件');
     return;
@@ -1210,12 +1323,22 @@ const handleSaveSubmission = async () => {
           submitTime: new Date()
         }
       });
+      
+      // 重置表单
+      submissionForm.value = {
+        content: '',
+        files: []
+      };
+      
+      // 关闭详情弹窗
+      isDetailDialogVisible.value = false;
     }
     
     submitting.value = false;
-    isSubmissionDialogVisible.value = false;
   }, 1000);
 };
+
+
 
 onMounted(() => {
   loadTasks();
@@ -1999,6 +2122,63 @@ onMounted(() => {
   color: #e5e7eb;
 }
 
+/* 学生操作区域 */
+.student-action-area {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.theme-dark .student-action-area {
+  border-top-color: rgba(255, 255, 255, 0.1);
+}
+
+/* 题目任务解题按钮 */
+.exercise-action {
+  text-align: center;
+  padding: 20px 0;
+}
+
+.exercise-action .el-button {
+  font-size: 16px;
+  padding: 12px 32px;
+  height: auto;
+}
+
+/* 自定义任务提交区域 */
+.custom-task-submission h4 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+  color: #1a1a1a;
+}
+
+.theme-dark .custom-task-submission h4 {
+  color: #ffffff;
+}
+
+.task-upload {
+  width: 100%;
+}
+
+.upload-icon {
+  font-size: 32px;
+  color: #8c9097;
+  margin-bottom: 8px;
+}
+
+.upload-text {
+  font-size: 14px;
+  color: #8c9097;
+  margin-bottom: 8px;
+}
+
+.upload-tip {
+  font-size: 12px;
+  color: #a8a8a8;
+}
+
+/* 原有样式兼容 */
 .submission-area {
   border-top: 1px solid rgba(0, 0, 0, 0.06);
   padding-top: 20px;

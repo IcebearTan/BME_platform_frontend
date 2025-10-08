@@ -118,61 +118,7 @@
         </div>
       </div>
 
-      <!-- 左下：目标输出 -->
-      <div class="quadrant target-panel">
-        <div class="panel-header">
-          <h3 class="panel-title">
-            <el-icon><Aim /></el-icon>
-            预期输出
-          </h3>
-          <div class="panel-actions">
-            <el-button 
-              type="text" 
-              size="small" 
-              @click="toggleFullscreen('target')"
-              class="fullscreen-btn"
-            >
-              <el-icon><FullScreen /></el-icon>
-            </el-button>
-          </div>
-        </div>
-        <div class="panel-content">
-          <div class="target-output-container">
-            <div class="test-cases">
-              <div 
-                v-for="(testCase, index) in exerciseData.testCases" 
-                :key="index"
-                class="test-case-item"
-                :class="{ 'active': activeTestCase === index }"
-                @click="activeTestCase = index"
-              >
-                <div class="test-case-header">
-                  <span class="test-case-title">测试用例 {{ index + 1 }}</span>
-                  <el-icon v-if="testResults[index]" :class="getTestResultClass(testResults[index])">
-                    <component :is="getTestResultIcon(testResults[index])" />
-                  </el-icon>
-                </div>
-                <div class="test-case-content" v-if="activeTestCase === index">
-                  <div class="test-input">
-                    <label>输入：</label>
-                    <pre class="input-text">{{ testCase.input }}</pre>
-                  </div>
-                  <div class="test-expected">
-                    <label>预期输出：</label>
-                    <pre class="output-text expected">{{ testCase.expectedOutput }}</pre>
-                  </div>
-                  <div class="test-actual" v-if="testResults[index]">
-                    <label>实际输出：</label>
-                    <pre class="output-text actual" :class="{ 'correct': testResults[index].passed }">{{ testResults[index].actualOutput }}</pre>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 右上：代码编辑器 -->
+      <!-- 左下：预期输出 -->
       <div class="quadrant code-panel">
         <div class="panel-header">
           <h3 class="panel-title">
@@ -238,6 +184,60 @@
                   <el-icon><Switch /></el-icon>
                   {{ wordWrap ? '取消换行' : '自动换行' }}
                 </el-button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 右上：代码编辑器 -->
+      <div class="quadrant target-panel">
+        <div class="panel-header">
+          <h3 class="panel-title">
+            <el-icon><Aim /></el-icon>
+            预期输出
+          </h3>
+          <div class="panel-actions">
+            <el-button 
+              type="text" 
+              size="small" 
+              @click="toggleFullscreen('target')"
+              class="fullscreen-btn"
+            >
+              <el-icon><FullScreen /></el-icon>
+            </el-button>
+          </div>
+        </div>
+        <div class="panel-content">
+          <div class="target-output-container">
+            <div class="test-cases">
+              <div 
+                v-for="(testCase, index) in exerciseData.testCases" 
+                :key="index"
+                class="test-case-item"
+                :class="{ 'active': activeTestCases.includes(index) }"
+                @click="toggleTestCase(index)"
+              >
+                <div class="test-case-header">
+                  <span class="test-case-title">测试用例 {{ index + 1 }}</span>
+                  <el-icon v-if="testResults[index]" :class="getTestResultClass(testResults[index])">
+                    <component :is="getTestResultIcon(testResults[index])" />
+                  </el-icon>
+                </div>
+                <div class="test-case-content" v-if="activeTestCases.includes(index)">
+                  <div class="test-input">
+                    <label>输入：</label>
+                    <pre class="input-text">{{ testCase.input }}</pre>
+                  </div>
+                  <div class="test-expected">
+                    <label>预期输出：</label>
+                    <pre class="output-text expected">{{ testCase.expectedOutput }}</pre>
+                  </div>
+                  <div class="test-actual" v-if="testResults[index]">
+                    <label>实际输出：</label>
+                    <pre class="output-text actual" :class="{ 'correct': testResults[index].passed }">{{ testResults[index].actualOutput }}</pre>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -441,7 +441,8 @@ import {
   CircleClose,
   Loading,
   MagicStick,
-  Switch
+  Switch,
+  List
 } from '@element-plus/icons-vue';
 
 // Vue Router
@@ -461,7 +462,7 @@ const testResults = ref([]);
 const running = ref(false);
 const submitting = ref(false);
 const executionTime = ref(0);
-const activeTestCase = ref(0);
+const activeTestCases = ref([]); // 数组存储展开的测试用例索引
 const activeOutputTab = ref('console');
 const activeHints = ref([]);
 const wordWrap = ref(true);
@@ -470,6 +471,10 @@ const fullscreenTitle = ref('');
 const fullscreenContent = ref('');
 const submitDialogVisible = ref(false);
 const submitResult = ref({});
+
+// 任务相关数据
+const fromTask = ref(false);
+const taskInfo = ref({});
 
 // 计算属性
 const isDarkMode = computed(() => store.getters.isDarkMode);
@@ -587,9 +592,119 @@ console.log(result);`,
 const loadExerciseData = async () => {
   loading.value = true;
   
+  // 获取路由参数
+  const exerciseId = route.params.id;
+  const taskId = route.query.taskId;
+  const from = route.query.from;
+  
+  // 检查是否从任务跳转过来
+  if (from && from.startsWith('group') && taskId) {
+    fromTask.value = true;
+    
+    // 模拟任务数据（应该从后端API获取）
+    const mockTasksData = {
+      '1': { 
+        id: 1, 
+        title: '信号处理基础练习', 
+        status: 'pending', 
+        deadline: '2024-01-20 23:59:59',
+        exerciseId: 2 
+      },
+      '2': { 
+        id: 2, 
+        title: '医学图像处理测试', 
+        status: 'overdue', 
+        deadline: '2024-01-15 23:59:59',
+        exerciseId: 4 
+      },
+      '3': { 
+        id: 3, 
+        title: '傅里叶变换应用', 
+        status: 'completed', 
+        deadline: '2024-01-25 23:59:59',
+        exerciseId: 101 
+      },
+      '4': { 
+        id: 4, 
+        title: '数据结构基础', 
+        status: 'pending', 
+        deadline: '2024-01-22 23:59:59',
+        exerciseId: 102 
+      }
+    };
+    
+    taskInfo.value = mockTasksData[taskId] || {};
+  } else {
+    fromTask.value = false;
+  }
+  
+  // 根据不同的exerciseId加载不同的题目数据
+  const exerciseDataMap = {
+    '2': {
+      ...mockExerciseData,
+      id: 2,
+      title: '生物信号滤波练习',
+      description: `
+        <p>请计算给定生物信号的功率谱密度，并设计合适的<strong>滤波器</strong>去除噪声。</p>
+        <p>生物医学信号通常包含有用信号和噪声，需要通过数字信号处理技术进行预处理。</p>
+        <p>本题要求实现一个基本的数字滤波算法。</p>
+      `,
+      examples: [
+        {
+          input: 'signal = [1, 2, -1, 3, 0, -2, 1], cutoff = 0.5',
+          output: '[0.5, 1.2, 0.3, 1.8, 0.6, -0.8, 0.5]',
+          explanation: '通过低通滤波器处理后的信号值'
+        }
+      ]
+    },
+    '4': {
+      ...mockExerciseData,
+      id: 4,
+      title: '医学图像处理基础测试',
+      description: `
+        <p>关于医学图像滤波方法的选择题测试。</p>
+        <p>请选择正确的图像处理算法来解决给定的医学图像增强问题。</p>
+      `
+    },
+    '101': {
+      ...mockExerciseData,
+      id: 101,
+      title: '信号处理基础练习',
+      description: `
+        <p>完成关于<strong>傅里叶变换</strong>和频域分析的练习题。</p>
+        <p>傅里叶变换是信号处理的重要工具，用于将时域信号转换为频域表示。</p>
+      `
+    },
+    '102': {
+      ...mockExerciseData,
+      id: 102,
+      title: '数据结构算法测试',
+      description: `
+        <p>测试二叉树遍历和图论基础算法的理解。</p>
+        <p>请实现二叉树的中序遍历算法，并分析时间复杂度。</p>
+      `
+    }
+  };
+  
   // 模拟API调用
   setTimeout(() => {
-    exerciseData.value = mockExerciseData;
+    // 根据exerciseId选择对应的题目数据，如果没有找到则使用默认数据
+    exerciseData.value = exerciseDataMap[exerciseId] || mockExerciseData;
+    
+    // 如果是从任务跳转过来，显示提示信息
+    if (fromTask.value) {
+      ElMessage.success(`已加载任务练习：${exerciseData.value.title}`);
+      
+      // 在控制台输出调试信息
+      console.log('任务解题页面加载信息：', {
+        exerciseId,
+        taskId,
+        taskInfo: taskInfo.value,
+        from,
+        title: exerciseData.value.title
+      });
+    }
+    
     userCode.value = exerciseData.value.initialCode[selectedLanguage.value] || '';
     loading.value = false;
   }, 500);
@@ -597,6 +712,19 @@ const loadExerciseData = async () => {
 
 const handleBackToPrevious = () => {
   router.go(-1);
+};
+
+const toggleTestCase = (index) => {
+  // 检查该测试用例是否已经展开
+  const currentIndex = activeTestCases.value.indexOf(index);
+  
+  if (currentIndex > -1) {
+    // 如果已展开，则从数组中移除（折叠）
+    activeTestCases.value.splice(currentIndex, 1);
+  } else {
+    // 如果未展开，则添加到数组中（展开）
+    activeTestCases.value.push(index);
+  }
 };
 
 const handleLanguageChange = () => {
@@ -814,6 +942,37 @@ const getCodePlaceholder = () => {
   return placeholders[selectedLanguage.value] || '// 在此处编写代码...';
 };
 
+// 任务相关方法
+const getTaskStatusType = (status) => {
+  const typeMap = {
+    'completed': 'success',
+    'overdue': 'danger',
+    'pending': 'warning'
+  };
+  return typeMap[status] || 'info';
+};
+
+const getTaskStatusText = (status) => {
+  const textMap = {
+    'completed': '已完成',
+    'overdue': '已逾期',
+    'pending': '未完成'
+  };
+  return textMap[status] || status;
+};
+
+const formatDate = (dateStr) => {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  return date.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
+
 const getLineCount = () => {
   return userCode.value.split('\n').length;
 };
@@ -913,6 +1072,48 @@ onMounted(() => {
   flex: 1;
 }
 
+.task-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+  border-radius: 8px;
+  border-left: 4px solid #3b82f6;
+  font-size: 14px;
+  color: #374151;
+}
+
+.theme-dark .task-info {
+  background: linear-gradient(135deg, #374151 0%, #4b5563 100%);
+  color: #d1d5db;
+  border-left-color: #60a5fa;
+}
+
+.task-icon {
+  color: #3b82f6;
+  font-size: 16px;
+}
+
+.theme-dark .task-icon {
+  color: #60a5fa;
+}
+
+.task-label {
+  font-weight: 500;
+}
+
+.task-deadline {
+  color: #6b7280;
+  font-size: 12px;
+  margin-left: auto;
+}
+
+.theme-dark .task-deadline {
+  color: #9ca3af;
+}
+
 .exercise-title {
   font-size: 24px;
   font-weight: 600;
@@ -944,10 +1145,63 @@ onMounted(() => {
   gap: 1px;
   background-color: #e5e7eb;
   min-height: calc(100vh - 120px);
+  font-size: 14px; /* 固定基础字体大小 */
+  line-height: 1.5;
 }
 
 .theme-dark .main-content {
   background-color: #374151;
+}
+
+/* 防止缩放影响的通用文本样式 */
+.main-content * {
+  box-sizing: border-box;
+}
+
+.main-content h1, .main-content h2, .main-content h3, .main-content h4, .main-content h5, .main-content h6 {
+  font-size: inherit;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.main-content p, .main-content div, .main-content span {
+  font-size: inherit;
+  line-height: inherit;
+}
+
+/* 代码编辑器例外，保持等宽字体 */
+.code-textarea, .code-editor-container pre, .code-editor-container code {
+  font-family: 'Fira Code', 'Monaco', 'Menlo', 'Ubuntu Mono', monospace !important;
+  font-size: 13px !important; /* 代码编辑器专用字体大小 */
+  line-height: 1.4 !important;
+}
+
+/* 确保所有Element Plus组件的文本大小 */
+.main-content .el-tag {
+  font-size: 12px !important;
+}
+
+.main-content .el-button {
+  font-size: 13px !important;
+}
+
+.main-content .el-select {
+  font-size: 13px !important;
+}
+
+/* 工具栏和状态文本 */
+.editor-toolbar, .code-stats {
+  font-size: 12px !important;
+}
+
+/* 测试结果摘要 */
+.test-summary, .summary-item, .summary-label, .summary-value {
+  font-size: 13px !important;
+}
+
+/* 空状态提示文本 */
+.empty-output, .running-output {
+  font-size: 14px !important;
 }
 
 /* 象限面板 */
@@ -977,13 +1231,16 @@ onMounted(() => {
 }
 
 .panel-title {
-  font-size: 16px;
+  font-size: 16px !important;
   font-weight: 600;
   margin: 0;
   display: flex;
   align-items: center;
   gap: 8px;
   color: #374151;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .theme-dark .panel-title {
@@ -1017,13 +1274,42 @@ onMounted(() => {
   flex: 1;
   overflow: auto;
   padding: 20px;
+  font-size: 14px !important;
+  line-height: 1.6 !important;
+}
+
+/* 面板内容文本控制 */
+.panel-content h4 {
+  font-size: 15px !important;
+  font-weight: 600;
+  margin: 0 0 12px 0 !important;
+  color: #374151;
+}
+
+.theme-dark .panel-content h4 {
+  color: #e5e7eb;
+}
+
+.panel-content p, .panel-content div:not(.code-textarea), .panel-content span {
+  font-size: 14px !important;
+  line-height: 1.6 !important;
+}
+
+.panel-content label {
+  font-size: 13px !important;
+  font-weight: 500;
+  color: #6b7280;
+}
+
+.theme-dark .panel-content label {
+  color: #9ca3af;
 }
 
 /* 题目面板样式 */
 .question-content h4 {
-  font-size: 16px;
+  font-size: 15px !important;
   font-weight: 600;
-  margin: 0 0 12px 0;
+  margin: 0 0 12px 0 !important;
   color: #374151;
 }
 
@@ -1091,10 +1377,47 @@ onMounted(() => {
   padding: 2px 6px;
   border-radius: 4px;
   font-family: 'Courier New', monospace;
+  font-size: 13px !important;
 }
 
 .theme-dark .example-content code {
   background: #1f2937;
+}
+
+/* 通用代码块和预格式化文本样式（排除代码编辑器） */
+.panel-content pre:not(.code-textarea) {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 12px;
+  margin: 8px 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family: 'Courier New', 'Monaco', monospace;
+  font-size: 12px !important;
+  line-height: 1.4 !important;
+  color: #333;
+  overflow-x: auto;
+}
+
+.theme-dark .panel-content pre:not(.code-textarea) {
+  background: #1e293b;
+  border-color: #334155;
+  color: #e2e8f0;
+}
+
+.panel-content code:not(.code-textarea *) {
+  background: #f3f4f6;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-family: 'Courier New', 'Monaco', monospace;
+  font-size: 12px !important;
+  color: #e91e63;
+}
+
+.theme-dark .panel-content code:not(.code-textarea *) {
+  background: #374151;
+  color: #f472b6;
 }
 
 .constraints-list {
@@ -1120,13 +1443,12 @@ onMounted(() => {
   color: #9ca3af;
 }
 
-/* 目标输出面板样式 */
+/* 目标输出面板样式 - 与示例框保持一致 */
 .test-case-item {
-  margin-bottom: 12px;
+  margin-bottom: 16px;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s ease;
+  overflow: hidden;
 }
 
 .theme-dark .test-case-item {
@@ -1137,17 +1459,26 @@ onMounted(() => {
   border-color: #d1d5db;
 }
 
+.theme-dark .test-case-item:hover {
+  border-color: #6b7280;
+}
+
 .test-case-item.active {
   border-color: #3b82f6;
-  box-shadow: 0 0 0 1px #3b82f6;
+}
+
+.theme-dark .test-case-item.active {
+  border-color: #60a5fa;
 }
 
 .test-case-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
+  padding: 8px 16px;
   background: #f9fafb;
+  cursor: pointer;
+  user-select: none;
 }
 
 .theme-dark .test-case-header {
@@ -1157,10 +1488,30 @@ onMounted(() => {
 .test-case-title {
   font-weight: 500;
   color: #374151;
+  font-size: 14px !important;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .theme-dark .test-case-title {
   color: #e5e7eb;
+}
+
+.test-case-title::before {
+  content: '▶';
+  font-size: 10px;
+  color: #9ca3af;
+  width: 12px;
+  text-align: center;
+}
+
+.test-case-item.active .test-case-title::before {
+  transform: rotate(90deg);
+}
+
+.theme-dark .test-case-title::before {
+  color: #6b7280;
 }
 
 .test-passed {
@@ -1183,15 +1534,14 @@ onMounted(() => {
 .test-input,
 .test-expected,
 .test-actual {
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 .test-input label,
 .test-expected label,
 .test-actual label {
-  display: block;
   font-weight: 500;
-  margin-bottom: 4px;
+  margin-right: 6px;
   color: #374151;
 }
 
@@ -1208,7 +1558,8 @@ onMounted(() => {
   border-radius: 6px;
   padding: 12px;
   font-family: 'Courier New', monospace;
-  font-size: 14px;
+  font-size: 12px !important;
+  line-height: 1.4 !important;
   margin: 0;
   white-space: pre-wrap;
   word-break: break-all;
@@ -1371,19 +1722,20 @@ onMounted(() => {
   to { transform: rotate(360deg); }
 }
 
-.output-text {
+.output-panel .output-text {
   background: #f9fafb;
   border: 1px solid #e5e7eb;
   border-radius: 6px;
   padding: 16px;
   font-family: 'Courier New', monospace;
-  font-size: 14px;
+  font-size: 12px !important;
+  line-height: 1.4 !important;
   white-space: pre-wrap;
   word-break: break-all;
   margin: 0;
 }
 
-.theme-dark .output-text {
+.theme-dark .output-panel .output-text {
   background: #1f2937;
   border-color: #4b5563;
   color: #e5e7eb;
