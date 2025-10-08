@@ -329,7 +329,7 @@
 
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="isSubmissionDialogVisible = false">取消</el-button>
+          <!-- <el-button @click="isSubmissionDialogVisible = false">取消</el-button> -->
           <div v-if="selectedTask?.type === 'custom'" class="submission-buttons">
             <el-button @click="handleSaveDraft" :loading="savingDraft">
               <el-icon><Document /></el-icon>
