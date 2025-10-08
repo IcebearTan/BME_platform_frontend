@@ -3,19 +3,19 @@
     <!-- 头部操作区 -->
     <div class="tasks-header">
       <div class="header-info">
-        <h3 class="tasks-title">{{ isTeacher ? '任务单管理' : '我的任务单' }}</h3>
-        <div class="tasks-count">共 {{ filteredTasks.length }} 个任务单</div>
+        <h3 class="tasks-title">{{ isTeacher ? '任务管理' : '我的任务单' }}</h3>
+        <div class="tasks-count">共 {{ filteredTasks.length }} 个任务</div>
       </div>
       
       <!-- 管理员操作 -->
       <div v-if="isTeacher" class="header-actions">
         <el-dropdown split-button type="primary" @click="handleCreateTask('custom')" @command="handleCreateTask">
           <el-icon><DocumentAdd /></el-icon>
-          创建自定义任务单
+          创建任务
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item command="exercise">创建题目任务单</el-dropdown-item>
-              <el-dropdown-item command="custom">创建自定义任务单</el-dropdown-item>
+              <el-dropdown-item command="exercise">创建题目</el-dropdown-item>
+              <el-dropdown-item command="custom">创建自定义任务</el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
@@ -208,10 +208,10 @@
       <p class="empty-message">{{ getEmptyMessage() }}</p>
       <div v-if="isTeacher" class="empty-actions">
         <el-button type="primary" @click="handleCreateTask('custom')">
-          创建自定义任务单
+          创建自定义任务
         </el-button>
         <el-button type="success" @click="handleCreateTask('exercise')">
-          创建题目任务单
+          创建题目
         </el-button>
       </div>
     </div>
@@ -259,17 +259,87 @@
           </el-radio-group>
         </el-form-item>
 
-        <el-form-item label="任务标题" prop="title">
+        <el-form-item 
+          v-if="taskForm.type !== 'exercise'"
+          key="task-title"
+          label="任务标题" 
+          prop="title"
+        >
           <el-input 
             v-model="taskForm.title" 
-            :placeholder="taskForm.type === 'exercise' ? '请输入题目标题' : '请输入任务标题'"
+            placeholder="请输入任务标题"
             maxlength="100"
             show-word-limit
           />
         </el-form-item>
 
+        <!-- 题目筛选条件 -->
+        <div v-if="taskForm.type === 'exercise'" key="exercise-filters" class="exercise-filters">
+          <el-row :gutter="12" align="middle">
+            <el-col :span="6">
+              <el-select
+                v-model="exerciseFilters.difficulty"
+                placeholder="难度筛选"
+                clearable
+                size="small"
+                style="width: 100%"
+                @change="onExerciseFilterChange"
+              >
+                <el-option label="全部难度" value="" />
+                <el-option label="简单" value="简单" />
+                <el-option label="中等" value="中等" />
+                <el-option label="困难" value="困难" />
+              </el-select>
+            </el-col>
+            <el-col :span="6">
+              <el-select
+                v-model="exerciseFilters.type"
+                placeholder="类型筛选"
+                clearable
+                size="small"
+                style="width: 100%"
+                @change="onExerciseFilterChange"
+              >
+                <el-option label="全部类型" value="" />
+                <el-option label="编程题" value="programming" />
+                <el-option label="计算题" value="calculation" />
+                <el-option label="逻辑题" value="logic" />
+              </el-select>
+            </el-col>
+            <el-col :span="8">
+              <el-input
+                v-model="exerciseFilters.keyword"
+                placeholder="搜索题目标题"
+                size="small"
+                clearable
+                @input="onExerciseFilterChange"
+              >
+                <template #prefix>
+                  <el-icon><Search /></el-icon>
+                </template>
+              </el-input>
+            </el-col>
+            <el-col :span="4">
+              <el-button 
+                size="small" 
+                @click="clearExerciseFilters"
+                :disabled="!hasActiveFilters"
+              >
+                清除筛选
+              </el-button>
+            </el-col>
+          </el-row>
+          <div v-if="filteredExerciseBank.length === 0 && hasActiveFilters" class="no-results-hint">
+            <el-text type="info" size="small">
+              <el-icon><Search /></el-icon>
+              没有找到匹配的题目，请调整筛选条件
+            </el-text>
+          </div>
+        </div>
+
         <el-form-item 
           v-if="taskForm.type === 'exercise'"
+          key="exercise-select"
           label="选择题目" 
           prop="exerciseId"
         >
@@ -278,16 +348,17 @@
             placeholder="从题库中选择题目"
             filterable
             style="width: 100%"
+            no-data-text="没有找到匹配的题目"
           >
             <el-option 
-              v-for="exercise in exerciseBank"
+              v-for="exercise in filteredExerciseBank"
               :key="exercise.id"
               :label="exercise.title"
               :value="exercise.id"
             >
               <span style="float: left">{{ exercise.title }}</span>
               <span style="float: right; color: #8492a6; font-size: 13px">
-                {{ exercise.difficulty }}
+                {{ exercise.difficulty }} | {{ getExerciseTypeLabel(exercise.type) }}
               </span>
             </el-option>
           </el-select>
@@ -295,6 +366,7 @@
 
         <el-form-item 
           v-if="taskForm.type === 'custom'"
+          key="task-description"
           label="任务描述" 
           prop="description"
         >
@@ -318,7 +390,11 @@
           />
         </el-form-item>
 
-        <el-form-item label="任务要求">
+        <el-form-item 
+          v-if="taskForm.type !== 'exercise'"
+          key="task-requirements"
+          label="任务要求"
+        >
           <el-input 
             v-model="taskForm.requirements"
             type="textarea"
@@ -347,6 +423,16 @@
       width="800px"
       class="task-detail-dialog"
       :class="{ 'theme-dark': isDarkMode }"
+      :lock-scroll="false"
+      :modal="true"
+      :close-on-click-modal="false"
+      :append-to-body="true"
+      top="0"
+      :custom-style="{ 
+        'margin-top': '5vh',
+        'margin-bottom': '5vh',
+        'max-height': 'calc(100vh - 10vh)'
+      }"
     >
       <div v-if="selectedTaskDetail" class="task-detail">
         <div class="detail-header">
@@ -475,7 +561,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { useStore } from 'vuex';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -530,6 +616,13 @@ const batchMode = ref(false);
 const saving = ref(false);
 const currentTaskType = ref('custom'); // 当前创建的任务类型
 
+// 题目筛选相关数据
+const exerciseFilters = ref({
+  difficulty: '',
+  type: '',
+  keyword: ''
+});
+
 // 对话框状态
 const isTaskDialogVisible = ref(false);
 const isDetailDialogVisible = ref(false);
@@ -560,8 +653,18 @@ const exerciseBank = ref([
   { id: 1, title: 'Python基础语法练习', difficulty: '简单', type: 'programming' },
   { id: 2, title: '数据结构实现', difficulty: '中等', type: 'programming' },
   { id: 3, title: '算法设计与分析', difficulty: '困难', type: 'programming' },
-  { id: 4, title: '数学计算题', difficulty: '简单', type: 'calculation' },
-  { id: 5, title: '逻辑推理问题', difficulty: '中等', type: 'logic' }
+  { id: 4, title: '线性代数计算题', difficulty: '简单', type: 'calculation' },
+  { id: 5, title: '逻辑推理问题', difficulty: '中等', type: 'logic' },
+  { id: 6, title: 'Java面向对象编程', difficulty: '中等', type: 'programming' },
+  { id: 7, title: 'C++指针与内存管理', difficulty: '困难', type: 'programming' },
+  { id: 8, title: '概率统计计算', difficulty: '中等', type: 'calculation' },
+  { id: 9, title: '高等数学微积分', difficulty: '困难', type: 'calculation' },
+  { id: 10, title: '布尔逻辑与集合论', difficulty: '简单', type: 'logic' },
+  { id: 11, title: '数据库查询优化', difficulty: '困难', type: 'logic' },
+  { id: 12, title: 'JavaScript异步编程', difficulty: '中等', type: 'programming' },
+  { id: 13, title: '离散数学证明题', difficulty: '困难', type: 'logic' },
+  { id: 14, title: 'HTML与CSS基础', difficulty: '简单', type: 'programming' },
+  { id: 15, title: '物理计算与建模', difficulty: '中等', type: 'calculation' }
 ]);
 
 // 主题适配
@@ -569,6 +672,56 @@ const isDarkMode = computed(() => store.getters.isDarkMode);
 
 // 是否为教师（管理员）
 const isTeacher = computed(() => props.courseType === 'my-teachings');
+
+// 筛选后的题库
+const filteredExerciseBank = computed(() => {
+  try {
+    if (!exerciseBank.value || !Array.isArray(exerciseBank.value)) {
+      return [];
+    }
+    
+    let filtered = exerciseBank.value;
+    
+    // 按难度筛选
+    if (exerciseFilters.value?.difficulty) {
+      filtered = filtered.filter(exercise => 
+        exercise?.difficulty === exerciseFilters.value.difficulty
+      );
+    }
+    
+    // 按类型筛选
+    if (exerciseFilters.value?.type) {
+      filtered = filtered.filter(exercise => 
+        exercise?.type === exerciseFilters.value.type
+      );
+    }
+    
+    // 按关键词搜索
+    if (exerciseFilters.value?.keyword) {
+      const keyword = exerciseFilters.value.keyword.toLowerCase();
+      filtered = filtered.filter(exercise => 
+        exercise?.title?.toLowerCase().includes(keyword)
+      );
+    }
+    
+    return filtered || [];
+  } catch (error) {
+    console.warn('筛选题库时出现问题:', error);
+    return exerciseBank.value || [];
+  }
+});
+
+// 检查是否有激活的筛选条件
+const hasActiveFilters = computed(() => {
+  try {
+    return !!(exerciseFilters.value?.difficulty || 
+              exerciseFilters.value?.type || 
+              exerciseFilters.value?.keyword);
+  } catch (error) {
+    console.warn('检查筛选条件时出现问题:', error);
+    return false;
+  }
+});
 
 // 按截止时间筛选选项
 const taskFilters = [
@@ -590,8 +743,8 @@ const taskStatusOptions = [
 // 任务类型筛选选项
 const taskTypeFilters = [
   { key: 'all', label: '全部类型' },
-  { key: 'exercise', label: '题目任务单' },
-  { key: 'custom', label: '自定义任务单' }
+  { key: 'exercise', label: '题目' },
+  { key: 'custom', label: '自定义任务' }
 ];
 
 // 优先级选项
@@ -607,8 +760,25 @@ const taskRules = {
     { required: true, message: '请选择任务类型', trigger: 'change' }
   ],
   title: [
-    { required: true, message: '请输入任务标题', trigger: 'blur' },
-    { min: 2, max: 100, message: '标题长度在 2 到 100 个字符', trigger: 'blur' }
+    { 
+      required: true, 
+      message: '请输入任务标题', 
+      trigger: 'blur',
+      validator: (rule, value, callback) => {
+        if (taskForm.value.type === 'custom') {
+          if (!value || value.trim().length === 0) {
+            callback(new Error('请输入任务标题'));
+          } else if (value.length < 2 || value.length > 100) {
+            callback(new Error('标题长度在 2 到 100 个字符'));
+          } else {
+            callback();
+          }
+        } else {
+          // 题目任务不需要验证标题
+          callback();
+        }
+      }
+    }
   ],
   exerciseId: [
     { 
@@ -1063,19 +1233,90 @@ const handleCreateTask = (taskType = 'custom') => {
     referenceAnswer: '',
     score: 10
   };
+  
+  // 重置题目筛选条件
+  exerciseFilters.value = {
+    difficulty: '',
+    type: '',
+    keyword: ''
+  };
+  
   isTaskDialogVisible.value = true;
 };
 
 const getCreateDialogTitle = () => {
-  return currentTaskType.value === 'exercise' ? '创建题目任务单' : '创建自定义任务单';
+  return currentTaskType.value === 'exercise' ? '创建题目' : '创建自定义任务';
 };
 
-const handleTaskTypeChange = () => {
-  // 当任务类型改变时，重置相关字段
-  if (taskForm.value.type === 'exercise') {
-    taskForm.value.exerciseType = '';
-    taskForm.value.referenceAnswer = '';
-    taskForm.value.score = 10;
+const handleTaskTypeChange = async () => {
+  try {
+    // 同步更新当前任务类型，确保标题正确显示
+    currentTaskType.value = taskForm.value.type;
+    
+    // 使用 nextTick 确保 DOM 更新完成
+    await nextTick();
+    
+    // 当任务类型改变时，重置相关字段
+    if (taskForm.value.type === 'exercise') {
+      taskForm.value.exerciseType = '';
+      taskForm.value.referenceAnswer = '';
+      taskForm.value.score = 10;
+      // 清空自定义任务的字段
+      taskForm.value.title = '';
+      taskForm.value.description = '';
+      taskForm.value.requirements = '';
+      // 重置题目筛选条件
+      exerciseFilters.value = {
+        difficulty: '',
+        type: '',
+        keyword: ''
+      };
+    } else {
+      // 切换到自定义任务时，清空题目相关字段
+      taskForm.value.exerciseId = '';
+    }
+  } catch (error) {
+    console.warn('任务类型切换出现问题:', error);
+  }
+};
+
+// 题目筛选变化处理
+const onExerciseFilterChange = () => {
+  try {
+    // 当筛选条件变化时，如果当前选中的题目不在筛选结果中，则清空选择
+    if (taskForm.value?.exerciseId && filteredExerciseBank.value) {
+      const selectedExercise = filteredExerciseBank.value.find(
+        exercise => exercise.id === taskForm.value.exerciseId
+      );
+      if (!selectedExercise) {
+        taskForm.value.exerciseId = '';
+      }
+    }
+  } catch (error) {
+    console.warn('筛选处理出现问题:', error);
+  }
+};
+
+// 获取题目类型标签
+const getExerciseTypeLabel = (type) => {
+  const typeMap = {
+    programming: '编程题',
+    calculation: '计算题',
+    logic: '逻辑题'
+  };
+  return typeMap[type] || type;
+};
+
+// 清除所有筛选条件
+const clearExerciseFilters = () => {
+  try {
+    exerciseFilters.value = {
+      difficulty: '',
+      type: '',
+      keyword: ''
+    };
+  } catch (error) {
+    console.warn('清除筛选条件出现问题:', error);
   }
 };
 
@@ -1237,10 +1478,19 @@ const handleSaveTask = async () => {
     
     // 模拟API调用
     setTimeout(() => {
+      // 如果是题目任务，自动设置标题为选中题目的标题
+      const taskData = { ...taskForm.value };
+      if (taskData.type === 'exercise' && taskData.exerciseId) {
+        const selectedExercise = exerciseBank.value.find(ex => ex.id === taskData.exerciseId);
+        if (selectedExercise) {
+          taskData.title = selectedExercise.title;
+        }
+      }
+      
       if (editingTask.value) {
         // 编辑现有任务
         Object.assign(editingTask.value, {
-          ...taskForm.value,
+          ...taskData,
           createDate: new Date()
         });
         ElMessage.success('任务已更新');
@@ -1249,7 +1499,7 @@ const handleSaveTask = async () => {
         // 创建新任务
         const newTask = {
           id: Date.now(),
-          ...taskForm.value,
+          ...taskData,
           assignBy: '当前用户',
           createDate: new Date(),
           status: 'pending',
@@ -1339,6 +1589,27 @@ const handleSubmitTaskInDetail = async () => {
 };
 
 
+
+// 监听对话框状态变化，强制启用滚动
+watch(isDetailDialogVisible, (newVal) => {
+  nextTick(() => {
+    if (newVal) {
+      // 对话框打开时，强制启用滚动
+      document.body.style.overflow = 'auto';
+      const overlay = document.querySelector('.task-detail-dialog .el-overlay');
+      if (overlay) {
+        overlay.style.overflowY = 'auto';
+        overlay.style.display = 'block';
+        overlay.style.position = 'fixed';
+        overlay.style.top = '0';
+        overlay.style.left = '0';
+        overlay.style.right = '0';
+        overlay.style.bottom = '0';
+        overlay.style.zIndex = '2000';
+      }
+    }
+  });
+});
 
 onMounted(() => {
   loadTasks();
@@ -2005,9 +2276,114 @@ onMounted(() => {
   text-align: right;
 }
 
-/* 任务详情对话框 */
+/* 题目筛选区域样式 */
+.exercise-filters {
+  margin-bottom: 16px;
+  padding: 12px;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #e9ecef;
+}
+
+.theme-dark .exercise-filters {
+  background-color: #2a2a2a;
+  border-color: #404040;
+}
+
+.no-results-hint {
+  margin-top: 12px;
+  text-align: center;
+  padding: 8px;
+}
+
+.no-results-hint .el-icon {
+  margin-right: 4px;
+}
+
+/* 任务详情对话框 - 强制滚动修复 */
+:deep(.task-detail-dialog) {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  z-index: 2000 !important;
+}
+
+:deep(.task-detail-dialog .el-overlay) {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  padding: 5vh 5vw !important;
+  display: block !important;
+  background-color: rgba(0, 0, 0, 0.5) !important;
+}
+
+:deep(.task-detail-dialog .el-dialog) {
+  position: relative !important;
+  margin: 0 auto !important;
+  max-height: none !important;
+  height: auto !important;
+  overflow: visible !important;
+  display: block !important;
+  width: 800px !important;
+  max-width: 100% !important;
+  background: #ffffff !important;
+  border-radius: 8px !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
+}
+
+:deep(.task-detail-dialog .el-dialog__header) {
+  padding: 20px 20px 0 20px !important;
+  border-bottom: 1px solid #e5e7eb !important;
+  margin-bottom: 0 !important;
+}
+
+:deep(.task-detail-dialog .el-dialog__body) {
+  padding: 20px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  max-height: 60vh !important;
+  height: auto !important;
+}
+
+/* 深色主题适配 */
+.theme-dark :deep(.task-detail-dialog .el-dialog) {
+  background: #2d2d2d !important;
+}
+
+.theme-dark :deep(.task-detail-dialog .el-dialog__header) {
+  border-bottom-color: #4b5563 !important;
+}
+
+/* 全局强制滚动规则 */
+body:has(.task-detail-dialog) {
+  overflow: auto !important;
+}
+
+:deep(.el-overlay.is-message-box) {
+  overflow-y: auto !important;
+}
+
 .task-detail {
   padding: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 确保内容区域能够正常滚动 */
+.custom-task-submission {
+  flex-shrink: 0;
+  margin-bottom: 0;
+}
+
+.student-action-area {
+  flex-shrink: 0;
 }
 
 .detail-header {
@@ -2124,7 +2500,7 @@ onMounted(() => {
 
 /* 学生操作区域 */
 .student-action-area {
-  margin-top: 24px;
+  /* margin-top: 24px; */
   padding-top: 20px;
   border-top: 1px solid rgba(0, 0, 0, 0.06);
 }
@@ -2146,10 +2522,14 @@ onMounted(() => {
 }
 
 /* 自定义任务提交区域 */
+.custom-task-submission {
+  margin-bottom: 0;
+}
+
 .custom-task-submission h4 {
   font-size: 16px;
   font-weight: 600;
-  margin: 0 0 16px 0;
+  margin: 0 0 12px 0;
   color: #1a1a1a;
 }
 
@@ -2157,25 +2537,84 @@ onMounted(() => {
   color: #ffffff;
 }
 
+/* 表单项优化 */
+.custom-task-submission :deep(.el-form-item) {
+  margin-bottom: 18px;
+}
+
+.custom-task-submission :deep(.el-form-item__label) {
+  line-height: 1.4;
+  padding-bottom: 6px;
+  font-weight: 500;
+}
+
+.custom-task-submission :deep(.el-textarea__inner) {
+  min-height: 90px !important;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+/* 确保表单在滚动容器中正确显示 */
+.custom-task-submission .el-form {
+  overflow: visible;
+}
+
+.submission-actions {
+  padding-top: 20px;
+  margin-top: 16px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  position: sticky;
+  bottom: 0;
+  background: #ffffff;
+  z-index: 1;
+}
+
+.theme-dark .submission-actions {
+  border-top-color: rgba(255, 255, 255, 0.1);
+  background: #2d2d2d;
+}
+
 .task-upload {
   width: 100%;
 }
 
+.task-upload :deep(.el-upload-dragger) {
+  padding: 24px 16px;
+  height: auto;
+  min-height: 100px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
 .upload-icon {
-  font-size: 32px;
+  font-size: 28px;
   color: #8c9097;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .upload-text {
-  font-size: 14px;
+  font-size: 13px;
   color: #8c9097;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
+  line-height: 1.2;
 }
 
 .upload-tip {
-  font-size: 12px;
+  font-size: 11px;
   color: #a8a8a8;
+  line-height: 1.2;
+}
+
+/* 上传文件列表优化 */
+.task-upload :deep(.el-upload-list) {
+  margin-top: 8px;
+}
+
+.task-upload :deep(.el-upload-list__item) {
+  line-height: 1.4;
+  margin-top: 4px;
 }
 
 /* 原有样式兼容 */
@@ -2478,5 +2917,167 @@ onMounted(() => {
   .theme-dark .student-actions {
     border-top-color: rgba(255, 255, 255, 0.1);
   }
+  
+  /* 小屏幕下的对话框适配 */
+  :deep(.task-detail-dialog .el-overlay) {
+    padding: 2vh 2.5vw !important;
+  }
+  
+  :deep(.task-detail-dialog .el-dialog) {
+    width: 95vw !important;
+    max-width: 95vw !important;
+  }
+  
+  :deep(.task-detail-dialog .el-dialog__header) {
+    padding: 16px !important;
+  }
+  
+  :deep(.task-detail-dialog .el-dialog__body) {
+    padding: 16px !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    max-height: 65vh !important;
+  }
+  
+  .custom-task-submission .el-form-item {
+    margin-bottom: 14px;
+  }
+  
+  .custom-task-submission .el-textarea :deep(.el-textarea__inner) {
+    min-height: 70px !important;
+  }
+  
+  /* 确保提交按钮区域始终可见 */
+  .submission-actions {
+    position: static !important;
+    margin-top: 12px !important;
+    padding-top: 12px !important;
+  }
+}
+
+/* 针对中小屏幕的特殊处理（16寸及以下） */
+@media (max-height: 900px) {
+  :deep(.task-detail-dialog .el-overlay) {
+    padding: 2vh 3vw !important;
+  }
+  
+  :deep(.task-detail-dialog .el-dialog) {
+    width: 94vw !important;
+  }
+  
+  :deep(.task-detail-dialog .el-dialog__header) {
+    padding: 14px 16px !important;
+  }
+  
+  :deep(.task-detail-dialog .el-dialog__body) {
+    padding: 16px !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    max-height: 70vh !important;
+  }
+  
+  .custom-task-submission {
+    margin-bottom: 0;
+  }
+  
+  .submission-actions {
+    padding-top: 12px;
+    margin-top: 12px;
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
+  }
+  
+  .theme-dark .submission-actions {
+    border-top-color: rgba(255, 255, 255, 0.1);
+  }
+  
+  /* 压缩表单间距 */
+  .custom-task-submission h4 {
+    margin-bottom: 8px !important;
+    font-size: 15px !important;
+  }
+  
+  .custom-task-submission :deep(.el-form-item) {
+    margin-bottom: 12px !important;
+  }
+  
+  .custom-task-submission :deep(.el-form-item__label) {
+    padding-bottom: 2px !important;
+    line-height: 1.2 !important;
+  }
+  
+  .task-upload :deep(.el-upload-dragger) {
+    padding: 16px 12px !important;
+    min-height: 70px !important;
+  }
+  
+  .upload-icon {
+    font-size: 24px !important;
+    margin-bottom: 4px !important;
+  }
+}
+
+/* 针对更小的屏幕高度 */
+@media (max-height: 768px) {
+  :deep(.task-detail-dialog .el-overlay) {
+    padding: 1vh 1vw !important;
+  }
+  
+  :deep(.task-detail-dialog .el-dialog) {
+    width: 98vw !important;
+  }
+  
+  :deep(.task-detail-dialog .el-dialog__header) {
+    padding: 12px 14px !important;
+  }
+  
+  :deep(.task-detail-dialog .el-dialog__body) {
+    padding: 14px !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    max-height: 75vh !important;
+  }
+  
+  .detail-meta {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 12px;
+  }
+  
+  .custom-task-submission .el-form-item__label {
+    line-height: 1.2;
+    margin-bottom: 4px;
+  }
+}
+
+/* 滚动条样式优化 */
+:deep(.task-detail-dialog .el-dialog__body::-webkit-scrollbar) {
+  width: 6px;
+}
+
+:deep(.task-detail-dialog .el-dialog__body::-webkit-scrollbar-thumb) {
+  background-color: rgba(0, 0, 0, 0.3);
+  border-radius: 3px;
+}
+
+:deep(.task-detail-dialog .el-dialog__body::-webkit-scrollbar-thumb:hover) {
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.theme-dark :deep(.task-detail-dialog .el-dialog__body::-webkit-scrollbar-thumb) {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+.theme-dark :deep(.task-detail-dialog .el-dialog__body::-webkit-scrollbar-thumb:hover) {
+  background-color: rgba(255, 255, 255, 0.5);
+}
+
+/* 全局样式：确保弹框打开时的滚动处理 */
+:deep(.el-overlay.is-message-box) {
+  overflow-y: auto !important;
+}
+
+:deep(.task-detail-dialog .el-overlay) {
+  align-items: flex-start !important;
+  padding: 0 !important;
 }
 </style>
