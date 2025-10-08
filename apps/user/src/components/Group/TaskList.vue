@@ -250,6 +250,20 @@ const props = defineProps({
   isDarkMode: {
     type: Boolean,
     default: false
+  },
+  // 配置化选项
+  showSubmitAction: {
+    type: Boolean,
+    default: true
+  },
+  showDetailAction: {
+    type: Boolean,
+    default: true
+  },
+  itemType: {
+    type: String,
+    default: 'task',
+    validator: (value) => ['task', 'announcement'].includes(value)
   }
 });
 
@@ -260,6 +274,7 @@ const emit = defineEmits([
   'task-action',
   'solve-exercise',
   'submit-task',
+  'task-submitted', // 新增：任务提交完成事件
   'create-task',
   'cancel-batch-mode',
   'batch-delete',
@@ -474,6 +489,7 @@ const handleSolveExercise = (task) => {
 };
 
 const handleSubmitTask = (task) => {
+  // 向父组件发射事件
   emit('submit-task', task);
 };
 
@@ -495,6 +511,7 @@ const handleSelectAll = () => {
 const handleBatchDelete = () => {
   emit('batch-delete');
 };
+
 </script>
 
 <style scoped>
@@ -1025,4 +1042,6 @@ const handleBatchDelete = () => {
     gap: 12px;
   }
 }
+
+
 </style>

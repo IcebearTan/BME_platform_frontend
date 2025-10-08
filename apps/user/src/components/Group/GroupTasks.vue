@@ -38,6 +38,7 @@
       @task-action="handleTaskAction"
       @solve-exercise="handleSolveExercise"
       @submit-task="handleSubmitTask"
+      @task-submitted="handleTaskSubmitted"
       @create-task="handleCreateTask"
       @cancel-batch-mode="cancelBatchMode"
       @batch-delete="handleBatchDelete"
@@ -223,146 +224,125 @@
       </template>
     </el-dialog>
 
-    <!-- 任务详情对话框 -->
+    <!-- 作业提交弹窗 -->
     <el-dialog 
-      v-model="isDetailDialogVisible" 
-      title="任务详情"
-      width="800px"
-      class="task-detail-dialog"
+      v-model="isSubmissionDialogVisible" 
+      title="作业提交"
+      width="700px"
+      class="submission-dialog"
       :class="{ 'theme-dark': isDarkMode }"
-      :lock-scroll="false"
-      :modal="true"
-      :close-on-click-modal="false"
-      :append-to-body="true"
-      top="0"
-      :custom-style="{ 
-        'margin-top': '5vh',
-        'margin-bottom': '5vh',
-        'max-height': 'calc(100vh - 10vh)'
-      }"
     >
-      <div v-if="selectedTaskDetail" class="task-detail">
-        <div class="detail-header">
-          <h3 class="detail-title">{{ selectedTaskDetail.title }}</h3>
-          <div class="detail-badges">
-            <span class="priority-badge" :class="`priority-${selectedTaskDetail.priority}`">
-              {{ getPriorityText(selectedTaskDetail.priority) }}
-            </span>
-            <span class="status-badge" :class="`status-${selectedTaskDetail.status}`">
-              {{ getStatusText(selectedTaskDetail.status) }}
-            </span>
+      <div v-if="selectedTask" class="submission-content">
+        <!-- 任务信息展示 -->
+        <div class="task-info">
+          <div class="info-header">
+            <h3 class="info-title">{{ selectedTask.title }}</h3>
+            <div class="info-badges">
+              <span class="task-type-badge" :class="`type-${selectedTask.type}`">
+                {{ selectedTask.type === 'exercise' ? '题目任务' : '自定义任务' }}
+              </span>
+            </div>
           </div>
-        </div>
-        
-        <div class="detail-meta">
-          <div class="meta-item">
-            <span class="meta-label">创建时间：</span>
-            <span class="meta-value">{{ formatDateTime(selectedTaskDetail.createDate) }}</span>
-          </div>
-          <div class="meta-item" v-if="selectedTaskDetail.dueDate">
-            <span class="meta-label">截止时间：</span>
-            <span class="meta-value" :class="{ 'overdue-text': isOverdue(selectedTaskDetail) }">
-              {{ formatDateTime(selectedTaskDetail.dueDate) }}
-            </span>
-          </div>
-        </div>
-
-        <div class="detail-content">
-          <h4>任务描述</h4>
-          <div class="content-text">{{ selectedTaskDetail.description }}</div>
           
-          <h4 v-if="selectedTaskDetail.requirements">任务要求</h4>
-          <div v-if="selectedTaskDetail.requirements" class="content-text">{{ selectedTaskDetail.requirements }}</div>
+          <div class="info-meta">
+            <div class="meta-item">
+              <span class="meta-label">创建时间：</span>
+              <span class="meta-value">{{ formatDateTime(selectedTask.createDate) }}</span>
+            </div>
+            <div class="meta-item" v-if="selectedTask.dueDate">
+              <span class="meta-label">截止时间：</span>
+              <span class="meta-value" :class="{ 'overdue-text': isOverdue(selectedTask) }">
+                {{ formatDateTime(selectedTask.dueDate) }}
+              </span>
+            </div>
+          </div>
+
+          <div class="info-content">
+            <h4>任务描述</h4>
+            <div class="content-text">{{ selectedTask.description }}</div>
+            
+            <h4 v-if="selectedTask.requirements">任务要求</h4>
+            <div v-if="selectedTask.requirements" class="content-text">{{ selectedTask.requirements }}</div>
+          </div>
         </div>
 
-        <!-- 学生操作区域 -->
-        <div v-if="!isTeacher && getTaskActualStatus(selectedTaskDetail) !== 'completed'" class="student-action-area">
-          <!-- 题目任务：前往解题按钮 -->
-          <div v-if="selectedTaskDetail.type === 'exercise'" class="exercise-action">
+        <!-- 题目任务：跳转解题 -->
+        <div v-if="selectedTask.type === 'exercise'" class="exercise-submission">
+          <div class="exercise-notice">
+            <el-icon><InfoFilled /></el-icon>
+            <span>这是一个题目任务，请点击下方按钮前往解题页面完成答题</span>
+          </div>
+          <div class="exercise-action">
             <el-button 
               type="primary" 
               size="large"
-              @click="handleGoToExercise(selectedTaskDetail)"
-              :type="getTaskActualStatus(selectedTaskDetail) === 'overdue' ? 'danger' : 'primary'"
+              @click="handleGoToExercise"
+              :disabled="getTaskActualStatus(selectedTask) === 'completed'"
             >
               <el-icon><EditPen /></el-icon>
-              {{ getTaskActualStatus(selectedTaskDetail) === 'overdue' ? '补做题目' : '前往解题' }}
+              {{ getTaskActualStatus(selectedTask) === 'overdue' ? '补做题目' : 
+                 getTaskActualStatus(selectedTask) === 'completed' ? '已完成' : '前往解题' }}
             </el-button>
           </div>
-          
-          <!-- 自定义任务：提交区域 -->
-          <div v-else class="custom-task-submission">
-            <h4>任务提交</h4>
-            <el-form :model="submissionForm" ref="submissionFormRef" label-width="100px">
-              <el-form-item label="文字内容" prop="content">
-                <el-input 
-                  v-model="submissionForm.content"
-                  type="textarea"
-                  :rows="4"
-                  placeholder="请输入任务完成的文字说明..."
-                  maxlength="1000"
-                  show-word-limit
-                />
-              </el-form-item>
-
-              <el-form-item label="文件上传">
-                <el-upload
-                  class="task-upload"
-                  :file-list="submissionForm.files"
-                  :on-change="handleFileChange"
-                  :on-remove="handleFileRemove"
-                  :before-upload="() => false"
-                  multiple
-                  drag
-                >
-                  <el-icon class="upload-icon"><Upload /></el-icon>
-                  <div class="upload-text">点击或拖拽文件到此区域上传</div>
-                  <template #tip>
-                    <div class="upload-tip">支持文档、图片等格式，单个文件不超过10MB</div>
-                  </template>
-                </el-upload>
-              </el-form-item>
-
-            </el-form>
-            
-            <div class="submission-actions">
-              <el-button 
-                type="primary" 
-                @click="handleSubmitTaskInDetail"
-                :disabled="getTaskActualStatus(selectedTaskDetail) === 'overdue'"
-                :loading="submitting"
-              >
-                提交任务
-              </el-button>
-            </div>
-          </div>
         </div>
 
-        <!-- 任务统计（教师视图） -->
-        <div v-if="isTeacher" class="task-statistics">
-          <h4>提交统计</h4>
-          <div class="stats-grid">
-            <div class="stat-card">
-              <div class="stat-number">{{ selectedTaskDetail.completedCount || 0 }}</div>
-              <div class="stat-label">已完成</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-number">{{ selectedTaskDetail.pendingCount || 0 }}</div>
-              <div class="stat-label">待完成</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-number">{{ selectedTaskDetail.overdueCount || 0 }}</div>
-              <div class="stat-label">已逾期</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-number">{{ Math.round((selectedTaskDetail.completedCount / selectedTaskDetail.totalCount) * 100) || 0 }}%</div>
-              <div class="stat-label">完成率</div>
-            </div>
-          </div>
+        <!-- 自定义任务：提交表单 -->
+        <div v-else class="custom-submission">
+          <el-form 
+            ref="submissionFormRef"
+            :model="submissionForm" 
+            :rules="submissionRules"
+            label-width="80px"
+          >
+            <el-form-item label="提交内容" prop="content">
+              <el-input 
+                v-model="submissionForm.content"
+                type="textarea"
+                :rows="6"
+                placeholder="请输入作业内容或说明"
+                maxlength="2000"
+                show-word-limit
+              />
+            </el-form-item>
+
+            <el-form-item label="附件上传">
+              <el-upload
+                class="submission-upload"
+                :file-list="submissionForm.attachments"
+                :on-change="handleSubmissionFileChange"
+                :on-remove="handleSubmissionFileRemove"
+                :before-upload="() => false"
+                multiple
+              >
+                <el-button size="small">
+                  <el-icon><Upload /></el-icon>
+                  添加文件
+                </el-button>
+                <template #tip>
+                  <div class="upload-tip">支持上传文档、图片等文件，单个文件不超过50MB</div>
+                </template>
+              </el-upload>
+            </el-form-item>
+          </el-form>
         </div>
       </div>
-    </el-dialog>
 
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="isSubmissionDialogVisible = false">取消</el-button>
+          <div v-if="selectedTask?.type === 'custom'" class="submission-buttons">
+            <el-button @click="handleSaveDraft" :loading="savingDraft">
+              <el-icon><Document /></el-icon>
+              保存草稿
+            </el-button>
+            <el-button type="primary" @click="handleSubmitAssignment" :loading="submitting">
+              <el-icon><Check /></el-icon>
+              提交作业
+            </el-button>
+          </div>
+        </div>
+      </template>
+    </el-dialog>
 
   </div>
 </template>
@@ -380,11 +360,13 @@ import {
   Document,
   ArrowDown,
   MoreFilled,
-  EditPen,
   CircleCheck,
   CircleClose,
   VideoPlay,
-  Upload
+  InfoFilled,
+  EditPen,
+  Upload,
+  Check
 } from '@element-plus/icons-vue';
 import TaskList from './TaskList.vue';
 
@@ -430,15 +412,16 @@ const exerciseFilters = ref({
 
 // 对话框状态
 const isTaskDialogVisible = ref(false);
-const isDetailDialogVisible = ref(false);
-
-const selectedTaskDetail = ref(null);
+const isSubmissionDialogVisible = ref(false);
 const editingTask = ref(null);
+const selectedTask = ref(null);
+
+// 提交相关状态
 const submitting = ref(false);
+const savingDraft = ref(false);
 
 // 表单引用和数据
 const taskFormRef = ref();
-const submissionFormRef = ref();
 const taskForm = ref({
   type: 'custom',
   title: '',
@@ -447,10 +430,11 @@ const taskForm = ref({
   dueDate: ''
 });
 
-// 自定义任务提交表单
+// 提交表单引用和数据
+const submissionFormRef = ref();
 const submissionForm = ref({
   content: '',
-  files: []
+  attachments: []
 });
 
 // 题库数据（模拟）
@@ -601,6 +585,14 @@ const taskRules = {
   ]
 };
 
+// 提交表单验证规则
+const submissionRules = {
+  content: [
+    { required: true, message: '请输入提交内容', trigger: 'blur' },
+    { min: 10, max: 2000, message: '内容长度在 10 到 2000 个字符', trigger: 'blur' }
+  ]
+};
+
 // 模拟任务数据
 const mockTasks = [
   {
@@ -683,14 +675,6 @@ const loadTasks = async () => {
   }, 500);
 };
 
-
-
-
-
-
-
-
-
 const formatDateTime = (date) => {
   if (!date) return '';
   return new Date(date).toLocaleString('zh-CN');
@@ -720,8 +704,6 @@ const formatAssignedDate = (date) => {
     }
   }
 };
-
-
 
 // 事件处理
 const handleCreateTask = (taskType = 'custom') => {
@@ -877,15 +859,16 @@ const handleSelectAll = () => {
 };
 
 const handleTaskClick = (task) => {
-  selectedTaskDetail.value = task;
+  // 点击任务卡片时打开提交弹窗
+  selectedTask.value = task;
   
   // 重置提交表单
   submissionForm.value = {
     content: '',
-    files: []
+    attachments: []
   };
   
-  isDetailDialogVisible.value = true;
+  isSubmissionDialogVisible.value = true;
 };
 
 const handleTaskAction = ({ action, task }) => {
@@ -974,16 +957,110 @@ const handleStartTask = (task) => {
 };
 
 const handleSubmitTask = (task) => {
-  // 直接打开任务详情弹窗，在其中进行提交
-  selectedTaskDetail.value = task;
+  selectedTask.value = task;
   
   // 重置提交表单
   submissionForm.value = {
     content: '',
-    files: []
+    attachments: []
   };
   
-  isDetailDialogVisible.value = true;
+  isSubmissionDialogVisible.value = true;
+};
+
+const handleTaskSubmitted = (data) => {
+  console.log('任务提交成功:', data);
+  
+  // 这里可以添加提交成功后的处理逻辑
+  // 比如刷新任务列表、显示成功消息等
+  ElMessage.success('任务提交成功！');
+  
+  // 如果需要刷新任务列表
+  loadTasks();
+};
+
+// 前往解题（题目任务）
+const handleGoToExercise = () => {
+  if (!selectedTask.value) return;
+  
+  // 关闭提交弹窗
+  isSubmissionDialogVisible.value = false;
+  
+  // 跳转到解题页面
+  router.push({
+    name: 'exercise-solve',
+    params: { 
+      id: selectedTask.value.exerciseId || selectedTask.value.id 
+    },
+    query: { 
+      taskId: selectedTask.value.id,
+      title: selectedTask.value.title,
+      from: 'submission-dialog'
+    }
+  });
+  
+  ElMessage.success(`正在跳转到解题页面：${selectedTask.value.title}`);
+};
+
+// 保存草稿
+const handleSaveDraft = async () => {
+  if (!submissionFormRef.value || !selectedTask.value) return;
+  
+  try {
+    savingDraft.value = true;
+    
+    // 模拟API调用
+    setTimeout(() => {
+      ElMessage.success('草稿已保存');
+      savingDraft.value = false;
+    }, 800);
+  } catch (error) {
+    console.error('保存草稿失败:', error);
+    ElMessage.error('保存草稿失败');
+    savingDraft.value = false;
+  }
+};
+
+// 提交作业（自定义任务）
+const handleSubmitAssignment = async () => {
+  if (!submissionFormRef.value || !selectedTask.value) return;
+  
+  try {
+    await submissionFormRef.value.validate();
+    
+    submitting.value = true;
+    
+    // 模拟API调用
+    setTimeout(() => {
+      // 更新任务状态为已完成
+      selectedTask.value.status = 'completed';
+      
+      ElMessage.success('作业提交成功！');
+      submitting.value = false;
+      isSubmissionDialogVisible.value = false;
+      
+      // 触发任务提交事件
+      emit('task-submit', {
+        taskId: selectedTask.value.id,
+        content: submissionForm.value.content,
+        attachments: submissionForm.value.attachments
+      });
+      
+      // 刷新任务列表
+      loadTasks();
+    }, 1500);
+  } catch (error) {
+    console.error('Form validation failed:', error);
+  }
+};
+
+// 文件上传处理
+const handleSubmissionFileChange = (file, fileList) => {
+  submissionForm.value.attachments = fileList;
+};
+
+const handleSubmissionFileRemove = (file, fileList) => {
+  submissionForm.value.attachments = fileList;
 };
 
 const handleSolveExercise = (task) => {
@@ -1058,96 +1135,6 @@ const handleSaveTask = async () => {
     console.error('Form validation failed:', error);
   }
 };
-
-// 文件上传处理
-const handleFileChange = (file, fileList) => {
-  submissionForm.value.files = fileList;
-};
-
-const handleFileRemove = (file, fileList) => {
-  submissionForm.value.files = fileList;
-};
-
-// 前往解题（题目任务）
-const handleGoToExercise = (task) => {
-  // 关闭详情弹窗
-  isDetailDialogVisible.value = false;
-  
-  // 跳转到解题页面
-  router.push({
-    name: 'exercise-solve',
-    params: { 
-      id: task.exerciseId || task.id 
-    },
-    query: { 
-      taskId: task.id,
-      title: task.title,
-      from: 'group-task'
-    }
-  });
-  
-  ElMessage.success(`正在跳转到解题页面：${task.title}`);
-};
-
-// 在详情弹窗中提交任务（自定义任务）
-const handleSubmitTaskInDetail = async () => {
-  if (!submissionForm.value.content && submissionForm.value.files.length === 0) {
-    ElMessage.warning('请至少输入文字内容或上传文件');
-    return;
-  }
-
-  submitting.value = true;
-  
-  // 模拟提交过程
-  setTimeout(() => {
-    if (selectedTaskDetail.value) {
-      selectedTaskDetail.value.status = 'completed';
-      ElMessage.success('任务已提交');
-      emit('task-submit', {
-        task: selectedTaskDetail.value,
-        submission: {
-          content: submissionForm.value.content,
-          files: submissionForm.value.files,
-          submitTime: new Date()
-        }
-      });
-      
-      // 重置表单
-      submissionForm.value = {
-        content: '',
-        files: []
-      };
-      
-      // 关闭详情弹窗
-      isDetailDialogVisible.value = false;
-    }
-    
-    submitting.value = false;
-  }, 1000);
-};
-
-
-
-// 监听对话框状态变化，强制启用滚动
-watch(isDetailDialogVisible, (newVal) => {
-  nextTick(() => {
-    if (newVal) {
-      // 对话框打开时，强制启用滚动
-      document.body.style.overflow = 'auto';
-      const overlay = document.querySelector('.task-detail-dialog .el-overlay');
-      if (overlay) {
-        overlay.style.overflowY = 'auto';
-        overlay.style.display = 'block';
-        overlay.style.position = 'fixed';
-        overlay.style.top = '0';
-        overlay.style.left = '0';
-        overlay.style.right = '0';
-        overlay.style.bottom = '0';
-        overlay.style.zIndex = '2000';
-      }
-    }
-  });
-});
 
 onMounted(() => {
   loadTasks();
@@ -1814,131 +1801,49 @@ onMounted(() => {
   text-align: right;
 }
 
-/* 题目筛选区域样式 */
-.exercise-filters {
-  margin-bottom: 16px;
-  padding: 12px;
-  background-color: #f8f9fa;
-  border-radius: 6px;
-  border: 1px solid #e9ecef;
-}
-
-.theme-dark .exercise-filters {
-  background-color: #2a2a2a;
-  border-color: #404040;
-}
-
-.no-results-hint {
-  margin-top: 12px;
-  text-align: center;
-  padding: 8px;
-}
-
-.no-results-hint .el-icon {
-  margin-right: 4px;
-}
-
-/* 任务详情对话框 - 强制滚动修复 */
-:deep(.task-detail-dialog) {
-  position: fixed !important;
-  top: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
-  bottom: 0 !important;
-  z-index: 2000 !important;
-}
-
-:deep(.task-detail-dialog .el-overlay) {
-  position: fixed !important;
-  top: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
-  bottom: 0 !important;
-  overflow-y: auto !important;
-  overflow-x: hidden !important;
-  padding: 5vh 5vw !important;
-  display: block !important;
-  background-color: rgba(0, 0, 0, 0.5) !important;
-}
-
-:deep(.task-detail-dialog .el-dialog) {
-  position: relative !important;
-  margin: 0 auto !important;
-  max-height: none !important;
-  height: auto !important;
-  overflow: visible !important;
-  display: block !important;
-  width: 800px !important;
-  max-width: 100% !important;
-  background: #ffffff !important;
-  border-radius: 8px !important;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
-}
-
-:deep(.task-detail-dialog .el-dialog__header) {
-  padding: 20px 20px 0 20px !important;
-  border-bottom: 1px solid #e5e7eb !important;
-  margin-bottom: 0 !important;
-}
-
-:deep(.task-detail-dialog .el-dialog__body) {
-  padding: 20px !important;
-  overflow-y: auto !important;
-  overflow-x: hidden !important;
-  max-height: 60vh !important;
-  height: auto !important;
-}
-
-/* 深色主题适配 */
-.theme-dark :deep(.task-detail-dialog .el-dialog) {
-  background: #2d2d2d !important;
-}
-
-.theme-dark :deep(.task-detail-dialog .el-dialog__header) {
-  border-bottom-color: #4b5563 !important;
-}
-
-/* 全局强制滚动规则 */
-body:has(.task-detail-dialog) {
-  overflow: auto !important;
-}
-
-:deep(.el-overlay.is-message-box) {
-  overflow-y: auto !important;
-}
-
-.task-detail {
-  padding: 0;
-  min-height: 0;
+.submission-buttons {
   display: flex;
-  flex-direction: column;
+  gap: 8px;
 }
 
-/* 确保内容区域能够正常滚动 */
-.custom-task-submission {
-  flex-shrink: 0;
-  margin-bottom: 0;
+/* 作业提交弹窗样式 - 参考公告组件 */
+.submission-dialog :deep(.el-dialog__body) {
+  padding: 20px;
 }
 
-.student-action-area {
-  flex-shrink: 0;
+.submission-content {
+  padding: 0;
 }
 
-.detail-header {
+/* 任务信息展示区域 */
+.task-info {
+  margin-bottom: 24px;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.theme-dark .task-info {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.info-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 20px;
-  padding-bottom: 16px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 
-.theme-dark .detail-header {
+.theme-dark .info-header {
   border-bottom-color: rgba(255, 255, 255, 0.1);
 }
 
-.detail-title {
-  font-size: 20px;
+.info-title {
+  font-size: 18px;
   font-weight: 600;
   margin: 0;
   color: #1a1a1a;
@@ -1947,42 +1852,42 @@ body:has(.task-detail-dialog) {
   margin-right: 16px;
 }
 
-.theme-dark .detail-title {
+.theme-dark .info-title {
   color: #ffffff;
 }
 
-.detail-badges {
+.info-badges {
   display: flex;
   gap: 8px;
   flex-shrink: 0;
 }
 
-.priority-badge {
+.task-type-badge {
   padding: 4px 12px;
   border-radius: 12px;
   font-size: 12px;
   font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-.status-badge {
-  padding: 4px 12px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 500;
+.type-exercise {
+  background-color: rgba(16, 185, 129, 0.1);
+  color: #059669;
+  border: 1px solid rgba(16, 185, 129, 0.2);
 }
 
-.detail-meta {
+.type-custom {
+  background-color: rgba(99, 102, 241, 0.1);
+  color: #6366f1;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+.info-meta {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 12px;
-  margin-bottom: 20px;
-  padding: 16px;
-  background: rgba(0, 0, 0, 0.02);
-  border-radius: 8px;
-}
-
-.theme-dark .detail-meta {
-  background: rgba(255, 255, 255, 0.03);
+  margin-bottom: 16px;
 }
 
 .meta-item {
@@ -2009,48 +1914,64 @@ body:has(.task-detail-dialog) {
   color: #ffffff;
 }
 
-.detail-content {
-  margin-bottom: 20px;
+.info-content {
+  margin-top: 0;
 }
 
-.detail-content h4 {
-  font-size: 16px;
+.info-content h4 {
+  font-size: 14px;
   font-weight: 600;
-  margin: 0 0 12px 0;
+  margin: 0 0 8px 0;
   color: #1a1a1a;
 }
 
-.theme-dark .detail-content h4 {
+.theme-dark .info-content h4 {
   color: #ffffff;
 }
 
 .content-text {
-  font-size: 15px;
-  line-height: 1.8;
+  font-size: 14px;
+  line-height: 1.6;
   color: #374151;
   white-space: pre-wrap;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
+  padding: 8px 0;
 }
 
 .theme-dark .content-text {
   color: #e5e7eb;
 }
 
-/* 学生操作区域 */
-.student-action-area {
-  /* margin-top: 24px; */
-  padding-top: 20px;
-  border-top: 1px solid rgba(0, 0, 0, 0.06);
-}
-
-.theme-dark .student-action-area {
-  border-top-color: rgba(255, 255, 255, 0.1);
-}
-
-/* 题目任务解题按钮 */
-.exercise-action {
+/* 题目任务提交区域 */
+.exercise-submission {
+  padding: 20px;
+  border: 2px dashed rgba(16, 185, 129, 0.2);
+  border-radius: 12px;
   text-align: center;
-  padding: 20px 0;
+  background: rgba(16, 185, 129, 0.02);
+}
+
+.theme-dark .exercise-submission {
+  border-color: rgba(16, 185, 129, 0.3);
+  background: rgba(16, 185, 129, 0.05);
+}
+
+.exercise-notice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  color: #059669;
+}
+
+.theme-dark .exercise-notice {
+  color: #10b981;
+}
+
+.exercise-action {
+  margin-top: 16px;
 }
 
 .exercise-action .el-button {
@@ -2060,177 +1981,50 @@ body:has(.task-detail-dialog) {
 }
 
 /* 自定义任务提交区域 */
-.custom-task-submission {
-  margin-bottom: 0;
-}
-
-.custom-task-submission h4 {
-  font-size: 16px;
-  font-weight: 600;
-  margin: 0 0 12px 0;
-  color: #1a1a1a;
-}
-
-.theme-dark .custom-task-submission h4 {
-  color: #ffffff;
-}
-
-/* 表单项优化 */
-.custom-task-submission :deep(.el-form-item) {
-  margin-bottom: 18px;
-}
-
-.custom-task-submission :deep(.el-form-item__label) {
-  line-height: 1.4;
-  padding-bottom: 6px;
-  font-weight: 500;
-}
-
-.custom-task-submission :deep(.el-textarea__inner) {
-  min-height: 90px !important;
-  resize: vertical;
-  line-height: 1.5;
-}
-
-/* 确保表单在滚动容器中正确显示 */
-.custom-task-submission .el-form {
-  overflow: visible;
-}
-
-.submission-actions {
-  padding-top: 20px;
-  margin-top: 16px;
-  border-top: 1px solid rgba(0, 0, 0, 0.08);
-  position: sticky;
-  bottom: 0;
+.custom-submission {
+  padding: 20px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 12px;
   background: #ffffff;
-  z-index: 1;
 }
 
-.theme-dark .submission-actions {
-  border-top-color: rgba(255, 255, 255, 0.1);
-  background: #2d2d2d;
+.theme-dark .custom-submission {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(40, 40, 40, 0.8);
 }
 
-.task-upload {
+.submission-upload {
   width: 100%;
 }
 
-.task-upload :deep(.el-upload-dragger) {
-  padding: 24px 16px;
-  height: auto;
-  min-height: 100px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
-.upload-icon {
-  font-size: 28px;
-  color: #8c9097;
-  margin-bottom: 6px;
-}
-
-.upload-text {
-  font-size: 13px;
-  color: #8c9097;
-  margin-bottom: 4px;
-  line-height: 1.2;
-}
-
 .upload-tip {
-  font-size: 11px;
-  color: #a8a8a8;
-  line-height: 1.2;
-}
-
-/* 上传文件列表优化 */
-.task-upload :deep(.el-upload-list) {
-  margin-top: 8px;
-}
-
-.task-upload :deep(.el-upload-list__item) {
-  line-height: 1.4;
+  font-size: 12px;
+  color: #8a8a8a;
   margin-top: 4px;
 }
 
-/* 原有样式兼容 */
-.submission-area {
-  border-top: 1px solid rgba(0, 0, 0, 0.06);
-  padding-top: 20px;
-  margin-bottom: 20px;
+/* 题目筛选区域样式 */
+.exercise-filters {
+  margin-bottom: 16px;
+  padding: 12px;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #e9ecef;
 }
 
-.theme-dark .submission-area {
-  border-top-color: rgba(255, 255, 255, 0.1);
+.theme-dark .exercise-filters {
+  background-color: #2a2a2a;
+  border-color: #404040;
 }
 
-.submission-area h4 {
-  font-size: 16px;
-  font-weight: 600;
-  margin: 0 0 16px 0;
-  color: #1a1a1a;
-}
-
-.theme-dark .submission-area h4 {
-  color: #ffffff;
-}
-
-.submission-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 16px;
-}
-
-.task-statistics {
-  border-top: 1px solid rgba(0, 0, 0, 0.06);
-  padding-top: 20px;
-}
-
-.theme-dark .task-statistics {
-  border-top-color: rgba(255, 255, 255, 0.1);
-}
-
-.task-statistics h4 {
-  font-size: 16px;
-  font-weight: 600;
-  margin: 0 0 16px 0;
-  color: #1a1a1a;
-}
-
-.theme-dark .task-statistics h4 {
-  color: #ffffff;
-}
-
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-}
-
-.stat-card {
+.no-results-hint {
+  margin-top: 12px;
   text-align: center;
-  padding: 16px;
-  background: rgba(0, 0, 0, 0.02);
-  border-radius: 8px;
+  padding: 8px;
 }
 
-.theme-dark .stat-card {
-  background: rgba(255, 255, 255, 0.03);
-}
-
-.stat-card .stat-number {
-  font-size: 24px;
-  font-weight: 700;
-  color: #667eea;
-  display: block;
-  margin-bottom: 4px;
-}
-
-.stat-card .stat-label {
-  font-size: 12px;
-  color: #9ca3af;
+.no-results-hint .el-icon {
+  margin-right: 4px;
 }
 
 /* Element Plus 样式覆盖 */
@@ -2304,6 +2098,30 @@ body:has(.task-detail-dialog) {
   .batch-buttons {
     justify-content: center;
   }
+  
+  /* 提交弹窗响应式样式 */
+  .info-meta {
+    grid-template-columns: 1fr;
+  }
+  
+  .info-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .info-title {
+    margin-right: 0;
+  }
+  
+  .submission-buttons {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .submission-buttons .el-button {
+    width: 100%;
+  }
 }
 
 @media (max-width: 480px) {
@@ -2319,6 +2137,22 @@ body:has(.task-detail-dialog) {
   .stats-grid {
     grid-template-columns: 1fr;
   }
+  
+  /* 提交弹窗小屏幕样式 */
+  .task-info {
+    padding: 16px;
+  }
+  
+  .custom-submission,
+  .exercise-submission {
+    padding: 16px;
+  }
+  
+  .exercise-action .el-button {
+    width: 100%;
+    font-size: 14px;
+    padding: 10px 20px;
+  }
 }
 
 /* 对话框样式 */
@@ -2326,15 +2160,9 @@ body:has(.task-detail-dialog) {
   padding: 20px;
 }
 
-.submission-dialog .el-dialog__body {
-  padding: 20px;
-}
 
-.upload-tip {
-  font-size: 12px;
-  color: #6b7280;
-  margin-top: 4px;
-}
+
+
 
 /* 动画效果 */
 .task-card {
@@ -2365,10 +2193,7 @@ body:has(.task-detail-dialog) {
   }
 }
 
-/* 文件上传样式 */
-.task-upload .el-upload__tip {
-  margin-top: 8px;
-}
+
 
 /* 学生操作区域样式 */
 .student-actions {
@@ -2455,167 +2280,5 @@ body:has(.task-detail-dialog) {
   .theme-dark .student-actions {
     border-top-color: rgba(255, 255, 255, 0.1);
   }
-  
-  /* 小屏幕下的对话框适配 */
-  :deep(.task-detail-dialog .el-overlay) {
-    padding: 2vh 2.5vw !important;
-  }
-  
-  :deep(.task-detail-dialog .el-dialog) {
-    width: 95vw !important;
-    max-width: 95vw !important;
-  }
-  
-  :deep(.task-detail-dialog .el-dialog__header) {
-    padding: 16px !important;
-  }
-  
-  :deep(.task-detail-dialog .el-dialog__body) {
-    padding: 16px !important;
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
-    max-height: 65vh !important;
-  }
-  
-  .custom-task-submission .el-form-item {
-    margin-bottom: 14px;
-  }
-  
-  .custom-task-submission .el-textarea :deep(.el-textarea__inner) {
-    min-height: 70px !important;
-  }
-  
-  /* 确保提交按钮区域始终可见 */
-  .submission-actions {
-    position: static !important;
-    margin-top: 12px !important;
-    padding-top: 12px !important;
-  }
-}
-
-/* 针对中小屏幕的特殊处理（16寸及以下） */
-@media (max-height: 900px) {
-  :deep(.task-detail-dialog .el-overlay) {
-    padding: 2vh 3vw !important;
-  }
-  
-  :deep(.task-detail-dialog .el-dialog) {
-    width: 94vw !important;
-  }
-  
-  :deep(.task-detail-dialog .el-dialog__header) {
-    padding: 14px 16px !important;
-  }
-  
-  :deep(.task-detail-dialog .el-dialog__body) {
-    padding: 16px !important;
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
-    max-height: 70vh !important;
-  }
-  
-  .custom-task-submission {
-    margin-bottom: 0;
-  }
-  
-  .submission-actions {
-    padding-top: 12px;
-    margin-top: 12px;
-    border-top: 1px solid rgba(0, 0, 0, 0.06);
-  }
-  
-  .theme-dark .submission-actions {
-    border-top-color: rgba(255, 255, 255, 0.1);
-  }
-  
-  /* 压缩表单间距 */
-  .custom-task-submission h4 {
-    margin-bottom: 8px !important;
-    font-size: 15px !important;
-  }
-  
-  .custom-task-submission :deep(.el-form-item) {
-    margin-bottom: 12px !important;
-  }
-  
-  .custom-task-submission :deep(.el-form-item__label) {
-    padding-bottom: 2px !important;
-    line-height: 1.2 !important;
-  }
-  
-  .task-upload :deep(.el-upload-dragger) {
-    padding: 16px 12px !important;
-    min-height: 70px !important;
-  }
-  
-  .upload-icon {
-    font-size: 24px !important;
-    margin-bottom: 4px !important;
-  }
-}
-
-/* 针对更小的屏幕高度 */
-@media (max-height: 768px) {
-  :deep(.task-detail-dialog .el-overlay) {
-    padding: 1vh 1vw !important;
-  }
-  
-  :deep(.task-detail-dialog .el-dialog) {
-    width: 98vw !important;
-  }
-  
-  :deep(.task-detail-dialog .el-dialog__header) {
-    padding: 12px 14px !important;
-  }
-  
-  :deep(.task-detail-dialog .el-dialog__body) {
-    padding: 14px !important;
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
-    max-height: 75vh !important;
-  }
-  
-  .detail-meta {
-    grid-template-columns: 1fr;
-    gap: 8px;
-    padding: 12px;
-  }
-  
-  .custom-task-submission .el-form-item__label {
-    line-height: 1.2;
-    margin-bottom: 4px;
-  }
-}
-
-/* 滚动条样式优化 */
-:deep(.task-detail-dialog .el-dialog__body::-webkit-scrollbar) {
-  width: 6px;
-}
-
-:deep(.task-detail-dialog .el-dialog__body::-webkit-scrollbar-thumb) {
-  background-color: rgba(0, 0, 0, 0.3);
-  border-radius: 3px;
-}
-
-:deep(.task-detail-dialog .el-dialog__body::-webkit-scrollbar-thumb:hover) {
-  background-color: rgba(0, 0, 0, 0.5);
-}
-
-.theme-dark :deep(.task-detail-dialog .el-dialog__body::-webkit-scrollbar-thumb) {
-  background-color: rgba(255, 255, 255, 0.3);
-}
-
-.theme-dark :deep(.task-detail-dialog .el-dialog__body::-webkit-scrollbar-thumb:hover) {
-  background-color: rgba(255, 255, 255, 0.5);
-}
-
-/* 全局样式：确保弹框打开时的滚动处理 */
-:deep(.el-overlay.is-message-box) {
-  overflow-y: auto !important;
-}
-
-:deep(.task-detail-dialog .el-overlay) {
-  align-items: flex-start !important;
-  padding: 0 !important;
 }
 </style>
