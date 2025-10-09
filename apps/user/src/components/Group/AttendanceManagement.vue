@@ -140,14 +140,22 @@
           <div class="setting-item">
             <div class="setting-info">
               <div class="setting-label">统计周期</div>
-              <div class="setting-desc">选择考勤统计的时间周期</div>
+              <div class="setting-desc">选择考勤统计的日期范围（最多31天）</div>
             </div>
             <div class="setting-control">
-              <el-radio-group v-model="statisticsSettings.period" @change="handleStatisticsChange">
-                <el-radio label="weekly">按周统计</el-radio>
-                <el-radio label="monthly">按月统计</el-radio>
-                <el-radio label="semester">按学期统计</el-radio>
-              </el-radio-group>
+              <el-date-picker
+                v-model="statisticsSettings.dateRange"
+                type="daterange"
+                range-separator="至"
+                start-placeholder="开始日期"
+                end-placeholder="结束日期"
+                format="YYYY-MM-DD"
+                value-format="YYYY-MM-DD"
+                :disabled-date="disabledDate"
+                @change="handleDateRangeChange"
+                style="width: 300px"
+              />
+              <span class="period-tip" v-if="dateRangeDays > 0">（共{{ dateRangeDays }}天）</span>
             </div>
           </div>
 
@@ -261,23 +269,14 @@
 
       <!-- 成员考勤列表 -->
       <div class="settings-section">
-        <div class="section-header centered-header">
-          <div class="header-left">
-            <el-icon class="section-icon"><User /></el-icon>
-            <h4 class="section-title">成员考勤</h4>
-          </div>
-          <div class="header-right">
-            <el-button 
-              type="primary" 
-              size="small" 
-              @click="toggleRanking"
-            >
-              {{ showRanking ? '隐藏排名' : '显示排名' }}
-            </el-button>
+        <div class="section-header">
+          <el-icon class="section-icon"><User /></el-icon>
+          <h4 class="section-title">成员考勤</h4>
+          <div class="header-actions">
             <el-input 
               v-model="searchKeyword"
               placeholder="搜索成员"
-              style="width: 200px"
+              style="width: 180px"
               clearable
             >
               <template #prefix>
@@ -307,7 +306,11 @@
                   <!-- 考勤日历可视化 -->
                   <div class="attendance-calendar">
                     <div class="calendar-header">
-                      <span class="calendar-title">本月考勤情况</span>
+                      <span class="calendar-title">
+                        {{ statisticsSettings.dateRange && statisticsSettings.dateRange[0] && statisticsSettings.dateRange[1] 
+                           ? `${statisticsSettings.dateRange[0]} 至 ${statisticsSettings.dateRange[1]} 考勤情况` 
+                           : '考勤情况' }}
+                      </span>
                       <div class="legend">
                         <div class="legend-item">
                           <div class="legend-color present"></div>
@@ -363,17 +366,8 @@
               </template>
             </el-table-column>
             
-            <!-- 排名列 (可选显示) -->
-            <el-table-column v-if="showRanking" label="排名" width="70" align="center">
-              <template #default="{ $index }">
-                <div class="ranking-badge" :class="getRankingClass($index)">
-                  {{ $index + 1 }}
-                </div>
-              </template>
-            </el-table-column>
-            
-            <el-table-column prop="name" label="姓名" min-width="100" />
-            <el-table-column prop="studentId" label="学号" min-width="120" />
+            <el-table-column prop="name" label="姓名" min-width="100" align="center" />
+            <el-table-column prop="studentId" label="学号" min-width="120" align="center" />
             
             <el-table-column label="出勤次数" min-width="100" align="center">
               <template #default="{ row }">
@@ -414,19 +408,6 @@
                 </el-tag>
               </template>
             </el-table-column>
-            
-            <el-table-column label="操作" width="100" fixed="right" align="center">
-              <template #default="{ row }">
-                <el-button 
-                  size="small" 
-                  type="warning" 
-                  link
-                  @click.stop="editAttendance(row)"
-                >
-                  编辑
-                </el-button>
-              </template>
-            </el-table-column>
           </el-table>
         </div>
       </div>
@@ -460,7 +441,6 @@ const emit = defineEmits(['settings-updated']);
 // 响应式数据
 const searchKeyword = ref('');
 const saving = ref(false);
-const showRanking = ref(false);
 
 // 考勤规则设置
 const attendanceRules = reactive({
@@ -475,7 +455,7 @@ const attendanceRules = reactive({
 
 // 统计设置
 const statisticsSettings = reactive({
-  period: 'weekly',
+  dateRange: null,
   attendanceRateMethod: 'checkin',
   autoReminder: true,
   reminderMinutes: 10
@@ -542,13 +522,6 @@ const getPunctualityRateType = (rate) => {
   return 'danger';
 };
 
-const getRankingClass = (index) => {
-  if (index === 0) return 'rank-first';
-  if (index === 1) return 'rank-second';
-  if (index === 2) return 'rank-third';
-  return 'rank-normal';
-};
-
 const getStatusText = (status) => {
   const statusMap = {
     'present': '正常出勤',
@@ -557,6 +530,41 @@ const getStatusText = (status) => {
     'weekend': '周末'
   };
   return statusMap[status] || '未知';
+};
+
+// 计算日期范围天数
+const dateRangeDays = computed(() => {
+  if (!statisticsSettings.dateRange || !statisticsSettings.dateRange[0] || !statisticsSettings.dateRange[1]) {
+    return 0;
+  }
+  const startDate = new Date(statisticsSettings.dateRange[0]);
+  const endDate = new Date(statisticsSettings.dateRange[1]);
+  const diffTime = Math.abs(endDate - startDate);
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+});
+
+// 禁用日期函数（限制最多31天，不能选择未来日期）
+const disabledDate = (time) => {
+  const today = new Date();
+  today.setHours(23, 59, 59, 999);
+  
+  // 不能选择未来日期
+  if (time.getTime() > today.getTime()) {
+    return true;
+  }
+  
+  // 如果已选择了开始日期，限制结束日期不超过31天
+  if (statisticsSettings.dateRange && statisticsSettings.dateRange[0]) {
+    const startDate = new Date(statisticsSettings.dateRange[0]);
+    const maxEndDate = new Date(startDate);
+    maxEndDate.setDate(startDate.getDate() + 30); // 最多31天（包含开始日期）
+    
+    if (time.getTime() > maxEndDate.getTime()) {
+      return true;
+    }
+  }
+  
+  return false;
 };
 
 // 方法
@@ -574,6 +582,32 @@ const handleStatisticsChange = () => {
     type: 'statistics-settings',
     data: statisticsSettings
   });
+};
+
+const handleDateRangeChange = (dateRange) => {
+  if (dateRange && dateRange[0] && dateRange[1]) {
+    // 检查日期范围是否超过31天
+    const startDate = new Date(dateRange[0]);
+    const endDate = new Date(dateRange[1]);
+    const diffTime = Math.abs(endDate - startDate);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    
+    if (diffDays > 31) {
+      ElMessage.warning('统计周期最多不能超过31天');
+      // 重置为31天
+      const newEndDate = new Date(startDate);
+      newEndDate.setDate(startDate.getDate() + 30);
+      statisticsSettings.dateRange = [dateRange[0], newEndDate.toISOString().split('T')[0]];
+      return;
+    }
+    
+    // 重新加载统计数据和成员数据
+    loadStatistics();
+    loadMembers();
+    ElMessage.success(`已切换到 ${dateRange[0]} 至 ${dateRange[1]} 的统计数据`);
+  }
+  
+  handleStatisticsChange();
 };
 
 const handleExportData = () => {
@@ -602,21 +636,12 @@ const refreshData = async () => {
   }
 };
 
-const toggleRanking = () => {
-  showRanking.value = !showRanking.value;
-};
-
 const toggleRowExpansion = (row, column, event) => {
   // 点击操作列时不展开
   if (column && column.property === 'actions') {
     return;
   }
   // 这里可以添加展开逻辑，Element Plus 会自动处理展开状态
-};
-
-const editAttendance = (member) => {
-  // 编辑成员考勤记录
-  ElMessage.info(`编辑 ${member.name} 的考勤记录`);
 };
 
 const loadStatistics = async () => {
@@ -631,14 +656,23 @@ const loadMemberAttendance = async () => {
   // 生成考勤日历数据
   const generateAttendanceCalendar = (presentCount, lateCount, absentCount) => {
     const calendar = [];
-    const today = new Date();
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
-    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    let startDate, endDate;
     
-    for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(currentYear, currentMonth, day);
-      const dayOfWeek = date.getDay();
+    // 根据日期范围设置生成日历数据
+    if (statisticsSettings.dateRange && statisticsSettings.dateRange[0] && statisticsSettings.dateRange[1]) {
+      startDate = new Date(statisticsSettings.dateRange[0]);
+      endDate = new Date(statisticsSettings.dateRange[1]);
+    } else {
+      // 默认显示最近7天
+      endDate = new Date();
+      startDate = new Date();
+      startDate.setDate(endDate.getDate() - 6);
+    }
+    
+    // 生成日期范围内的每一天
+    const currentDate = new Date(startDate);
+    while (currentDate <= endDate) {
+      const dayOfWeek = currentDate.getDay();
       
       let status = 'weekend';
       if (dayOfWeek !== 0 && dayOfWeek !== 6) { // 非周末
@@ -649,9 +683,12 @@ const loadMemberAttendance = async () => {
       }
       
       calendar.push({
-        date: `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+        date: `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`,
         status: status
       });
+      
+      // 移动到下一天
+      currentDate.setDate(currentDate.getDate() + 1);
     }
     return calendar;
   };
@@ -728,6 +765,16 @@ const loadMemberAttendance = async () => {
 
 // 生命周期
 onMounted(async () => {
+  // 初始化默认日期范围（最近7天）
+  const today = new Date();
+  const startDate = new Date();
+  startDate.setDate(today.getDate() - 6);
+  
+  statisticsSettings.dateRange = [
+    startDate.toISOString().split('T')[0],
+    today.toISOString().split('T')[0]
+  ];
+  
   await loadStatistics();
   await loadMemberAttendance();
 });
@@ -806,6 +853,15 @@ onMounted(async () => {
   padding: 20px 24px;
   border-bottom: 1px solid #e5e7eb;
   background-color: #f8fafc;
+}
+
+.section-header .section-icon {
+  margin-right: 12px;
+}
+
+.section-header .section-title {
+  flex: 1;
+  text-align: left;
 }
 
 .theme-dark .section-header {
@@ -888,6 +944,16 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.period-tip {
+  font-size: 14px;
+  color: #6b7280;
+  margin-left: 12px;
+}
+
+.theme-dark .period-tip {
+  color: #9ca3af;
 }
 
 .unit-text {
@@ -1076,26 +1142,8 @@ onMounted(async () => {
 }
 
 /* 成员考勤表格样式 */
-.centered-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-}
-
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
 .attendance-table-container {
-  padding: 0 24px 24px;
+  padding: 0;
 }
 
 /* 排名徽章样式 */

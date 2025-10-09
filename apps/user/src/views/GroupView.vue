@@ -12,6 +12,7 @@ import GroupTasks from "../components/Group/GroupTasks.vue";
 import GroupActivityList from "../components/Group/GroupActivityList.vue";
 import GroupSettings from "../components/Group/GroupSettings.vue";
 import AttendanceManagement from "../components/Group/AttendanceManagement.vue";
+import StudentAttendanceView from "../components/Group/StudentAttendanceView.vue";
 import { useStore } from 'vuex';
 import { Expand, Search, Plus } from '@element-plus/icons-vue';
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
@@ -457,6 +458,29 @@ function handleAttendanceSettingsUpdated(event) {
   // TODO: 调用API保存考勤设置到后端
 }
 
+// --- 获取当前用户ID ---
+const getCurrentUserId = () => {
+  // 从Vuex store获取用户信息
+  const userInfo = store.state.userInfo || store.getters.userInfo;
+  if (userInfo && userInfo.id) {
+    return userInfo.id;
+  }
+  
+  // 从localStorage获取用户信息作为备用
+  try {
+    const storedUser = localStorage.getItem('userInfo');
+    if (storedUser) {
+      const parsedUser = JSON.parse(storedUser);
+      return parsedUser.id || parsedUser.userId;
+    }
+  } catch (error) {
+    console.warn('解析用户信息失败:', error);
+  }
+  
+  // 开发环境返回模拟用户ID
+  return 1;
+}
+
 // --- 监听器和生命周期 ---
 // 标记是否正在从路由初始化，避免循环更新
 const isInitializingFromRoute = ref(false);
@@ -651,9 +675,16 @@ onUnmounted(() => {
                   </div>
 
                   <div v-else-if="activeDetailTab === 'attendance'" class="detail-section">
+                    <!-- 根据课程类型显示不同的考勤组件 -->
                     <AttendanceManagement 
+                      v-if="activeTab === 'my-teachings'"
                       :group-id="currentGroup?.id"
                       @settings-updated="handleAttendanceSettingsUpdated"
+                    />
+                    <StudentAttendanceView
+                      v-else-if="activeTab === 'my-courses'"
+                      :group-id="currentGroup?.id"
+                      :current-user-id="getCurrentUserId()"
                     />
                   </div>
                   
