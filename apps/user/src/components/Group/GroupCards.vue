@@ -130,7 +130,15 @@ const mockCourses = {
       academicYear: '2024',
       semester: 'autumn',
       lastUpdated: new Date('2024-10-05'),
-      createdAt: new Date('2024-09-10')
+      createdAt: new Date('2024-09-10'),
+      settings: {
+        enableAttendance: true,
+        member: {
+          maxMembers: 50,
+          requireApproval: true,
+          enableAttendance: true
+        }
+      }
     },
     {
       id: 5,
@@ -142,7 +150,49 @@ const mockCourses = {
       academicYear: '2025',
       semester: 'winter',
       lastUpdated: new Date('2024-10-02'),
-      createdAt: new Date('2024-09-28')
+      createdAt: new Date('2024-09-28'),
+      settings: {
+        enableAttendance: false,
+        member: {
+          maxMembers: 30,
+          requireApproval: false,
+          enableAttendance: false
+        }
+      }
+    },
+    {
+      id: 6,
+      title: '生物医学工程创新小组',
+      description: '专注于生物医学工程领域的创新研究和实践，包括医疗设备设计、生物信号处理等前沿技术。',
+      status: 'active',
+      studentCount: 28,
+      tutorName: '张教授',
+      academicYear: '2024',
+      semester: 'autumn',
+      lastUpdated: new Date('2024-10-08'),
+      createdAt: new Date('2024-09-20'),
+      settings: {
+        enableAttendance: true,
+        member: {
+          maxMembers: 35,
+          requireApproval: true,
+          enableAttendance: true
+        },
+        attendanceRules: {
+          startTime: '08:30',
+          endTime: '17:00',
+          lateToleranceMinutes: 15,
+          earlyLeaveToleranceMinutes: 10,
+          checkInMethods: ['manual', 'qrcode', 'location'],
+          locationRadius: 50
+        },
+        statisticsSettings: {
+          period: 'weekly',
+          attendanceRateMethod: 'comprehensive',
+          autoReminder: true,
+          reminderMinutes: 15
+        }
+      }
     }
   ]
 };

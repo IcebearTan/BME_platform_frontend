@@ -76,7 +76,7 @@
 <script setup>
 import { computed } from 'vue';
 import { useStore } from 'vuex';
-import { ArrowLeft, User, Bell, Document, Setting, HomeFilled, UserFilled, DataAnalysis } from '@element-plus/icons-vue';
+import { ArrowLeft, User, Bell, Document, Setting, HomeFilled, UserFilled, DataAnalysis, Clock } from '@element-plus/icons-vue';
 
 // Props
 const props = defineProps({
@@ -131,17 +131,33 @@ const detailNavItems = computed(() => {
   // 根据课程类型添加不同的导航项
   if (props.courseType === 'my-teachings') {
     // 我教的课：有管理权限
-    return [
+    const teacherItems = [
       ...baseItems,
-      { key: 'tasks', label: '任务管理', icon: Document },
-      { key: 'settings', label: '小组设置', icon: Setting }
+      { key: 'tasks', label: '任务管理', icon: Document }
     ];
+
+    // 如果小组启用了考勤功能，添加考勤管理选项
+    if (props.currentGroup?.settings?.enableAttendance) {
+      teacherItems.push({ key: 'attendance', label: '考勤管理', icon: Clock });
+    }
+
+    // 设置选项放在最后
+    teacherItems.push({ key: 'settings', label: '小组设置', icon: Setting });
+
+    return teacherItems;
   } else {
     // 我听的课：学生视角
-    return [
+    const studentItems = [
       ...baseItems,
       { key: 'tasks', label: '任务单', icon: Document }
     ];
+
+    // 学生也可以查看考勤（如果启用了考勤功能）
+    if (props.currentGroup?.settings?.enableAttendance) {
+      studentItems.push({ key: 'attendance', label: '我的考勤', icon: Clock });
+    }
+
+    return studentItems;
   }
 });
 

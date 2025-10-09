@@ -10,6 +10,8 @@ import GroupOverview from "../components/Group/GroupOverview.vue";
 import GroupAnnouncements from "../components/Group/GroupAnnouncements.vue";
 import GroupTasks from "../components/Group/GroupTasks.vue";
 import GroupActivityList from "../components/Group/GroupActivityList.vue";
+import GroupSettings from "../components/Group/GroupSettings.vue";
+import AttendanceManagement from "../components/Group/AttendanceManagement.vue";
 import { useStore } from 'vuex';
 import { Expand, Search, Plus } from '@element-plus/icons-vue';
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
@@ -46,7 +48,7 @@ const initializeFromRoute = () => {
   }
   
   // 恢复详情页标签
-  if (query.detailTab && ['overview', 'members', 'announcements', 'tasks', 'activities', 'settings'].includes(query.detailTab)) {
+  if (query.detailTab && ['overview', 'members', 'announcements', 'tasks', 'activities', 'settings', 'attendance'].includes(query.detailTab)) {
     activeDetailTab.value = query.detailTab;
   }
   
@@ -181,7 +183,16 @@ function handleCourseClick(course) {
   console.log('Course clicked:', course);
   // 切换到详情模式并设置当前小组
   currentMode.value = 'detail';
-  currentGroup.value = course;
+  
+  // 确保小组有完整的设置结构
+  currentGroup.value = {
+    ...course,
+    settings: {
+      enableAttendance: true, // 默认启用考勤功能
+      ...course.settings
+    }
+  };
+  
   activeDetailTab.value = 'overview';
   
   // 更新路由状态
@@ -366,6 +377,84 @@ function handleActivityClick(activity) {
 function handleActivityRefresh() {
   console.log('刷新活动列表');
   // TODO: 实现活动列表刷新逻辑
+}
+
+// --- 小组设置事件处理 ---
+function handleSettingsUpdated(event) {
+  console.log('设置已更新:', event);
+  
+  // 根据不同类型的设置更新处理
+  switch (event.type) {
+    case 'basic':
+      // 更新基本信息
+      if (currentGroup.value) {
+        Object.assign(currentGroup.value, event.data);
+      }
+      break;
+    case 'member':
+      // 更新成员设置
+      if (currentGroup.value) {
+        currentGroup.value.settings = currentGroup.value.settings || {};
+        currentGroup.value.settings.member = event.data;
+      }
+      break;
+    case 'notification':
+      // 更新通知设置
+      if (currentGroup.value) {
+        currentGroup.value.settings = currentGroup.value.settings || {};
+        currentGroup.value.settings.notification = event.data;
+      }
+      break;
+  }
+  
+  // TODO: 调用API保存设置到后端
+}
+
+function handleGroupArchived(groupId) {
+  console.log('小组已归档:', groupId);
+  
+  // 更新当前小组状态
+  if (currentGroup.value && currentGroup.value.id === groupId) {
+    currentGroup.value.status = 'completed';
+  }
+  
+  // TODO: 调用API更新后端状态
+  // 可选：显示成功消息或跳转到列表页
+}
+
+function handleGroupDeleted(groupId) {
+  console.log('小组已删除:', groupId);
+  
+  // 删除后返回列表页
+  handleBackToList();
+  
+  // TODO: 调用API删除小组
+  // TODO: 从列表中移除已删除的小组
+}
+
+// --- 考勤设置事件处理 ---
+function handleAttendanceSettingsUpdated(event) {
+  console.log('考勤设置已更新:', event);
+  
+  // 根据不同类型的考勤设置更新处理
+  switch (event.type) {
+    case 'attendance-rules':
+      // 更新考勤规则设置
+      if (currentGroup.value) {
+        currentGroup.value.settings = currentGroup.value.settings || {};
+        currentGroup.value.settings.attendanceRules = event.data;
+      }
+      break;
+    case 'statistics-settings':
+      // 更新统计设置
+      if (currentGroup.value) {
+        currentGroup.value.settings = currentGroup.value.settings || {};
+        currentGroup.value.settings.statisticsSettings = event.data;
+      }
+      break;
+  }
+  
+  // TODO: 调用API保存考勤设置到后端
 }
 
 // --- 监听器和生命周期 ---
@@ -553,8 +642,19 @@ onUnmounted(() => {
                   </div>
                   
                   <div v-else-if="activeDetailTab === 'settings'" class="detail-section">
-                    <h3>小组设置</h3>
-                    <p>这里显示小组设置功能（仅管理员可见）...</p>
+                    <GroupSettings 
+                      :group-data="currentGroup"
+                      @settings-updated="handleSettingsUpdated"
+                      @group-archived="handleGroupArchived"
+                      @group-deleted="handleGroupDeleted"
+                    />
+                  </div>
+
+                  <div v-else-if="activeDetailTab === 'attendance'" class="detail-section">
+                    <AttendanceManagement 
+                      :group-id="currentGroup?.id"
+                      @settings-updated="handleAttendanceSettingsUpdated"
+                    />
                   </div>
                   
                   <div v-else class="detail-section">
