@@ -122,6 +122,7 @@
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item :command="{ action: 'edit', task }">编辑任务</el-dropdown-item>
+                  <el-dropdown-item :command="{ action: 'copy', task }">复制任务</el-dropdown-item>
                   <el-dropdown-item :command="{ action: 'stats', task }">查看统计</el-dropdown-item>
                   <el-dropdown-item 
                     :command="{ action: 'delete', task }"
@@ -733,27 +734,21 @@ const handleBatchDelete = () => {
 }
 
 .task-status-indicator {
+  display: none;
+  /* 如果需要显示，取消注释以下样式
   width: 4px;
   height: 100%;
   position: absolute;
   left: 0;
   top: 0;
+  */
 }
 
-.status-pending {
-  background-color: #f59e0b;
-}
-
-.status-in_progress {
-  background-color: #3b82f6;
-}
-
-.status-completed {
-  background-color: #10b981;
-}
-
+.status-pending,
+.status-in_progress,
+.status-completed,
 .status-overdue {
-  background-color: #ef4444;
+  background-color: rgba(102, 126, 234, 0.6);
 }
 
 .task-content {
@@ -807,6 +802,19 @@ const handleBatchDelete = () => {
   background-color: rgba(99, 102, 241, 0.1);
   color: #6366f1;
   border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+/* 暗色主题适配 */
+.theme-dark .type-exercise {
+  background-color: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.theme-dark .type-custom {
+  background-color: rgba(99, 102, 241, 0.15);
+  color: #818cf8;
+  border-color: rgba(99, 102, 241, 0.3);
 }
 
 .theme-dark .task-title {

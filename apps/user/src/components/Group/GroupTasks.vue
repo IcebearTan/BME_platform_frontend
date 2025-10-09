@@ -88,11 +88,18 @@
         :rules="taskRules"
         label-width="100px"
       >
-        <el-form-item label="任务类型" prop="type">
+        <el-form-item v-if="!editingTask" label="任务类型" prop="type">
           <el-radio-group v-model="taskForm.type" @change="handleTaskTypeChange">
             <el-radio label="exercise">题目任务</el-radio>
             <el-radio label="custom">自定义任务</el-radio>
           </el-radio-group>
+        </el-form-item>
+
+        <!-- 编辑模式下显示任务类型但不可修改 -->
+        <el-form-item v-else label="任务类型">
+          <span class="task-type-text">
+            {{ taskForm.type === 'exercise' ? '题目任务' : '自定义任务' }}
+          </span>
         </el-form-item>
 
         <el-form-item 
@@ -109,8 +116,8 @@
           />
         </el-form-item>
 
-        <!-- 题目筛选条件 -->
-        <div v-if="taskForm.type === 'exercise'" key="exercise-filters" class="exercise-filters">
+        <!-- 题目筛选条件 - 仅新建模式显示 -->
+        <div v-if="taskForm.type === 'exercise' && !editingTask" key="exercise-filters" class="exercise-filters">
           <el-row :gutter="12" align="middle">
             <el-col :span="6">
               <el-select
@@ -173,8 +180,9 @@
           </div>
         </div>
 
+        <!-- 题目选择 - 新建模式 -->
         <el-form-item 
-          v-if="taskForm.type === 'exercise'"
+          v-if="taskForm.type === 'exercise' && !editingTask"
           key="exercise-select"
           label="选择题目" 
           prop="exerciseId"
@@ -198,6 +206,22 @@
               </span>
             </el-option>
           </el-select>
+        </el-form-item>
+
+        <!-- 题目显示 - 编辑模式 -->
+        <el-form-item 
+          v-if="taskForm.type === 'exercise' && editingTask"
+          key="exercise-display"
+          label="关联题目"
+        >
+          <div class="exercise-info">
+            <el-tag type="success" size="large">
+              {{ getCurrentExerciseTitle() }}
+            </el-tag>
+            <el-text type="info" size="small" style="margin-left: 8px;">
+              编辑模式下无法修改关联题目
+            </el-text>
+          </div>
         </el-form-item>
 
         <el-form-item 
@@ -244,7 +268,7 @@
 
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="isTaskDialogVisible = false">取消</el-button>
+          <el-button @click="handleCancelTask">取消</el-button>
           <el-button type="primary" @click="handleSaveTask" :loading="saving">
             {{ editingTask ? '保存' : '创建' }}
           </el-button>
@@ -445,7 +469,8 @@ const taskRules = {
       message: '请输入任务标题', 
       trigger: 'blur',
       validator: (rule, value, callback) => {
-        if (taskForm.value.type === 'custom') {
+        // 自定义任务或编辑模式下需要验证标题
+        if (taskForm.value.type === 'custom' || editingTask.value) {
           if (!value || value.trim().length === 0) {
             callback(new Error('请输入任务标题'));
           } else if (value.length < 2 || value.length > 100) {
@@ -454,7 +479,7 @@ const taskRules = {
             callback();
           }
         } else {
-          // 题目任务不需要验证标题
+          // 新建题目任务不需要验证标题
           callback();
         }
       }
@@ -466,7 +491,8 @@ const taskRules = {
       message: '请选择题目', 
       trigger: 'change',
       validator: (rule, value, callback) => {
-        if (taskForm.value.type === 'exercise' && !value) {
+        // 题目任务且非编辑模式时需要验证exerciseId
+        if (taskForm.value.type === 'exercise' && !editingTask.value && !value) {
           callback(new Error('请选择题目'));
         } else {
           callback();
@@ -633,6 +659,9 @@ const handleCreateTask = (taskType = 'custom') => {
 };
 
 const getCreateDialogTitle = () => {
+  if (editingTask.value) {
+    return '编辑任务';
+  }
   return currentTaskType.value === 'exercise' ? '创建题目' : '创建自定义任务';
 };
 
@@ -695,6 +724,16 @@ const getExerciseTypeLabel = (type) => {
   return typeMap[type] || type;
 };
 
+// 获取当前编辑任务关联的题目标题
+const getCurrentExerciseTitle = () => {
+  if (!editingTask.value || !editingTask.value.exerciseId) {
+    return '未关联题目';
+  }
+  
+  const exercise = exerciseBank.value.find(ex => ex.id === editingTask.value.exerciseId);
+  return exercise ? exercise.title : `题目ID: ${editingTask.value.exerciseId}`;
+};
+
 // 获取优先级文本
 const getPriorityText = (priority) => {
   const priorityMap = {
@@ -743,6 +782,26 @@ const clearExerciseFilters = () => {
   }
 };
 
+const handleCancelTask = () => {
+  isTaskDialogVisible.value = false;
+  editingTask.value = null;
+  // 重置表单数据
+  taskForm.value = {
+    type: 'custom',
+    title: '',
+    description: '',
+    priority: 'medium',
+    dueDate: '',
+    requirements: '',
+    exerciseId: '',
+    exerciseType: '',
+    referenceAnswer: '',
+    score: 10
+  };
+  // 重置筛选条件
+  clearExerciseFilters();
+};
+
 const handleBatchManage = () => {
   batchMode.value = !batchMode.value;
   selectedTasks.value = [];
@@ -776,19 +835,59 @@ const handleTaskAction = ({ action, task }) => {
   switch (action) {
     case 'edit':
       editingTask.value = task;
+      // 根据任务类型正确加载表单数据
       taskForm.value = {
+        type: task.type,
         title: task.title,
         description: task.description,
-        priority: task.priority,
+        priority: task.priority || 'medium',
         dueDate: task.dueDate,
-        requirements: task.requirements || ''
+        requirements: task.requirements || '',
+        // 题目任务相关字段
+        exerciseId: task.exerciseId || '',
+        exerciseType: task.exerciseType || '',
+        referenceAnswer: task.referenceAnswer || '',
+        score: task.score || 10
       };
       isTaskDialogVisible.value = true;
+      break;
+    case 'copy':
+      handleCopyTask(task);
       break;
     case 'delete':
       handleDeleteTask(task);
       break;
   }
+};
+
+const handleCopyTask = (task) => {
+  editingTask.value = null; // 复制时不是编辑模式
+  currentTaskType.value = task.type;
+  
+  // 复制任务数据，但排除ID和日期等唯一字段
+  taskForm.value = {
+    type: task.type,
+    title: `${task.title}（副本）`,
+    description: task.description,
+    priority: task.priority || 'medium',
+    dueDate: '', // 截止时间需要重新设置
+    requirements: task.requirements || '',
+    // 题目任务相关字段
+    exerciseId: task.exerciseId || '',
+    exerciseType: task.exerciseType || '',
+    referenceAnswer: task.referenceAnswer || '',
+    score: task.score || 10
+  };
+  
+  // 重置题目筛选条件
+  exerciseFilters.value = {
+    difficulty: '',
+    type: '',
+    keyword: ''
+  };
+  
+  isTaskDialogVisible.value = true;
+  ElMessage.success('任务已复制，请修改相关信息后保存');
 };
 
 const handleDeleteTask = (task) => {
@@ -909,10 +1008,16 @@ const handleSaveTask = async () => {
       }
       
       if (editingTask.value) {
-        // 编辑现有任务
+        // 编辑现有任务 - 不允许修改type和exerciseId
+        const updateData = { ...taskData };
+        delete updateData.type; // 不允许修改任务类型
+        if (editingTask.value.type === 'exercise') {
+          delete updateData.exerciseId; // 题目任务不允许修改exerciseId
+        }
+        
         Object.assign(editingTask.value, {
-          ...taskData,
-          createDate: new Date()
+          ...updateData,
+          updateDate: new Date() // 记录更新时间而不是创建时间
         });
         ElMessage.success('任务已更新');
         emit('task-edit', editingTask.value);
@@ -935,7 +1040,7 @@ const handleSaveTask = async () => {
       }
       
       saving.value = false;
-      isTaskDialogVisible.value = false;
+      handleCancelTask();
     }, 1000);
   } catch (error) {
     console.error('Form validation failed:', error);
@@ -1868,6 +1973,21 @@ onMounted(() => {
   margin-top: 2px;
 }
 
+/* 题目信息显示样式 */
+.exercise-info {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  background: rgba(16, 185, 129, 0.05);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  border-radius: 6px;
+}
+
+.theme-dark .exercise-info {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
 /* 响应式优化 */
 @media (max-width: 768px) {
   .task-card {
@@ -1917,5 +2037,16 @@ onMounted(() => {
   .theme-dark .student-actions {
     border-top-color: rgba(255, 255, 255, 0.1);
   }
+}
+
+/* 任务类型文字显示 - 简约样式 */
+.task-type-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.theme-dark .task-type-text {
+  color: #d1d5db;
 }
 </style>

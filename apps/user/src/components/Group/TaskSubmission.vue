@@ -293,9 +293,11 @@ onMounted(() => {
 <style scoped>
 .task-submission {
   width: 100%;
-  min-height: calc(100vh - 40px);
+  height: 100%;
   padding: 0;
   background-color: transparent;
+  display: flex;
+  flex-direction: column;
 }
 
 .theme-dark .task-submission {
@@ -303,44 +305,51 @@ onMounted(() => {
 }
 
 .submission-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 20px;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 /* 头部样式 */
 .submission-header {
   display: flex;
   align-items: center;
-  gap: 20px;
-  margin-bottom: 24px;
-  padding: 20px 20px 16px 20px;
+  gap: 16px;
+  margin-bottom: 0;
+  padding: 16px 20px;
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-  background: #ffffff;
-  border-radius: 12px 12px 0 0;
+  background: rgba(248, 250, 252, 0.8);
+  backdrop-filter: blur(8px);
+  flex-shrink: 0;
 }
 
 .theme-dark .submission-header {
-  border-bottom-color: rgba(255, 255, 255, 0.1);
-  background: rgba(40, 40, 40, 0.9);
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+  background: rgba(30, 30, 30, 0.9);
 }
 
 .back-button {
   display: flex;
   align-items: center;
-  gap: 8px;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  background: rgba(0, 0, 0, 0.02);
-  transition: all 0.3s ease;
+  gap: 6px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.7);
+  transition: all 0.2s ease;
+  font-size: 14px;
+  padding: 8px 12px;
+  border-radius: 8px;
 }
 
 .back-button:hover {
   background: rgba(102, 126, 234, 0.08);
   border-color: rgba(102, 126, 234, 0.2);
+  transform: translateY(-1px);
 }
 
 .theme-dark .back-button {
-  border-color: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.05);
 }
 
@@ -350,43 +359,43 @@ onMounted(() => {
 }
 
 .submission-title {
-  font-size: 24px;
-  font-weight: 700;
+  font-size: 20px;
+  font-weight: 600;
   margin: 0;
-  color: #1a1a1a;
+  color: #1f2937;
+  line-height: 1.4;
 }
 
 .theme-dark .submission-title {
-  color: #ffffff;
+  color: #f9fafb;
 }
 
 /* 内容区域 */
 .submission-content {
   width: 100%;
   background: #ffffff;
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  overflow: hidden;
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  border-top: none;
+  overflow-y: auto;
+  flex: 1;
+  border: none;
+  box-shadow: none;
 }
 
 .theme-dark .submission-content {
-  background: rgba(40, 40, 40, 0.9);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(30, 30, 30, 0.95);
+  border: none;
 }
 
 /* 任务信息展示区域 */
 .task-info {
-  padding: 24px;
-  background: rgba(102, 126, 234, 0.02);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  padding: 20px 24px;
+  background: rgba(102, 126, 234, 0.03);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  flex-shrink: 0;
 }
 
 .theme-dark .task-info {
   background: rgba(102, 126, 234, 0.08);
-  border-bottom-color: rgba(255, 255, 255, 0.1);
+  border-bottom-color: rgba(255, 255, 255, 0.06);
 }
 
 .info-header {
@@ -484,49 +493,54 @@ onMounted(() => {
 }
 
 .info-content h4 {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
-  margin: 0 0 8px 0;
-  color: #1a1a1a;
+  margin: 0 0 6px 0;
+  color: #374151;
 }
 
 .theme-dark .info-content h4 {
-  color: #ffffff;
+  color: #d1d5db;
 }
 
 .content-text {
   font-size: 14px;
-  line-height: 1.6;
-  color: #374151;
+  line-height: 1.5;
+  color: #4b5563;
   white-space: pre-wrap;
-  margin-bottom: 16px;
-  padding: 16px;
-  background: rgba(0, 0, 0, 0.02);
-  border-radius: 8px;
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  background: rgba(0, 0, 0, 0.015);
+  border-radius: 6px;
+  border: 1px solid rgba(0, 0, 0, 0.04);
 }
 
 .theme-dark .content-text {
   color: #e5e7eb;
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.06);
 }
 
 /* 题目任务提交区域 */
 .exercise-submission {
-  padding: 40px;
+  padding: 32px 24px;
   text-align: center;
-  background: rgba(16, 185, 129, 0.03);
+  background: rgba(16, 185, 129, 0.04);
   border: 2px dashed rgba(16, 185, 129, 0.2);
-  margin: 24px;
+  margin: 20px 24px;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.1);
+  box-shadow: 0 2px 12px rgba(16, 185, 129, 0.08);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
 }
 
 .theme-dark .exercise-submission {
-  border-color: rgba(16, 185, 129, 0.3);
-  background: rgba(16, 185, 129, 0.08);
-  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
+  border-color: rgba(16, 185, 129, 0.25);
+  background: rgba(16, 185, 129, 0.06);
+  box-shadow: 0 2px 12px rgba(16, 185, 129, 0.15);
 }
 
 .exercise-notice {
@@ -551,12 +565,45 @@ onMounted(() => {
 
 /* 自定义任务提交区域 */
 .custom-submission {
-  padding: 24px;
-  background: rgba(0, 0, 0, 0.01);
+  padding: 20px 24px;
+  background: rgba(0, 0, 0, 0.005);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 .theme-dark .custom-submission {
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(255, 255, 255, 0.01);
+}
+
+.custom-submission .el-form {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.custom-submission .el-form-item:first-child {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.custom-submission .el-form-item:first-child .el-form-item__content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.custom-submission .el-form-item:first-child .el-textarea {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.custom-submission .el-form-item:first-child .el-textarea__inner {
+  flex: 1;
+  min-height: 200px !important;
+  resize: vertical;
 }
 
 .submission-upload {
@@ -572,61 +619,54 @@ onMounted(() => {
 .submission-actions {
   display: flex;
   justify-content: center;
-  gap: 16px;
-  margin-top: 32px;
-  padding: 24px;
-  border-top: 1px solid rgba(0, 0, 0, 0.06);
-  background: rgba(0, 0, 0, 0.01);
-  border-radius: 0 0 12px 12px;
+  gap: 12px;
+  margin-top: auto;
+  padding: 20px 24px;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+  background: rgba(248, 250, 252, 0.5);
+  backdrop-filter: blur(4px);
+  flex-shrink: 0;
 }
 
 .theme-dark .submission-actions {
-  border-top-color: rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.02);
+  border-top-color: rgba(255, 255, 255, 0.06);
+  background: rgba(25, 25, 25, 0.8);
 }
 
 .submission-actions .el-button {
-  min-width: 140px;
-  height: 48px;
-  font-size: 16px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s ease;
+  min-width: 130px;
+  height: 44px;
+  font-size: 15px;
+  font-weight: 500;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  transition: all 0.2s ease;
 }
 
 .submission-actions .el-button:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
 }
 
 /* 响应式设计 */
 @media (max-width: 768px) {
-  .task-submission {
-    min-height: calc(100vh - 20px);
-  }
-  
   .submission-container {
-    padding: 16px;
+    padding: 0;
   }
   
   .submission-header {
     flex-direction: column;
     align-items: flex-start;
-    gap: 16px;
-    padding: 16px;
-    border-radius: 8px 8px 0 0;
+    gap: 12px;
+    padding: 12px 16px;
   }
   
   .submission-title {
-    font-size: 20px;
-  }
-  
-  .submission-content {
-    margin: 0;
-    border-radius: 0 0 8px 8px;
+    font-size: 18px;
   }
   
   .task-info {
-    padding: 20px;
+    padding: 16px 20px;
   }
   
   .info-meta {
@@ -641,27 +681,27 @@ onMounted(() => {
   
   .info-title {
     margin-right: 0;
-    font-size: 18px;
+    font-size: 16px;
   }
   
   .exercise-submission {
-    padding: 24px;
+    padding: 20px 16px;
     margin: 16px;
   }
   
   .custom-submission {
-    padding: 16px;
+    padding: 16px 20px;
   }
   
   .submission-actions {
     flex-direction: column;
-    gap: 12px;
-    padding: 20px;
+    gap: 10px;
+    padding: 16px 20px;
   }
   
   .submission-actions .el-button {
     width: 100%;
-    height: 44px;
+    height: 42px;
   }
 }
 
@@ -671,5 +711,48 @@ onMounted(() => {
     font-size: 14px;
     padding: 12px 24px;
   }
+}
+
+/* 容器适配优化 */
+.task-submission {
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.submission-container {
+  box-sizing: border-box;
+  min-height: 0; /* 重要：允许flex子元素收缩 */
+}
+
+/* 滚动区域优化 */
+.submission-content {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+}
+
+.submission-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.submission-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.submission-content::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.15);
+  border-radius: 3px;
+}
+
+.theme-dark .submission-content::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+/* 表单项目间距优化 */
+.custom-submission .el-form-item {
+  margin-bottom: 16px;
+}
+
+.custom-submission .el-form-item:last-child {
+  margin-bottom: 0;
 }
 </style>
