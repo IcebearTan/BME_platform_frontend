@@ -118,51 +118,63 @@
       </div>
     </div>
 
-    <!-- 最近活动 -->
+    <!-- 进度排名 -->
     <div class="overview-section">
       <div class="section-header">
-        <h3 class="section-title">最近活动</h3>
-        <el-button type="text" class="view-more-btn" @click="handleViewAllActivities">
-          查看全部
-          <el-icon><ArrowRight /></el-icon>
-        </el-button>
+        <h3 class="section-title">进度排名</h3>
+        <div class="ranking-info">
+          <span class="member-count">共 {{ progressRanking.length }} 名成员</span>
+        </div>
       </div>
 
-      <div class="activity-list">
+      <div class="progress-ranking-list">
         <div 
-          v-for="activity in recentActivities" 
-          :key="activity.id"
-          class="activity-item"
+          v-for="(student, index) in progressRanking" 
+          :key="student.userId"
+          class="ranking-item"
         >
-          <div class="activity-avatar">
-            <img v-if="activity.userAvatar" :src="activity.userAvatar" :alt="activity.userName" />
-            <div v-else class="avatar-placeholder">
-              {{ activity.userName?.charAt(0) || 'U' }}
+          <div class="rank-position">
+            <div 
+              class="rank-index"
+              :class="{
+                'index-gold': index === 0,
+                'index-silver': index === 1,
+                'index-bronze': index === 2
+              }"
+            >
+              {{ index + 1 }}
             </div>
-          </div>
-          
-          <div class="activity-content">
-            <div class="activity-text">
-              <span class="activity-user">{{ activity.userName }}</span>
-              <span class="activity-action">{{ activity.action }}</span>
-              <span class="activity-target">{{ activity.target }}</span>
-            </div>
-            <div class="activity-time">{{ formatRelativeTime(activity.timestamp) }}</div>
           </div>
 
-          <div class="activity-type-icon" :class="`type-${activity.type}`">
-            <el-icon v-if="activity.type === 'task'"><Select /></el-icon>
-            <el-icon v-else-if="activity.type === 'announcement'"><Bell /></el-icon>
-            <el-icon v-else-if="activity.type === 'member'"><Avatar /></el-icon>
-            <el-icon v-else><Document /></el-icon>
+          <div class="student-avatar">
+            <el-avatar :size="32" :src="student.avatar">
+              {{ student.name?.charAt(0) || 'U' }}
+            </el-avatar>
+          </div>
+          
+          <div class="student-info">
+            <div class="student-name">{{ student.name }}</div>
+            <div class="progress-summary">
+              已完成 {{ student.completedTasks }} / {{ student.totalTasks }} 项任务
+            </div>
+          </div>
+
+          <div class="progress-indicator">
+            <div class="progress-percentage">{{ student.progressPercentage }}%</div>
+            <el-progress 
+              :percentage="student.progressPercentage" 
+              :stroke-width="6"
+              :show-text="false"
+              :color="getProgressColor(student.progressPercentage)"
+            />
           </div>
         </div>
       </div>
 
-      <!-- 无活动状态 -->
-      <div v-if="recentActivities.length === 0" class="no-activity">
-        <div class="no-activity-icon">📊</div>
-        <p class="no-activity-text">暂无最近活动</p>
+      <!-- 无数据状态 -->
+      <div v-if="progressRanking.length === 0" class="no-ranking">
+        <div class="no-ranking-icon">�</div>
+        <p class="no-ranking-text">暂无进度数据</p>
       </div>
     </div>
 
@@ -253,6 +265,50 @@ const recentActivities = ref([
 
 ]);
 
+// 进度排名数据
+const progressRanking = ref([
+  {
+    userId: 1,
+    name: '陈小明',
+    avatar: '/src/assets/ChenMinJie.jpg',
+    completedTasks: 18,
+    totalTasks: 20,
+    progressPercentage: 90
+  },
+  {
+    userId: 2,
+    name: '李小华',
+    avatar: '/src/assets/LuMengXuan.jpg',
+    completedTasks: 17,
+    totalTasks: 20,
+    progressPercentage: 85
+  },
+  {
+    userId: 3,
+    name: '王小刚',
+    avatar: '/src/assets/Jerry_Scintilla_avatar.jpg',
+    completedTasks: 16,
+    totalTasks: 20,
+    progressPercentage: 80
+  },
+  {
+    userId: 4,
+    name: '赵小丽',
+    avatar: '/src/assets/ジエ_avatar.png',
+    completedTasks: 15,
+    totalTasks: 20,
+    progressPercentage: 75
+  },
+  {
+    userId: 5,
+    name: '刘小强',
+    avatar: '/src/assets/ice_bear_avatar.jpg',
+    completedTasks: 14,
+    totalTasks: 20,
+    progressPercentage: 70
+  }
+]);
+
 // 计算属性
 const isDarkMode = computed(() => store.getters.isDarkMode);
 const isTeacher = computed(() => props.courseType === 'my-teachings');
@@ -288,6 +344,15 @@ const formatRelativeTime = (timestamp) => {
   } else {
     return formatDate(timestamp);
   }
+};
+
+// 进度颜色计算方法
+const getProgressColor = (percentage) => {
+  if (percentage >= 90) return '#67c23a'; // 绿色
+  if (percentage >= 80) return '#409eff'; // 蓝色
+  if (percentage >= 70) return '#e6a23c'; // 橙色
+  if (percentage >= 60) return '#f56c6c'; // 红色
+  return '#909399'; // 灰色
 };
 
 // 事件处理
@@ -565,128 +630,133 @@ onMounted(() => {
   color: #9ca3af;
 }
 
-/* 活动列表 */
-.activity-list {
+/* 进度排名列表 */
+.progress-ranking-list {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 8px;
 }
 
-.activity-item {
+.ranking-item {
   display: flex;
   align-items: center;
-  padding: 16px;
-  background: rgba(0, 0, 0, 0.02);
-  border-radius: 12px;
-  transition: all 0.3s ease;
+  padding: 16px 0;
+  border-bottom: 1px solid #f0f0f0;
+  transition: all 0.2s ease;
 }
 
-.activity-item:hover {
-  background: rgba(102, 126, 234, 0.05);
+.theme-dark .ranking-item {
+  border-color: #404040;
 }
 
-.theme-dark .activity-item {
-  background: rgba(255, 255, 255, 0.03);
+.ranking-item:last-child {
+  border-bottom: none;
 }
 
-.theme-dark .activity-item:hover {
-  background: rgba(102, 126, 234, 0.1);
+.ranking-item:hover {
+  background: rgba(64, 158, 255, 0.02);
 }
 
-.activity-avatar {
-  width: 36px;
-  height: 36px;
-  margin-right: 12px;
-  flex-shrink: 0;
+.rank-position {
+  margin-right: 16px;
 }
 
-.activity-avatar img {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  object-fit: cover;
-}
-
-.avatar-placeholder {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+.rank-index {
+  font-size: 14px;
+  font-weight: 600;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
-  font-weight: 600;
+  border-radius: 6px;
+  background: #f5f5f5;
+  color: #666;
 }
 
-.activity-content {
+.theme-dark .rank-index {
+  background: #404040;
+  color: #ccc;
+}
+
+.rank-index.index-gold {
+  background: #FFD700;
+  color: #8B4513;
+}
+
+.rank-index.index-silver {
+  background: #C0C0C0;
+  color: #2F4F4F;
+}
+
+.rank-index.index-bronze {
+  background: #CD7F32;
+  color: #FFF;
+}
+
+.student-avatar {
+  margin-right: 16px;
+}
+
+.student-info {
   flex: 1;
 }
 
-.activity-text {
-  font-size: 14px;
-  color: #374151;
+.student-name {
+  font-size: 15px;
+  font-weight: 500;
+  color: #1a1a1a;
   margin-bottom: 4px;
 }
 
-.theme-dark .activity-text {
-  color: #e5e7eb;
+.theme-dark .student-name {
+  color: #f9fafb;
 }
 
-.activity-user {
-  font-weight: 600;
-  color: #667eea;
+.progress-summary {
+  font-size: 13px;
+  color: #666;
+  font-weight: 400;
 }
 
-.activity-action {
-  margin: 0 4px;
-}
-
-.activity-target {
-  font-weight: 500;
-}
-
-.activity-time {
-  font-size: 12px;
+.theme-dark .progress-summary {
   color: #9ca3af;
 }
 
-.activity-type-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  color: white;
+.progress-indicator {
+  text-align: right;
+  min-width: 120px;
 }
 
-.type-task {
-  background: #f093fb;
+.progress-percentage {
+  font-size: 16px;
+  font-weight: 600;
+  color: #2563eb;
+  margin-bottom: 4px;
+  font-family: 'SF Mono', Monaco, 'Roboto Mono', monospace;
 }
 
-.type-announcement {
-  background: #43e97b;
+.member-count {
+  font-size: 13px;
+  color: #999;
 }
 
-.type-member {
-  background: #667eea;
+.theme-dark .member-count {
+  color: #9ca3af;
 }
 
-.no-activity {
+.no-ranking {
   text-align: center;
   padding: 40px 20px;
 }
 
-.no-activity-icon {
+.no-ranking-icon {
   font-size: 48px;
   margin-bottom: 12px;
   opacity: 0.6;
 }
 
-.no-activity-text {
+.no-ranking-text {
   font-size: 14px;
   color: #9ca3af;
   margin: 0;
@@ -715,8 +785,12 @@ onMounted(() => {
     padding: 16px;
   }
   
-  .activity-item {
-    padding: 12px;
+  .ranking-item {
+    padding: 12px 0;
+  }
+  
+  .progress-indicator {
+    min-width: 100px;
   }
 }
 

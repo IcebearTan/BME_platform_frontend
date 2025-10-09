@@ -610,7 +610,6 @@ onUnmounted(() => {
               <div class="detail-content">
                 <div class="detail-header">
                   <h1 class="detail-title">{{ currentGroup?.title || '小组详情' }}</h1>
-                  <div class="detail-subtitle">当前功能：{{ getDetailTabLabel(activeDetailTab) }}</div>
                 </div>
                 
                 <!-- 详情内容区域 - 根据activeDetailTab显示不同内容 -->
