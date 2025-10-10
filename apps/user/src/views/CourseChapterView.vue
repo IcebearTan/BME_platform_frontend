@@ -89,17 +89,33 @@
         <div class="content-wrapper" v-if="currentChapter">
           <!-- 章节标题 -->
           <div class="chapter-header">
-            <h1 class="chapter-title-main">{{ currentChapter.title }}</h1>
-            <p class="chapter-subtitle-main" v-if="currentChapter.subtitle">{{ currentChapter.subtitle }}</p>
-            <div class="chapter-meta">
-              <span class="chapter-duration" v-if="currentChapter.duration">
-                <el-icon><Clock /></el-icon>
-                {{ currentChapter.duration }}
-              </span>
-              <span class="chapter-progress" v-if="currentChapter.progress !== undefined">
-                <el-icon><TrendCharts /></el-icon>
-                {{ Math.round(currentChapter.progress) }}% 完成
-              </span>
+            <div class="chapter-header-content">
+              <div class="chapter-info">
+                <h1 class="chapter-title-main">{{ currentChapter.title }}</h1>
+                <p class="chapter-subtitle-main" v-if="currentChapter.subtitle">{{ currentChapter.subtitle }}</p>
+              </div>
+              <div class="chapter-meta">
+                <div class="meta-item" v-if="currentChapter.duration">
+                  <el-icon class="meta-icon"><Clock /></el-icon>
+                  <span class="meta-text">{{ currentChapter.duration }}</span>
+                </div>
+                <div class="meta-item" v-if="currentChapter.progress !== undefined">
+                  <el-icon class="meta-icon"><TrendCharts /></el-icon>
+                  <span class="meta-text">{{ Math.round(currentChapter.progress) }}% 完成</span>
+                </div>
+                <div class="meta-item" v-if="!currentChapter.completed">
+                  <el-button type="primary" size="small" @click="handleMarkCompleted">
+                    <el-icon><Select /></el-icon>
+                    标记完成
+                  </el-button>
+                </div>
+                <div class="meta-item" v-else>
+                  <el-tag type="success" size="large">
+                    <el-icon><Select /></el-icon>
+                    已完成
+                  </el-tag>
+                </div>
+              </div>
             </div>
           </div>
           
@@ -191,36 +207,22 @@
 
             <!-- 章节导航 -->
             <div class="chapter-navigation">
-              <div class="nav-left">
-                <el-button 
-                  :disabled="!hasPrevChapter" 
-                  @click="handlePrevChapter"
-                  :icon="ArrowLeft"
-                >
-                  上一章节
-                </el-button>
-              </div>
+              <el-button 
+                :disabled="!hasPrevChapter" 
+                @click="handlePrevChapter"
+                :icon="ArrowLeft"
+              >
+                上一章节
+              </el-button>
               
-              <div class="nav-center">
-                <el-button @click="handleMarkCompleted" v-if="!currentChapter.completed">
-                  标记为完成
-                </el-button>
-                <el-button type="success" disabled v-else>
-                  <el-icon><Select /></el-icon>
-                  已完成
-                </el-button>
-              </div>
-              
-              <div class="nav-right">
-                <el-button 
-                  type="primary" 
-                  :disabled="!hasNextChapter" 
-                  @click="handleNextChapter"
-                >
-                  下一章节
-                  <el-icon><ArrowRight /></el-icon>
-                </el-button>
-              </div>
+              <el-button 
+                type="primary" 
+                :disabled="!hasNextChapter" 
+                @click="handleNextChapter"
+              >
+                下一章节
+                <el-icon><ArrowRight /></el-icon>
+              </el-button>
             </div>
           </div>
         </div>
@@ -610,11 +612,12 @@ onUnmounted(() => {
 <style scoped>
 /* --- 整体布局 --- */
 .course-chapter-view {
-  min-height: 100vh;
+  height: 100vh;
   display: flex;
   flex-direction: column;
   background: #fafafa;
   color: #333333;
+  overflow: hidden;
 }
 
 .theme-dark .course-chapter-view {
@@ -624,13 +627,13 @@ onUnmounted(() => {
 
 /* --- 顶部栏 --- */
 .top-bar {
-  height: 80px;
+  height: 60px;
   background: #ffffff;
   border-bottom: 1px solid #e0e0e0;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  position: sticky;
-  top: 0;
+  position: relative;
   z-index: 100;
+  flex-shrink: 0;
 }
 
 .theme-dark .top-bar {
@@ -641,7 +644,7 @@ onUnmounted(() => {
 
 .top-bar-content {
   height: 100%;
-  padding: 0 16px;
+  padding: 0 24px;
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -730,7 +733,8 @@ onUnmounted(() => {
 .main-content {
   flex: 1;
   display: flex;
-  min-height: calc(100vh - 160px);
+  height: calc(100vh - 60px);
+  overflow: hidden;
 }
 
 /* --- 左侧目录 --- */
@@ -738,6 +742,9 @@ onUnmounted(() => {
   width: 380px;
   background: #ffffff;
   border-right: 1px solid #e0e0e0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   transition: width 0.3s ease;
@@ -949,26 +956,37 @@ onUnmounted(() => {
 .content-wrapper {
   max-width: 1000px;
   margin: 0 auto;
-  padding: 32px;
+  padding: 24px 32px;
 }
 
 /* --- 章节标题区域 --- */
 .chapter-header {
-  padding: 24px 0;
-  border-bottom: 1px solid #e0e0e0;
-  margin-bottom: 32px;
+  padding: 20px 0 16px 0;
+  border-bottom: 1px solid #f0f0f0;
+  margin-bottom: 24px;
 }
 
 .theme-dark .chapter-header {
-  border-bottom: 1px solid #404040;
+  border-bottom: 1px solid #3a3a3a;
+}
+
+.chapter-header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.chapter-info {
+  flex: 1;
 }
 
 .chapter-title-main {
   font-size: clamp(20px, 4vw, 28px);
   font-weight: 600;
-  margin: 0 0 8px 0;
+  margin: 0 0 4px 0;
   color: #1a1a1a;
-  line-height: 1.2;
+  line-height: 1.3;
 }
 
 .theme-dark .chapter-title-main {
@@ -976,10 +994,10 @@ onUnmounted(() => {
 }
 
 .chapter-subtitle-main {
-  font-size: clamp(14px, 2.5vw, 16px);
+  font-size: clamp(13px, 2.5vw, 15px);
   color: #666666;
-  margin: 0 0 16px 0;
-  line-height: 1.5;
+  margin: 0;
+  line-height: 1.4;
 }
 
 .theme-dark .chapter-subtitle-main {
@@ -988,26 +1006,35 @@ onUnmounted(() => {
 
 .chapter-meta {
   display: flex;
+  flex-direction: row;
   align-items: center;
-  gap: 24px;
-  font-size: clamp(13px, 2.2vw, 14px);
+  gap: 16px;
+  flex-shrink: 0;
 }
 
-.chapter-duration,
-.chapter-progress {
+.meta-item {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: #666666;
-  padding: 6px 12px;
-  background-color: #f8f9fa;
-  border-radius: 6px;
 }
 
-.theme-dark .chapter-duration,
-.theme-dark .chapter-progress {
+.meta-icon {
+  font-size: 14px;
+  color: #666666;
+}
+
+.theme-dark .meta-icon {
   color: #b0b0b0;
-  background-color: #2a2a2a;
+}
+
+.meta-text {
+  font-size: clamp(12px, 2.2vw, 13px);
+  color: #666666;
+  font-weight: 500;
+}
+
+.theme-dark .meta-text {
+  color: #b0b0b0;
 }
 
 .chapter-content {
@@ -1020,7 +1047,6 @@ onUnmounted(() => {
 .video-section {
   padding: 0 0 32px 0;
   border-bottom: 1px solid #f0f0f0;
-  margin-bottom: 32px;
 }
 
 .theme-dark .video-section {
@@ -1277,15 +1303,6 @@ onUnmounted(() => {
   border-top: 1px solid #3a3a3a;
 }
 
-.nav-left, .nav-right, .nav-center {
-  display: flex;
-  align-items: center;
-}
-
-.nav-center {
-  gap: 16px;
-}
-
 /* --- 响应式设计 --- */
 
 /* 平板设备 */
@@ -1348,10 +1365,6 @@ onUnmounted(() => {
     width: 100%;
     justify-content: center;
   }
-  
-  .nav-center {
-    order: -1;
-  }
 }
 
 /* 小屏手机 */
@@ -1361,8 +1374,20 @@ onUnmounted(() => {
   }
   
   .chapter-header {
-    padding: 16px 0;
-    margin-bottom: 20px;
+    padding: 16px 0 12px 0;
+    margin-bottom: 16px;
+  }
+  
+  .chapter-header-content {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .chapter-meta {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 12px;
   }
   
   .chapter-content {
