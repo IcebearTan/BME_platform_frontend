@@ -2,7 +2,6 @@
 import { RouterView, useRouter, useRoute } from "vue-router";
 import MenuComponent from "../components/MenuComponent.vue";
 import MobileMenuComponent from "../components/MobileMenuComponent.vue";
-import PageFooterComponent from "../components/PageFooterComponent.vue";
 import GroupCards from "../components/Group/GroupCards.vue";
 import GroupSidebar from "../components/Group/GroupSidebar.vue";
 import GroupMembers from "../components/Group/GroupMembers.vue";
@@ -27,6 +26,8 @@ const isDarkMode = computed(() => store.state.isDarkMode);
 // --- 响应式 Header 逻辑 ---
 const isMobile = ref(window.innerWidth <= 768);
 const isMobileMenuOpen = ref(false);
+const isHeaderHidden = ref(false);
+let lastScrollTop = 0;
 
 // --- 页面状态管理 ---
 const currentMode = ref('list'); // 'list' | 'detail'
@@ -156,6 +157,21 @@ const checkScreenSize = () => {
   if (!isMobile.value) {
     isMobileMenuOpen.value = false;
   }
+};
+
+const handleScroll = () => {
+  const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+  
+  // 向下滚动且滚动距离超过100px时隐藏header
+  if (scrollTop > lastScrollTop && scrollTop > 100) {
+    isHeaderHidden.value = true;
+  } 
+  // 向上滚动时显示header
+  else if (scrollTop < lastScrollTop) {
+    isHeaderHidden.value = false;
+  }
+  
+  lastScrollTop = scrollTop;
 };
 
 const toggleMobileMenu = () => {
@@ -506,6 +522,7 @@ watch([currentMode, activeTab, activeDetailTab, currentGroup, searchQuery], () =
 onMounted(() => {
   checkScreenSize();
   window.addEventListener('resize', checkScreenSize);
+  window.addEventListener('scroll', handleScroll);
   
   // 从路由初始化状态
   initializeFromRoute();
@@ -513,13 +530,14 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('resize', checkScreenSize);
+  window.removeEventListener('scroll', handleScroll);
 });
 </script>
 
 <template>
   <div class="group-page" :class="{ 'theme-dark': isDarkMode, 'theme-light': !isDarkMode }">
     <el-container class="common-layout">
-      <el-header class="header-container">
+      <el-header class="header-container" :class="{ 'header-hidden': isHeaderHidden }">
         <!-- 桌面菜单 -->
         <div v-if="!isMobile" class="desktop-menu-container">
           <MenuComponent />
@@ -552,6 +570,7 @@ onUnmounted(() => {
             :active-detail-tab="activeDetailTab"
             :current-group="currentGroup"
             :course-type="activeTab"
+            :is-header-hidden="isHeaderHidden"
             @tab-change="handleSidebarTabChange"
             @detail-nav-change="handleDetailNavChange"
             @back-to-list="handleBackToList"
@@ -696,10 +715,6 @@ onUnmounted(() => {
           </div>
         </div>
       </el-main>
-      
-      <el-footer class="page-footer">
-        <PageFooterComponent />
-      </el-footer>
     </el-container>
 
     <!-- 创建小组表单对话框 -->
@@ -824,17 +839,25 @@ onUnmounted(() => {
 
 .common-layout {
   min-height: 100vh;
+  padding-top: 60px; /* 为固定的header留出空间 */
 }
 
 /* --- Header 样式 --- */
 .header-container {
   height: 60px;
   padding: 0;
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
   z-index: 100;
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
   backdrop-filter: blur(10px);
+  transition: transform 0.3s ease-in-out;
+}
+
+.header-container.header-hidden {
+  transform: translateY(-100%);
 }
 
 .theme-light .header-container {
@@ -875,14 +898,17 @@ onUnmounted(() => {
 
 /* --- Main Content 样式 --- */
 .main-container {
+  position: relative;
   padding: 0;
-  min-height: calc(100vh - 120px);
+  min-height: calc(100vh - 60px);
   overflow-x: hidden;
 }
 
 .group-content {
-  display: flex;
-  min-height: calc(100vh - 120px);
+  display: block;
+  min-height: calc(100vh - 60px);
+  padding-left: 280px; /* 为固定的sidebar留出空间 */
+  transition: all 0.3s ease-in-out;
 }
 
 /* --- 详情页样式 --- */
@@ -962,12 +988,9 @@ onUnmounted(() => {
 
 /* --- 右侧内容区样式 --- */
 .content-area {
-  flex: 1;
+  width: 100%;
   padding: 24px 32px;
   overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
 }
 
 .content-header {
@@ -1031,16 +1054,10 @@ onUnmounted(() => {
   max-width: 400px;
 }
 
-/* --- Footer 样式 --- */
-.page-footer {
-  height: auto;
-  padding: 0;
-}
-
 /* --- 响应式设计 --- */
 @media (max-width: 768px) {
   .group-content {
-    flex-direction: column;
+    padding-left: 0; /* 移动端取消sidebar的左边距 */
   }
   
   .content-area {

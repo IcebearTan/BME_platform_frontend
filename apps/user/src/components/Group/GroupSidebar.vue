@@ -1,5 +1,5 @@
 <template>
-  <div class="group-sidebar" :class="{ 'theme-dark': isDarkMode }">
+  <div class="group-sidebar" :class="{ 'theme-dark': isDarkMode, 'header-hidden': isHeaderHidden }">
     <div class="sidebar-header">
       <h2 class="sidebar-title">{{ sidebarTitle }}</h2>
     </div>
@@ -100,6 +100,10 @@ const props = defineProps({
   courseType: {
     type: String,
     default: 'my-courses'
+  },
+  isHeaderHidden: {
+    type: Boolean,
+    default: false
   }
 });
 
@@ -222,16 +226,27 @@ const handleBackToList = () => {
 
 <style scoped>
 .group-sidebar {
+  position: fixed;
+  top: 60px;
+  left: 0;
   width: 280px;
-  min-width: 280px;
+  height: calc(100vh - 60px);
   padding: 24px 0;
   border-right: 1px solid rgba(0, 0, 0, 0.06);
-  background-color: rgba(255, 255, 255, 0.8);
-  transition: all 0.3s ease;
+  background-color: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease-in-out;
+  z-index: 50;
+  overflow-y: auto;
+}
+
+.group-sidebar.header-hidden {
+  top: 0;
+  height: 100vh;
 }
 
 .theme-dark .group-sidebar {
-  background-color: rgba(30, 30, 30, 0.8);
+  background-color: rgba(26, 26, 26, 0.95);
   border-right-color: rgba(255, 255, 255, 0.1);
 }
 
@@ -481,70 +496,36 @@ const handleBackToList = () => {
   flex: 1;
 }
 
+/* 滚动条样式 */
+.group-sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.group-sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.group-sidebar::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.1);
+  border-radius: 3px;
+}
+
+.group-sidebar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(0, 0, 0, 0.15);
+}
+
+.theme-dark .group-sidebar::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.theme-dark .group-sidebar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
   .group-sidebar {
-    width: 100%;
-    min-width: auto;
-    border-right: none;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-  }
-  
-  .theme-dark .group-sidebar {
-    border-bottom-color: rgba(255, 255, 255, 0.1);
-  }
-  
-  .sidebar-menu {
-    display: flex;
-    overflow-x: auto;
-    padding: 0 16px;
-    gap: 8px;
-  }
-  
-  .sidebar-item {
-    flex-shrink: 0;
-    white-space: nowrap;
-  }
-  
-  .back-button {
-    font-size: 13px;
-    padding: 10px 14px;
-    margin-bottom: 16px;
-  }
-  
-  .back-icon {
-    font-size: 14px;
-    margin-right: 6px;
-  }
-  
-  .group-info {
-    padding: 12px;
-    margin-bottom: 16px;
-  }
-  
-  .group-name {
-    font-size: 16px;
-    margin-bottom: 10px;
-  }
-  
-  .meta-item {
-    font-size: 12px;
-    gap: 6px;
-  }
-  
-  .nav-title {
-    font-size: 12px;
-    margin-bottom: 10px;
-  }
-  
-  .nav-item {
-    padding: 8px 12px;
-    font-size: 13px;
-  }
-  
-  .nav-icon {
-    font-size: 14px;
-    margin-right: 8px;
+    display: none; /* 移动端隐藏sidebar */
   }
 }
 
