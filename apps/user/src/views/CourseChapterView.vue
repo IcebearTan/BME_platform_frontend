@@ -10,26 +10,6 @@
           </el-icon>
           <span class="back-text">返回课程</span>
         </div>
-        
-        <!-- 章节标题 -->
-        <div class="chapter-title">
-          <h1>{{ currentChapter?.title || '章节详情' }}</h1>
-          <p class="chapter-subtitle" v-if="currentChapter?.subtitle">
-            {{ currentChapter.subtitle }}
-          </p>
-        </div>
-        
-        <!-- 进度指示器 -->
-        <div class="progress-indicator" v-if="chapterList.length > 0">
-          <span class="progress-text">
-            {{ currentChapterIndex + 1 }} / {{ chapterList.length }}
-          </span>
-          <el-progress 
-            :percentage="((currentChapterIndex + 1) / chapterList.length) * 100" 
-            :stroke-width="4"
-            :show-text="false"
-          />
-        </div>
       </div>
     </div>
 
@@ -37,61 +17,67 @@
     <div class="main-content">
       <!-- 左侧目录 -->
       <div class="sidebar-catalog" :class="{ 'collapsed': isCatalogCollapsed }">
-        <div class="catalog-header">
-          <h3 class="catalog-title">目录</h3>
-          <el-icon 
-            class="collapse-icon" 
-            @click="toggleCatalog"
-            :class="{ 'rotated': isCatalogCollapsed }"
-          >
-            <ArrowRight />
-          </el-icon>
-        </div>
-        
         <div class="catalog-content" v-show="!isCatalogCollapsed">
-          <div class="catalog-search">
-            <el-input
-              v-model="catalogSearchQuery"
-              placeholder="搜索章节..."
-              :prefix-icon="Search"
-              size="small"
-              clearable
-            />
-          </div>
-          
           <div class="catalog-list">
             <div 
               v-for="(chapter, index) in filteredChapterList" 
               :key="chapter.id"
-              class="catalog-item"
-              :class="{ 
-                'active': chapter.id === currentChapter?.id,
-                'completed': chapter.completed,
-                'locked': chapter.locked 
-              }"
-              @click="handleChapterSelect(chapter, index)"
+              class="catalog-chapter"
             >
-              <div class="catalog-item-content">
-                <el-icon class="catalog-item-icon">
-                  <Document v-if="!chapter.completed && !chapter.locked" />
-                  <Select v-else-if="chapter.completed" />
-                  <Lock v-else />
-                </el-icon>
-                <div class="catalog-item-text">
-                  <span class="catalog-item-title">{{ chapter.title }}</span>
-                  <span class="catalog-item-duration" v-if="chapter.duration">
-                    {{ chapter.duration }}
-                  </span>
+              <!-- 父章节 -->
+              <div 
+                class="catalog-item parent-item"
+                :class="{ 'expanded': chapter.expanded }"
+                @click="toggleParentChapter(chapter)"
+              >
+                <div class="catalog-item-content">
+                  <div class="catalog-item-text">
+                    <span class="catalog-item-title">{{ chapter.title }}</span>
+                  </div>
+                  <el-icon class="expand-icon">
+                    <ArrowDown v-if="chapter.expanded" />
+                    <ArrowRight v-else />
+                  </el-icon>
                 </div>
               </div>
               
-              <!-- 进度条 -->
-              <div class="catalog-item-progress" v-if="chapter.progress !== undefined">
-                <el-progress 
-                  :percentage="chapter.progress" 
-                  :stroke-width="3"
-                  :show-text="false"
-                />
+              <!-- 子章节 -->
+              <div 
+                v-if="chapter.subChapters && chapter.subChapters.length > 0" 
+                class="sub-chapters"
+                :class="{ 
+                  'expanded': chapter.expanded,
+                  'collapsed': !chapter.expanded 
+                }"
+              >
+                <div 
+                  v-for="(subChapter, subIndex) in chapter.subChapters"
+                  :key="`${chapter.id}-${subIndex}`"
+                  class="catalog-item sub-item"
+                  :class="{ 
+                    'active': subChapter.id === currentChapter?.id,
+                    'completed': subChapter.completed,
+                    'locked': subChapter.locked 
+                  }"
+                  @click="handleChapterSelect(subChapter, index, subIndex)"
+                >
+                  <div class="catalog-item-content">
+                    <div class="catalog-item-text">
+                      <span class="catalog-item-title">{{ subChapter.title }}</span>
+                    </div>
+                    <el-icon 
+                      class="status-icon"
+                      :class="{
+                        'completed': subChapter.completed,
+                        'locked': subChapter.locked
+                      }"
+                      v-if="subChapter.completed || subChapter.locked"
+                    >
+                      <Select v-if="subChapter.completed" />
+                      <Lock v-else-if="subChapter.locked" />
+                    </el-icon>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -186,6 +172,40 @@
                 </div>
               </div>
             </div>
+
+            <!-- 章节导航 -->
+            <div class="chapter-navigation">
+              <div class="nav-left">
+                <el-button 
+                  :disabled="!hasPrevChapter" 
+                  @click="handlePrevChapter"
+                  :icon="ArrowLeft"
+                >
+                  上一章节
+                </el-button>
+              </div>
+              
+              <div class="nav-center">
+                <el-button @click="handleMarkCompleted" v-if="!currentChapter.completed">
+                  标记为完成
+                </el-button>
+                <el-button type="success" disabled v-else>
+                  <el-icon><Select /></el-icon>
+                  已完成
+                </el-button>
+              </div>
+              
+              <div class="nav-right">
+                <el-button 
+                  type="primary" 
+                  :disabled="!hasNextChapter" 
+                  @click="handleNextChapter"
+                >
+                  下一章节
+                  <el-icon><ArrowRight /></el-icon>
+                </el-button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -194,36 +214,6 @@
           <el-empty description="请选择要学习的章节" />
         </div>
       </div>
-    </div>
-
-    <!-- 底部导航 -->
-    <div class="bottom-navigation" v-if="currentChapter">
-      <el-button 
-        :disabled="!hasPrevChapter" 
-        @click="handlePrevChapter"
-        :icon="ArrowLeft"
-      >
-        上一章节
-      </el-button>
-      
-      <div class="nav-center">
-        <el-button @click="handleMarkCompleted" v-if="!currentChapter.completed">
-          标记为完成
-        </el-button>
-        <el-button type="success" disabled v-else>
-          <el-icon><Select /></el-icon>
-          已完成
-        </el-button>
-      </div>
-      
-      <el-button 
-        type="primary" 
-        :disabled="!hasNextChapter" 
-        @click="handleNextChapter"
-      >
-        下一章节
-        <el-icon><ArrowRight /></el-icon>
-      </el-button>
     </div>
   </div>
 </template>
@@ -234,11 +224,11 @@ import { useRouter, useRoute } from 'vue-router';
 import { useStore } from 'vuex';
 import { 
   ArrowLeft, 
-  ArrowRight, 
+  ArrowRight,
+  ArrowDown,
   Document, 
   Select, 
   Lock, 
-  Search,
   Picture,
   VideoPlay,
   Link,
@@ -253,7 +243,6 @@ const store = useStore();
 // 响应式数据
 const isDarkMode = computed(() => store.state.isDarkMode);
 const isCatalogCollapsed = ref(false);
-const catalogSearchQuery = ref('');
 const currentChapter = ref(null);
 const currentChapterIndex = ref(0);
 const videoProgress = ref(0);
@@ -262,96 +251,178 @@ const videoProgress = ref(0);
 const chapterList = ref([
   {
     id: 1,
-    title: '第一章：生物医学工程概述',
-    subtitle: '了解生物医学工程的基本概念和发展历程',
-    duration: '45分钟',
-    completed: true,
-    locked: false,
-    progress: 100,
-    videoUrl: '/videos/chapter1.mp4',
-    videoPoster: '/images/chapter1-poster.jpg',
-    content: `
-      <h2>1.1 生物医学工程的定义</h2>
-      <p>生物医学工程是运用工程学的理论和技术来解决生物学和医学问题的交叉学科...</p>
-      <h2>1.2 发展历史</h2>
-      <p>生物医学工程作为一门独立学科的发展可以追溯到20世纪中叶...</p>
-    `,
-    questions: [
-      { 
-        id: 1, 
-        title: '生物医学工程的定义是什么？', 
-        type: 'choice', 
-        difficulty: '简单' 
+    title: '生物医学工程基础',
+    isParent: true,
+    expanded: true,
+    subChapters: [
+      {
+        id: 11,
+        title: '生物医学工程概述',
+        subtitle: '了解生物医学工程的基本概念和发展历程',
+        duration: '45分钟',
+        completed: true,
+        locked: false,
+        progress: 100,
+        videoUrl: '/videos/chapter1.mp4',
+        videoPoster: '/images/chapter1-poster.jpg',
+        content: `
+          <h2>1.1 生物医学工程的定义</h2>
+          <p>生物医学工程是运用工程学的理论和技术来解决生物学和医学问题的交叉学科...</p>
+          <h2>1.2 发展历史</h2>
+          <p>生物医学工程作为一门独立学科的发展可以追溯到20世纪中叶...</p>
+        `,
+        questions: [
+          { 
+            id: 1, 
+            title: '生物医学工程的定义是什么？', 
+            type: 'choice', 
+            difficulty: '简单' 
+          },
+          { 
+            id: 2, 
+            title: '简述生物医学工程的发展历程', 
+            type: 'essay', 
+            difficulty: '中等' 
+          }
+        ],
+        resources: [
+          { 
+            id: 1, 
+            name: '生物医学工程导论.pdf', 
+            type: 'pdf', 
+            size: '2.5MB',
+            url: '/resources/chapter1.pdf'
+          }
+        ]
       },
-      { 
-        id: 2, 
-        title: '简述生物医学工程的发展历程', 
-        type: 'essay', 
-        difficulty: '中等' 
-      }
-    ],
-    resources: [
-      { 
-        id: 1, 
-        name: '生物医学工程导论.pdf', 
-        type: 'pdf', 
-        size: '2.5MB',
-        url: '/resources/chapter1.pdf'
+      {
+        id: 12,
+        title: '学科发展前沿',
+        subtitle: '探索生物医学工程的最新发展趋势',
+        duration: '35分钟',
+        completed: false,
+        locked: false,
+        progress: 0,
+        videoUrl: '/videos/chapter12.mp4',
+        content: `
+          <h2>1.3 前沿技术</h2>
+          <p>人工智能在生物医学工程中的应用...</p>
+        `,
+        questions: [],
+        resources: []
       }
     ]
   },
   {
     id: 2,
-    title: '第二章：医学信号处理基础',
-    subtitle: '学习医学信号的特点和处理方法',
-    duration: '60分钟',
-    completed: false,
-    locked: false,
-    progress: 30,
-    videoUrl: '/videos/chapter2.mp4',
-    content: `
-      <h2>2.1 医学信号的分类</h2>
-      <p>医学信号可以分为生理信号和病理信号...</p>
-    `,
-    questions: [
-      { 
-        id: 3, 
-        title: '医学信号有哪些分类？', 
-        type: 'choice', 
-        difficulty: '中等' 
+    title: '医学信号处理',
+    isParent: true,
+    expanded: true,
+    subChapters: [
+      {
+        id: 21,
+        title: '医学信号处理基础',
+        subtitle: '学习医学信号的特点和处理方法',
+        duration: '60分钟',
+        completed: false,
+        locked: false,
+        progress: 30,
+        videoUrl: '/videos/chapter2.mp4',
+        content: `
+          <h2>2.1 医学信号的分类</h2>
+          <p>医学信号可以分为生理信号和病理信号...</p>
+        `,
+        questions: [
+          { 
+            id: 3, 
+            title: '医学信号有哪些分类？', 
+            type: 'choice', 
+            difficulty: '中等' 
+          }
+        ],
+        resources: []
+      },
+      {
+        id: 22,
+        title: '数字滤波技术',
+        subtitle: '掌握医学信号的数字滤波方法',
+        duration: '50分钟',
+        completed: false,
+        locked: true,
+        progress: 0,
+        content: '',
+        questions: [],
+        resources: []
+      },
+      {
+        id: 23,
+        title: '频域分析',
+        subtitle: '学习医学信号的频域特征分析',
+        duration: '55分钟',
+        completed: false,
+        locked: true,
+        progress: 0,
+        content: '',
+        questions: [],
+        resources: []
       }
-    ],
-    resources: []
+    ]
   },
   {
     id: 3,
-    title: '第三章：医学图像处理技术',
-    subtitle: '掌握医学图像的获取、处理和分析技术',
-    duration: '75分钟',
-    completed: false,
-    locked: true,
-    progress: 0,
-    content: '',
-    questions: [],
-    resources: []
+    title: '医学图像处理',
+    isParent: true,
+    expanded: false,
+    subChapters: [
+      {
+        id: 31,
+        title: '医学图像处理技术',
+        subtitle: '掌握医学图像的获取、处理和分析技术',
+        duration: '75分钟',
+        completed: false,
+        locked: true,
+        progress: 0,
+        content: '',
+        questions: [],
+        resources: []
+      },
+      {
+        id: 32,
+        title: '图像分割与识别',
+        subtitle: '学习医学图像的分割和识别算法',
+        duration: '65分钟',
+        completed: false,
+        locked: true,
+        progress: 0,
+        content: '',
+        questions: [],
+        resources: []
+      }
+    ]
   }
 ]);
 
+// 获取所有子章节的平铺数组
+const flatChapters = computed(() => {
+  const chapters = [];
+  chapterList.value.forEach(parent => {
+    if (parent.subChapters) {
+      chapters.push(...parent.subChapters);
+    }
+  });
+  return chapters;
+});
+
 // 计算属性
 const filteredChapterList = computed(() => {
-  if (!catalogSearchQuery.value) {
-    return chapterList.value;
-  }
-  return chapterList.value.filter(chapter => 
-    chapter.title.toLowerCase().includes(catalogSearchQuery.value.toLowerCase())
-  );
+  return chapterList.value;
 });
 
 const hasPrevChapter = computed(() => currentChapterIndex.value > 0);
 
 const hasNextChapter = computed(() => 
-  currentChapterIndex.value < chapterList.value.length - 1 && 
-  !chapterList.value[currentChapterIndex.value + 1]?.locked
+  currentChapterIndex.value < flatChapters.value.length - 1 && 
+  !flatChapters.value[currentChapterIndex.value + 1]?.locked
 );
 
 // 方法
@@ -363,6 +434,10 @@ const toggleCatalog = () => {
   isCatalogCollapsed.value = !isCatalogCollapsed.value;
 };
 
+const toggleParentChapter = (parent) => {
+  parent.expanded = !parent.expanded;
+};
+
 const handleChapterSelect = (chapter, index) => {
   if (chapter.locked) {
     ElMessage.warning('请完成前面的章节后再学习此章节');
@@ -370,7 +445,7 @@ const handleChapterSelect = (chapter, index) => {
   }
   
   currentChapter.value = chapter;
-  currentChapterIndex.value = chapterList.value.findIndex(c => c.id === chapter.id);
+  currentChapterIndex.value = flatChapters.value.findIndex(c => c.id === chapter.id);
   
   // 更新路由参数
   router.replace({
@@ -381,14 +456,14 @@ const handleChapterSelect = (chapter, index) => {
 const handlePrevChapter = () => {
   if (hasPrevChapter.value) {
     const prevIndex = currentChapterIndex.value - 1;
-    handleChapterSelect(chapterList.value[prevIndex], prevIndex);
+    handleChapterSelect(flatChapters.value[prevIndex], prevIndex);
   }
 };
 
 const handleNextChapter = () => {
   if (hasNextChapter.value) {
     const nextIndex = currentChapterIndex.value + 1;
-    handleChapterSelect(chapterList.value[nextIndex], nextIndex);
+    handleChapterSelect(flatChapters.value[nextIndex], nextIndex);
   }
 };
 
@@ -399,8 +474,8 @@ const handleMarkCompleted = () => {
     
     // 解锁下一章节
     const nextIndex = currentChapterIndex.value + 1;
-    if (nextIndex < chapterList.value.length) {
-      chapterList.value[nextIndex].locked = false;
+    if (nextIndex < flatChapters.value.length) {
+      flatChapters.value[nextIndex].locked = false;
     }
     
     ElMessage.success('章节已标记为完成！');
@@ -474,7 +549,7 @@ onMounted(() => {
   // 从路由参数初始化当前章节
   const chapterId = route.query.chapterId;
   if (chapterId) {
-    const chapter = chapterList.value.find(c => c.id === parseInt(chapterId));
+    const chapter = flatChapters.value.find(c => c.id === parseInt(chapterId));
     if (chapter && !chapter.locked) {
       handleChapterSelect(chapter);
     }
@@ -482,7 +557,7 @@ onMounted(() => {
   
   // 如果没有指定章节，默认选择第一个可用章节
   if (!currentChapter.value) {
-    const firstAvailableChapter = chapterList.value.find(c => !c.locked);
+    const firstAvailableChapter = flatChapters.value.find(c => !c.locked);
     if (firstAvailableChapter) {
       handleChapterSelect(firstAvailableChapter);
     }
@@ -548,12 +623,10 @@ onUnmounted(() => {
 
 .top-bar-content {
   height: 100%;
-  padding: 0 24px;
+  padding: 0 16px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  max-width: 1400px;
-  margin: 0 auto;
+  justify-content: flex-start;
 }
 
 .back-button {
@@ -584,11 +657,12 @@ onUnmounted(() => {
 }
 
 .back-icon {
-  font-size: 18px;
+  font-size: clamp(16px, 3vw, 18px);
 }
 
 .back-text {
   font-weight: 500;
+  font-size: clamp(13px, 2.5vw, 15px);
 }
 
 .chapter-title {
@@ -599,7 +673,7 @@ onUnmounted(() => {
 
 .chapter-title h1 {
   margin: 0 0 4px 0;
-  font-size: 24px;
+  font-size: clamp(18px, 4vw, 24px);
   font-weight: 600;
   color: #1a1a1a;
 }
@@ -610,7 +684,7 @@ onUnmounted(() => {
 
 .chapter-subtitle {
   margin: 0;
-  font-size: 14px;
+  font-size: clamp(12px, 2.5vw, 14px);
   color: #666666;
 }
 
@@ -625,7 +699,7 @@ onUnmounted(() => {
 
 .progress-text {
   display: block;
-  font-size: 12px;
+  font-size: clamp(10px, 2vw, 12px);
   color: #888888;
   margin-bottom: 4px;
 }
@@ -643,13 +717,12 @@ onUnmounted(() => {
 
 /* --- 左侧目录 --- */
 .sidebar-catalog {
-  width: 320px;
+  width: 380px;
   background: #ffffff;
   border-right: 1px solid #e0e0e0;
   display: flex;
   flex-direction: column;
   transition: width 0.3s ease;
-  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
 }
 
 .sidebar-catalog.collapsed {
@@ -662,63 +735,12 @@ onUnmounted(() => {
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.2);
 }
 
-.catalog-header {
-  height: 60px;
-  padding: 0 20px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-bottom: 1px solid #e0e0e0;
-  background: #f8f8f8;
-}
-
-.theme-dark .catalog-header {
-  border-bottom: 1px solid #404040;
-  background: #333333;
-}
-
-.catalog-title {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.collapse-icon {
-  cursor: pointer;
-  font-size: 16px;
-  padding: 4px;
-  border-radius: 4px;
-  transition: all 0.3s ease;
-}
-
-.collapse-icon.rotated {
-  transform: rotate(180deg);
-}
-
-.collapse-icon:hover {
-  background-color: #e0e0e0;
-}
-
-.theme-dark .collapse-icon:hover {
-  background-color: #4a4a4a;
-}
-
 .catalog-content {
   flex: 1;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-}
-
-.catalog-search {
-  padding: 16px 20px;
-  border-bottom: 1px solid #e0e0e0;
-  background: #fafafa;
-}
-
-.theme-dark .catalog-search {
-  border-bottom: 1px solid #404040;
-  background: #2f2f2f;
+  padding-top: 20px;
 }
 
 .catalog-list {
@@ -727,31 +749,47 @@ onUnmounted(() => {
   padding: 8px 0;
 }
 
+/* 通用目录项样式 */
 .catalog-item {
-  padding: 12px 20px;
+  padding: 12px 16px;
   cursor: pointer;
   transition: all 0.2s ease;
-  border-left: 3px solid transparent;
-  border-radius: 0 12px 12px 0;
-  margin: 2px 0;
+  border-radius: 8px;
+  margin: 4px 0;
+  background-color: transparent;
 }
 
 .catalog-item:hover {
-  background-color: #f0f0f0;
+  background-color: #f5f5f5;
 }
 
 .catalog-item.active {
-  background-color: #e8e8e8;
-  border-left-color: #333333;
+  background-color: #333333;
+  color: #ffffff;
 }
 
-.catalog-item.completed {
-  color: #4a4a4a;
+.catalog-item.active .catalog-item-title {
+  color: #ffffff;
 }
 
-.catalog-item.locked {
-  color: #9ca3af;
-  cursor: not-allowed;
+.catalog-item.active .expand-icon {
+  color: #ffffff !important;
+}
+
+.catalog-item.active .status-icon {
+  color: #ffffff !important;
+}
+
+.catalog-item.active .status-icon.completed {
+  color: #7dd3fc !important;
+}
+
+.catalog-item.active .status-icon.locked {
+  color: #d1d5db !important;
+}
+
+.theme-dark .catalog-item {
+  background-color: transparent;
 }
 
 .theme-dark .catalog-item:hover {
@@ -759,24 +797,78 @@ onUnmounted(() => {
 }
 
 .theme-dark .catalog-item.active {
-  background-color: #4a4a4a;
-  border-left-color: #e5e5e5;
+  background-color: #e5e5e5;
+  color: #333333;
 }
 
-.theme-dark .catalog-item.completed {
-  color: #b0b0b0;
+.theme-dark .catalog-item.active .catalog-item-title {
+  color: #333333;
+}
+
+.theme-dark .catalog-item.active .expand-icon {
+  color: #333333 !important;
+}
+
+.theme-dark .catalog-item.active .status-icon {
+  color: #333333 !important;
+}
+
+.theme-dark .catalog-item.active .status-icon.completed {
+  color: #22c55e !important;
+}
+
+.theme-dark .catalog-item.active .status-icon.locked {
+  color: #6b7280 !important;
+}
+
+/* 父章节样式 */
+.catalog-item.parent-item {
+  padding: 14px 16px;
+  font-weight: 600;
+  margin: 6px 0;
+}
+
+/* 子章节样式 */
+.catalog-item.sub-item {
+  margin-left: 16px;
+  margin-right: 0;
+  padding: 10px 16px;
+}
+
+.catalog-item.sub-item.locked {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.catalog-item.sub-item.completed {
+  opacity: 0.8;
+}
+
+.theme-dark .catalog-item.sub-item.completed {
+  opacity: 0.8;
+}
+
+/* 子章节折叠/展开动画 */
+.sub-chapters {
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.sub-chapters.collapsed {
+  max-height: 0;
+  opacity: 0;
+}
+
+.sub-chapters.expanded {
+  max-height: 1000px;
+  opacity: 1;
 }
 
 .catalog-item-content {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
+  justify-content: space-between;
   gap: 12px;
-  margin-bottom: 8px;
-}
-
-.catalog-item-icon {
-  font-size: 16px;
-  margin-top: 2px;
 }
 
 .catalog-item-text {
@@ -787,20 +879,42 @@ onUnmounted(() => {
   display: block;
   font-weight: 500;
   line-height: 1.4;
-  margin-bottom: 4px;
+  font-size: clamp(13px, 2.5vw, 16px);
 }
 
-.catalog-item-duration {
-  font-size: 12px;
-  color: #888888;
+.expand-icon {
+  font-size: clamp(14px, 2.5vw, 16px);
+  color: #666666;
+  transition: transform 0.2s ease;
 }
 
-.theme-dark .catalog-item-duration {
+.theme-dark .expand-icon {
   color: #b0b0b0;
 }
 
-.catalog-item-progress {
-  margin-left: 28px;
+.status-icon {
+  font-size: clamp(14px, 2.5vw, 16px);
+  color: #666666;
+}
+
+.status-icon.completed {
+  color: #52c41a !important;
+}
+
+.status-icon.locked {
+  color: #d9d9d9 !important;
+}
+
+.theme-dark .status-icon {
+  color: #b0b0b0;
+}
+
+.theme-dark .status-icon.completed {
+  color: #73d13d !important;
+}
+
+.theme-dark .status-icon.locked {
+  color: #595959 !important;
 }
 
 /* --- 右侧内容区 --- */
@@ -828,17 +942,13 @@ onUnmounted(() => {
 
 /* --- 视频区域 --- */
 .video-section {
-  background: #ffffff;
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-  border: 1px solid #e0e0e0;
+  padding: 0 0 40px 0;
+  border-bottom: 1px solid #e0e0e0;
+  margin-bottom: 40px;
 }
 
 .theme-dark .video-section {
-  background: #2a2a2a;
-  border: 1px solid #404040;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid #404040;
 }
 
 .video-container {
@@ -858,22 +968,19 @@ onUnmounted(() => {
 
 /* --- 文档内容区域 --- */
 .document-section {
-  background: #ffffff;
-  border-radius: 16px;
-  padding: 32px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-  border: 1px solid #e0e0e0;
+  padding: 0 0 40px 0;
+  border-bottom: 1px solid #e0e0e0;
+  margin-bottom: 40px;
 }
 
 .theme-dark .document-section {
-  background: #2a2a2a;
-  border: 1px solid #404040;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid #404040;
 }
 
 .document-content {
   line-height: 1.8;
   color: #333333;
+  font-size: clamp(14px, 2.5vw, 16px);
 }
 
 .theme-dark .document-content {
@@ -881,7 +988,7 @@ onUnmounted(() => {
 }
 
 .document-content :deep(h2) {
-  font-size: 24px;
+  font-size: clamp(18px, 4vw, 24px);
   font-weight: 600;
   margin: 32px 0 16px 0;
   color: #1a1a1a;
@@ -892,7 +999,7 @@ onUnmounted(() => {
 }
 
 .document-content :deep(h3) {
-  font-size: 20px;
+  font-size: clamp(16px, 3.5vw, 20px);
   font-weight: 600;
   margin: 24px 0 12px 0;
   color: #333333;
@@ -908,17 +1015,13 @@ onUnmounted(() => {
 
 /* --- 题目区域 --- */
 .questions-section {
-  background: #ffffff;
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-  border: 1px solid #e0e0e0;
+  padding: 0 0 40px 0;
+  border-bottom: 1px solid #e0e0e0;
+  margin-bottom: 40px;
 }
 
 .theme-dark .questions-section {
-  background: #2a2a2a;
-  border: 1px solid #404040;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid #404040;
 }
 
 .section-header {
@@ -930,7 +1033,7 @@ onUnmounted(() => {
 
 .section-header h3 {
   margin: 0;
-  font-size: 18px;
+  font-size: clamp(16px, 3vw, 18px);
   font-weight: 600;
 }
 
@@ -966,7 +1069,7 @@ onUnmounted(() => {
 }
 
 .question-type {
-  font-size: 12px;
+  font-size: clamp(10px, 2vw, 12px);
   color: #666666;
   font-weight: 500;
   margin-bottom: 8px;
@@ -981,6 +1084,7 @@ onUnmounted(() => {
   line-height: 1.4;
   margin-bottom: 12px;
   color: #333333;
+  font-size: clamp(13px, 2.5vw, 15px);
 }
 
 .theme-dark .question-title {
@@ -993,17 +1097,7 @@ onUnmounted(() => {
 
 /* --- 资源区域 --- */
 .resources-section {
-  background: #ffffff;
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-  border: 1px solid #e0e0e0;
-}
-
-.theme-dark .resources-section {
-  background: #2a2a2a;
-  border: 1px solid #404040;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  padding: 0;
 }
 
 .resources-list {
@@ -1059,6 +1153,7 @@ onUnmounted(() => {
 .resource-name {
   font-weight: 500;
   color: #333333;
+  font-size: clamp(13px, 2.5vw, 15px);
 }
 
 .theme-dark .resource-name {
@@ -1066,7 +1161,7 @@ onUnmounted(() => {
 }
 
 .resource-size {
-  font-size: 12px;
+  font-size: clamp(10px, 2vw, 12px);
   color: #888888;
 }
 
@@ -1091,47 +1186,46 @@ onUnmounted(() => {
   min-height: 400px;
 }
 
-/* --- 底部导航 --- */
-.bottom-navigation {
-  height: 80px;
-  background: #ffffff;
-  border-top: 1px solid #e0e0e0;
-  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
+/* --- 章节导航 --- */
+.chapter-navigation {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 32px;
-  position: sticky;
-  bottom: 0;
+  padding-top: 40px;
+  margin-top: 40px;
+  border-top: 1px solid #e0e0e0;
 }
 
-.theme-dark .bottom-navigation {
-  background: #2a2a2a;
+.theme-dark .chapter-navigation {
   border-top: 1px solid #404040;
-  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.nav-left, .nav-right, .nav-center {
+  display: flex;
+  align-items: center;
 }
 
 .nav-center {
-  display: flex;
   gap: 16px;
 }
 
 /* --- 响应式设计 --- */
+
+/* 平板设备 */
+@media (max-width: 1024px) {
+  .sidebar-catalog {
+    width: 320px;
+  }
+  
+  .content-wrapper {
+    padding: 28px 24px;
+  }
+}
+
+/* 移动设备 */
 @media (max-width: 768px) {
   .top-bar-content {
     padding: 0 16px;
-  }
-  
-  .chapter-title {
-    margin: 0 20px;
-  }
-  
-  .chapter-title h1 {
-    font-size: 18px;
-  }
-  
-  .progress-indicator {
-    width: 120px;
   }
   
   .main-content {
@@ -1156,13 +1250,15 @@ onUnmounted(() => {
     grid-template-columns: 1fr;
   }
   
-  .bottom-navigation {
-    padding: 0 16px;
+  .chapter-navigation {
     flex-direction: column;
-    height: auto;
-    padding-top: 16px;
-    padding-bottom: 16px;
-    gap: 12px;
+    gap: 16px;
+    padding-top: 20px;
+  }
+  
+  .nav-left, .nav-right {
+    width: 100%;
+    justify-content: center;
   }
   
   .nav-center {
@@ -1170,6 +1266,7 @@ onUnmounted(() => {
   }
 }
 
+/* 小屏手机 */
 @media (max-width: 480px) {
   .content-wrapper {
     padding: 16px 12px;
@@ -1183,7 +1280,28 @@ onUnmounted(() => {
   .document-section,
   .questions-section,
   .resources-section {
-    padding: 16px;
+    margin-bottom: 24px;
+    padding-bottom: 24px;
+  }
+}
+
+/* 超小屏设备 */
+@media (max-width: 360px) {
+  .content-wrapper {
+    padding: 12px 8px;
+  }
+  
+  .catalog-item {
+    padding: 8px 16px;
+  }
+  
+  .catalog-item.parent-item {
+    padding: 12px 16px;
+  }
+  
+  .catalog-item.sub-item {
+    padding: 8px 12px;
+    margin-left: 16px;
   }
 }
 </style>
