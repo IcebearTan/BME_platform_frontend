@@ -226,6 +226,17 @@ function handleCreateCourse() {
   // TODO: 实现新建课程功能
 }
 
+// --- 课程章节跳转 ---
+function handleGoToCourseChapter(courseId, chapterId = null) {
+  console.log('跳转到课程章节:', courseId, chapterId);
+  // 跳转到课程章节详情页面
+  router.push({
+    name: 'course-chapter',
+    params: { courseId: courseId },
+    query: chapterId ? { chapterId: chapterId } : {}
+  });
+}
+
 // --- 搜索功能 ---
 function handleSearchInput(value) {
   searchQuery.value = value;

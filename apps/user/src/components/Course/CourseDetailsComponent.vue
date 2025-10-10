@@ -272,6 +272,55 @@ const breadcrumbItems = computed(() => [
 const goBack = () => {
   router.push('/study')
 }
+
+// 跳转到章节详情页面
+const handleChapterClick = (chapterIndex, subChapterIndex = null) => {
+  // 检查是否已报名且章节已解锁
+  if (!isEnrolled.value || !checkUnlock(chapterIndex + 1)) {
+    ElMessage.warning('请先报名课程或完成前置章节')
+    return
+  }
+  
+  const chapter = formatedCourseDetails.value[chapterIndex]
+  if (!chapter) {
+    console.warn('章节不存在:', chapterIndex)
+    return
+  }
+  
+  // 构造章节ID，这里可以根据实际数据结构调整
+  let chapterId = chapter.order || (chapterIndex + 1)
+  let chapterTitle = chapter.name
+  
+  // 如果点击的是子章节，可以进一步处理
+  if (subChapterIndex !== null && chapter.subChapters[subChapterIndex]) {
+    const subChapter = chapter.subChapters[subChapterIndex]
+    // 可以使用子章节的ID或者组合ID
+    chapterId = `${chapterId}-${subChapterIndex + 1}`
+    chapterTitle = `${chapter.name} - ${subChapter.name}`
+    console.log('点击子章节:', subChapter.name)
+  } else if (subChapterIndex === null) {
+    console.log('点击主章节:', chapter.name)
+  }
+  
+  console.log('跳转参数:', {
+    courseId: courseId.value,
+    chapterId: chapterId,
+    chapterTitle: chapterTitle
+  })
+  
+  // 显示跳转提示
+  ElMessage.success(`正在进入章节：${chapterTitle}`)
+  
+  // 跳转到课程章节页面
+  router.push({
+    name: 'course-chapter',
+    params: { courseId: courseId.value },
+    query: { 
+      chapterId: chapterId,
+      chapterTitle: chapterTitle
+    }
+  })
+}
 </script>
 
 <template>
@@ -322,14 +371,37 @@ const goBack = () => {
             </div>
             <div class="course-content-card">
               <div class="course-content-item" v-for="(item, index) in formatedCourseDetails" :key="index">
-                <div style="font-size: 20px; font-weight: 500; margin-bottom: 10px;">
+                <div 
+                  class="chapter-main-title"
+                  :class="{ 
+                    'clickable': isEnrolled && checkUnlock(index + 1),
+                    'locked': !isEnrolled || !checkUnlock(index + 1)
+                  }"
+                  @click="handleChapterClick(index)"
+                >
                   <span class="course-content-item-index">{{ index + 1 }}</span>
-                  <span style="position: relative; left: -15px">{{ item.name }}</span>
+                  <span class="chapter-title-text">{{ item.name }}</span>
+                  <el-icon v-if="isEnrolled && checkUnlock(index + 1)" class="chapter-arrow">
+                    <ArrowRight />
+                  </el-icon>
                 </div>
-                <div class="course-content-item-sub" v-for="(subItem, subIndex) in item.subChapters" :key="subIndex"
-                     :class="{ 'locked': !isEnrolled || !checkUnlock(index + 1) }">
-                  <div>{{ subItem.name }}</div>
-                  <div v-if="!isEnrolled || !checkUnlock(index + 1)">
+                <div 
+                  class="course-content-item-sub" 
+                  v-for="(subItem, subIndex) in item.subChapters" 
+                  :key="subIndex"
+                  :class="{ 
+                    'locked': !isEnrolled || !checkUnlock(index + 1),
+                    'clickable': isEnrolled && checkUnlock(index + 1)
+                  }"
+                  @click="handleChapterClick(index, subIndex)"
+                >
+                  <div class="sub-chapter-content">
+                    <span class="sub-chapter-text">{{ subItem.name }}</span>
+                    <el-icon v-if="isEnrolled && checkUnlock(index + 1)" class="sub-chapter-arrow">
+                      <ArrowRight />
+                    </el-icon>
+                  </div>
+                  <div v-if="!isEnrolled || !checkUnlock(index + 1)" class="lock-container">
                     <el-icon class="lock-icon">
                       <Lock />
                     </el-icon>
@@ -982,6 +1054,69 @@ const goBack = () => {
 
 .theme-dark .lock-icon {
   color: #666;
+}
+
+/* 章节主标题样式 */
+.chapter-main-title {
+  font-size: 20px;
+  font-weight: 500;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.chapter-main-title.clickable {
+  cursor: pointer;
+}
+
+.chapter-title-text {
+  flex: 1;
+  position: relative;
+  left: -15px;
+}
+
+.chapter-arrow {
+  font-size: 16px;
+  color: #667eea;
+  opacity: 0;
+  transition: all 0.3s ease;
+}
+
+.chapter-main-title.clickable:hover .chapter-arrow {
+  opacity: 1;
+}
+
+/* 子章节内容样式 */
+.sub-chapter-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.sub-chapter-text {
+  flex: 1;
+}
+
+.sub-chapter-arrow {
+  font-size: 14px;
+  color: #667eea;
+  opacity: 0;
+  transition: all 0.3s ease;
+}
+
+.course-content-item-sub.clickable:hover .sub-chapter-arrow {
+  opacity: 1;
+}
+
+.course-content-item-sub.clickable {
+  cursor: pointer;
+}
+
+.lock-container {
+  display: flex;
+  align-items: center;
 }
 
 .course-description {

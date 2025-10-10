@@ -23,6 +23,7 @@ import MedalView from './views/MedalView.vue';
 import NotificationView from './views/NotificationView.vue';
 import GroupView from './views/GroupView.vue';
 import ExerciseSolveView from './views/ExerciseSolveView.vue';
+import CourseChapterView from './views/CourseChapterView.vue';
 
 import MyFeedbacksComponent from './components/User/MyFeedbacksComponent.vue';
 
@@ -155,6 +156,12 @@ const router = createRouter({
             path: '/exercise/:id',
             name: 'exercise-solve',
             component: ExerciseSolveView,
+            props: true
+        },
+        {
+            path: '/course/chapter/:courseId',
+            name: 'course-chapter',
+            component: CourseChapterView,
             props: true
         },
     ]
