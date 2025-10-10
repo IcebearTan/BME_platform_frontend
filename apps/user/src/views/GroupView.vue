@@ -627,10 +627,6 @@ onUnmounted(() => {
             <!-- 详情模式：显示小组详情内容 -->
             <template v-else-if="currentMode === 'detail'">
               <div class="detail-content">
-                <div class="detail-header">
-                  <h1 class="detail-title">{{ currentGroup?.title || '小组详情' }}</h1>
-                </div>
-                
                 <!-- 详情内容区域 - 根据activeDetailTab显示不同内容 -->
                 <div class="detail-body">
                   <div v-if="activeDetailTab === 'overview'" class="detail-section">
@@ -914,41 +910,14 @@ onUnmounted(() => {
 /* --- 详情页样式 --- */
 .detail-content {
   width: 100%;
-  padding: 20px 0;
-}
-
-.detail-header {
-  margin-bottom: 32px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-}
-
-.theme-dark .detail-header {
-  border-bottom-color: rgba(255, 255, 255, 0.1);
-}
-
-.detail-title {
-  font-size: 32px;
-  font-weight: 700;
-  margin: 0 0 8px 0;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.detail-subtitle {
-  font-size: 16px;
-  color: #6b7280;
-  margin: 0;
-}
-
-.theme-dark .detail-subtitle {
-  color: #9ca3af;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .detail-body {
   width: 100%;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .detail-section {
@@ -956,8 +925,12 @@ onUnmounted(() => {
   border-radius: 16px;
   border: 1px solid rgba(0, 0, 0, 0.06);
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-  padding: 24px;
+  padding: 20px;
   margin-bottom: 20px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .theme-dark .detail-section {
@@ -989,8 +962,11 @@ onUnmounted(() => {
 /* --- 右侧内容区样式 --- */
 .content-area {
   width: 100%;
-  padding: 24px 32px;
+  max-width: calc(100vw - 280px); /* 确保不超出视窗宽度减去sidebar宽度 */
+  padding: 24px 20px; /* 减少左右padding */
+  overflow-x: hidden; /* 防止水平滚动 */
   overflow-y: auto;
+  box-sizing: border-box;
 }
 
 .content-header {
@@ -1061,7 +1037,8 @@ onUnmounted(() => {
   }
   
   .content-area {
-    padding: 20px 16px;
+    padding: 20px 12px;
+    max-width: 100vw; /* 移动端占满整个视窗宽度 */
   }
   
   .search-section {
@@ -1084,10 +1061,6 @@ onUnmounted(() => {
     font-size: 13px;
   }
   
-  .detail-title {
-    font-size: 24px;
-  }
-  
   .detail-section {
     padding: 16px;
   }
@@ -1099,10 +1072,6 @@ onUnmounted(() => {
 }
 
 @media (max-width: 480px) {
-  .detail-title {
-    font-size: 20px;
-  }
-  
   .detail-section {
     padding: 12px;
   }
@@ -1350,6 +1319,25 @@ onUnmounted(() => {
 
 :deep(.el-select .el-input__inner) {
   border-radius: 8px;
+}
+
+/* --- 全局宽度控制 --- */
+.detail-section :deep(*) {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.detail-section :deep(.el-table) {
+  width: 100% !important;
+}
+
+.detail-section :deep(.el-form) {
+  width: 100%;
+}
+
+.detail-section :deep(.el-card) {
+  width: 100%;
+  max-width: 100%;
 }
 
 
