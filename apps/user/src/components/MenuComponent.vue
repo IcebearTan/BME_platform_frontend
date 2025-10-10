@@ -233,8 +233,8 @@ const handleUserInfo = () => {
                 <el-menu-item index="/study">
                     课程
                 </el-menu-item>
-                <el-menu-item index="/exam" disabled>
-                    考核
+                <el-menu-item index="/question-bank">
+                    题库
                 </el-menu-item>
                 <el-menu-item index="/order" disabled>
                     资源库
