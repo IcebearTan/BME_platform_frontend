@@ -87,6 +87,22 @@
       <!-- 右侧内容区 -->
       <div class="content-area">
         <div class="content-wrapper" v-if="currentChapter">
+          <!-- 章节标题 -->
+          <div class="chapter-header">
+            <h1 class="chapter-title-main">{{ currentChapter.title }}</h1>
+            <p class="chapter-subtitle-main" v-if="currentChapter.subtitle">{{ currentChapter.subtitle }}</p>
+            <div class="chapter-meta">
+              <span class="chapter-duration" v-if="currentChapter.duration">
+                <el-icon><Clock /></el-icon>
+                {{ currentChapter.duration }}
+              </span>
+              <span class="chapter-progress" v-if="currentChapter.progress !== undefined">
+                <el-icon><TrendCharts /></el-icon>
+                {{ Math.round(currentChapter.progress) }}% 完成
+              </span>
+            </div>
+          </div>
+          
           <!-- 章节内容 -->
           <div class="chapter-content">
             <!-- 视频区域 -->
@@ -232,7 +248,9 @@ import {
   Picture,
   VideoPlay,
   Link,
-  Download
+  Download,
+  Clock,
+  TrendCharts
 } from '@element-plus/icons-vue';
 
 // 路由和状态管理
@@ -934,6 +952,64 @@ onUnmounted(() => {
   padding: 32px;
 }
 
+/* --- 章节标题区域 --- */
+.chapter-header {
+  padding: 24px 0;
+  border-bottom: 1px solid #e0e0e0;
+  margin-bottom: 32px;
+}
+
+.theme-dark .chapter-header {
+  border-bottom: 1px solid #404040;
+}
+
+.chapter-title-main {
+  font-size: clamp(20px, 4vw, 28px);
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  color: #1a1a1a;
+  line-height: 1.2;
+}
+
+.theme-dark .chapter-title-main {
+  color: #ffffff;
+}
+
+.chapter-subtitle-main {
+  font-size: clamp(14px, 2.5vw, 16px);
+  color: #666666;
+  margin: 0 0 16px 0;
+  line-height: 1.5;
+}
+
+.theme-dark .chapter-subtitle-main {
+  color: #b0b0b0;
+}
+
+.chapter-meta {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  font-size: clamp(13px, 2.2vw, 14px);
+}
+
+.chapter-duration,
+.chapter-progress {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #666666;
+  padding: 6px 12px;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+}
+
+.theme-dark .chapter-duration,
+.theme-dark .chapter-progress {
+  color: #b0b0b0;
+  background-color: #2a2a2a;
+}
+
 .chapter-content {
   display: flex;
   flex-direction: column;
@@ -942,13 +1018,13 @@ onUnmounted(() => {
 
 /* --- 视频区域 --- */
 .video-section {
-  padding: 0 0 40px 0;
-  border-bottom: 1px solid #e0e0e0;
-  margin-bottom: 40px;
+  padding: 0 0 32px 0;
+  border-bottom: 1px solid #f0f0f0;
+  margin-bottom: 32px;
 }
 
 .theme-dark .video-section {
-  border-bottom: 1px solid #404040;
+  border-bottom: 1px solid #3a3a3a;
 }
 
 .video-container {
@@ -968,13 +1044,13 @@ onUnmounted(() => {
 
 /* --- 文档内容区域 --- */
 .document-section {
-  padding: 0 0 40px 0;
-  border-bottom: 1px solid #e0e0e0;
-  margin-bottom: 40px;
+  padding: 0 0 32px 0;
+  border-bottom: 1px solid #f0f0f0;
+  margin-bottom: 32px;
 }
 
 .theme-dark .document-section {
-  border-bottom: 1px solid #404040;
+  border-bottom: 1px solid #3a3a3a;
 }
 
 .document-content {
@@ -1015,26 +1091,37 @@ onUnmounted(() => {
 
 /* --- 题目区域 --- */
 .questions-section {
-  padding: 0 0 40px 0;
-  border-bottom: 1px solid #e0e0e0;
-  margin-bottom: 40px;
+  padding: 0 0 32px 0;
+  border-bottom: 1px solid #f0f0f0;
+  margin-bottom: 32px;
 }
 
 .theme-dark .questions-section {
-  border-bottom: 1px solid #404040;
+  border-bottom: 1px solid #3a3a3a;
 }
 
 .section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.theme-dark .section-header {
+  border-bottom: 1px solid #3a3a3a;
 }
 
 .section-header h3 {
   margin: 0;
   font-size: clamp(16px, 3vw, 18px);
   font-weight: 600;
+  color: #333333;
+}
+
+.theme-dark .section-header h3 {
+  color: #e5e5e5;
 }
 
 .questions-grid {
@@ -1044,28 +1131,23 @@ onUnmounted(() => {
 }
 
 .question-card {
-  background: #f8f8f8;
-  border: 1px solid #e0e0e0;
-  border-radius: 12px;
+  background: transparent;
+  border-radius: 8px;
   padding: 16px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .question-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
-  background: #f0f0f0;
+  background: #f8f8f8;
 }
 
 .theme-dark .question-card {
-  background: #3a3a3a;
-  border: 1px solid #4a4a4a;
+  background: transparent;
 }
 
 .theme-dark .question-card:hover {
-  background: #404040;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+  background: #3a3a3a;
 }
 
 .question-type {
@@ -1111,27 +1193,22 @@ onUnmounted(() => {
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  background: #f8f8f8;
-  border: 1px solid #e0e0e0;
-  border-radius: 12px;
+  background: transparent;
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .resource-item:hover {
-  background: #f0f0f0;
-  border-color: #d0d0d0;
-  transform: translateY(-1px);
+  background: #f8f8f8;
 }
 
 .theme-dark .resource-item {
-  background: #3a3a3a;
-  border: 1px solid #4a4a4a;
+  background: transparent;
 }
 
 .theme-dark .resource-item:hover {
-  background: #404040;
-  border-color: #5a5a5a;
+  background: #3a3a3a;
 }
 
 .resource-icon {
@@ -1191,13 +1268,13 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-top: 40px;
-  margin-top: 40px;
-  border-top: 1px solid #e0e0e0;
+  padding-top: 32px;
+  margin-top: 32px;
+  border-top: 1px solid #f0f0f0;
 }
 
 .theme-dark .chapter-navigation {
-  border-top: 1px solid #404040;
+  border-top: 1px solid #3a3a3a;
 }
 
 .nav-left, .nav-right, .nav-center {
@@ -1246,6 +1323,17 @@ onUnmounted(() => {
     padding: 20px 16px;
   }
   
+  .chapter-header {
+    padding: 20px 0;
+    margin-bottom: 24px;
+  }
+  
+  .chapter-meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
   .questions-grid {
     grid-template-columns: 1fr;
   }
@@ -1270,6 +1358,11 @@ onUnmounted(() => {
 @media (max-width: 480px) {
   .content-wrapper {
     padding: 16px 12px;
+  }
+  
+  .chapter-header {
+    padding: 16px 0;
+    margin-bottom: 20px;
   }
   
   .chapter-content {
