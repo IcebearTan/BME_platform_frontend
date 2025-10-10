@@ -36,9 +36,9 @@
       <!-- 题目描述内容 -->
       <div v-if="activeTab === 'description'" class="description-content">
         <!-- 题目标题和标签 -->
-        <div class="exercise-title-section">
-          <h1 class="exercise-title">{{ exerciseData.title }}</h1>
-          <div class="exercise-meta">
+        <div class="content-header">
+          <h1 class="content-title">{{ exerciseData.title || '二分查找' }}</h1>
+          <div class="content-meta">
             <el-tag :type="getTypeTagType(exerciseData.type)" size="small">
               {{ getExerciseTypeText(exerciseData.type) }}
             </el-tag>
@@ -113,11 +113,25 @@
 
       <!-- 题解内容 -->
       <div v-else-if="activeTab === 'solution'" class="solution-content">
-        <div class="solution-section">
-          <h3>解题思路</h3>
-          <div class="solution-text">
-            <p>这是一道经典的二分查找问题。二分查找是在有序数组中查找特定元素的高效算法。</p>
-            <p><strong>核心思想：</strong></p>
+        <!-- 题解标题和标签 -->
+        <div class="content-header">
+          <h1 class="content-title">二分查找 - 题解</h1>
+          <div class="content-meta">
+            <el-tag type="success" size="small">
+              <el-icon><Key /></el-icon>
+              官方题解
+            </el-tag>
+            <el-tag type="info" size="small">算法</el-tag>
+            <el-tag type="warning" size="small">时间复杂度: O(log n)</el-tag>
+          </div>
+        </div>
+
+        <div class="solution-sections">
+          <div class="solution-section">
+            <h3>解题思路</h3>
+            <div class="solution-text">
+              <p>这是一道经典的二分查找问题。二分查找是在有序数组中查找特定元素的高效算法。</p>
+              <p><strong>核心思想：</strong></p>
             <ul>
               <li>每次比较中间元素与目标值</li>
               <li>如果中间元素等于目标值，直接返回索引</li>
@@ -199,6 +213,7 @@
               </el-tab-pane>
             </el-tabs>
           </div>
+        </div>
         </div>
       </div>
     </div>
@@ -310,10 +325,11 @@ const getDifficultyTagType = (difficulty) => {
 .panel-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  padding: 20px 24px;
+  align-items: center;
+  padding: 16px 20px;
   border-bottom: 1px solid #f0f0f0;
   background: #fafafa;
+  min-height: 64px;
 }
 
 .theme-dark .panel-header {
@@ -321,48 +337,96 @@ const getDifficultyTagType = (difficulty) => {
   border-bottom-color: #404040;
 }
 
-.exercise-title-section {
+.panel-tabs {
   flex: 1;
 }
 
-.exercise-title {
-  font-size: 20px;
-  font-weight: 600;
-  margin: 0 0 12px 0;
-  color: #1a1a1a;
-  line-height: 1.3;
+.panel-tabs .el-tabs__header {
+  margin-bottom: 0;
 }
 
-.theme-dark .exercise-title {
-  color: #ffffff;
-}
-
-.exercise-meta {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+.panel-tabs .el-tabs__nav-wrap {
+  padding: 0;
 }
 
 .panel-actions {
   display: flex;
   align-items: center;
+  margin-left: 16px;
 }
 
 .fullscreen-btn {
   color: #666666;
   font-size: 16px;
-  padding: 8px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.fullscreen-btn:hover {
+  background-color: #f5f5f5;
+  color: #409EFF;
 }
 
 .theme-dark .fullscreen-btn {
   color: #b0b0b0;
 }
 
+.theme-dark .fullscreen-btn:hover {
+  background-color: #404040;
+  color: #409EFF;
+}
+
 /* --- 面板内容 --- */
 .panel-content {
   flex: 1;
   overflow-y: auto;
-  padding: 24px;
+  padding: 0;
+}
+
+/* --- 内容头部样式 --- */
+.content-header {
+  padding: 24px 24px 20px 24px;
+  border-bottom: 1px solid #f5f5f5;
+  margin-bottom: 20px;
+}
+
+.theme-dark .content-header {
+  border-bottom-color: #404040;
+}
+
+.content-title {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+  color: #1a1a1a;
+  line-height: 1.4;
+}
+
+.theme-dark .content-title {
+  color: #ffffff;
+}
+
+.content-meta {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.content-meta .el-tag {
+  font-weight: 500;
+  border-radius: 6px;
+}
+
+.content-meta .el-icon {
+  font-size: 12px;
+  margin-right: 4px;
+}
+
+/* --- 题目内容区域 --- */
+.description-content .question-content {
+  padding: 0 24px 24px 24px;
 }
 
 .question-content h4 {
@@ -517,10 +581,14 @@ const getDifficultyTagType = (difficulty) => {
   padding: 0;
 }
 
+.solution-sections {
+  padding: 0 24px 24px 24px;
+}
+
 .solution-section {
   margin-bottom: 32px;
   padding-bottom: 24px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid #f5f5f5;
 }
 
 .solution-section:last-child {
@@ -584,7 +652,7 @@ const getDifficultyTagType = (difficulty) => {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
-  margin-top: 16px;
+  margin: 20px 0;
 }
 
 @media (max-width: 768px) {
@@ -598,11 +666,13 @@ const getDifficultyTagType = (difficulty) => {
   border: 1px solid #e9ecef;
   border-radius: 8px;
   padding: 16px;
+  border-left: 3px solid #409EFF;
 }
 
 .theme-dark .complexity-item {
   background: #333333;
   border-color: #404040;
+  border-left-color: #409EFF;
 }
 
 .complexity-item strong {
@@ -629,12 +699,14 @@ const getDifficultyTagType = (difficulty) => {
   border: 1px solid #e9ecef;
   border-radius: 8px;
   overflow: hidden;
-  margin-top: 16px;
+  margin: 20px 0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
 }
 
 .theme-dark .solution-code {
   background: #2a2a2a;
   border-color: #404040;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
 }
 
 .solution-code pre {
@@ -664,9 +736,48 @@ const getDifficultyTagType = (difficulty) => {
   display: flex;
   align-items: center;
   gap: 6px;
+  font-size: 14px;
+  font-weight: 500;
 }
 
 .tab-label .el-icon {
   font-size: 14px;
+}
+
+.panel-tabs :deep(.el-tabs__header) {
+  margin: 0;
+  border-bottom: none;
+}
+
+.panel-tabs :deep(.el-tabs__nav-wrap) {
+  padding: 0;
+}
+
+.panel-tabs :deep(.el-tabs__nav) {
+  border: none;
+}
+
+.panel-tabs :deep(.el-tabs__item) {
+  padding: 0 16px;
+  height: 32px;
+  line-height: 32px;
+  border: none;
+  color: #666666;
+  font-weight: 500;
+}
+
+.panel-tabs :deep(.el-tabs__item.is-active) {
+  color: #409EFF;
+  background: rgba(64, 158, 255, 0.1);
+  border-radius: 6px;
+}
+
+.theme-dark .panel-tabs :deep(.el-tabs__item) {
+  color: #b0b0b0;
+}
+
+.theme-dark .panel-tabs :deep(.el-tabs__item.is-active) {
+  color: #409EFF;
+  background: rgba(64, 158, 255, 0.15);
 }
 </style>
