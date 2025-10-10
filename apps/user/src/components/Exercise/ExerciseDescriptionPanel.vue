@@ -2,24 +2,33 @@
   <div class="description-panel" :class="{ 'theme-dark': isDarkMode }">
     <!-- 标签页头部 -->
     <div class="panel-header">
-      <el-tabs v-model="activeTab" class="panel-tabs">
-        <el-tab-pane label="题目描述" name="description">
-          <template #label>
+      <div class="panel-tabs">
+        <div class="custom-tabs" role="tablist" aria-label="Exercise tabs">
+          <el-button
+            type="text"
+            class="custom-tab-btn"
+            :class="{ 'is-active': activeTab === 'description' }"
+            @click="activeTab = 'description'"
+          >
             <span class="tab-label">
               <el-icon><Document /></el-icon>
-              题目描述
+              <span class="tab-text">题目描述</span>
             </span>
-          </template>
-        </el-tab-pane>
-        <el-tab-pane label="题解" name="solution">
-          <template #label>
+          </el-button>
+
+          <el-button
+            type="text"
+            class="custom-tab-btn"
+            :class="{ 'is-active': activeTab === 'solution' }"
+            @click="activeTab = 'solution'"
+          >
             <span class="tab-label">
               <el-icon><Key /></el-icon>
-              题解
+              <span class="tab-text">题解</span>
             </span>
-          </template>
-        </el-tab-pane>
-      </el-tabs>
+          </el-button>
+        </div>
+      </div>
       <div class="panel-actions">
         <el-button 
           type="text" 
@@ -160,58 +169,32 @@
 
         <div class="solution-section">
           <h3>复杂度分析</h3>
-          <div class="complexity-analysis">
-            <div class="complexity-item">
-              <strong>时间复杂度：</strong>O(log n)
-              <p>每次查找都将搜索范围缩小一半</p>
-            </div>
-            <div class="complexity-item">
-              <strong>空间复杂度：</strong>O(1)
-              <p>只使用了常数个额外变量</p>
-            </div>
+          <div class="complexity-simple">
+            <p><strong>时间复杂度：</strong>O(log n) — 每次查找都将搜索范围缩小一半</p>
+            <p><strong>空间复杂度：</strong>O(1) — 只使用了常数个额外变量</p>
           </div>
         </div>
 
         <div class="solution-section">
           <h3>参考代码</h3>
           <div class="solution-code">
-            <el-tabs>
-              <el-tab-pane label="Python" name="python">
-                <pre><code>def binary_search(nums, target):
-    left, right = 0, len(nums) - 1
-    
-    while left <= right:
-        mid = left + (right - left) // 2
-        
-        if nums[mid] == target:
-            return mid
-        elif nums[mid] < target:
-            left = mid + 1
-        else:
-            right = mid - 1
-    
-    return -1</code></pre>
-              </el-tab-pane>
-              <el-tab-pane label="Java" name="java">
-                <pre><code>public int binarySearch(int[] nums, int target) {
-    int left = 0, right = nums.length - 1;
-    
-    while (left <= right) {
-        int mid = left + (right - left) / 2;
-        
-        if (nums[mid] == target) {
-            return mid;
-        } else if (nums[mid] < target) {
-            left = mid + 1;
-        } else {
-            right = mid - 1;
-        }
-    }
-    
-    return -1;
-}</code></pre>
-              </el-tab-pane>
-            </el-tabs>
+            <div class="solution-code-header">
+              <div class="solution-code-tabs">
+                <button
+                  :class="['solution-code-tab', { active: selectedSolutionLang === 'python' }]"
+                  @click="selectedSolutionLang = 'python'"
+                >
+                  Python
+                </button>
+                <button
+                  :class="['solution-code-tab', { active: selectedSolutionLang === 'java' }]"
+                  @click="selectedSolutionLang = 'java'"
+                >
+                  Java
+                </button>
+              </div>
+            </div>
+            <pre class="solution-code-pre"><code>{{ solutionSamples[selectedSolutionLang] }}</code></pre>
           </div>
         </div>
         </div>
@@ -246,6 +229,42 @@ const store = useStore()
 
 // 响应式数据
 const activeTab = ref('description')
+
+// 参考代码切换
+const selectedSolutionLang = ref('python')
+const solutionSamples = {
+  python: `def binary_search(nums, target):
+  left, right = 0, len(nums) - 1
+    
+  while left <= right:
+    mid = left + (right - left) // 2
+        
+    if nums[mid] == target:
+      return mid
+    elif nums[mid] < target:
+      left = mid + 1
+    else:
+      right = mid - 1
+    
+  return -1`,
+  java: `public int binarySearch(int[] nums, int target) {
+  int left = 0, right = nums.length - 1;
+    
+  while (left <= right) {
+    int mid = left + (right - left) / 2;
+        
+    if (nums[mid] == target) {
+      return mid;
+    } else if (nums[mid] < target) {
+      left = mid + 1;
+    } else {
+      right = mid - 1;
+    }
+  }
+    
+  return -1;
+}`
+}
 
 // 计算属性
 const isDarkMode = computed(() => store.getters.isDarkMode)
@@ -326,10 +345,10 @@ const getDifficultyTagType = (difficulty) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 20px;
-  border-bottom: 1px solid #f0f0f0;
+  padding: 10px 16px;
+  border-bottom: none;
   background: #fafafa;
-  min-height: 64px;
+  min-height: 48px;
 }
 
 .theme-dark .panel-header {
@@ -352,15 +371,15 @@ const getDifficultyTagType = (difficulty) => {
 .panel-actions {
   display: flex;
   align-items: center;
-  margin-left: 16px;
+  margin-left: 12px;
 }
 
 .fullscreen-btn {
   color: #666666;
-  font-size: 16px;
-  padding: 6px 8px;
+  font-size: 14px;
+  padding: 4px 6px;
   border-radius: 4px;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
 }
 
 .fullscreen-btn:hover {
@@ -648,96 +667,80 @@ const getDifficultyTagType = (difficulty) => {
   margin: 8px 0;
 }
 
-.complexity-analysis {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin: 20px 0;
+.complexity-simple {
+  padding: 8px 16px;
+  font-size: 14px;
+  color: #333333;
+  line-height: 1.6;
 }
 
-@media (max-width: 768px) {
-  .complexity-analysis {
-    grid-template-columns: 1fr;
-  }
+.theme-dark .complexity-simple {
+  color: #e0e0e0;
 }
 
-.complexity-item {
-  background: #f8f9fa;
-  border: 1px solid #e9ecef;
-  border-radius: 8px;
-  padding: 16px;
-  border-left: 3px solid #409EFF;
-}
-
-.theme-dark .complexity-item {
-  background: #333333;
-  border-color: #404040;
-  border-left-color: #409EFF;
-}
-
-.complexity-item strong {
-  color: #495057;
-  font-weight: 600;
-}
-
-.theme-dark .complexity-item strong {
-  color: #ffffff;
-}
-
-.complexity-item p {
-  margin: 8px 0 0 0;
-  font-size: 13px;
-  color: #666666;
-}
-
-.theme-dark .complexity-item p {
-  color: #b0b0b0;
-}
-
+/* 参考代码样式（简洁） */
 .solution-code {
   background: #f8f9fa;
   border: 1px solid #e9ecef;
   border-radius: 8px;
   overflow: hidden;
-  margin: 20px 0;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+  margin: 12px 0 0 0;
 }
 
-.theme-dark .solution-code {
-  background: #2a2a2a;
-  border-color: #404040;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+.solution-code-header {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid #e9ecef;
+  background: transparent;
 }
 
-.solution-code pre {
+.solution-code-tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.solution-code-tab {
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #666666;
+  cursor: pointer;
+}
+
+.solution-code-tab.active {
+  background: #409eff;
+  color: #fff;
+  border-color: #409eff;
+}
+
+.solution-code-pre {
   margin: 0;
-  padding: 16px;
+  padding: 12px;
   font-family: 'Monaco', 'Consolas', monospace;
   font-size: 13px;
   line-height: 1.5;
+  white-space: pre;
   overflow-x: auto;
   background: transparent;
   color: #333333;
 }
 
-.theme-dark .solution-code pre {
+.theme-dark .solution-code-pre {
   color: #e0e0e0;
-}
-
-.solution-code code {
-  font-family: inherit;
-  font-size: inherit;
-  background: transparent;
-  padding: 0;
 }
 
 /* --- 标签页样式 --- */
 .tab-label {
-  display: flex;
+  /* 使用 inline-flex 让标签宽度随内容自适应，避免占满整个 tab 项导致左右“填充” */
+  display: inline-flex;
   align-items: center;
   gap: 6px;
   font-size: 14px;
   font-weight: 500;
+  padding: 0; /* 确保没有额外内边距 */
 }
 
 .tab-label .el-icon {
@@ -746,38 +749,138 @@ const getDifficultyTagType = (difficulty) => {
 
 .panel-tabs :deep(.el-tabs__header) {
   margin: 0;
-  border-bottom: none;
+  padding: 12px 0 0 0;
+  background: transparent;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
 }
 
 .panel-tabs :deep(.el-tabs__nav-wrap) {
   padding: 0;
+  margin-bottom: 0;
+}
+
+.panel-tabs :deep(.el-tabs__nav-wrap::after) {
+  display: none;
 }
 
 .panel-tabs :deep(.el-tabs__nav) {
   border: none;
+  display: flex;
+  gap: 8px;
+  align-items: center; /* 垂直居中 tab 项 */
+  justify-content: flex-start; /* 左对齐整个 tab 列表 */
+  padding-left: 0; /* 去掉容器可能的左内边距 */
 }
 
 .panel-tabs :deep(.el-tabs__item) {
-  padding: 0 16px;
-  height: 32px;
-  line-height: 32px;
-  border: none;
   color: #666666;
   font-weight: 500;
+  font-size: 13px;
+  height: 34px;
+  line-height: 34px;
+  padding: 0 14px;
+  border: 1px solid #e6e6e6;
+  border-radius: 6px;
+  background: #ffffff;
+  transition: all 0.15s ease;
+  margin-right: 0;
+}
+
+.panel-tabs :deep(.el-tabs__item:hover) {
+  color: #409EFF;
+  border-color: #cbdffd;
+  transform: translateY(-1px);
 }
 
 .panel-tabs :deep(.el-tabs__item.is-active) {
-  color: #409EFF;
-  background: rgba(64, 158, 255, 0.1);
-  border-radius: 6px;
+  color: #ffffff;
+  background: #409EFF;
+  border-color: #409EFF;
+}
+
+.panel-tabs :deep(.el-tabs__active-bar) {
+  display: none;
+}
+
+.theme-dark .panel-tabs :deep(.el-tabs__header) {
+  background: transparent;
 }
 
 .theme-dark .panel-tabs :deep(.el-tabs__item) {
   color: #b0b0b0;
+  border-color: #404040;
+  background: #2a2a2a;
+}
+
+.theme-dark .panel-tabs :deep(.el-tabs__item:hover) {
+  color: #409EFF;
+  border-color: #409EFF;
 }
 
 .theme-dark .panel-tabs :deep(.el-tabs__item.is-active) {
+  color: #ffffff;
+  background: #409EFF;
+  border-color: #409EFF;
+}
+
+/* --- 自定义 Tab 按钮样式 --- */
+.custom-tabs {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-start; /* 左对齐 */
+}
+
+.custom-tab-btn {
+  padding: 0;
+  height: 34px;
+  line-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 6px;
+  color: #666666;
+  font-weight: 500;
+  font-size: 13px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  background: transparent;
+  transition: all 0.15s ease;
+}
+
+.custom-tab-btn .tab-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.custom-tab-btn:hover {
   color: #409EFF;
-  background: rgba(64, 158, 255, 0.15);
+  transform: translateY(-1px);
+  border-color: #cbdffd;
+}
+
+.custom-tab-btn.is-active {
+  color: #ffffff;
+  background: #409EFF;
+  border-color: #409EFF;
+}
+
+.theme-dark .custom-tab-btn {
+  color: #b0b0b0;
+  background: transparent;
+  border-color: transparent;
+}
+
+.theme-dark .custom-tab-btn:hover {
+  color: #409EFF;
+  border-color: #409EFF;
+}
+
+.theme-dark .custom-tab-btn.is-active {
+  color: #ffffff;
+  background: #409EFF;
+  border-color: #409EFF;
 }
 </style>
