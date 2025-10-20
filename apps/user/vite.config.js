@@ -8,8 +8,8 @@ const packageJson = JSON.parse(readFileSync('./package.json', 'utf8'));
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  base: '/AMEII/',
   plugins: [vue()],
-  // base: '/dist/',
   define: {
     __APP_VERSION__: JSON.stringify(packageJson.version),
   },

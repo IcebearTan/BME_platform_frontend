@@ -29,7 +29,7 @@ import QuestionBankView from './views/QuestionBankView.vue';
 import MyFeedbacksComponent from './components/User/MyFeedbacksComponent.vue';
 
 const router = createRouter({
-    history: createWebHistory(),
+    history: createWebHistory(import.meta.env.BASE_URL),
     scrollBehavior() {
         return { top: 0 }
     },

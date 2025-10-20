@@ -338,9 +338,9 @@ const handleUserInfo = () => {
         </el-menu-item>
         
         <el-menu-item v-else-if="!props.hideAuthButtons" class="custom-menu-item auth-menu-item">
-            <a href="/login" class="custom-link">登录</a>
+            <a @click="$router.push('/login')" class="custom-link">登录</a>
             <span class="auth-separator">或</span>
-            <a href="/register" class="custom-link">注册</a>
+            <a @click="$router.push('/register')" class="custom-link">注册</a>
         </el-menu-item>
             </div> <!-- 关闭 menu-right-section -->
         </div> <!-- 关闭 menu-content-wrapper -->
