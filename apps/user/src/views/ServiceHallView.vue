@@ -36,8 +36,7 @@ const toggleMobileMenu = () => {
 };
 
 const handle3DPrintClick = () => {
-  // Placeholder for 3D printing service
-  console.log("3D Printing service clicked");
+  router.push('/service/3d-print');
 };
 
 </script>
