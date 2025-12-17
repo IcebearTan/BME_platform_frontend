@@ -25,6 +25,7 @@ import GroupView from './views/GroupView.vue';
 import ExerciseSolveView from './views/ExerciseSolveView.vue';
 import CourseChapterView from './views/CourseChapterView.vue';
 import QuestionBankView from './views/QuestionBankView.vue';
+import ServiceHallView from './views/ServiceHallView.vue';
 
 import MyFeedbacksComponent from './components/User/MyFeedbacksComponent.vue';
 
@@ -169,6 +170,11 @@ const router = createRouter({
             path: '/question-bank',
             name: 'question-bank',
             component: QuestionBankView
+        },
+        {
+            path: '/service-hall',
+            name: 'service-hall',
+            component: ServiceHallView
         },
     ]
 })

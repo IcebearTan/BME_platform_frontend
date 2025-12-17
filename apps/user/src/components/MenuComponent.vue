@@ -236,6 +236,9 @@ const handleUserInfo = () => {
                 <el-menu-item index="/question-bank">
                     题库
                 </el-menu-item>
+                <el-menu-item index="/service-hall">
+                    服务大厅
+                </el-menu-item>
                 <el-menu-item index="/order" disabled>
                     资源库
                 </el-menu-item>
