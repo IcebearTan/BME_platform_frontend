@@ -59,6 +59,7 @@ import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
 import { ElCarousel, ElCarouselItem, ElIcon } from 'element-plus'
 import { ArrowRight } from '@element-plus/icons-vue'
+import bgImage from '../../assets/back_groud.jpg'
 
 const store = useStore()
 const router = useRouter()
@@ -72,21 +73,21 @@ const banners = ref([
     id: 1,
     title: '开启学习之旅',
     description: '探索丰富的课程内容，提升你的技能',
-    image: '/src/assets/back_groud.jpg',
+    image: bgImage,
     route: '/study'
   },
   {
     id: 2,
     title: '加入学习小组',
     description: '与同学一起学习，共同进步',
-    image: '/src/assets/back_groud.jpg',
+    image: bgImage,
     route: '/group'
   },
   {
     id: 3,
     title: '技能认证考核',
     description: '通过考核验证你的学习成果',
-    image: '/src/assets/back_groud.jpg',
+    image: bgImage,
     route: '/exam'
   }
 ])
