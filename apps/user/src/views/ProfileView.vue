@@ -1941,7 +1941,7 @@ const scrollToAbout = () => {
   justify-content: center;
   align-items: center;
   flex-direction: column;
-  padding: 40px 0;
+  /* padding: 40px 0; */
   width: 100%;
   min-height: 400px;
   margin: 0;
