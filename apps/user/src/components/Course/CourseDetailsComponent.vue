@@ -98,18 +98,18 @@ const fetchCourseDetails = async () => {
 const formatChapters = (chapters) => {
   const formattedData = [];
   let currentTitle = null;
-  let titleId = 1;  // 用于给大标题添加 ID，从 1 开始
 
   chapters.forEach(chapter => {
-    if (chapter.Chapter_Priority === 0) {
-      // 大标题，开始一个新的章节，并给大标题加上 ID
+    // 后端 Chapter_Level: 1 = 一级章节(大标题), 2 = 二级章节(小标题)
+    if (chapter.Chapter_Level === 1) {
+      // 大标题，开始一个新的章节
       currentTitle = {
         name: chapter.Chapter_Name,
         order: chapter.Chapter_Order,
         subChapters: []  // 存储小标题
       };
       formattedData.push(currentTitle);
-    } else if (chapter.Chapter_Priority === 1 && currentTitle) {
+    } else if (chapter.Chapter_Level === 2 && currentTitle) {
       // 小标题，添加到最近的大标题下
       currentTitle.subChapters.push({
         name: chapter.Chapter_Name,

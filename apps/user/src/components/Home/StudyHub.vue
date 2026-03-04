@@ -26,7 +26,7 @@
       <div class="section-header">
         <h3 class="section-title">
           <span class="title-icon">🎓</span>
-          <span>学习中心</span>
+          <span>学习入口</span>
         </h3>
       </div>
       
@@ -96,11 +96,19 @@ const banners = ref([
 const studyEntries = ref([
   {
     id: 'courses',
-    title: '课程学习',
-    description: '系统化的课程内容',
+    title: '课程',
+    description: '系统化的课程学习',
     icon: '📚',
     route: '/study',
     color: '#409EFF'
+  },
+  {
+    id: 'question-bank',
+    title: '题库',
+    description: '练习巩固知识点',
+    icon: '📝',
+    route: '/question-bank',
+    color: '#67C23A'
   },
   {
     id: 'groups',
@@ -108,15 +116,15 @@ const studyEntries = ref([
     description: '协作学习与交流',
     icon: '👥',
     route: '/group',
-    color: '#67C23A'
+    color: '#E6A23C'
   },
   {
     id: 'exams',
     title: '考核评估',
     description: '检验学习效果',
-    icon: '📝',
+    icon: '✅',
     route: '/exam',
-    color: '#E6A23C'
+    color: '#F56C6C'
   },
   {
     id: 'resources',
@@ -124,7 +132,7 @@ const studyEntries = ref([
     description: '丰富的学习材料',
     icon: '📖',
     route: '/resources',
-    color: '#F56C6C',
+    color: '#909399',
     disabled: true // 未来功能
   }
 ])

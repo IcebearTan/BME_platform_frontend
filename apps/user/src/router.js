@@ -27,6 +27,7 @@ import CourseChapterView from './views/CourseChapterView.vue';
 import QuestionBankView from './views/QuestionBankView.vue';
 import ServiceHallView from './views/ServiceHallView.vue';
 import ThreeDPrintView from './views/ThreeDPrintView.vue';
+import CommunityView from './views/CommunityView.vue';
 
 import MyFeedbacksComponent from './components/User/MyFeedbacksComponent.vue';
 
@@ -181,6 +182,11 @@ const router = createRouter({
             path: '/service/3d-print',
             name: '3d-print',
             component: ThreeDPrintView
+        },
+        {
+            path: '/community',
+            name: 'community',
+            component: CommunityView
         },
     ]
 })
