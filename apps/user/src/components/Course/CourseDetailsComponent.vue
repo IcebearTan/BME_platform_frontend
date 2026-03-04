@@ -5,9 +5,10 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import api from '../../api'
 import { API_URL } from '../../api'
-import { Star, StarFilled, Lock, Unlock, ArrowRight } from '@element-plus/icons-vue'
+import { Star, StarFilled } from '@element-plus/icons-vue'
 import StudentProgressComponent from './StudentProgressComponent.vue'
 import StudentRankComponent from './StudentRankComponent.vue'
+import ChapterTree from './ChapterTree.vue'
 
 const store = useStore()  // 获取 Vuex store
 const router = useRouter()  // 获取 Vue Router 实例
@@ -95,30 +96,56 @@ const fetchCourseDetails = async () => {
   }
 }
 
+// 构建多层级树形结构
 const formatChapters = (chapters) => {
-  const formattedData = [];
-  let currentTitle = null;
+  if (!chapters || chapters.length === 0) return [];
 
+  // 创建节点映射
+  const nodeMap = new Map();
+  const rootNodes = [];
+
+  // 初始化所有节点
   chapters.forEach(chapter => {
-    // 后端 Chapter_Level: 1 = 一级章节(大标题), 2 = 二级章节(小标题)
-    if (chapter.Chapter_Level === 1) {
-      // 大标题，开始一个新的章节
-      currentTitle = {
-        name: chapter.Chapter_Name,
-        order: chapter.Chapter_Order,
-        subChapters: []  // 存储小标题
-      };
-      formattedData.push(currentTitle);
-    } else if (chapter.Chapter_Level === 2 && currentTitle) {
-      // 小标题，添加到最近的大标题下
-      currentTitle.subChapters.push({
-        name: chapter.Chapter_Name,
-        order: chapter.Chapter_Order
-      });
+    nodeMap.set(chapter.Chapter_Id, {
+      id: chapter.Chapter_Id,
+      name: chapter.Chapter_Name,
+      order: chapter.Chapter_Order,
+      level: chapter.Chapter_Level,
+      parentId: chapter.Chapter_Parent_Id,
+      children: []
+    });
+  });
+
+  // 构建树形结构
+  chapters.forEach(chapter => {
+    const node = nodeMap.get(chapter.Chapter_Id);
+    if (chapter.Chapter_Parent_Id === null || chapter.Chapter_Parent_Id === undefined) {
+      // 根节点（一级章节）
+      rootNodes.push(node);
+    } else {
+      // 有父节点的节点
+      const parent = nodeMap.get(chapter.Chapter_Parent_Id);
+      if (parent) {
+        parent.children.push(node);
+      } else {
+        // 如果找不到父节点，也作为根节点处理
+        rootNodes.push(node);
+      }
     }
   });
 
-  return formattedData;
+  // 对每个节点按 order 排序
+  const sortNodes = (nodes) => {
+    nodes.sort((a, b) => a.order - b.order);
+    nodes.forEach(node => {
+      if (node.children.length > 0) {
+        sortNodes(node.children);
+      }
+    });
+  };
+  sortNodes(rootNodes);
+
+  return rootNodes;
 }
 
 const fetchDownloadUrl = async () => {
@@ -315,7 +342,39 @@ const handleChapterClick = (chapterIndex, subChapterIndex = null) => {
   router.push({
     name: 'course-chapter',
     params: { courseId: courseId.value },
-    query: { 
+    query: {
+      chapterId: chapterId,
+      chapterTitle: chapterTitle
+    }
+  })
+}
+
+// 处理树形章节组件的点击事件
+const handleTreeChapterClick = (chapter, indexPath) => {
+  // 检查是否已报名且章节已解锁
+  if (!isEnrolled.value || !checkUnlock(chapter.order)) {
+    ElMessage.warning('请先报名课程或完成前置章节')
+    return
+  }
+
+  // indexPath 格式: "1" 或 "1-2" 或 "1-2-3"
+  const chapterId = indexPath
+  const chapterTitle = chapter.name
+
+  console.log('跳转参数:', {
+    courseId: courseId.value,
+    chapterId: chapterId,
+    chapterTitle: chapterTitle
+  })
+
+  // 显示跳转提示
+  ElMessage.success(`正在进入章节：${chapterTitle}`)
+
+  // 跳转到课程章节页面
+  router.push({
+    name: 'course-chapter',
+    params: { courseId: courseId.value },
+    query: {
       chapterId: chapterId,
       chapterTitle: chapterTitle
     }
@@ -370,44 +429,13 @@ const handleChapterClick = (chapterIndex, subChapterIndex = null) => {
               <span class="course-contents-title" :class="themeClass">目录</span>
             </div>
             <div class="course-content-card">
-              <div class="course-content-item" v-for="(item, index) in formatedCourseDetails" :key="index">
-                <div 
-                  class="chapter-main-title"
-                  :class="{ 
-                    'clickable': isEnrolled && checkUnlock(index + 1),
-                    'locked': !isEnrolled || !checkUnlock(index + 1)
-                  }"
-                  @click="handleChapterClick(index)"
-                >
-                  <span class="course-content-item-index">{{ index + 1 }}</span>
-                  <span class="chapter-title-text">{{ item.name }}</span>
-                  <el-icon v-if="isEnrolled && checkUnlock(index + 1)" class="chapter-arrow">
-                    <ArrowRight />
-                  </el-icon>
-                </div>
-                <div 
-                  class="course-content-item-sub" 
-                  v-for="(subItem, subIndex) in item.subChapters" 
-                  :key="subIndex"
-                  :class="{ 
-                    'locked': !isEnrolled || !checkUnlock(index + 1),
-                    'clickable': isEnrolled && checkUnlock(index + 1)
-                  }"
-                  @click="handleChapterClick(index, subIndex)"
-                >
-                  <div class="sub-chapter-content">
-                    <span class="sub-chapter-text">{{ subItem.name }}</span>
-                    <el-icon v-if="isEnrolled && checkUnlock(index + 1)" class="sub-chapter-arrow">
-                      <ArrowRight />
-                    </el-icon>
-                  </div>
-                  <div v-if="!isEnrolled || !checkUnlock(index + 1)" class="lock-container">
-                    <el-icon class="lock-icon">
-                      <Lock />
-                    </el-icon>
-                  </div>
-                </div>
-              </div>
+              <ChapterTree
+                :chapters="formatedCourseDetails"
+                :is-enrolled="isEnrolled"
+                :chapter-num="userProgress.chapter_num"
+                :theme-class="themeClass"
+                @chapter-click="handleTreeChapterClick"
+              />
               <div class="no-more-content" :class="themeClass">
                 没有更多内容啦~
               </div>
@@ -444,7 +472,7 @@ const handleChapterClick = (chapterIndex, subChapterIndex = null) => {
             </div>
             <div class="course-period" :class="themeClass">
               <span class="period-item" :class="themeClass">
-                <div class="period-value" :class="themeClass">{{ courseInfo.Chapters || 0 }} 章 / {{ courseInfo.Sections || 0 }} 节</div>
+                <div class="period-value" :class="themeClass">{{ courseInfo.Chapters || 0 }} 章</div>
                 <div class="period-label" :class="themeClass">章节数量</div>
               </span>
               <span class="period-item" :class="themeClass">
