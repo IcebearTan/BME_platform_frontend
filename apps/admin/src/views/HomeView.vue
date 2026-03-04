@@ -2,10 +2,10 @@
 import { RouterView } from "vue-router";
 import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
-import { 
-  Document, User, ChatLineRound, Trophy, Setting, Location, 
-  Grid, Fold, Bell, ArrowDown, Clock, EditPen, TrendCharts, 
-  HomeFilled, Picture, Search
+import {
+  Document, User, ChatLineRound, Trophy, Setting, Location,
+  Grid, Fold, Bell, ArrowDown, Clock, EditPen, TrendCharts,
+  HomeFilled, Picture, Search, List, Plus
 } from '@element-plus/icons-vue';
 
 export default {
@@ -34,6 +34,9 @@ export default {
         '/article/manage': '文章管理',
         '/article/create': '创建文章',
         '/group/manage': '小组管理',
+        '/course/manage': '课程管理',
+        '/course/create': '发布课程',
+        '/course/edit/:id': '编辑课程',
         '/learningprgress/manage': '学习进度',
         '/medal/manage': '勋章管理',
         '/medal/grant': '勋章查询'
@@ -248,19 +251,27 @@ const handleClose = (key, keyPath) => {
             </el-menu-item>
           </el-sub-menu>
 
-          <!-- 课程管理 (禁用) -->
-          <el-sub-menu index="3" disabled>
+          <!-- 课程管理 -->
+          <el-sub-menu index="3">
             <template #title>
               <el-icon class="menu-icon"><Location /></el-icon>
               <span class="menu-text">课程管理</span>
             </template>
-            <el-menu-item index="3-1" class="submenu-item">
-              <el-icon><EditPen /></el-icon>
-              <span>编辑文章</span>
+            <el-menu-item
+              index="/course/manage"
+              @click="router.push('/course/manage')"
+              class="submenu-item"
+            >
+              <el-icon><List /></el-icon>
+              <span>管理课程</span>
             </el-menu-item>
-            <el-menu-item index="3-2" class="submenu-item">
-              <el-icon><Document /></el-icon>
-              <span>管理文章</span>
+            <el-menu-item
+              index="/course/create"
+              @click="router.push('/course/create')"
+              class="submenu-item"
+            >
+              <el-icon><Plus /></el-icon>
+              <span>发布课程</span>
             </el-menu-item>
           </el-sub-menu>
 

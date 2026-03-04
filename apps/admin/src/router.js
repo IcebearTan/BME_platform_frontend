@@ -19,6 +19,8 @@ import LearningProgress from './components/LearningProgress.vue';
 import HomeCoverManage from './components/HomeCoverManage.vue';
 import MedalManage from './components/MedalManage.vue';
 import MedalGrant from './components/MedalGrant.vue';
+import CourseManage from './components/CourseManage.vue';
+import CourseCreate from './components/CourseCreate.vue';
 
 const router = createRouter({
     history: createWebHistory("/admin/"),
@@ -82,6 +84,21 @@ const router = createRouter({
                     path: '/medal/grant',
                     name: 'medal_grant',
                     component: MedalGrant
+                },
+                {
+                    path: '/course/manage',
+                    name: 'course_manage',
+                    component: CourseManage
+                },
+                {
+                    path: '/course/create',
+                    name: 'course_create',
+                    component: CourseCreate
+                },
+                {
+                    path: '/course/edit/:id',
+                    name: 'course_edit',
+                    component: CourseCreate
                 }
             ]
         },
