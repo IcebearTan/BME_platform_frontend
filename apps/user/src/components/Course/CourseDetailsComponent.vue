@@ -663,7 +663,6 @@ const handleLessonClick = (lesson, chapter, indexPath) => {
   width: 100%;
   padding-bottom: 20px;
   margin-bottom: 10px;
-  border-bottom: 1px solid;
 }
 
 .theme-light .course-contents-header {
@@ -883,7 +882,7 @@ const handleLessonClick = (lesson, chapter, indexPath) => {
 .course-process {
   width: 300px;
   height: 120px;
-  margin-top: 20px;
+  /* margin-top: 20px; */
   margin-bottom: 20px;
   padding: 20px;
   padding-bottom: 10px;
@@ -1289,7 +1288,7 @@ const handleLessonClick = (lesson, chapter, indexPath) => {
 }
 
 .theme-light .no-more-content {
-  color: #999;
+  color: #bbb;
 }
 
 .theme-dark .no-more-content {
