@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { ArrowRight, Lock } from '@element-plus/icons-vue'
+import { ArrowRight, Lock, VideoPlay, Document, Link, Reading, CircleCheck } from '@element-plus/icons-vue'
 
 const props = defineProps({
   chapters: {
@@ -23,13 +23,21 @@ const props = defineProps({
     type: Number,
     default: 0
   },
+  totalChapters: {
+    type: Number,
+    default: 0
+  },
+  completedLessons: {
+    type: Array,
+    default: () => []
+  },
   themeClass: {
     type: String,
     default: 'theme-light'
   }
 })
 
-const emit = defineEmits(['chapter-click'])
+const emit = defineEmits(['chapter-click', 'lesson-click'])
 
 // 计算解锁状态
 const checkUnlock = (chapterOrder) => {
@@ -40,6 +48,12 @@ const checkUnlock = (chapterOrder) => {
 const handleClick = (chapter, index) => {
   const currentIndex = props.parentIndex ? `${props.parentIndex}-${index + 1}` : String(index + 1)
   emit('chapter-click', chapter, currentIndex)
+}
+
+// 处理课时点击
+const handleLessonClick = (lesson, chapter, chapterIndex) => {
+  const currentIndex = props.parentIndex ? `${props.parentIndex}-${chapterIndex + 1}` : String(chapterIndex + 1)
+  emit('lesson-click', lesson, chapter, currentIndex)
 }
 
 // 计算缩进层级样式
@@ -76,6 +90,65 @@ const getIndexBg = (level) => {
     5: '#95a5a6'  // 五级及以上 - 灰色
   }
   return bgMap[level] || bgMap[1]
+}
+
+// 获取课时类型图标
+const getLessonIcon = (type) => {
+  const iconMap = {
+    'video': VideoPlay,
+    'text': Document,
+    'link': Link,
+    'quiz': Reading,
+    'homework': Document
+  }
+  return iconMap[type] || Document
+}
+
+// 获取课时类型颜色
+const getLessonTypeColor = (type) => {
+  const colorMap = {
+    'video': '#667eea',    // 视频 - 紫色
+    'text': '#4ecdc4',     // 图文 - 青色
+    'link': '#ff6b6b',     // 外链 - 红色
+    'quiz': '#ffcf00',     // 测验 - 黄色
+    'homework': '#95a5a6'  // 作业 - 灰色
+  }
+  return colorMap[type] || '#667eea'
+}
+
+// 获取课时类型名称
+const getLessonTypeName = (type) => {
+  const nameMap = {
+    'video': '视频',
+    'text': '图文',
+    'link': '外链',
+    'quiz': '测验',
+    'homework': '作业'
+  }
+  return nameMap[type] || '课时'
+}
+
+// 格式化课时时长
+const formatDuration = (minutes) => {
+  if (!minutes) return ''
+  if (minutes < 60) return `${minutes}分钟`
+  const hours = Math.floor(minutes / 60)
+  const mins = minutes % 60
+  return mins > 0 ? `${hours}小时${mins}分钟` : `${hours}小时`
+}
+
+// 计算章节进度百分比
+const getChapterProgress = (chapter) => {
+  if (!props.isEnrolled || !chapter.lessons || chapter.lessons.length === 0) return 0
+  const completedCount = chapter.lessons.filter(lesson =>
+    props.completedLessons.includes(String(lesson.id))
+  ).length
+  return Math.round((completedCount / chapter.lessons.length) * 100)
+}
+
+// 检查课时是否已完成
+const isLessonCompleted = (lesson) => {
+  return props.completedLessons.includes(String(lesson.id))
 }
 
 // 计算主题相关的类
@@ -120,6 +193,18 @@ const isDark = computed(() => props.themeClass === 'theme-dark')
           {{ chapter.name }}
         </span>
 
+        <!-- 章节进度圆环 - 仅第一级显示且已解锁 -->
+        <el-progress
+          v-if="level === 1 && isEnrolled && checkUnlock(chapter.order)"
+          type="circle"
+          :percentage="getChapterProgress(chapter)"
+          :width="24"
+          :stroke-width="3"
+          color="#67c23a"
+          :show-text="false"
+          class="chapter-progress"
+        />
+
         <!-- 箭头图标 -->
         <el-icon
           v-if="isEnrolled && checkUnlock(chapter.order)"
@@ -137,6 +222,63 @@ const isDark = computed(() => props.themeClass === 'theme-dark')
         </el-icon>
       </div>
 
+      <!-- 课时列表 - 展示在二级及以下章节下 -->
+      <div
+        v-if="chapter.lessons && chapter.lessons.length > 0 && level >= 2"
+        class="lesson-list"
+      >
+        <div
+          v-for="(lesson, lessonIndex) in chapter.lessons"
+          :key="lesson.id"
+          class="lesson-item"
+          :class="{
+            'clickable': isEnrolled && checkUnlock(chapter.order),
+            'locked': !isEnrolled || !checkUnlock(chapter.order)
+          }"
+          @click="handleLessonClick(lesson, chapter, index)"
+        >
+          <!-- 课时类型图标 -->
+          <el-icon
+            class="lesson-type-icon"
+            :style="{ color: getLessonTypeColor(lesson.type) }"
+          >
+            <component :is="getLessonIcon(lesson.type)" />
+          </el-icon>
+
+          <!-- 课时标题 -->
+          <span class="lesson-title">{{ lesson.title }}</span>
+
+          <!-- 已完成勾选标记 -->
+          <el-icon
+            v-if="isEnrolled && isLessonCompleted(lesson)"
+            class="lesson-completed-icon"
+          >
+            <CircleCheck />
+          </el-icon>
+
+          <!-- 课时类型标签 -->
+          <span
+            class="lesson-type-tag"
+            :style="{ backgroundColor: getLessonTypeColor(lesson.type) }"
+          >
+            {{ getLessonTypeName(lesson.type) }}
+          </span>
+
+          <!-- 课时时长 -->
+          <span v-if="lesson.duration" class="lesson-duration">
+            {{ formatDuration(lesson.duration) }}
+          </span>
+
+          <!-- 锁定图标 -->
+          <el-icon
+            v-if="!isEnrolled || !checkUnlock(chapter.order)"
+            class="lock-icon"
+          >
+            <Lock />
+          </el-icon>
+        </div>
+      </div>
+
       <!-- 递归渲染子章节 -->
       <ChapterTree
         v-if="chapter.children && chapter.children.length > 0"
@@ -145,8 +287,11 @@ const isDark = computed(() => props.themeClass === 'theme-dark')
         :is-enrolled="isEnrolled"
         :parent-index="parentIndex ? `${parentIndex}-${index + 1}` : String(index + 1)"
         :chapter-num="chapterNum"
+        :total-chapters="totalChapters"
+        :completed-lessons="completedLessons"
         :theme-class="themeClass"
         @chapter-click="(ch, idx) => $emit('chapter-click', ch, idx)"
+        @lesson-click="(ls, ch, idx) => $emit('lesson-click', ls, ch, idx)"
       />
     </div>
   </div>
@@ -215,7 +360,8 @@ const isDark = computed(() => props.themeClass === 'theme-dark')
 }
 
 .chapter-tree.theme-light .chapter-item:hover {
-  background-color: #f5f5f5;
+  /* 移除悬停变色效果 */
+  background-color: transparent;
 }
 
 .chapter-tree.theme-light .chapter-item.locked {
@@ -232,7 +378,8 @@ const isDark = computed(() => props.themeClass === 'theme-dark')
 }
 
 .chapter-tree.theme-dark .chapter-item:hover {
-  background-color: #404040;
+  /* 移除悬停变色效果 */
+  background-color: transparent;
 }
 
 .chapter-tree.theme-dark .chapter-item.locked {
@@ -249,7 +396,8 @@ const isDark = computed(() => props.themeClass === 'theme-dark')
 }
 
 .chapter-item.clickable:hover {
-  background-color: rgba(102, 126, 234, 0.1);
+  /* 移除悬停变色效果 */
+  background-color: transparent;
 }
 
 /* 序号圆角矩形 - 仅一级章节显示 */
@@ -296,15 +444,117 @@ const isDark = computed(() => props.themeClass === 'theme-dark')
 /* 箭头图标 */
 .chapter-arrow {
   font-size: 16px;
-  color: #667eea;
-  opacity: 0;
+  color: #a0a0a0;
+  opacity: 1;
   transition: all 0.3s ease;
   margin-left: 10px;
   flex-shrink: 0;
 }
 
 .chapter-item.clickable:hover .chapter-arrow {
-  opacity: 1;
+  color: #667eea;
+}
+
+/* 章节进度圆环 */
+.chapter-progress {
+  margin-left: 10px;
+  flex-shrink: 0;
+}
+
+/* 已完成课时勾选图标 */
+.lesson-completed-icon {
+  font-size: 16px;
+  color: #67c23a;
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+
+/* 课时列表样式 */
+.lesson-list {
+  width: 100%;
+  padding-left: 20px;
+  padding-right: 10px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.lesson-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 10px;
+  margin: 4px 0;
+  margin-right: 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background-color: transparent;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.lesson-item.clickable {
+  cursor: pointer;
+}
+
+.lesson-item.clickable:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.chapter-tree.theme-dark .lesson-item.clickable:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.lesson-item.locked {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* 课时类型图标 */
+.lesson-type-icon {
+  font-size: 16px;
+  margin-right: 10px;
+  flex-shrink: 0;
+}
+
+/* 课时标题 */
+.lesson-title {
+  flex: 1;
+  font-size: 14px;
+  color: #555;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chapter-tree.theme-light .lesson-title {
+  color: #555;
+}
+
+.chapter-tree.theme-dark .lesson-title {
+  color: #bbb;
+}
+
+/* 课时类型标签 */
+.lesson-type-tag {
+  font-size: 10px;
+  color: #fff;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+
+/* 课时时长 */
+.lesson-duration {
+  font-size: 12px;
+  color: #999;
+  margin-left: 8px;
+  /* margin-right: 10px; */
+  flex-shrink: 0;
+}
+
+.chapter-tree.theme-dark .lesson-duration {
+  color: #777;
 }
 
 /* 锁定图标 */
@@ -312,6 +562,7 @@ const isDark = computed(() => props.themeClass === 'theme-dark')
   font-size: 14px;
   color: #ccc;
   margin-left: 10px;
+  margin-right: 10px;
   flex-shrink: 0;
 }
 

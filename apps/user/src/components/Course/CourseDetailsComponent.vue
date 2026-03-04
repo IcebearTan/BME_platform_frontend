@@ -75,19 +75,42 @@ const fetchCourseInfo = async () => {
   }
 }
 
+// 课时数据存储
+const lessonsData = ref({})
+
 const fetchCourseDetails = async () => {
   try {
-    const res = await api({
+    // 获取章节列表
+    const chapterRes = await api({
       url: '/course/chapter_list',
       method: 'get',
       params: {
         Course_Id: courseId.value
       }
     })
-    courseDetails.value = res.data
-    formatedCourseDetails.value = formatChapters(courseDetails.value)
+    courseDetails.value = chapterRes.data
 
-    if (res.data.code === 200) {
+    // 获取课时列表
+    const lessonRes = await api({
+      url: '/course/lesson/list',
+      method: 'get',
+      params: {
+        Course_Id: courseId.value
+      }
+    })
+
+    // 处理课时数据，转换为以 chapterId 为 key 的映射
+    if (lessonRes.data.code === 200) {
+      const lessonsMap = {}
+      lessonRes.data.data.forEach(item => {
+        lessonsMap[item.Chapter_Id] = item.lessons || []
+      })
+      lessonsData.value = lessonsMap
+    }
+
+    formatedCourseDetails.value = formatChapters(courseDetails.value, lessonsData.value)
+
+    if (chapterRes.data.code === 200) {
       //由于后端设计问题这里还需要修改
       // console.log(courseDetails.value)
     }
@@ -97,7 +120,8 @@ const fetchCourseDetails = async () => {
 }
 
 // 构建多层级树形结构
-const formatChapters = (chapters) => {
+// 构建多层级树形结构（包含课时）
+const formatChapters = (chapters, lessonsData = {}) => {
   if (!chapters || chapters.length === 0) return [];
 
   // 创建节点映射
@@ -106,13 +130,17 @@ const formatChapters = (chapters) => {
 
   // 初始化所有节点
   chapters.forEach(chapter => {
+    // 获取该章节下的课时
+    const chapterLessons = lessonsData[chapter.Chapter_Id] || []
+
     nodeMap.set(chapter.Chapter_Id, {
       id: chapter.Chapter_Id,
       name: chapter.Chapter_Name,
       order: chapter.Chapter_Order,
       level: chapter.Chapter_Level,
       parentId: chapter.Chapter_Parent_Id,
-      children: []
+      children: [],
+      lessons: chapterLessons  // 添加课时数据
     });
   });
 
@@ -203,6 +231,27 @@ const wrapperBg = computed(() => {
 
 // 查询当前用户是否已经加入课程
 const isEnrolled = ref(false)
+
+// 调试模式：点击加入学习按钮
+const debugEnroll = () => {
+  if (!isEnrolled.value) {
+    isEnrolled.value = true
+    userProgress.value = {
+      chapters: 3,
+      section_num: 1,
+      section_name: '第一节',
+      chapter_num: 1,
+      chapter_name: '第一章',
+      progress: 30,
+    }
+    // 调试用的已完成课时列表
+    completedLessons.value = ['1-1', '1-2', '2-1']
+  }
+}
+
+// 已完成课时列表，用于显示勾选标记
+const completedLessons = ref([])
+
 const enrolledList = ref([])
 const userProgress = ref({
   chapters: 0,
@@ -380,6 +429,37 @@ const handleTreeChapterClick = (chapter, indexPath) => {
     }
   })
 }
+
+// 处理课时点击事件
+const handleLessonClick = (lesson, chapter, indexPath) => {
+  // 检查是否已报名且章节已解锁
+  if (!isEnrolled.value || !checkUnlock(chapter.order)) {
+    ElMessage.warning('请先报名课程或完成前置章节')
+    return
+  }
+
+  console.log('点击课时:', {
+    courseId: courseId.value,
+    lessonId: lesson.id,
+    chapterId: indexPath,
+    lessonTitle: lesson.title,
+    lessonType: lesson.type
+  })
+
+  // 显示跳转提示
+  ElMessage.success(`正在进入课时：${lesson.title}`)
+
+  // 跳转到课程章节页面，传递课时ID
+  router.push({
+    name: 'course-chapter',
+    params: { courseId: courseId.value },
+    query: {
+      chapterId: indexPath,
+      chapterTitle: chapter.name,
+      lessonId: lesson.id
+    }
+  })
+}
 </script>
 
 <template>
@@ -418,7 +498,7 @@ const handleTreeChapterClick = (chapter, indexPath) => {
                 {{ courseInfo.Introduction }}
               </div>
               <div class="course-bottom">
-                <el-button type="primary" plain size="large" disabled="true" @click="caution()" class="no-cursor">{{ isEnrolled ? '正在学习' : '加入学习'}}</el-button>
+                <el-button type="primary" plain size="large" @click="debugEnroll()" :class="{'is-enrolled-btn': isEnrolled}">{{ isEnrolled ? '正在学习' : '加入学习'}}</el-button>
                 <el-button type="primary" size="large" @click="handleDownload()">下载内容</el-button>
               </div>
             </div>
@@ -433,8 +513,11 @@ const handleTreeChapterClick = (chapter, indexPath) => {
                 :chapters="formatedCourseDetails"
                 :is-enrolled="isEnrolled"
                 :chapter-num="userProgress.chapter_num"
+                :total-chapters="courseInfo.Chapters"
+                :completed-lessons="completedLessons"
                 :theme-class="themeClass"
                 @chapter-click="handleTreeChapterClick"
+                @lesson-click="handleLessonClick"
               />
               <div class="no-more-content" :class="themeClass">
                 没有更多内容啦~
@@ -1186,6 +1269,13 @@ const handleTreeChapterClick = (chapter, indexPath) => {
 
 .no-cursor {
   cursor: auto !important;
+}
+
+/* 已加入学习按钮样式 */
+.is-enrolled-btn {
+  background-color: #67c23a !important;
+  border-color: #67c23a !important;
+  color: #fff !important;
 }
 
 /* 没有更多内容提示 */
