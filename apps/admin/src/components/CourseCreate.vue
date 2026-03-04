@@ -26,13 +26,8 @@ const courseForm = reactive({
 
 // 课时数（从课程基本信息获取）
 const totalLessons = computed(() => {
-  return courseForm.Course_Class_Hour || 0;
-});
-
-// 章节数（从章节列表获取，统计一级章节）
-const totalChapters = computed(() => {
-  const list = Array.isArray(chapters.value) ? chapters.value : [];
-  return list.filter(item => !item.Chapter_Parent_Id || item.Chapter_Parent_Id === null).length;
+  const count = courseForm.Course_Class_Hour;
+  return (count === null || count === undefined || isNaN(count)) ? 0 : Number(count);
 });
 
 // 章节列表
@@ -139,8 +134,6 @@ const lessonForm = reactive({
   Lesson_Type: 'video',
   Lesson_Content: '',
   Lesson_Duration: 0,
-  Lesson_Order: 0,
-  Is_Preview: false,
   Resource_Url: ''
 });
 
@@ -175,7 +168,7 @@ const fetchCourseDetail = async () => {
     if (course) {
       courseForm.Course_title = course.Course_Title || '';
       courseForm.Course_Introduction = course.Introduction || '';
-      courseForm.Course_Class_Hour = course.Course_Class_Hour || 0;
+      courseForm.Course_Class_Hour = (course.Course_Class_Hour === null || course.Course_Class_Hour === undefined) ? 0 : Number(course.Course_Class_Hour);
       courseForm.Course_Difficulty = course.Course_Difficulty || 1;
       courseForm.Course_Tags = course.Course_Tags || '';
       courseForm.Course_Other_Tags = course.Course_Other_Tags ? course.Course_Other_Tags.join(',') : '';
@@ -209,7 +202,7 @@ const fetchChapters = async () => {
 const fetchLessons = async () => {
   try {
     const response = await api.get('/course/lesson/list', { params: { Course_Id: courseId.value } });
-    lessons.value = response.data || [];
+    lessons.value = response.data.data || [];
   } catch (error) {
     console.error('Error fetching lessons:', error);
   }
@@ -246,7 +239,7 @@ const saveCourse = async () => {
         lessons.value = response.data.lessons;
       }
       if (response.data.class_hour !== undefined) {
-        courseForm.Course_Class_Hour = response.data.class_hour;
+        courseForm.Course_Class_Hour = (response.data.class_hour === null || response.data.class_hour === undefined) ? 0 : Number(response.data.class_hour);
       }
     } else {
       response = await api.post('/course/public', data);
@@ -480,8 +473,6 @@ const addLesson = async () => {
       Lesson_Type: lessonForm.Lesson_Type,
       Lesson_Content: lessonForm.Lesson_Content || '',
       Lesson_Duration: lessonForm.Lesson_Duration || 0,
-      Lesson_Order: lessonForm.Lesson_Order || 0,
-      Is_Preview: lessonForm.Is_Preview,
       Resource_Url: lessonForm.Resource_Url || ''
     };
     await api.post('/course/lesson/add', data);
@@ -494,8 +485,6 @@ const addLesson = async () => {
     lessonForm.Lesson_Type = 'video';
     lessonForm.Lesson_Content = '';
     lessonForm.Lesson_Duration = 0;
-    lessonForm.Lesson_Order = 0;
-    lessonForm.Is_Preview = false;
     lessonForm.Resource_Url = '';
     await fetchLessons();
   } catch (error) {
@@ -561,12 +550,6 @@ const goBack = () => {
             </el-form-item>
             <el-form-item label="课程介绍" required>
               <el-input v-model="courseForm.Course_Introduction" type="textarea" :rows="4" placeholder="请输入课程介绍" />
-            </el-form-item>
-            <el-form-item label="章节数量">
-              <el-tag type="success" effect="plain" size="large">
-                {{ totalChapters }} 章
-              </el-tag>
-              <span style="margin-left: 8px; color: #909399; font-size: 12px;">（根据章节自动计算）</span>
             </el-form-item>
             <el-form-item label="课时数">
               <el-tag type="primary" effect="plain" size="large">
@@ -684,12 +667,6 @@ const goBack = () => {
             <el-form-item label="时长(分钟)">
               <el-input-number v-model="lessonForm.Lesson_Duration" :min="0" />
             </el-form-item>
-            <el-form-item label="排序">
-              <el-input-number v-model="lessonForm.Lesson_Order" :min="0" />
-            </el-form-item>
-            <el-form-item label="是否预览">
-              <el-switch v-model="lessonForm.Is_Preview" />
-            </el-form-item>
             <el-form-item label="资源链接">
               <el-input v-model="lessonForm.Resource_Url" placeholder="视频/附件URL" />
             </el-form-item>
@@ -709,11 +686,6 @@ const goBack = () => {
                 </template>
               </el-table-column>
               <el-table-column prop="duration" label="时长(分钟)" width="100" />
-              <el-table-column label="可预览" width="80">
-                <template #default="scope">
-                  {{ scope.row.is_preview ? '是' : '否' }}
-                </template>
-              </el-table-column>
               <el-table-column label="操作" width="120">
                 <template #default="scope">
                   <el-button type="danger" size="small" @click="deleteLesson(scope.row)">删除</el-button>

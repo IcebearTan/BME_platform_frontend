@@ -34,12 +34,6 @@ const tableLabel = ref([
     showOverflowTooltip: true
   },
   {
-    prop: 'Course_Chapters',
-    label: '章节数',
-    minWidth: '80',
-    align: 'center'
-  },
-  {
     prop: 'Course_Class_Hour',
     label: '学时',
     minWidth: '70',
