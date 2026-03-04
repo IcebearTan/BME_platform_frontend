@@ -145,6 +145,33 @@ const lessonTypes = [
   { value: 'homework', label: '作业' }
 ];
 
+// 根据课时类型获取内容字段标签
+const getContentLabel = () => {
+  const labels = {
+    'text': '图文内容',
+    'quiz': '测验题目',
+    'homework': '作业内容'
+  };
+  return labels[lessonForm.Lesson_Type] || '课时内容';
+};
+
+// 根据课时类型获取内容字段提示
+const getContentPlaceholder = () => {
+  const placeholders = {
+    'text': '请输入图文内容（支持Markdown）',
+    'quiz': '请输入测验题目内容',
+    'homework': '请输入作业内容'
+  };
+  return placeholders[lessonForm.Lesson_Type] || '请输入课时内容';
+};
+
+// 课时类型变更时清空相关字段
+const onLessonTypeChange = () => {
+  lessonForm.Lesson_Content = '';
+  lessonForm.Resource_Url = '';
+  lessonForm.Lesson_Duration = 0;
+};
+
 const difficultyOptions = [
   { value: 1, label: '1 - 入门' },
   { value: 2, label: '2 - 初级' },
@@ -464,6 +491,22 @@ const addLesson = async () => {
     return;
   }
 
+  // 根据课时类型验证必填字段
+  if (lessonForm.Lesson_Type === 'video' && !lessonForm.Resource_Url) {
+    ElMessage({
+      message: '视频课时请填写资源链接',
+      type: 'warning'
+    });
+    return;
+  }
+  if (lessonForm.Lesson_Type === 'link' && !lessonForm.Lesson_Content) {
+    ElMessage({
+      message: '外链课时请填写外链地址',
+      type: 'warning'
+    });
+    return;
+  }
+
   loading.value = true;
   try {
     const data = {
@@ -657,18 +700,28 @@ const goBack = () => {
               <el-input v-model="lessonForm.Lesson_Title" placeholder="请输入课时标题" />
             </el-form-item>
             <el-form-item label="课时类型">
-              <el-select v-model="lessonForm.Lesson_Type" style="width: 200px;">
+              <el-select v-model="lessonForm.Lesson_Type" style="width: 200px;" @change="onLessonTypeChange">
                 <el-option v-for="item in lessonTypes" :key="item.value" :label="item.label" :value="item.value" />
               </el-select>
             </el-form-item>
-            <el-form-item label="课时内容">
-              <el-input v-model="lessonForm.Lesson_Content" type="textarea" :rows="3" placeholder="请输入课时内容" />
+
+            <!-- video: 资源链接 -->
+            <el-form-item label="资源链接" v-if="lessonForm.Lesson_Type === 'video'">
+              <el-input v-model="lessonForm.Resource_Url" placeholder="视频URL" />
             </el-form-item>
+
+            <!-- link: 外链地址 -->
+            <el-form-item label="外链地址" v-if="lessonForm.Lesson_Type === 'link'">
+              <el-input v-model="lessonForm.Lesson_Content" placeholder="请输入外链URL" />
+            </el-form-item>
+
+            <!-- text/quiz/homework: 课时内容 -->
+            <el-form-item :label="getContentLabel()" v-if="['text', 'quiz', 'homework'].includes(lessonForm.Lesson_Type)">
+              <el-input v-model="lessonForm.Lesson_Content" type="textarea" :rows="4" :placeholder="getContentPlaceholder()" />
+            </el-form-item>
+
             <el-form-item label="时长(分钟)">
               <el-input-number v-model="lessonForm.Lesson_Duration" :min="0" />
-            </el-form-item>
-            <el-form-item label="资源链接">
-              <el-input v-model="lessonForm.Resource_Url" placeholder="视频/附件URL" />
             </el-form-item>
             <el-form-item>
               <el-button type="primary" @click="addLesson">添加课时</el-button>
