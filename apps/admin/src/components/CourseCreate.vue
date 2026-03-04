@@ -615,7 +615,7 @@ const goBack = () => {
           </div>
 
           <!-- 章节列表 -->
-          <el-table :data="sortedChapters" style="width: 100%">
+          <el-table v-if="chapters.length > 0" :data="sortedChapters" style="width: 100%">
             <el-table-column prop="Chapter_Name" label="章节名称" min-width="200">
               <template #default="{ row }">
                 <span v-if="editingChapterId !== row.Chapter_Id" :style="{ paddingLeft: ((row.Chapter_Level - 1) * 20) + 'px' }">
