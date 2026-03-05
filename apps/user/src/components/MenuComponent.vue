@@ -230,6 +230,9 @@ const handleUserInfo = () => {
                 <el-menu-item index="/home" class="study-center-item">
                     学习中心
                 </el-menu-item>
+                <el-menu-item index="/study">
+                    课程
+                </el-menu-item>
                 <el-menu-item index="/community">
                     社区广场
                 </el-menu-item>
