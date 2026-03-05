@@ -159,7 +159,7 @@ onMounted(() => {
                             <div class="course-title">{{ course.Course_title }}</div>
                             <div class="course-description">{{ course.Course_Introduction }}</div>
                         </div>
-                        <div class="course-stats">共 {{ course.Course_Chapters }} 章</div>
+                        <div class="course-stats">共 {{ course.Course_Chapters }} 章 · {{ course.Course_Lessons || 0 }} 课时</div>
                     </div>
                 </div>
 
@@ -175,7 +175,7 @@ onMounted(() => {
                     >
                         <div class="tooltip-title">{{ hoverCourse.Course_title }}</div>
                         <div class="tooltip-intro">{{ hoverCourse.Course_Introduction }}</div>
-                        <div class="tooltip-footer">共 {{ hoverCourse.Course_Chapters }} 章</div>
+                        <div class="tooltip-footer">共 {{ hoverCourse.Course_Chapters }} 章 · {{ hoverCourse.Course_Lessons || 0 }} 课时</div>
                     </div>
                 </transition>
             </template>
@@ -327,7 +327,7 @@ onMounted(() => {
     flex-direction: column;
     align-items: center;
 
-    overflow: hidden;
+    overflow: visible;
 }
 
 .columnContainer {
