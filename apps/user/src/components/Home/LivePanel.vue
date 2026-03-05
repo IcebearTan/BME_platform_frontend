@@ -2,169 +2,95 @@
   <div
     ref="panelRef"
     class="live-checkin-panel"
-    :class="{ 
-      expanded: isExpanded,
-      collapsed: !isExpanded,
+    :class="{
       'theme-dark': isDarkMode,
       'theme-light': !isDarkMode
     }"
   >
-    <!-- 展开/折叠专用按钮 -->
-    <div class="panel-toggle-button" @click="togglePanel">
-      <el-icon class="toggle-icon" :class="{ rotated: !isExpanded }">
-        <ArrowDown />
-      </el-icon>
-    </div>
-
-    <!-- 展开/折叠控制按钮 -->
-    <!-- <div class="panel-header" >
-      <h2>实时状态面板</h2>
-      <el-icon class="toggle-icon" :class="{ rotated: isExpanded }">
-        <ArrowDown />
-      </el-icon>
-    </div> -->
-
     <!-- 面板内容 -->
-    <div class="panel-content" v-show="isExpanded">
+    <div class="panel-content">
       <div class="content-grid">
         <!-- 左侧：问候语、打卡状态和月度统计 -->
         <div class="left-section">
-          <transition name="greeting-expand" appear>
-            <UserGreeting 
-              v-if="isExpanded"
-              :user-info="userInfo"
-              :show-stats="true"
-              :study-stats="studyStats"
-              :weather-info="weatherInfo"
-              :is-dark-mode="isDarkMode"
-              :is-collapsed="false"
-              :show-checkin-status="true"
-              :checkin-info="checkinInfo"
-              @checkin="handleCheckinEvent"
-              @checkout="handleCheckoutEvent"
-              @request-checkin="showCheckinDialog"
-              @request-checkout="showCheckoutDialog"
-              @status-change="handleStatusChange"
-              key="greeting-expanded"
-            />
-          </transition>
-          
+          <UserGreeting
+            :user-info="userInfo"
+            :show-stats="true"
+            :study-stats="studyStats"
+            :weather-info="weatherInfo"
+            :is-dark-mode="isDarkMode"
+            :show-checkin-status="true"
+            :checkin-info="checkinInfo"
+            @checkin="handleCheckinEvent"
+            @checkout="handleCheckoutEvent"
+            @request-checkin="showCheckinDialog"
+            @request-checkout="showCheckoutDialog"
+            @status-change="handleStatusChange"
+          />
+
           <!-- 月度统计面板 -->
-          <transition name="monthly-stats-expand" appear>
-            <MonthlyStatsPanel 
-              v-if="shouldShowMonthlyStats"
-              :monthly-stats="monthlyStatsData"
-              :is-dark-mode="isDarkMode"
-              key="monthly-stats-expanded"
-            />
-          </transition>
+          <MonthlyStatsPanel
+            v-if="shouldShowMonthlyStats"
+            :monthly-stats="monthlyStatsData"
+            :is-dark-mode="isDarkMode"
+          />
         </div>
 
         <!-- 右侧：实时座位图 -->
         <div class="right-section">
           <!-- 房间标题和切换 -->
-          <transition name="room-header-expand" appear>
-            <div v-if="isExpanded" class="room-header">
-              <transition name="online-stats-expand" appear>
-                <div v-if="isExpanded" class="online-stats" 
-                     v-show="currentRoom.available">
-                  <span class="stats-label">在线</span>
-                  <span class="stats-value">{{ onlineCount }}/{{ totalSeats }}</span>
-                </div>
-              </transition>
-              
-              <transition name="room-title-expand" appear>
-                <h2 v-if="isExpanded" class="room-title">{{ currentRoom.name }}实况</h2>
-              </transition>
-              
-              <transition name="room-switcher-expand" appear>
-                <div v-if="isExpanded" class="room-switcher-container">
-                  <div 
-                    class="room-switcher-track"
-                    @click="handleTrackClick"
-                  >
-                    <div 
-                      class="room-switcher-slider"
-                      :style="{ transform: `translateX(${currentRoom.id === '106' ? '0%' : '100%'})` }"
-                    ></div>
-                    <div class="room-switcher-options">
-                      <div 
-                        v-for="room in availableRooms"
-                        :key="room.id"
-                        class="room-option"
-                        :class="{ 
-                          active: currentRoom.id === room.id,
-                          disabled: !room.available
-                        }"
-                      >
-                        {{ room.name }}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </transition>
+          <div class="room-header">
+            <div class="online-stats" v-show="currentRoom.available">
+              <span class="stats-label">在线</span>
+              <span class="stats-value">{{ onlineCount }}/{{ totalSeats }}</span>
             </div>
-          </transition>
-          
-          <transition name="seatmap-expand" appear>
-            <div v-if="isExpanded" key="seatmap-expanded">
-              <SeatMap
-                v-if="currentRoom.available"
-                ref="seatMapRef"
-                :octagon-size="seatMapConfig.size"
-                :octagon-radius="seatMapConfig.radius"
-                :octagon-corner-radius="8"
-                :octagon-gap="seatMapConfig.gap"
-                :is-dark-mode="isDarkMode"
-                :show-layout-controls="false"
-                :current-room-id="currentRoom.id"
-                default-layout="octagon"
-              />
-              <div v-else class="room-unavailable">
-                <div class="unavailable-content">
-                  <el-icon class="unavailable-icon"><Refresh /></el-icon>
-                  <h3>{{ currentRoom.name }}座位图</h3>
-                  <p>功能开发中，敬请期待...</p>
+
+            <h2 class="room-title">{{ currentRoom.name }}实况</h2>
+
+            <div class="room-switcher-container">
+              <div
+                class="room-switcher-track"
+                @click="handleTrackClick"
+              >
+                <div
+                  class="room-switcher-slider"
+                  :style="{ transform: `translateX(${currentRoom.id === '106' ? '0%' : '100%'})` }"
+                ></div>
+                <div class="room-switcher-options">
+                  <div
+                    v-for="room in availableRooms"
+                    :key="room.id"
+                    class="room-option"
+                    :class="{
+                      active: currentRoom.id === room.id,
+                      disabled: !room.available
+                    }"
+                  >
+                    {{ room.name }}
+                  </div>
                 </div>
               </div>
             </div>
-          </transition>
-        </div>
-      </div>
-    </div>
+          </div>
 
-    <!-- 折叠状态的简化内容 -->
-    <div class="panel-collapsed-content" v-show="!isExpanded">
-      <div class="collapsed-grid">
-        <!-- 左侧：保持与展开时相同的占比 -->
-        <div class="collapsed-left-section">
-          <transition name="greeting-collapse" appear>
-            <UserGreeting 
-              v-if="!isExpanded"
-              :user-info="userInfo"
-              :show-stats="false"
-              :study-stats="studyStats"
-              :weather-info="weatherInfo"
-              :is-dark-mode="isDarkMode"
-              :is-collapsed="true"
-              :show-checkin-status="true"
-              :checkin-info="checkinInfo"
-              @checkin="handleCheckinEvent"
-              @checkout="handleCheckoutEvent"
-              @request-checkin="showCheckinDialog"
-              @request-checkout="showCheckoutDialog"
-              @status-change="handleStatusChange"
-              key="greeting-collapsed"
-            />
-          </transition>
-        </div>
-        <!-- 右侧：保持占位，但内容简化或隐藏 -->
-        <div class="collapsed-right-section">
-          <transition-group name="placeholder-collapse" appear tag="div">
-            <div v-if="!isExpanded" class="collapsed-placeholder" :key="`placeholder-collapsed-${isExpanded}`">
-              <span class="placeholder-text">点击展开查看更多</span>
+          <SeatMap
+            v-if="currentRoom.available"
+            ref="seatMapRef"
+            :octagon-size="seatMapConfig.size"
+            :octagon-radius="seatMapConfig.radius"
+            :octagon-corner-radius="8"
+            :octagon-gap="seatMapConfig.gap"
+            :is-dark-mode="isDarkMode"
+            :show-layout-controls="false"
+            :current-room-id="currentRoom.id"
+            default-layout="octagon"
+          />
+          <div v-else class="room-unavailable">
+            <div class="unavailable-content">
+              <el-icon class="unavailable-icon"><Refresh /></el-icon>
+              <h3>{{ currentRoom.name }}座位图</h3>
+              <p>功能开发中，敬请期待...</p>
             </div>
-          </transition-group>
+          </div>
         </div>
       </div>
     </div>
@@ -175,8 +101,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useStore } from 'vuex'
 import { ElIcon, ElTag, ElButton, ElDialog } from 'element-plus'
-import { 
-  ArrowDown, 
+import {
   Refresh
 } from '@element-plus/icons-vue'
 import SeatMap from './SeatMap.vue'
@@ -189,11 +114,6 @@ const store = useStore()
 
 // Props
 const props = defineProps({
-  // 默认是否展开
-  defaultExpanded: {
-    type: Boolean,
-    default: true
-  },
   // 默认房间ID
   defaultRoomId: {
     type: String,
@@ -205,13 +125,10 @@ const props = defineProps({
 const emit = defineEmits(['checkin', 'checkout', 'room-change'])
 
 // 响应式数据
-const isExpanded = ref(props.defaultExpanded)
 const lastUpdateTime = ref('')
 const checkinLoading = ref(false)
 const checkoutLoading = ref(false)
 const panelRef = ref(null)
-const checkinStatusRef = ref(null)
-const checkinStatusCollapsedRef = ref(null)
 const seatMapRef = ref(null)
 const checkinDialogVisible = ref(false)
 const checkoutDialogVisible = ref(false)
@@ -297,25 +214,13 @@ const isCurrentlyCheckedIn = computed(() => store.getters.isCurrentlyCheckedIn)
 
 // 判断是否应该显示月度统计面板
 const shouldShowMonthlyStats = computed(() => {
-  // 只有在展开状态下才考虑显示
-  if (!isExpanded.value) return false
-  
-  // 如果是小屏幕且用户正在打卡，则不显示月度统计面板
-  if (isSmallScreen.value && isCurrentlyCheckedIn.value) {
-    return false
-  }
-  
-  // 其他情况正常显示
+  // 始终显示月度统计
   return true
 })
 
 // (已移除 checkinStatus，现在由 CheckinStatus 组件内部处理)
 
 // 方法
-function togglePanel() {
-  isExpanded.value = !isExpanded.value
-}
-
 function updateLastUpdateTime() {
   const now = new Date()
   lastUpdateTime.value = now.toLocaleTimeString('zh-CN', {
@@ -345,14 +250,7 @@ async function handleCheckin() {
   try {
     // 模拟API调用
     await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    // 根据面板状态调用对应子组件的签到方法
-    if (isExpanded.value && checkinStatusRef.value) {
-      checkinStatusRef.value.handleCheckin()
-    } else if (!isExpanded.value && checkinStatusCollapsedRef.value) {
-      checkinStatusCollapsedRef.value.handleCheckin()
-    }
-    
+
     checkinDialogVisible.value = false
   } catch (error) {
     // 签到失败处理
@@ -366,14 +264,7 @@ async function handleCheckout() {
   try {
     // 模拟API调用
     await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    // 根据面板状态调用对应子组件的签退方法
-    if (isExpanded.value && checkinStatusRef.value) {
-      checkinStatusRef.value.handleCheckout()
-    } else if (!isExpanded.value && checkinStatusCollapsedRef.value) {
-      checkinStatusCollapsedRef.value.handleCheckout()
-    }
-    
+
     checkoutDialogVisible.value = false
   } catch (error) {
     // 签退失败处理
@@ -633,23 +524,16 @@ if (typeof window !== 'undefined') {
   width: 100%;
   border-radius: 20px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
+  overflow: visible;
   transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   backdrop-filter: blur(20px);
 }
 
-/* 折叠状态高度 */
-.live-checkin-panel.collapsed {
-  height: 380px;
-  min-height: 380px;
-}
-
-/* 展开状态高度 */
-.live-checkin-panel.expanded {
-  height: calc(100vh - 80px);
-  min-height: 500px;
-  max-height: none;
+/* 面板高度 - 自适应内容 */
+.live-checkin-panel {
+  min-height: 450px;
+  height: auto;
 }
 
 /* 白天主题 - 温暖晴天配色 */
@@ -847,33 +731,16 @@ if (typeof window !== 'undefined') {
 }
 
 .panel-content {
-  padding: 32px;
+  padding: 24px;
   position: relative;
   z-index: 2;
   transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
   opacity: 1;
   transform: scale(1);
+  box-sizing: border-box;
 }
 
 .content-grid {
-  display: grid;
-  grid-template-columns: 1fr 1.5fr;
-  gap: 32px;
-  height: 100%;
-  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* 折叠状态的布局 */
-.panel-collapsed-content {
-  padding: 20px 24px;
-  position: relative;
-  z-index: 2;
-  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-  opacity: 1;
-  transform: scale(1);
-}
-
-.collapsed-grid {
   display: grid;
   grid-template-columns: 1fr 1.5fr;
   gap: 24px;
@@ -881,69 +748,17 @@ if (typeof window !== 'undefined') {
   transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* .collapsed-left-section, .collapsed-right-section {
-  height: 100%;
-  animation: collapse 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
-} */
-/* @keyframes collapse {
-  0% {
-    transform: scaleY(2)
-  }
-  100% {
-    transform: scaleY(1)
-  }
-} */
-
-.collapsed-placeholder {
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(30px);
-  border-radius: 20px;
-  padding: 20px;
-  height: auto;
-  min-height: 200px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s ease;
-}
-
-.theme-light .collapsed-placeholder {
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 0 8px 32px rgba(135, 206, 235, 0.15);
-}
-
-.theme-dark .collapsed-placeholder {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 8px 32px rgba(255, 255, 255, 0.03);
-}
-
-.placeholder-text {
-  color: #666;
-  font-size: 14px;
-  font-weight: 500;
-  opacity: 0.7;
-}
-
-.theme-light .placeholder-text {
-  color: #4a5568;
-}
-
-.theme-dark .placeholder-text {
-  color: rgba(255, 255, 255, 0.6);
-}
-
 .left-section, .right-section {
   height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
 }
 
 .left-section {
   display: flex;
   flex-direction: column;
-  gap: 24px; /* 为两个组件之间添加间距 */
+  gap: 16px; /* 为两个组件之间添加间距 */
 }
 
 /* 房间头部样式 */
@@ -951,14 +766,15 @@ if (typeof window !== 'undefined') {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  margin-bottom: 20px;
-  padding: 16px 20px;
+  margin-bottom: 12px;
+  padding: 12px 16px;
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(20px);
   border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.15);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
   position: relative;
+  flex-shrink: 0;
 }
 
 .theme-light .room-header {
@@ -1348,28 +1164,9 @@ if (typeof window !== 'undefined') {
     grid-template-columns: 1fr;
     gap: 24px;
   }
-  
-  .collapsed-grid {
-    grid-template-columns: 1fr;
-    gap: 20px;
-  }
-  
+
   .panel-content {
     padding: 24px;
-  }
-  
-  .panel-collapsed-content {
-    padding: 16px 20px;
-  }
-  
-  .collapsed-placeholder {
-    min-height: 120px;
-  }
-  
-  /* 移动端下调整高度 */
-  .live-checkin-panel.expanded {
-    height: calc(100vh - 60px);
-    min-height: 450px;
   }
 }
 
@@ -1377,38 +1174,13 @@ if (typeof window !== 'undefined') {
   .panel-header {
     padding: 16px 20px;
   }
-  
+
   .panel-header h2 {
     font-size: 18px;
   }
-  
-  .collapsed-placeholder {
-    padding: 16px;
-    border-radius: 16px;
-    min-height: 160px;
-  }
-  
+
   .panel-content {
     padding: 20px;
-  }
-  
-  .panel-collapsed-content {
-    padding: 14px 18px;
-  }
-  
-  .collapsed-grid {
-    gap: 16px;
-  }
-  
-  /* 平板端高度调整 */
-  .live-checkin-panel.collapsed {
-    height: 350px;
-    min-height: 350px;
-  }
-  
-  .live-checkin-panel.expanded {
-    height: calc(100vh - 50px);
-    min-height: 400px;
   }
 }
 
@@ -1416,147 +1188,9 @@ if (typeof window !== 'undefined') {
   .panel-header {
     padding: 12px 16px;
   }
-  
+
   .panel-content {
     padding: 16px;
   }
-  
-  .panel-collapsed-content {
-    padding: 12px 16px;
-  }
-  
-  .collapsed-grid {
-    gap: 12px;
-  }
-  
-  .collapsed-placeholder {
-    padding: 14px;
-    border-radius: 14px;
-    min-height: 140px;
-  }
-  
-  .placeholder-text {
-    font-size: 13px;
-  }
-  
-  /* 手机端高度调整 */
-  .live-checkin-panel.collapsed {
-    height: 320px;
-    min-height: 320px;
-  }
-  
-  .live-checkin-panel.expanded {
-    height: calc(100vh - 30px);
-    min-height: 350px;
-  }
-}
-
-/* Vue 组件过渡动画 */
-
-/* 折叠状态下组件的过渡动画 */
-.greeting-collapse-enter-active {
-  transition: all 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
-  transition-delay: 0.1s;
-}
-
-.greeting-collapse-enter-from {
-  opacity: 0;
-  transform: scale(0.8) translateY(30px) rotateX(20deg);
-}
-
-/* 折叠状态下组件的过渡动画 */
-.greeting-collapse-enter-active {
-  transition: all 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
-  transition-delay: 0.1s;
-}
-
-.greeting-collapse-enter-from {
-  opacity: 0;
-  transform: scale(0.9) translateY(20px);
-}
-
-.placeholder-collapse-enter-active {
-  transition: all 0.9s cubic-bezier(0.34, 1.56, 0.64, 1);
-  transition-delay: 0.5s;
-}
-
-.placeholder-collapse-enter-from {
-  opacity: 0;
-  transform: scale(0.7) translateX(50px) rotateY(15deg);
-}
-
-/* 展开状态下组件的过渡动画 */
-.greeting-expand-enter-active {
-  transition: all 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
-  transition-delay: 0.1s;
-}
-
-.greeting-expand-enter-from {
-  opacity: 0;
-  transform: scale(0.9) translateY(-20px);
-}
-
-.monthly-stats-expand-enter-active {
-  transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
-  transition-delay: 0.4s;
-}
-
-.monthly-stats-expand-enter-from {
-  opacity: 0;
-  transform: scale(0.9) translateY(30px);
-}
-
-.seatmap-expand-enter-active {
-  transition: all 0.9s cubic-bezier(0.34, 1.56, 0.64, 1);
-  transition-delay: 0.7s;
-}
-
-.seatmap-expand-enter-from {
-  opacity: 0;
-  transform: scale(0.85) translateX(40px) rotateY(-10deg);
-}
-
-/* 房间头部展开动画 */
-.room-header-expand-enter-active {
-  transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
-  transition-delay: 0.2s;
-}
-
-.room-header-expand-enter-from {
-  opacity: 0;
-  transform: scale(0.9) translateY(-15px);
-}
-
-/* 在线人数统计动画 */
-.online-stats-expand-enter-active {
-  transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
-  transition-delay: 0.3s;
-}
-
-.online-stats-expand-enter-from {
-  opacity: 0;
-  transform: scale(0.8) translateX(-30px);
-}
-
-/* 房间标题动画 */
-.room-title-expand-enter-active {
-  transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
-  transition-delay: 0.4s;
-}
-
-.room-title-expand-enter-from {
-  opacity: 0;
-  transform: scale(0.9) translateY(-10px);
-}
-
-/* 房间切换器动画 */
-.room-switcher-expand-enter-active {
-  transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
-  transition-delay: 0.5s;
-}
-
-.room-switcher-expand-enter-from {
-  opacity: 0;
-  transform: scale(0.8) translateX(30px);
 }
 </style>
