@@ -238,6 +238,9 @@ const wrapperBg = computed(() => {
 // 查询当前用户是否已经加入课程
 const isEnrolled = ref(false)
 
+// 查询当前用户是否已加入课程小组
+const hasGroup = ref(false)
+
 // 检查用户是否已选课
 const checkEnrollment = async () => {
   try {
@@ -253,6 +256,24 @@ const checkEnrollment = async () => {
     }
   } catch (error) {
     console.error('检查选课状态失败:', error)
+  }
+}
+
+// 检查用户是否已加入课程小组
+const checkGroupEnrollment = async () => {
+  try {
+    const res = await api({
+      url: '/course-group/check',
+      method: 'get',
+      params: {
+        course_id: courseId.value
+      }
+    })
+    if (res.data.code === 200 && res.data.enrolled) {
+      hasGroup.value = true
+    }
+  } catch (error) {
+    console.error('检查小组加入状态失败:', error)
   }
 }
 
@@ -325,6 +346,7 @@ onMounted(() => {
   fetchCourseInfo()
 
   checkEnrollment()
+  checkGroupEnrollment()
 })
 
 // 方法：警告提示
@@ -550,11 +572,25 @@ const handleLessonClick = (lesson, chapter, indexPath) => {
         <div class="right-sidebar">
           <!-- 已经开始学习所展示的内容 -->
           <div v-if="isEnrolled">
+            <!-- 学习进度：始终显示 -->
             <div class="course-process" :class="themeClass">
               <StudentProgressComponent :user-progress="userProgress" />
             </div>
-            <div class="class-rank">
+            <!-- 导师+排行：仅在已加入小组时显示 -->
+            <div class="class-rank" v-if="hasGroup">
               <StudentRankComponent :course-id="courseId" :chapters="courseInfo.Chapters" />
+            </div>
+            <!-- 未加入小组时显示引导 -->
+            <div class="no-group-tip" v-else>
+              <div class="tip-content">
+                <div class="tip-main">
+                  <div class="tip-title">加入学习小组</div>
+                  <div class="tip-desc">和同伴一起讨论课程内容</div>
+                </div>
+                <el-button type="primary" round class="join-group-btn">
+                  加入小组
+                </el-button>
+              </div>
             </div>
           </div>
 
@@ -928,21 +964,20 @@ const handleLessonClick = (lesson, chapter, indexPath) => {
 
 /* 右侧边栏 */
 .right-sidebar {
-  width: 300px;
+  width: 350px;
   flex-shrink: 0;
 }
 
 .course-process {
-  width: 300px;
-  height: 120px;
-  /* margin-top: 20px; */
+  width: 350px;
+  height: 150px;
   margin-bottom: 20px;
-  padding: 20px;
-  padding-bottom: 10px;
+  padding: 16px 20px;
   border-radius: 16px;
   border: 1px solid;
   transition: all 0.15s ease-in-out;
   cursor: pointer;
+  box-sizing: border-box;
 }
 
 /* 主题适配 - 课程进度卡片 */
@@ -981,8 +1016,103 @@ const handleLessonClick = (lesson, chapter, indexPath) => {
 /* 移除旧的 course-details 样式，因为现在使用 left-content */
 
 .class-rank{
-  padding-right: 5px;
-  width: 320px;
+  width: 350px;
+}
+
+/* 未加入小组提示 */
+.no-group-tip {
+  width: 350px;
+  padding: 16px 20px;
+  border-radius: 12px;
+  margin-top: 20px;
+  transition: all 0.25s ease;
+  box-sizing: border-box;
+}
+
+.theme-light .no-group-tip {
+  background: linear-gradient(135deg, #f5e6e8 0%, #ece0e3 100%);
+  border: 1px solid #d4c4c7;
+  box-shadow: 0 2px 12px rgba(180, 130, 140, 0.12);
+}
+
+.theme-dark .no-group-tip {
+  background: linear-gradient(135deg, #4a5568 0%, #3d4450 100%);
+  border: 1px solid #5a6570;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+}
+
+.tip-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.tip-main {
+  flex: 1;
+}
+
+.tip-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.theme-light .tip-title {
+  color: #8e7d7f;
+}
+
+.theme-dark .tip-title {
+  color: #e2e8f0;
+}
+
+.tip-desc {
+  font-size: 12px;
+}
+
+.theme-light .tip-desc {
+  color: #a89090;
+}
+
+.theme-dark .tip-desc {
+  color: #a0aec0;
+}
+
+.join-group-btn {
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.theme-light .join-group-btn {
+  background-color: #c9a4a4;
+  border-color: #c9a4a4;
+  color: #fff;
+}
+
+.theme-light .join-group-btn:hover {
+  background-color: #b89595;
+  border-color: #b89595;
+  transform: translateY(-1px);
+}
+
+.theme-dark .join-group-btn {
+  background-color: #718096;
+  border-color: #718096;
+  color: #fff;
+}
+
+.theme-dark .join-group-btn:hover {
+  background-color: #4a5568;
+  border-color: #4a5568;
+  transform: translateY(-1px);
+}
+
+.theme-dark .join-group-btn:hover {
+  background-color: #7986cb;
+  border-color: #7986cb;
+  transform: translateY(-1px);
 }
 
 /* 响应式设计 */
