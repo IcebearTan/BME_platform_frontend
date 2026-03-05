@@ -1,7 +1,7 @@
 <template>
   <div :class="['rank-container', { 'theme-dark': isDarkMode, 'theme-light': !isDarkMode }]">
     <div class="title">出勤月榜</div>
-    <div class="student-container">
+    <div class="student-container" v-if="userRanks.length > 0">
         <div class="single-student-container" v-for="(user, index) in userRanks" :key="index">
             <div :class="{'index': true, 'index-gold': index === 0, 'index-silver': index === 1, 'index-bronze': index === 2}">{{ index + 1 }}</div>
             <div class="block">
@@ -12,6 +12,9 @@
                 <div class="label">{{ user.total_hours }} h</div>
             </div>
         </div>
+    </div>
+    <div v-else class="empty-tip">
+        本月还没有人上榜哦～
     </div>
   </div>
 </template>
@@ -156,6 +159,20 @@ onMounted(() => {
 .theme-dark .title {
   color: #ffffff;
   border-bottom-color: #ffffff;
+}
+.empty-tip {
+    text-align: center;
+    padding: 40px 0;
+    font-size: 14px;
+    transition: color 0.3s ease;
+}
+
+.theme-light .empty-tip {
+    color: #999999;
+}
+
+.theme-dark .empty-tip {
+    color: #666666;
 }
 .single-student-container{
     display: flex;
