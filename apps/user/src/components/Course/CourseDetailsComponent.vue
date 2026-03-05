@@ -55,7 +55,11 @@ const randomColor = (courseName) => {
     return colorPalette[index];
 };
 
+// 加载状态
+const isLoading = ref(true)
+
 const fetchCourseInfo = async () => {
+  isLoading.value = true
   try {
     const res = await api({
       url: '/course/search',
@@ -72,6 +76,8 @@ const fetchCourseInfo = async () => {
     }
   } catch (error) {
     console.error(error)
+  } finally {
+    isLoading.value = false
   }
 }
 
@@ -232,27 +238,72 @@ const wrapperBg = computed(() => {
 // 查询当前用户是否已经加入课程
 const isEnrolled = ref(false)
 
-// 调试模式：点击加入学习按钮
-const debugEnroll = () => {
-  if (!isEnrolled.value) {
-    isEnrolled.value = true
-    userProgress.value = {
-      chapters: 3,
-      section_num: 1,
-      section_name: '第一节',
-      chapter_num: 1,
-      chapter_name: '第一章',
-      progress: 30,
+// 检查用户是否已选课
+const checkEnrollment = async () => {
+  try {
+    const res = await api({
+      url: '/userCourse/check',
+      method: 'get',
+      params: {
+        Course_Id: courseId.value
+      }
+    })
+    if (res.data.code === 200 && res.data.data?.enrolled) {
+      isEnrolled.value = true
     }
-    // 调试用的已完成课时列表
-    completedLessons.value = ['1-1', '1-2', '2-1']
+  } catch (error) {
+    console.error('检查选课状态失败:', error)
+  }
+}
+
+// 点击加入/退课按钮
+const debugEnroll = async () => {
+  if (!isEnrolled.value) {
+    // 选课
+    try {
+      const res = await api({
+        url: '/userCourse/enroll',
+        method: 'post',
+        data: {
+          Course_Id: courseId.value
+        }
+      })
+      if (res.data.code === 200) {
+        isEnrolled.value = true
+        ElMessage.success('选课成功')
+      } else {
+        ElMessage.error(res.data.message || '选课失败')
+      }
+    } catch (error) {
+      console.error('选课失败:', error)
+      ElMessage.error('选课失败，请重试')
+    }
+  } else {
+    // 退课
+    try {
+      const res = await api({
+        url: '/userCourse/drop',
+        method: 'post',
+        data: {
+          Course_Id: courseId.value
+        }
+      })
+      if (res.data.code === 200) {
+        isEnrolled.value = false
+        ElMessage.success('退课成功')
+      } else {
+        ElMessage.error(res.data.message || '退课失败')
+      }
+    } catch (error) {
+      console.error('退课失败:', error)
+      ElMessage.error('退课失败，请重试')
+    }
   }
 }
 
 // 已完成课时列表，用于显示勾选标记
 const completedLessons = ref([])
 
-const enrolledList = ref([])
 const userProgress = ref({
   chapters: 0,
   section_num: 0,
@@ -262,46 +313,6 @@ const userProgress = ref({
   progress: 0,
 }) //个人进度
 
-const getEnrollments = async () => {
-  // 未登录时不请求
-  const token = localStorage.getItem('token');
-  if (!token) {
-    enrolledList.value = [];
-    return;
-  }
-  try {
-    const res = await api({
-      url: '/learningProgress/student',
-      method: 'get',
-    })
-
-    if (res.data.code === 200) {
-      // console.log(res)
-      enrolledList.value = res.data.data.records
-    }
-  } catch (error) { }
-}
-
-const checkEnrollment = async () => {
-  await getEnrollments()
-  // console.log(courseId.value)
-  const courseIdInt = parseInt(courseId.value, 10); // 转为整数
-  // console.log(enrolledList.value.length)
-  for (let i = 0; i < enrolledList.value.length; i++) {
-    if (enrolledList.value[i].course_id === courseIdInt) {
-      // 已加入课程
-      isEnrolled.value = true;
-      Object.assign(userProgress.value, {
-        section_num: enrolledList.value[i].section_num,
-        section_name: enrolledList.value[i].section_name,
-        chapter_num: enrolledList.value[i].chapter_num,
-        chapter_name: enrolledList.value[i].chapter_name,
-        progress: enrolledList.value[i].progress
-      });
-      break;
-    }
-  }
-}
 
 const checkUnlock = (chapterOrder) => {
   // 解锁条件：小节序号 ≤ 已完成章节数 + 1
@@ -335,7 +346,10 @@ const courseDifficulty = computed(() => {
 })
 
 const courseHour = computed(() => {
-  return courseInfo.value?.Course_Class_Hour ? courseInfo.value.Course_Class_Hour + ' 学时' : '未知'
+  const minutes = courseInfo.value?.Course_Class_Hour
+  if (!minutes) return '未知'
+  const hours = Math.floor(minutes / 60)
+  return hours + ' 小时'
 })
 
 // 面包屑导航数据
@@ -464,8 +478,14 @@ const handleLessonClick = (lesson, chapter, indexPath) => {
 
 <template>
   <div class="course-wrapper" :class="themeClass" :style="{ background: wrapperBg }">
+    <!-- 加载动画 -->
+    <div v-if="isLoading" class="loading-container">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">加载中...</div>
+    </div>
+
     <!-- 居中容器 -->
-    <div class="main-container">
+    <div class="main-container" v-else>
       <!-- 面包屑导航 -->
       <div class="breadcrumb-container" :class="themeClass">
         <div class="breadcrumb-nav">
@@ -498,7 +518,7 @@ const handleLessonClick = (lesson, chapter, indexPath) => {
                 {{ courseInfo.Introduction }}
               </div>
               <div class="course-bottom">
-                <el-button type="primary" plain size="large" @click="debugEnroll()" :class="{'is-enrolled-btn': isEnrolled}">{{ isEnrolled ? '正在学习' : '加入学习'}}</el-button>
+                <el-button :class="['enrolled-btn', { 'is-enrolled': isEnrolled }]" type="primary" plain size="large" @click="debugEnroll()">{{ isEnrolled ? '正在学习' : '加入学习' }}</el-button>
                 <el-button type="primary" size="large" @click="handleDownload()">下载内容</el-button>
               </div>
             </div>
@@ -582,6 +602,39 @@ const handleLessonClick = (lesson, chapter, indexPath) => {
 </template>
 
 <style scoped>
+/* 加载动画样式 */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #409eff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-text {
+  margin-top: 16px;
+  font-size: 14px;
+  color: #909399;
+}
+
+.theme-dark .loading-text {
+  color: #a0a0a0;
+}
+
 /* 面包屑导航样式 */
 .breadcrumb-container {
   width: 100%;
@@ -1275,6 +1328,20 @@ const handleLessonClick = (lesson, chapter, indexPath) => {
   background-color: #67c23a !important;
   border-color: #67c23a !important;
   color: #fff !important;
+}
+
+/* 正在学习按钮 - 淡蓝样式 */
+.enrolled-btn.is-enrolled {
+  background-color: #a0cfff !important;
+  border-color: #a0cfff !important;
+  color: #fff !important;
+  cursor: default !important;
+  opacity: 0.8;
+}
+
+.enrolled-btn.is-enrolled:hover {
+  background-color: #a0cfff !important;
+  border-color: #a0cfff !important;
 }
 
 /* 没有更多内容提示 */

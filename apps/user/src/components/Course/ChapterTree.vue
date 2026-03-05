@@ -177,12 +177,12 @@ const isDark = computed(() => props.themeClass === 'theme-dark')
         }"
         @click="handleClick(chapter, index)"
       >
-        <!-- 序号圆圈 - 仅第一级显示 -->
+        <!-- 序号圆圈 - 仅第一级显示，使用顺序编号 -->
         <span
           v-if="level === 1"
           class="chapter-index"
         >
-          {{ chapter.order }}
+          {{ index + 1 }}
         </span>
 
         <!-- 章节标题 -->
