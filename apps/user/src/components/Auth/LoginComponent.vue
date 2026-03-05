@@ -155,7 +155,7 @@ async function submitForm() {
       localStorage.setItem('token', res.data.token)
       store.commit('setUser', res.data)
       await fetchAvatar()
-      router.push('/')
+      router.push('/home')
       ElMessage.success('登录成功')
     }
   } catch (err) {
