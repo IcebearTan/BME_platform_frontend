@@ -6,7 +6,7 @@ import { ElMessage } from 'element-plus'
 import api from '../../api'
 import { API_URL } from '../../api'
 import { Star, StarFilled } from '@element-plus/icons-vue'
-import StudentProgressComponent from './StudentProgressComponent.vue'
+
 import StudentRankComponent from './StudentRankComponent.vue'
 import ChapterTree from './ChapterTree.vue'
 
@@ -367,6 +367,15 @@ const courseDifficulty = computed(() => {
   return d ? difficultyMap[d] || '未知' : '未知'
 })
 
+// 学习进度
+const learningProgress = computed(() => {
+  if (!userProgress.value.chapter_num || userProgress.value.chapter_num <= 0) {
+    return '暂无'
+  }
+  const percent = Math.round(userProgress.value.chapter_num * 100 / (userProgress.value.chapters || 1))
+  return percent + '%'
+})
+
 const courseHour = computed(() => {
   const minutes = courseInfo.value?.Course_Class_Hour
   if (!minutes) return '未知'
@@ -570,12 +579,48 @@ const handleLessonClick = (lesson, chapter, indexPath) => {
 
         <!-- 右侧边栏 -->
         <div class="right-sidebar">
-          <!-- 已经开始学习所展示的内容 -->
-          <div v-if="isEnrolled">
-            <!-- 学习进度：始终显示 -->
-            <div class="course-process" :class="themeClass">
-              <StudentProgressComponent :user-progress="userProgress" />
+          <!-- 课程信息：始终显示 -->
+          <div class="course-difficulty" :class="themeClass">
+            <span class="difficulty-label" :class="themeClass">课程难度</span>
+            <div class="difficulty-stars-container">
+              <el-icon
+                v-for="n in 5"
+                :key="n"
+                :class="n <= (courseInfo.Course_Difficulty == null ? 0 : courseInfo.Course_Difficulty) ? 'star-icon' : 'star-outline-icon'"
+              >
+                <component :is="n <= (courseInfo.Course_Difficulty == null ? 0 : courseInfo.Course_Difficulty) ? StarFilled : Star" />
+              </el-icon>
+              <span class="difficulty-text" :class="themeClass">{{ courseDifficulty }}</span>
             </div>
+          </div>
+          <div class="course-period" :class="themeClass">
+            <span class="period-item" :class="themeClass">
+              <div class="period-value" :class="themeClass">{{ courseInfo.Chapters || 0 }} 章</div>
+              <div class="period-label" :class="themeClass">章节数量</div>
+            </span>
+            <span class="period-item" :class="themeClass">
+              <div class="period-value" :class="themeClass">{{ courseHour }}</div>
+              <div class="period-label" :class="themeClass">预计时长</div>
+            </span>
+            <span class="period-item" :class="themeClass" v-if="isEnrolled">
+              <div class="period-value" :class="themeClass">{{ learningProgress }}</div>
+              <div class="period-label" :class="themeClass">学习进度</div>
+            </span>
+          </div>
+          <div class="course-tags">
+            <el-tag
+              v-for="item in items"
+              :key="item.label"
+              :type="item.type"
+              effect="light"
+              round
+            >
+              {{ item.label }}
+            </el-tag>
+          </div>
+
+          <!-- 已开始学习所展示的额外内容 -->
+          <div v-if="isEnrolled" class="enrolled-extra">
             <!-- 导师+排行：仅在已加入小组时显示 -->
             <div class="class-rank" v-if="hasGroup">
               <StudentRankComponent :course-id="courseId" :chapters="courseInfo.Chapters" />
@@ -591,44 +636,6 @@ const handleLessonClick = (lesson, chapter, indexPath) => {
                   加入小组
                 </el-button>
               </div>
-            </div>
-          </div>
-
-          <!-- 未加入学习展示的内容 -->
-          <div v-else>
-            <div class="course-difficulty" :class="themeClass">
-              <span class="difficulty-label" :class="themeClass">课程难度</span>
-              <div class="difficulty-stars-container">
-                <el-icon
-                  v-for="n in 5"
-                  :key="n"
-                  :class="n <= (courseInfo.Course_Difficulty == null ? 0 : courseInfo.Course_Difficulty) ? 'star-icon' : 'star-outline-icon'"
-                >
-                  <component :is="n <= (courseInfo.Course_Difficulty == null ? 0 : courseInfo.Course_Difficulty) ? StarFilled : Star" />
-                </el-icon>
-                <span class="difficulty-text" :class="themeClass">{{ courseDifficulty }}</span>
-              </div>
-            </div>
-            <div class="course-period" :class="themeClass">
-              <span class="period-item" :class="themeClass">
-                <div class="period-value" :class="themeClass">{{ courseInfo.Chapters || 0 }} 章</div>
-                <div class="period-label" :class="themeClass">章节数量</div>
-              </span>
-              <span class="period-item" :class="themeClass">
-                <div class="period-value" :class="themeClass">{{ courseHour }}</div>
-                <div class="period-label" :class="themeClass">预计时长</div>
-              </span>
-            </div>
-            <div class="course-tags">
-              <el-tag
-                v-for="item in items"
-                :key="item.label"
-                :type="item.type"
-                effect="light"
-                round
-              >
-                {{ item.label }}
-              </el-tag>
             </div>
           </div>
         </div>
@@ -686,7 +693,7 @@ const handleLessonClick = (lesson, chapter, indexPath) => {
 
 .breadcrumb-item {
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 .breadcrumb-item:not(.breadcrumb-active):hover {
@@ -755,11 +762,11 @@ const handleLessonClick = (lesson, chapter, indexPath) => {
 }
 
 .theme-light .course-contents-header {
-  border-color: #e6e6e6;
+  border-color: #eee;
 }
 
 .theme-dark .course-contents-header {
-  border-color: #404040;
+  border-color: #333;
 }
 
 .course-contents-title {
@@ -806,25 +813,45 @@ const handleLessonClick = (lesson, chapter, indexPath) => {
 }
 
 .period-item {
-  width: 50%;
-  padding-right: 15px;
+  flex: 1;
+  padding: 0 8px;
+  text-align: center;
 }
 
 .period-item:first-child {
   border-right: 1px solid;
-  padding-right: 15px;
 }
 
 .period-item:last-child {
-  padding-left: 15px;
+  border-left: 1px solid;
+}
+
+.period-item:not(:first-child):not(:last-child) {
+  border-left: 1px solid;
 }
 
 .theme-light .period-item:first-child {
-  border-color: #e6e6e6;
+  border-color: #eee;
 }
 
 .theme-dark .period-item:first-child {
-  border-color: #404040;
+  border-color: #333;
+}
+
+.theme-light .period-item:last-child {
+  border-color: #eee;
+}
+
+.theme-light .period-item:not(:first-child):not(:last-child) {
+  border-color: #eee;
+}
+
+.theme-dark .period-item:last-child {
+  border-color: #333;
+}
+
+.theme-dark .period-item:not(:first-child):not(:last-child) {
+  border-color: #333;
 }
 
 .period-value {
@@ -975,7 +1002,7 @@ const handleLessonClick = (lesson, chapter, indexPath) => {
   padding: 16px 20px;
   border-radius: 16px;
   border: 1px solid;
-  transition: all 0.15s ease-in-out;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
   cursor: pointer;
   box-sizing: border-box;
 }
@@ -983,26 +1010,29 @@ const handleLessonClick = (lesson, chapter, indexPath) => {
 /* 主题适配 - 课程进度卡片 */
 .theme-light .course-process {
   background-color: #ffffff;
-  border-color: #e6e6e6;
+  border-color: #eee;
   box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
 
 .theme-dark .course-process {
   background-color: #2d2d2d;
-  border-color: #404040;
+  border-color: #333;
   box-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }
 
 .course-process:hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
   transform: scale(1.02);
 }
 
 .theme-light .course-process:hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
   box-shadow: 0 4px 16px rgba(0,0,0,0.12);
   border-color: #d0d0d0;
 }
 
 .theme-dark .course-process:hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
   box-shadow: 0 4px 16px rgba(0,0,0,0.4);
   border-color: #505050;
 }
@@ -1014,6 +1044,10 @@ const handleLessonClick = (lesson, chapter, indexPath) => {
 }
 
 /* 移除旧的 course-details 样式，因为现在使用 left-content */
+
+.enrolled-extra {
+  margin-top: 20px;
+}
 
 .class-rank{
   width: 350px;
@@ -1030,9 +1064,9 @@ const handleLessonClick = (lesson, chapter, indexPath) => {
 }
 
 .theme-light .no-group-tip {
-  background: linear-gradient(135deg, #f5e6e8 0%, #ece0e3 100%);
-  border: 1px solid #d4c4c7;
-  box-shadow: 0 2px 12px rgba(180, 130, 140, 0.12);
+  background: linear-gradient(135deg, #eff8f8 0%, #e0ecec 100%);
+  border: 1px solid #b8d4d4;
+  box-shadow: 0 2px 12px rgba(80, 140, 140, 0.12);
 }
 
 .theme-dark .no-group-tip {
@@ -1059,7 +1093,7 @@ const handleLessonClick = (lesson, chapter, indexPath) => {
 }
 
 .theme-light .tip-title {
-  color: #8e7d7f;
+  color: #6e9a9a;
 }
 
 .theme-dark .tip-title {
@@ -1071,7 +1105,7 @@ const handleLessonClick = (lesson, chapter, indexPath) => {
 }
 
 .theme-light .tip-desc {
-  color: #a89090;
+  color: #7eacac;
 }
 
 .theme-dark .tip-desc {
@@ -1082,19 +1116,20 @@ const handleLessonClick = (lesson, chapter, indexPath) => {
   padding: 8px 16px;
   font-size: 13px;
   font-weight: 500;
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 .theme-light .join-group-btn {
-  background-color: #c9a4a4;
-  border-color: #c9a4a4;
+  background-color: #7eacac;
+  border-color: #7eacac;
   color: #fff;
 }
 
 .theme-light .join-group-btn:hover {
-  background-color: #b89595;
-  border-color: #b89595;
-  transform: translateY(-1px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  background-color: #6c9c9c;
+  border-color: #6c9c9c;
+  transform: translateY(-2px); box-shadow: 0 4px 12px rgba(110, 156, 156, 0.3);
 }
 
 .theme-dark .join-group-btn {
@@ -1104,15 +1139,17 @@ const handleLessonClick = (lesson, chapter, indexPath) => {
 }
 
 .theme-dark .join-group-btn:hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
   background-color: #4a5568;
   border-color: #4a5568;
-  transform: translateY(-1px);
+  transform: translateY(-2px); box-shadow: 0 4px 12px rgba(110, 156, 156, 0.3);
 }
 
 .theme-dark .join-group-btn:hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
   background-color: #7986cb;
   border-color: #7986cb;
-  transform: translateY(-1px);
+  transform: translateY(-2px); box-shadow: 0 4px 12px rgba(110, 156, 156, 0.3);
 }
 
 /* 响应式设计 */
@@ -1256,13 +1293,13 @@ const handleLessonClick = (lesson, chapter, indexPath) => {
 /* 主题适配 - 课程内容卡片 */
 .theme-light .course-content-card {
   background-color: #ffffff;
-  border-color: #e6e6e6;
+  border-color: #eee;
   box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
 
 .theme-dark .course-content-card {
   background-color: #2d2d2d;
-  border-color: #404040;
+  border-color: #333;
   box-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }
 
@@ -1273,11 +1310,11 @@ const handleLessonClick = (lesson, chapter, indexPath) => {
 }
 
 .theme-light .course-content-item {
-  border-color: #e6e6e6;
+  border-color: #eee;
 }
 
 .theme-dark .course-content-item {
-  border-color: #404040;
+  border-color: #333;
 }
 
 .course-content-item-index {
@@ -1308,7 +1345,7 @@ const handleLessonClick = (lesson, chapter, indexPath) => {
   padding: 10px;
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 /* 主题适配 - 课程内容子项 */

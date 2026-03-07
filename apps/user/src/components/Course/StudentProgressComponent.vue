@@ -2,11 +2,19 @@
   <div class="student-progress" :class="themeClass">
     <div>
       <div class="student-progress-title">个人进度</div>
-      <div class="student-progress-content">上次学到：</div>
+      <div class="student-progress-content">
+        <span v-if="props.userProgress.chapter_name">上次学到：</span>
+        <span v-else class="not-started">尚未开始</span>
+      </div>
       <div class="student-progress-content">
         <span v-if="props.userProgress.chapter_name">{{ props.userProgress.chapter_name }}</span>
         <span v-if="props.userProgress.section_name"> - {{ props.userProgress.section_name }}</span>
       </div>
+      <div class="student-progress-content" style="color: #3AC263; margin-top: 8px;">
+        <span v-if="props.userProgress.chapter_name" class="click-continue">点击继续 →</span>
+        <span v-else class="click-continue">点击开始学习 →</span>
+      </div>
+      
     </div>
     <div style="margin-left: auto;">
       <el-progress 
@@ -14,7 +22,7 @@
         color="#3AC263" 
         :percentage="displayPercentage">
         <template #default>
-          <div class="percentage-label">{{ props.userProgress.chapter_num }} / {{ props.userProgress.chapters }}</div>
+          <div class="percentage-label">{{ percentage }}%</div>
           <div class="percentage-label">已完成</div>
         </template>
       </el-progress>
@@ -123,5 +131,25 @@ watch(() => props.userProgress.chapter_num, () => {
 
 .theme-dark .student-progress-content {
     color: #bbb;
+}
+
+.theme-light .click-continue {
+    color: #3AC263;
+}
+
+.theme-light .not-started {
+    color: #999;
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.theme-dark .not-started {
+    color: #888;
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.theme-dark .click-continue {
+    color: #4ade80;
 }
 </style>
