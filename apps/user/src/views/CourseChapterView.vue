@@ -629,17 +629,17 @@ onUnmounted(() => {
 .top-bar {
   height: 60px;
   background: #ffffff;
-  border-bottom: 1px solid #e0e0e0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border-bottom: 1px solid #ebeef5;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   position: relative;
   z-index: 100;
   flex-shrink: 0;
 }
 
 .theme-dark .top-bar {
-  background: #2a2a2a;
-  border-bottom: 1px solid #404040;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  background: #252525;
+  border-bottom: 1px solid #363636;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
 }
 
 .top-bar-content {
@@ -655,25 +655,26 @@ onUnmounted(() => {
   align-items: center;
   gap: 8px;
   padding: 8px 16px;
-  border-radius: 12px;
+  border-radius: 10px;
   cursor: pointer;
-  transition: all 0.2s ease;
-  color: #666666;
-  background: #f5f5f5;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  color: #606266;
+  background: #f5f7fa;
 }
 
 .back-button:hover {
-  background: #e8e8e8;
-  color: #333333;
+  background: #e8ecf0;
+  color: #303133;
+  transform: translateX(-2px);
 }
 
 .theme-dark .back-button {
   color: #b0b0b0;
-  background: #3a3a3a;
+  background: #2d2d2d;
 }
 
 .theme-dark .back-button:hover {
-  background: #4a4a4a;
+  background: #3a3a3a;
   color: #e5e5e5;
 }
 
@@ -739,15 +740,15 @@ onUnmounted(() => {
 
 /* --- 左侧目录 --- */
 .sidebar-catalog {
-  width: 380px;
+  width: 320px;
   background: #ffffff;
-  border-right: 1px solid #e0e0e0;
+  border-right: 1px solid #ebeef5;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  display: flex;
-  flex-direction: column;
   transition: width 0.3s ease;
+  /* 添加柔和的阴影效果 */
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.03);
 }
 
 .sidebar-catalog.collapsed {
@@ -755,9 +756,9 @@ onUnmounted(() => {
 }
 
 .theme-dark .sidebar-catalog {
-  background: #2a2a2a;
-  border-right: 1px solid #404040;
-  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.2);
+  background: #252525;
+  border-right: 1px solid #363636;
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.15);
 }
 
 .catalog-content {
@@ -765,128 +766,246 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  padding-top: 20px;
+  padding-top: 16px;
+  /* 添加柔和的渐变背景 */
+  background: linear-gradient(180deg, #ffffff 0%, #fafbfc 100%);
+}
+
+.theme-dark .catalog-content {
+  background: linear-gradient(180deg, #252525 0%, #1f1f1f 100%);
 }
 
 .catalog-list {
   flex: 1;
   overflow-y: auto;
-  padding: 8px 0;
+  padding: 4px 12px;
 }
 
-/* 通用目录项样式 */
+/* 优化滚动条样式 - 更柔和 */
+.catalog-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.catalog-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.catalog-list::-webkit-scrollbar-thumb {
+  background: #dcdfe6;
+  border-radius: 3px;
+}
+
+.catalog-list::-webkit-scrollbar-thumb:hover {
+  background: #c0c4cc;
+}
+
+.theme-dark .catalog-list::-webkit-scrollbar-thumb {
+  background: #404040;
+}
+
+.theme-dark .catalog-list::-webkit-scrollbar-thumb:hover {
+  background: #505050;
+}
+
+/* 通用目录项样式 - 优化为更柔和的设计 */
 .catalog-item {
-  padding: 12px 16px;
+  padding: 12px 14px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   border-radius: 8px;
-  margin: 4px 0;
+  margin: 3px 0;
   background-color: transparent;
+  position: relative;
+  /* 柔和的字体颜色 */
+  color: #606266;
+}
+
+/* 左侧高亮条 - 关键设计元素 */
+.catalog-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 0;
+  background: #409eff;
+  border-radius: 0 2px 2px 0;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: 0;
 }
 
 .catalog-item:hover {
-  background-color: #f5f5f5;
+  background-color: #f5f7fa;
+  color: #303133;
 }
 
+.theme-dark .catalog-item:hover {
+  background-color: #2d2d2d;
+  color: #e5e5e5;
+}
+
+/* 当前激活的章节 - 蓝色高亮条 */
 .catalog-item.active {
-  background-color: #333333;
-  color: #ffffff;
+  background-color: #ecf5ff;
+  color: #409eff;
+}
+
+.catalog-item.active::before {
+  height: 24px;
+  opacity: 1;
 }
 
 .catalog-item.active .catalog-item-title {
+  color: #303133;
+  font-weight: 600;
+}
+
+.theme-dark .catalog-item.active {
+  background-color: #1a3a5c;
+  color: #7db3ff;
+}
+
+.theme-dark .catalog-item.active .catalog-item-title {
   color: #ffffff;
 }
 
 .catalog-item.active .expand-icon {
-  color: #ffffff !important;
+  color: #409eff !important;
 }
 
 .catalog-item.active .status-icon {
-  color: #ffffff !important;
+  color: #409eff !important;
 }
 
 .catalog-item.active .status-icon.completed {
-  color: #7dd3fc !important;
+  color: #67c23a !important;
 }
 
 .catalog-item.active .status-icon.locked {
-  color: #d1d5db !important;
+  color: #909399 !important;
 }
 
 .theme-dark .catalog-item {
-  background-color: transparent;
-}
-
-.theme-dark .catalog-item:hover {
-  background-color: #3a3a3a;
-}
-
-.theme-dark .catalog-item.active {
-  background-color: #e5e5e5;
-  color: #333333;
-}
-
-.theme-dark .catalog-item.active .catalog-item-title {
-  color: #333333;
+  color: #b0b0b0;
 }
 
 .theme-dark .catalog-item.active .expand-icon {
-  color: #333333 !important;
+  color: #7db3ff !important;
 }
 
 .theme-dark .catalog-item.active .status-icon {
-  color: #333333 !important;
+  color: #7db3ff !important;
 }
 
 .theme-dark .catalog-item.active .status-icon.completed {
-  color: #22c55e !important;
+  color: #67c23a !important;
 }
 
 .theme-dark .catalog-item.active .status-icon.locked {
   color: #6b7280 !important;
 }
 
-/* 父章节样式 */
+/* 父章节样式 - 更柔和的设计 */
 .catalog-item.parent-item {
-  padding: 14px 16px;
+  padding: 14px 14px;
   font-weight: 600;
-  margin: 6px 0;
+  margin: 6px 0 3px 0;
+  color: #303133;
+  font-size: 14px;
 }
 
-/* 子章节样式 */
+.theme-dark .catalog-item.parent-item {
+  color: #e5e5e5;
+}
+
+.catalog-item.parent-item:hover {
+  background-color: #f5f7fa;
+}
+
+.theme-dark .catalog-item.parent-item:hover {
+  background-color: #2d2d2d;
+}
+
+.catalog-item.parent-item.active {
+  background-color: #ecf5ff;
+  color: #409eff;
+}
+
+.theme-dark .catalog-item.parent-item.active {
+  background-color: #1a3a5c;
+  color: #7db3ff;
+}
+
+/* 子章节样式 - 更柔和的设计 */
 .catalog-item.sub-item {
-  margin-left: 16px;
+  margin-left: 6px;
   margin-right: 0;
-  padding: 10px 16px;
+  padding: 10px 12px;
+  font-size: 13px;
+  border-left: 1px solid transparent;
+}
+
+.catalog-item.sub-item:hover {
+  background-color: #f5f7fa;
+}
+
+.theme-dark .catalog-item.sub-item:hover {
+  background-color: #2d2d2d;
 }
 
 .catalog-item.sub-item.locked {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
 .catalog-item.sub-item.completed {
-  opacity: 0.8;
+  opacity: 0.85;
 }
 
 .theme-dark .catalog-item.sub-item.completed {
-  opacity: 0.8;
+  opacity: 0.7;
 }
 
-/* 子章节折叠/展开动画 */
+/* 子章节与父章节的连接线 - 增加层次感 */
+.catalog-item.sub-item::after {
+  content: '';
+  position: absolute;
+  left: -6px;
+  top: 50%;
+  width: 6px;
+  height: 1px;
+  background-color: #dcdfe6;
+}
+
+.theme-dark .catalog-item.sub-item::after {
+  background-color: #404040;
+}
+
+.catalog-item.sub-item.active::after {
+  background: linear-gradient(90deg, #409eff 0%, #dcdfe6 100%);
+}
+
+.theme-dark .catalog-item.sub-item.active::after {
+  background: linear-gradient(90deg, #409eff 0%, #404040 100%);
+}
+
+/* 子章节折叠/展开动画 - 更柔和的效果 */
 .sub-chapters {
   overflow: hidden;
-  transition: all 0.3s ease;
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .sub-chapters.collapsed {
   max-height: 0;
   opacity: 0;
+  margin-top: 0;
 }
 
 .sub-chapters.expanded {
   max-height: 1000px;
   opacity: 1;
+  margin-top: 4px;
 }
 
 .catalog-item-content {
@@ -898,48 +1017,63 @@ onUnmounted(() => {
 
 .catalog-item-text {
   flex: 1;
+  /* 添加细微的文字阴影增加层次感 */
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.theme-dark .catalog-item-text {
+  text-shadow: none;
 }
 
 .catalog-item-title {
   display: block;
   font-weight: 500;
   line-height: 1.4;
-  font-size: clamp(13px, 2.5vw, 16px);
+  font-size: clamp(12px, 2vw, 14px);
+  color: #303133;
+  transition: color 0.25s ease;
+}
+
+.theme-dark .catalog-item-title {
+  color: #e5e5e5;
 }
 
 .expand-icon {
-  font-size: clamp(14px, 2.5vw, 16px);
-  color: #666666;
-  transition: transform 0.2s ease;
+  font-size: clamp(11px, 1.8vw, 12px);
+  color: #c0c4cc;
+  transition: all 0.25s ease;
 }
 
 .theme-dark .expand-icon {
-  color: #b0b0b0;
+  color: #606266;
 }
 
 .status-icon {
-  font-size: clamp(14px, 2.5vw, 16px);
-  color: #666666;
+  font-size: clamp(12px, 2vw, 14px);
+  color: #67c23a;
+  /* 添加柔和的光晕效果 */
+  filter: drop-shadow(0 0 2px rgba(103, 194, 58, 0.3));
 }
 
 .status-icon.completed {
-  color: #52c41a !important;
+  color: #67c23a !important;
 }
 
 .status-icon.locked {
-  color: #d9d9d9 !important;
+  color: #c0c4cc !important;
+  filter: none;
 }
 
 .theme-dark .status-icon {
-  color: #b0b0b0;
+  color: #67c23a;
 }
 
 .theme-dark .status-icon.completed {
-  color: #73d13d !important;
+  color: #67c23a !important;
 }
 
 .theme-dark .status-icon.locked {
-  color: #595959 !important;
+  color: #606266 !important;
 }
 
 /* --- 右侧内容区 --- */
@@ -1328,7 +1462,7 @@ onUnmounted(() => {
   
   .sidebar-catalog {
     width: 100%;
-    max-height: 200px;
+    max-height: 180px;
     order: 2;
   }
   
