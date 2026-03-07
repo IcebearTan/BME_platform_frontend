@@ -532,7 +532,7 @@ const fetchChapterData = async () => {
     sortNodes(rootNodes);
 
     // 处理每个节点，为有课时的章节添加详情，并设置锁定状态
-    const processChapters = (nodes, parentCompleted = true) => {
+    const processChapters = (nodes) => {
       nodes.forEach((node) => {
         // 确保有展开状态（默认展开）
         if (node.expanded === undefined) {
@@ -548,8 +548,8 @@ const fetchChapterData = async () => {
           node.videoUrl = lesson.Lesson_Video;
           node.videoPoster = lesson.Lesson_Cover;
           node.content = lesson.Lesson_Content || '';
-          // 设置锁定状态：只有在前一个章节已完成且父节点已解锁时才解锁
-          node.locked = !node.completed && !parentCompleted;
+          // 默认不锁定，用户可以自由选择学习任意章节
+          node.locked = false;
         } else {
           // 没有课时的章节，默认不锁定
           node.locked = false;
@@ -558,7 +558,7 @@ const fetchChapterData = async () => {
 
         // 递归处理子节点
         if (node.children && node.children.length > 0) {
-          processChapters(node.children, !node.locked && node.completed !== false);
+          processChapters(node.children);
         }
       });
     };
@@ -596,8 +596,58 @@ const fetchChapterData = async () => {
     };
 
     // 只有在没有路由参数时才默认选中第一个章节
-    // 如果有 chapterId 或 lessonId，说明是从其他页面跳转过来的，由 watch 处理
+    // 如果有 chapterId 或 lessonId，说明是从其他页面跳转过来的
     const hasRouteParams = route.query.chapterId || route.query.lessonId;
+    const lessonId = route.query.lessonId;
+
+    if (hasRouteParams && lessonId) {
+      // 有 lessonId，查找对应的课时并选中
+      const findLessonInChapter = (nodes) => {
+        for (const node of nodes) {
+          if (node.lessons && node.lessons.length > 0) {
+            const targetId = parseInt(lessonId);
+            const lesson = node.lessons.find(l => {
+              const lessonIdVal = l.Lesson_Id || l.id;
+              return Number(lessonIdVal) === targetId;
+            });
+            if (lesson) {
+              return { lesson, chapter: node };
+            }
+          }
+          if (node.children && node.children.length > 0) {
+            const result = findLessonInChapter(node.children);
+            if (result) return result;
+          }
+        }
+        return null;
+      };
+
+      const result = findLessonInChapter(rootNodes);
+      if (result) {
+        const { lesson, chapter } = result;
+        console.log('Loaded - Selecting lesson:', lesson.title || lesson.Lesson_Name, 'chapter:', chapter.name);
+        if (!chapter.locked) {
+          // 先展开父级章节
+          if (chapter.parent) {
+            chapter.parent.expanded = true;
+          }
+          if (chapter.parent && chapter.parent.parent) {
+            chapter.parent.parent.expanded = true;
+          }
+
+          currentChapter.value = chapter;
+          currentLesson.value = lesson;
+          currentChapterIndex.value = flatChapters.value.findIndex(c => c.id === chapter.id);
+
+          // 不需要更新路由，因为是从其他页面跳转过来的，路由参数已经正确
+          return;
+        }
+      } else {
+        console.log('Lesson not found with lessonId:', lessonId);
+      }
+    }
+
+    // 如果没有 lessonId 或没找到课时，默认选中第一个章节
     if (!hasRouteParams) {
       const firstChapter = findFirstLessonChapter(rootNodes);
       if (firstChapter) {
@@ -845,11 +895,10 @@ watch(() => chapterList.value, () => {
     return;
   }
 
-  console.log('Watch triggered - chapterId:', chapterId, 'lessonId:', lessonId, 'chapterList length:', chapterList.value.length);
+  console.log('Watch chapterList triggered - chapterId:', chapterId, 'lessonId:', lessonId);
 
   // 确保章节数据已加载
   if (chapterList.value.length === 0) {
-    console.log('Chapter list is empty, waiting...');
     return;
   }
 
@@ -858,19 +907,12 @@ watch(() => chapterList.value, () => {
     for (const node of nodes) {
       // 检查当前章节是否有该课时
       if (node.lessons && node.lessons.length > 0 && lessonId) {
-        // 确保类型一致进行比较
         const targetId = parseInt(lessonId);
-        console.log('Checking lessons in chapter:', node.name, 'targetId:', targetId);
-        for (const l of node.lessons) {
-          const lessonIdVal = l.Lesson_Id || l.id;
-          console.log('  Lesson:', l.title || l.Lesson_Name, 'id:', lessonIdVal, 'type:', typeof lessonIdVal);
-        }
         const lesson = node.lessons.find(l => {
           const lessonIdVal = l.Lesson_Id || l.id;
           return Number(lessonIdVal) === targetId;
         });
         if (lesson) {
-          console.log('Found lesson:', lesson.title || lesson.Lesson_Name, 'in chapter:', node.name);
           return { lesson, chapter: node };
         }
       }
@@ -884,17 +926,28 @@ watch(() => chapterList.value, () => {
   };
 
   if (lessonId) {
-    // 尝试在所有章节中查找对应的课时
     const result = findLessonInChapter(chapterList.value);
+    console.log('findLessonInChapter result:', result);
     if (result) {
       const { lesson, chapter } = result;
-      console.log('Selecting lesson:', lesson.title || lesson.Lesson_Name, 'chapter:', chapter.name);
+      console.log('Found chapter.locked:', chapter.locked, 'chapter name:', chapter.name);
       if (!chapter.locked) {
-        handleLessonSelect(lesson, chapter);
+        // 展开父级章节
+        if (chapter.parent) {
+          chapter.parent.expanded = true;
+        }
+        if (chapter.parent && chapter.parent.parent) {
+          chapter.parent.parent.expanded = true;
+        }
+
+        currentChapter.value = chapter;
+        currentLesson.value = lesson;
+        currentChapterIndex.value = flatChapters.value.findIndex(c => c.id === chapter.id);
+        console.log('chapterList watch set lesson:', lesson.Lesson_Name || lesson.title);
         return;
       }
     } else {
-      console.log('Lesson not found with lessonId:', lessonId);
+      console.log('Lesson not found in chapterList watch');
     }
   }
 
@@ -915,10 +968,17 @@ watch(() => route.query, (newQuery) => {
 
   if (!chapterId && !lessonId) return;
 
-  console.log('Route query changed - chapterId:', chapterId, 'lessonId:', lessonId);
+  console.log('Route query watch - chapterId:', chapterId, 'lessonId:', lessonId);
 
   // 确保章节数据已加载
   if (chapterList.value.length === 0) return;
+
+  // 检查是否已经是当前选中的课时
+  const currentLessonId = currentLesson.value ? (currentLesson.value.Lesson_Id || currentLesson.value.id) : null;
+  if (lessonId && currentLessonId && Number(currentLessonId) === parseInt(lessonId)) {
+    console.log('Lesson already selected, skipping');
+    return;
+  }
 
   const findLessonInChapter = (nodes) => {
     for (const node of nodes) {
@@ -945,7 +1005,18 @@ watch(() => route.query, (newQuery) => {
     if (result) {
       const { lesson, chapter } = result;
       if (!chapter.locked) {
-        handleLessonSelect(lesson, chapter);
+        // 展开父级章节
+        if (chapter.parent) {
+          chapter.parent.expanded = true;
+        }
+        if (chapter.parent && chapter.parent.parent) {
+          chapter.parent.parent.expanded = true;
+        }
+
+        currentChapter.value = chapter;
+        currentLesson.value = lesson;
+        currentChapterIndex.value = flatChapters.value.findIndex(c => c.id === chapter.id);
+        console.log('route watch set lesson:', lesson.Lesson_Name || lesson.title);
         return;
       }
     }
