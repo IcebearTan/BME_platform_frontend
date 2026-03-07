@@ -308,7 +308,7 @@ const handleEntryClick = (entry) => {
   display: flex;
   flex-direction: column;
   min-width: 0; /* 允许flex项目收缩到最小尺寸 */
-  overflow: hidden; /* 左侧内容防止溢出，不影响右侧阴影 */
+  overflow: visible; /* 允许轮播悬停效果溢出显示 */
 }
 
 .right-section {

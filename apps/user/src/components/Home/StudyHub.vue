@@ -179,6 +179,7 @@ onMounted(() => {
 .banner-section {
   width: 100%;
   position: relative;
+  overflow: visible;
 }
 
 .banner-item {
@@ -186,14 +187,15 @@ onMounted(() => {
   width: 100%;
   height: 100%;
   cursor: pointer;
-  overflow: hidden;
   border-radius: 12px;
   transition: all 0.3s ease;
+  overflow: visible;
 }
 
 .banner-item:hover {
   transform: scale(1.02);
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  z-index: 10;
 }
 
 .banner-image {
@@ -201,6 +203,7 @@ onMounted(() => {
   height: 100%;
   object-fit: cover;
   transition: all 0.3s ease;
+  border-radius: 12px;
 }
 
 .banner-overlay {
@@ -218,6 +221,7 @@ onMounted(() => {
   text-align: center;
   padding: 20px;
   z-index: 2;
+  border-radius: 12px;
 }
 
 .banner-title {
@@ -405,6 +409,27 @@ onMounted(() => {
 .entry-card:hover .entry-arrow {
   opacity: 1;
   transform: translate(2px, -2px);
+}
+
+/* 轮播组件样式修复 - 允许悬停时放大效果溢出显示 */
+:deep(.el-carousel) {
+  overflow: visible !important;
+}
+
+:deep(.el-carousel__container) {
+  overflow: visible !important;
+}
+
+:deep(.el-carousel__item--card) {
+  overflow: visible !important;
+}
+
+:deep(.el-carousel__item--card.is-active) {
+  z-index: 2;
+}
+
+:deep(.el-carousel__item) {
+  overflow: visible;
 }
 
 /* 轮播组件主题适配 */
