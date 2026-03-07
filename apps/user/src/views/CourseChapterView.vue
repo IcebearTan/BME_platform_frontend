@@ -19,63 +19,194 @@
       <div class="sidebar-catalog" :class="{ 'collapsed': isCatalogCollapsed }">
         <div class="catalog-content" v-show="!isCatalogCollapsed">
           <div class="catalog-list">
-            <div 
-              v-for="(chapter, index) in filteredChapterList" 
+            <div
+              v-for="chapter in filteredChapterList"
               :key="chapter.id"
               class="catalog-chapter"
             >
-              <!-- 父章节 -->
-              <div 
+              <!-- 一级章节（章）- 仅展开/折叠 -->
+              <div
                 class="catalog-item parent-item"
-                :class="{ 'expanded': chapter.expanded }"
+                :class="{ 'expanded': chapter.expanded, 'has-children': chapter.children && chapter.children.length > 0 }"
                 @click="toggleParentChapter(chapter)"
               >
                 <div class="catalog-item-content">
                   <div class="catalog-item-text">
-                    <span class="catalog-item-title">{{ chapter.title }}</span>
+                    <span class="catalog-item-title">{{ chapter.name }}</span>
                   </div>
-                  <el-icon class="expand-icon">
+                  <el-icon class="expand-icon" v-if="chapter.children && chapter.children.length > 0">
                     <ArrowDown v-if="chapter.expanded" />
                     <ArrowRight v-else />
                   </el-icon>
                 </div>
               </div>
-              
-              <!-- 子章节 -->
-              <div 
-                v-if="chapter.subChapters && chapter.subChapters.length > 0" 
-                class="sub-chapters"
-                :class="{ 
-                  'expanded': chapter.expanded,
-                  'collapsed': !chapter.expanded 
-                }"
+
+              <!-- 一级章节的直接课时（如果有） -->
+              <div
+                v-if="chapter.expanded && chapter.lessons && chapter.lessons.length > 0"
+                class="level1-lessons"
               >
-                <div 
-                  v-for="(subChapter, subIndex) in chapter.subChapters"
-                  :key="`${chapter.id}-${subIndex}`"
-                  class="catalog-item sub-item"
-                  :class="{ 
-                    'active': subChapter.id === currentChapter?.id,
-                    'completed': subChapter.completed,
-                    'locked': subChapter.locked 
+                <div
+                  v-for="(lesson, lessonIndex) in chapter.lessons"
+                  :key="`level1-lesson-${lesson.Lesson_Id || lesson.id}`"
+                  class="catalog-item lesson-item"
+                  :class="{
+                    'active': currentLesson && (currentLesson.Lesson_Id || currentLesson.id) === (lesson.Lesson_Id || lesson.id),
+                    'completed': lesson.Lesson_Is_Complete,
+                    'locked': false
                   }"
-                  @click="handleChapterSelect(subChapter, index, subIndex)"
+                  @click="handleLessonSelect(lesson, chapter)"
                 >
                   <div class="catalog-item-content">
                     <div class="catalog-item-text">
-                      <span class="catalog-item-title">{{ subChapter.title }}</span>
+                      <span class="lesson-title">{{ lesson.Lesson_Name || lesson.Lesson_Title || lesson.title }}</span>
                     </div>
-                    <el-icon 
+                    <el-icon
                       class="status-icon"
                       :class="{
-                        'completed': subChapter.completed,
-                        'locked': subChapter.locked
+                        'completed': lesson.Lesson_Is_Complete
                       }"
-                      v-if="subChapter.completed || subChapter.locked"
+                      v-if="lesson.Lesson_Is_Complete"
                     >
-                      <Select v-if="subChapter.completed" />
-                      <Lock v-else-if="subChapter.locked" />
+                      <Select />
                     </el-icon>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 二级章节（节）+ 课时列表 -->
+              <div
+                v-if="chapter.children && chapter.children.length > 0"
+                class="sub-chapters"
+                :class="{
+                  'expanded': chapter.expanded,
+                  'collapsed': !chapter.expanded
+                }"
+              >
+                <div
+                  v-for="(subChapter, subIndex) in chapter.children"
+                  :key="`${chapter.id}-${subIndex}`"
+                  class="sub-chapter-group"
+                >
+                  <!-- 二级章节标题 - 可展开/折叠 -->
+                  <div
+                    class="catalog-item sub-item sub-chapter-header"
+                    :class="{
+                      'has-children': subChapter.children && subChapter.children.length > 0,
+                      'has-lessons': subChapter.lessons && subChapter.lessons.length > 0,
+                      'expanded': subChapter.expanded
+                    }"
+                    @click="toggleSubChapter(subChapter)"
+                  >
+                    <div class="catalog-item-content">
+                      <div class="catalog-item-text">
+                        <span class="catalog-item-title">{{ subChapter.name }}</span>
+                      </div>
+                      <el-icon class="expand-icon" v-if="(subChapter.children && subChapter.children.length > 0) || (subChapter.lessons && subChapter.lessons.length > 0)">
+                        <ArrowDown v-if="subChapter.expanded" />
+                        <ArrowRight v-else />
+                      </el-icon>
+                    </div>
+                  </div>
+
+                  <!-- 三级章节 + 课时列表 - 根据二级章节展开状态显示 -->
+                  <div
+                    v-if="subChapter.expanded"
+                    class="third-chapters"
+                    :class="{ 'expanded': subChapter.expanded }"
+                  >
+                    <!-- 二级章节的直接课时（始终显示，只要它有课时） -->
+                    <div
+                      v-if="subChapter.lessons && subChapter.lessons.length > 0"
+                      class="lesson-list"
+                    >
+                      <div
+                        v-for="(lesson, lessonIndex) in subChapter.lessons"
+                        :key="`lesson-${lesson.Lesson_Id || lesson.id}`"
+                        class="catalog-item lesson-item"
+                        :class="{
+                          'active': currentLesson && (currentLesson.Lesson_Id || currentLesson.id) === (lesson.Lesson_Id || lesson.id),
+                          'completed': lesson.Lesson_Is_Complete,
+                          'locked': false
+                        }"
+                        @click="handleLessonSelect(lesson, subChapter)"
+                      >
+                        <div class="catalog-item-content">
+                          <div class="catalog-item-text">
+                            <span class="lesson-title">{{ lesson.Lesson_Name || lesson.Lesson_Title || lesson.title }}</span>
+                          </div>
+                          <el-icon
+                            class="status-icon"
+                            :class="{
+                              'completed': lesson.Lesson_Is_Complete
+                            }"
+                            v-if="lesson.Lesson_Is_Complete"
+                          >
+                            <Select />
+                          </el-icon>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- 三级章节 -->
+                    <div
+                      v-for="(thirdChapter, thirdIndex) in (subChapter.children || [])"
+                      :key="`${subChapter.id}-${thirdIndex}`"
+                      class="third-chapter-group"
+                    >
+                      <!-- 三级章节标题 - 可展开/折叠 -->
+                      <div
+                        class="catalog-item third-item third-chapter-header"
+                        :class="{
+                          'has-lessons': thirdChapter.lessons && thirdChapter.lessons.length > 0,
+                          'expanded': thirdChapter.expanded
+                        }"
+                        @click="toggleThirdChapter(thirdChapter)"
+                      >
+                        <div class="catalog-item-content">
+                          <div class="catalog-item-text">
+                            <span class="catalog-item-title">{{ thirdChapter.name }}</span>
+                          </div>
+                          <el-icon class="expand-icon" v-if="thirdChapter.lessons && thirdChapter.lessons.length > 0">
+                            <ArrowDown v-if="thirdChapter.expanded" />
+                            <ArrowRight v-else />
+                          </el-icon>
+                        </div>
+                      </div>
+
+                      <!-- 课时列表 - 根据三级章节展开状态显示 -->
+                      <div
+                        v-if="thirdChapter.lessons && thirdChapter.lessons.length > 0 && thirdChapter.expanded"
+                        class="lesson-list"
+                      >
+                        <div
+                          v-for="(lesson, lessonIndex) in thirdChapter.lessons"
+                          :key="`lesson-${lesson.Lesson_Id || lesson.id}`"
+                          class="catalog-item lesson-item"
+                          :class="{
+                            'active': currentLesson && (currentLesson.Lesson_Id || currentLesson.id) === (lesson.Lesson_Id || lesson.id),
+                            'completed': lesson.Lesson_Is_Complete,
+                            'locked': false
+                          }"
+                          @click="handleLessonSelect(lesson, thirdChapter)"
+                        >
+                          <div class="catalog-item-content">
+                            <div class="catalog-item-text">
+                              <span class="lesson-title">{{ lesson.Lesson_Name || lesson.Lesson_Title || lesson.title }}</span>
+                            </div>
+                            <el-icon
+                              class="status-icon"
+                              :class="{
+                                'completed': lesson.Lesson_Is_Complete
+                              }"
+                              v-if="lesson.Lesson_Is_Complete"
+                            >
+                              <Select />
+                            </el-icon>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -86,30 +217,31 @@
 
       <!-- 右侧内容区 -->
       <div class="content-area">
-        <div class="content-wrapper" v-if="currentChapter">
+        <div class="content-wrapper" v-if="currentChapter || currentLesson">
           <!-- 章节标题 -->
           <div class="chapter-header">
             <div class="chapter-header-content">
               <div class="chapter-info">
-                <h1 class="chapter-title-main">{{ currentChapter.title }}</h1>
-                <p class="chapter-subtitle-main" v-if="currentChapter.subtitle">{{ currentChapter.subtitle }}</p>
+                <!-- 使用 displayData 计算属性 -->
+                <h1 class="chapter-title-main">{{ displayData.title }}</h1>
+                <p class="chapter-subtitle-main" v-if="currentLesson && currentChapter">{{ currentChapter.name }}</p>
               </div>
               <div class="chapter-meta">
-                <div class="meta-item" v-if="currentChapter.duration">
+                <div class="meta-item" v-if="displayData.time">
                   <el-icon class="meta-icon"><Clock /></el-icon>
-                  <span class="meta-text">{{ currentChapter.duration }}</span>
+                  <span class="meta-text">{{ displayData.time }}</span>
                 </div>
-                <div class="meta-item" v-if="currentChapter.progress !== undefined">
+                <div class="meta-item" v-if="currentChapter?.progress !== undefined">
                   <el-icon class="meta-icon"><TrendCharts /></el-icon>
                   <span class="meta-text">{{ Math.round(currentChapter.progress) }}% 完成</span>
                 </div>
-                <div class="meta-item" v-if="!currentChapter.completed">
+                <div class="meta-item" v-if="currentChapter && !currentChapter.completed">
                   <el-button type="primary" size="small" @click="handleMarkCompleted">
                     <el-icon><Select /></el-icon>
                     标记完成
                   </el-button>
                 </div>
-                <div class="meta-item" v-else>
+                <div class="meta-item" v-else-if="currentChapter?.completed">
                   <el-tag type="success" size="large">
                     <el-icon><Select /></el-icon>
                     已完成
@@ -118,16 +250,16 @@
               </div>
             </div>
           </div>
-          
+
           <!-- 章节内容 -->
           <div class="chapter-content">
             <!-- 视频区域 -->
-            <div class="video-section" v-if="currentChapter.videoUrl">
+            <div class="video-section" v-if="displayData.videoUrl">
               <div class="video-container">
-                <video 
-                  :src="currentChapter.videoUrl" 
-                  controls 
-                  :poster="currentChapter.videoPoster"
+                <video
+                  :src="displayData.videoUrl"
+                  controls
+                  :poster="displayData.cover"
                   @loadedmetadata="handleVideoLoaded"
                   @timeupdate="handleVideoProgress"
                 >
@@ -138,11 +270,11 @@
 
             <!-- 文档内容区域 -->
             <div class="document-section">
-              <div class="document-content" v-html="currentChapter.content"></div>
+              <div class="document-content" v-html="displayData.content"></div>
             </div>
 
             <!-- 相关题目区域 -->
-            <div class="questions-section" v-if="currentChapter.questions && currentChapter.questions.length > 0">
+            <div class="questions-section" v-if="displayData.questions && displayData.questions.length > 0">
               <div class="section-header">
                 <h3>相关题目</h3>
                 <el-button type="primary" @click="handleAllQuestions">
@@ -152,7 +284,7 @@
               
               <div class="questions-grid">
                 <div 
-                  v-for="question in currentChapter.questions.slice(0, 6)" 
+                  v-for="question in displayData.questions.slice(0, 6)" 
                   :key="question.id"
                   class="question-card"
                   @click="handleQuestionClick(question)"
@@ -176,14 +308,14 @@
             </div>
 
             <!-- 附件资源区域 -->
-            <div class="resources-section" v-if="currentChapter.resources && currentChapter.resources.length > 0">
+            <div class="resources-section" v-if="displayData.resources && displayData.resources.length > 0">
               <div class="section-header">
                 <h3>课程资源</h3>
               </div>
               
               <div class="resources-list">
                 <div 
-                  v-for="resource in currentChapter.resources" 
+                  v-for="resource in displayData.resources" 
                   :key="resource.id"
                   class="resource-item"
                   @click="handleResourceDownload(resource)"
@@ -227,8 +359,13 @@
           </div>
         </div>
 
+        <!-- 加载状态 -->
+        <div class="loading-state" v-if="isLoading">
+          <el-empty description="加载中..." />
+        </div>
+
         <!-- 空状态 -->
-        <div class="empty-state" v-else>
+        <div class="empty-state" v-else-if="!currentChapter && !currentLesson">
           <el-empty description="请选择要学习的章节" />
         </div>
       </div>
@@ -240,13 +377,15 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useStore } from 'vuex';
-import { 
-  ArrowLeft, 
+import api from '../api';
+import { ElMessage } from 'element-plus';
+import {
+  ArrowLeft,
   ArrowRight,
   ArrowDown,
-  Document, 
-  Select, 
-  Lock, 
+  Document,
+  Select,
+  Lock,
   Picture,
   VideoPlay,
   Link,
@@ -264,172 +403,225 @@ const store = useStore();
 const isDarkMode = computed(() => store.state.isDarkMode);
 const isCatalogCollapsed = ref(false);
 const currentChapter = ref(null);
+const currentLesson = ref(null);
 const currentChapterIndex = ref(0);
 const videoProgress = ref(0);
+const isLoading = ref(true);
+const courseId = computed(() => route.params.courseId);
 
-// 章节列表数据 (实际开发中从API获取)
-const chapterList = ref([
-  {
-    id: 1,
-    title: '生物医学工程基础',
-    isParent: true,
-    expanded: true,
-    subChapters: [
-      {
-        id: 11,
-        title: '生物医学工程概述',
-        subtitle: '了解生物医学工程的基本概念和发展历程',
-        duration: '45分钟',
-        completed: true,
-        locked: false,
-        progress: 100,
-        videoUrl: '/videos/chapter1.mp4',
-        videoPoster: '/images/chapter1-poster.jpg',
-        content: `
-          <h2>1.1 生物医学工程的定义</h2>
-          <p>生物医学工程是运用工程学的理论和技术来解决生物学和医学问题的交叉学科...</p>
-          <h2>1.2 发展历史</h2>
-          <p>生物医学工程作为一门独立学科的发展可以追溯到20世纪中叶...</p>
-        `,
-        questions: [
-          { 
-            id: 1, 
-            title: '生物医学工程的定义是什么？', 
-            type: 'choice', 
-            difficulty: '简单' 
-          },
-          { 
-            id: 2, 
-            title: '简述生物医学工程的发展历程', 
-            type: 'essay', 
-            difficulty: '中等' 
-          }
-        ],
-        resources: [
-          { 
-            id: 1, 
-            name: '生物医学工程导论.pdf', 
-            type: 'pdf', 
-            size: '2.5MB',
-            url: '/resources/chapter1.pdf'
-          }
-        ]
-      },
-      {
-        id: 12,
-        title: '学科发展前沿',
-        subtitle: '探索生物医学工程的最新发展趋势',
-        duration: '35分钟',
-        completed: false,
-        locked: false,
-        progress: 0,
-        videoUrl: '/videos/chapter12.mp4',
-        content: `
-          <h2>1.3 前沿技术</h2>
-          <p>人工智能在生物医学工程中的应用...</p>
-        `,
-        questions: [],
-        resources: []
-      }
-    ]
-  },
-  {
-    id: 2,
-    title: '医学信号处理',
-    isParent: true,
-    expanded: true,
-    subChapters: [
-      {
-        id: 21,
-        title: '医学信号处理基础',
-        subtitle: '学习医学信号的特点和处理方法',
-        duration: '60分钟',
-        completed: false,
-        locked: false,
-        progress: 30,
-        videoUrl: '/videos/chapter2.mp4',
-        content: `
-          <h2>2.1 医学信号的分类</h2>
-          <p>医学信号可以分为生理信号和病理信号...</p>
-        `,
-        questions: [
-          { 
-            id: 3, 
-            title: '医学信号有哪些分类？', 
-            type: 'choice', 
-            difficulty: '中等' 
-          }
-        ],
-        resources: []
-      },
-      {
-        id: 22,
-        title: '数字滤波技术',
-        subtitle: '掌握医学信号的数字滤波方法',
-        duration: '50分钟',
-        completed: false,
-        locked: true,
-        progress: 0,
-        content: '',
-        questions: [],
-        resources: []
-      },
-      {
-        id: 23,
-        title: '频域分析',
-        subtitle: '学习医学信号的频域特征分析',
-        duration: '55分钟',
-        completed: false,
-        locked: true,
-        progress: 0,
-        content: '',
-        questions: [],
-        resources: []
-      }
-    ]
-  },
-  {
-    id: 3,
-    title: '医学图像处理',
-    isParent: true,
-    expanded: false,
-    subChapters: [
-      {
-        id: 31,
-        title: '医学图像处理技术',
-        subtitle: '掌握医学图像的获取、处理和分析技术',
-        duration: '75分钟',
-        completed: false,
-        locked: true,
-        progress: 0,
-        content: '',
-        questions: [],
-        resources: []
-      },
-      {
-        id: 32,
-        title: '图像分割与识别',
-        subtitle: '学习医学图像的分割和识别算法',
-        duration: '65分钟',
-        completed: false,
-        locked: true,
-        progress: 0,
-        content: '',
-        questions: [],
-        resources: []
-      }
-    ]
+// 章节列表数据
+const chapterList = ref([]);
+
+// 从API获取真实数据
+const fetchChapterData = async () => {
+  if (!courseId.value) {
+    ElMessage.error('课程ID不存在');
+    return;
   }
-]);
 
-// 获取所有子章节的平铺数组
+  isLoading.value = true;
+  try {
+    // 获取章节列表
+    const chapterRes = await api({
+      url: '/course/chapter_list',
+      method: 'get',
+      params: { Course_Id: courseId.value }
+    });
+
+    // 获取课时列表（包含基本信息）
+    const lessonRes = await api({
+      url: '/course/lesson/list',
+      method: 'get',
+      params: { Course_Id: courseId.value }
+    });
+
+    // 获取学习进度（包含完成状态）
+    let progressMap = {};
+    try {
+      const progressRes = await api({
+        url: '/learningProgress/lesson/list',
+        method: 'get',
+        params: { Course_Id: courseId.value }
+      });
+      if (progressRes.data.code === 200 && progressRes.data.data) {
+        progressRes.data.data.forEach(item => {
+          progressMap[item.lesson_id] = item;
+        });
+      }
+    } catch (e) {
+      console.warn('获取学习进度失败，使用默认状态', e);
+    }
+
+    // 处理课时数据 - 合并基本信息与进度
+    const lessonsMap = {};
+    if (lessonRes.data.code === 200 && lessonRes.data.data) {
+      lessonRes.data.data.forEach(item => {
+        // 合并课时基本信息和学习进度
+        const lessons = (item.lessons || []).map(lesson => {
+          const progress = progressMap[lesson.id] || {};
+          return {
+            ...lesson,
+            // 统一字段名
+            Lesson_Id: lesson.id,
+            Lesson_Name: lesson.title,
+            Lesson_Title: lesson.title,
+            Lesson_Content: lesson.content,
+            Lesson_Time: lesson.duration ? `${lesson.duration}分钟` : '0分钟',
+            Lesson_Video: lesson.resource_url,
+            Lesson_Cover: '',
+            // 学习进度状态
+            Lesson_Is_Complete: progress.status === 'completed',
+            lesson_progress: progress
+          };
+        });
+        lessonsMap[item.Chapter_Id] = lessons;
+      });
+    }
+
+    // 构建树形结构 - 与 CourseDetailsComponent 保持一致
+    const chapters = chapterRes.data || [];
+    const nodeMap = new Map();
+    const rootNodes = [];
+
+    // 初始化所有节点
+    chapters.forEach(chapter => {
+      // 获取该章节下的课时
+      const chapterLessons = lessonsMap[chapter.Chapter_Id] || [];
+
+      nodeMap.set(chapter.Chapter_Id, {
+        id: chapter.Chapter_Id,
+        title: chapter.Chapter_Name,
+        name: chapter.Chapter_Name, // 兼容 ChapterTree 的 name 字段
+        order: chapter.Chapter_Order,
+        level: chapter.Chapter_Level,
+        parentId: chapter.Chapter_Parent_Id,
+        children: [],
+        lessons: chapterLessons, // 课时数据
+        expanded: true
+      });
+    });
+
+    // 构建树形结构 - 根据 Chapter_Parent_Id 判断
+    chapters.forEach(chapter => {
+      const node = nodeMap.get(chapter.Chapter_Id);
+      if (chapter.Chapter_Parent_Id === null || chapter.Chapter_Parent_Id === undefined) {
+        // 根节点（一级章节）
+        rootNodes.push(node);
+      } else {
+        // 有父节点的节点
+        const parent = nodeMap.get(chapter.Chapter_Parent_Id);
+        if (parent) {
+          parent.children.push(node);
+          node.parent = parent; // 添加父节点引用
+        } else {
+          // 如果找不到父节点，也作为根节点处理
+          rootNodes.push(node);
+        }
+      }
+    });
+
+    // 对根节点按 order 排序
+    const sortNodes = (nodes) => {
+      nodes.sort((a, b) => a.order - b.order);
+      nodes.forEach(node => {
+        if (node.children.length > 0) {
+          sortNodes(node.children);
+        }
+      });
+    };
+    sortNodes(rootNodes);
+
+    // 处理每个节点，为有课时的章节添加详情，并设置锁定状态
+    const processChapters = (nodes, parentCompleted = true) => {
+      nodes.forEach((node) => {
+        // 确保有展开状态（默认展开）
+        if (node.expanded === undefined) {
+          node.expanded = true;
+        }
+
+        // 如果有课时，取第一个课时的内容
+        if (node.lessons && node.lessons.length > 0) {
+          const lesson = node.lessons[0];
+          node.duration = lesson.Lesson_Time || '0分钟';
+          node.completed = lesson.Lesson_Is_Complete || false;
+          node.progress = lesson.Lesson_Is_Complete ? 100 : 0;
+          node.videoUrl = lesson.Lesson_Video;
+          node.videoPoster = lesson.Lesson_Cover;
+          node.content = lesson.Lesson_Content || '';
+          // 设置锁定状态：只有在前一个章节已完成且父节点已解锁时才解锁
+          node.locked = !node.completed && !parentCompleted;
+        } else {
+          // 没有课时的章节，默认不锁定
+          node.locked = false;
+          node.completed = false;
+        }
+
+        // 递归处理子节点
+        if (node.children && node.children.length > 0) {
+          processChapters(node.children, !node.locked && node.completed !== false);
+        }
+      });
+    };
+    processChapters(rootNodes);
+
+    // 判断是否有子章节（一级章节有 children）
+    const markParent = (nodes) => {
+      nodes.forEach(node => {
+        node.isParent = node.children && node.children.length > 0;
+        // 如果是叶子节点（有课时），也需要标记
+        if (!node.isParent && node.lessons && node.lessons.length > 0) {
+          node.isLeaf = true;
+        }
+        if (node.children) {
+          markParent(node.children);
+        }
+      });
+    };
+    markParent(rootNodes);
+
+    chapterList.value = rootNodes;
+
+    // 默认选中第一个有课时的章节
+    const findFirstLessonChapter = (nodes) => {
+      for (const node of nodes) {
+        if (node.lessons && node.lessons.length > 0) {
+          return node;
+        }
+        if (node.children && node.children.length > 0) {
+          const found = findFirstLessonChapter(node.children);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
+
+    const firstChapter = findFirstLessonChapter(rootNodes);
+    if (firstChapter) {
+      handleChapterSelect(firstChapter);
+    }
+  } catch (error) {
+    console.error('获取章节数据失败:', error);
+    ElMessage.error('获取课程数据失败');
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+// 获取所有子章节的平铺数组（用于上一章/下一章导航）
 const flatChapters = computed(() => {
   const chapters = [];
-  chapterList.value.forEach(parent => {
-    if (parent.subChapters) {
-      chapters.push(...parent.subChapters);
-    }
-  });
+  const flatten = (nodes) => {
+    nodes.forEach(node => {
+      // 如果节点有子章节，递归处理
+      if (node.children && node.children.length > 0) {
+        flatten(node.children);
+      }
+      // 如果节点有课时，将该节点添加到列表（用于章节导航）
+      // 这里添加的是章节节点本身，不是课时
+      chapters.push(node);
+    });
+  };
+  flatten(chapterList.value);
   return chapters;
 });
 
@@ -440,10 +632,36 @@ const filteredChapterList = computed(() => {
 
 const hasPrevChapter = computed(() => currentChapterIndex.value > 0);
 
-const hasNextChapter = computed(() => 
-  currentChapterIndex.value < flatChapters.value.length - 1 && 
+const hasNextChapter = computed(() =>
+  currentChapterIndex.value < flatChapters.value.length - 1 &&
   !flatChapters.value[currentChapterIndex.value + 1]?.locked
 );
+
+// 当前显示的数据（课时优先，否则使用章节）
+const displayData = computed(() => {
+  if (currentLesson.value) {
+    return {
+      title: currentLesson.value.Lesson_Name || currentLesson.value.Lesson_Title || currentLesson.value.title || '',
+      content: currentLesson.value.Lesson_Content || currentLesson.value.content || '',
+      videoUrl: currentLesson.value.Lesson_Video || currentLesson.value.resource_url || '',
+      cover: currentLesson.value.Lesson_Cover || '',
+      time: currentLesson.value.Lesson_Time || (currentLesson.value.duration ? `${currentLesson.value.duration}分钟` : ''),
+      questions: currentLesson.value.questions || [],
+      resources: currentLesson.value.resources || [],
+      isComplete: currentLesson.value.Lesson_Is_Complete || false
+    };
+  }
+  return {
+    title: currentChapter.value?.name || '',
+    content: currentChapter.value?.content || '',
+    videoUrl: currentChapter.value?.videoUrl || '',
+    cover: currentChapter.value?.videoPoster || '',
+    time: currentChapter.value?.duration || '',
+    questions: currentChapter.value?.questions || [],
+    resources: currentChapter.value?.resources || [],
+    isComplete: currentChapter.value?.completed || false
+  };
+});
 
 // 方法
 const handleGoBack = () => {
@@ -458,32 +676,74 @@ const toggleParentChapter = (parent) => {
   parent.expanded = !parent.expanded;
 };
 
-const handleChapterSelect = (chapter, index) => {
+const toggleSubChapter = (subChapter) => {
+  if ((subChapter.children && subChapter.children.length > 0) || (subChapter.lessons && subChapter.lessons.length > 0)) {
+    subChapter.expanded = !subChapter.expanded;
+  }
+};
+
+const toggleThirdChapter = (thirdChapter) => {
+  if (thirdChapter.lessons && thirdChapter.lessons.length > 0) {
+    thirdChapter.expanded = !thirdChapter.expanded;
+  }
+};
+
+const handleChapterSelect = (chapter) => {
   if (chapter.locked) {
     ElMessage.warning('请完成前面的章节后再学习此章节');
     return;
   }
-  
+
   currentChapter.value = chapter;
+  currentLesson.value = null; // 清除当前课时
   currentChapterIndex.value = flatChapters.value.findIndex(c => c.id === chapter.id);
-  
+
   // 更新路由参数
   router.replace({
     query: { ...route.query, chapterId: chapter.id }
   });
 };
 
+// 处理课时点击
+const handleLessonSelect = (lesson, chapterNode) => {
+  // 如果是三级章节，需要展开其父级（二级章节）
+  if (chapterNode.parent) {
+    chapterNode.parent.expanded = true;
+  }
+
+  // 如果是三级章节，需要展开一级章节
+  const parentChapter = chapterNode.parent;
+  if (parentChapter && parentChapter.parent) {
+    parentChapter.parent.expanded = true;
+  }
+
+  currentChapter.value = chapterNode;
+  currentLesson.value = lesson;
+
+  // 更新当前章节索引
+  const chapterIndex = flatChapters.value.findIndex(c => c.id === chapterNode.id);
+  if (chapterIndex !== -1) {
+    currentChapterIndex.value = chapterIndex;
+  }
+
+  // 更新路由参数 - 使用统一的lesson id字段
+  const lessonId = lesson.Lesson_Id || lesson.id;
+  router.replace({
+    query: { ...route.query, chapterId: chapterNode.id, lessonId: lessonId }
+  });
+};
+
 const handlePrevChapter = () => {
   if (hasPrevChapter.value) {
     const prevIndex = currentChapterIndex.value - 1;
-    handleChapterSelect(flatChapters.value[prevIndex], prevIndex);
+    handleChapterSelect(flatChapters.value[prevIndex]);
   }
 };
 
 const handleNextChapter = () => {
   if (hasNextChapter.value) {
     const nextIndex = currentChapterIndex.value + 1;
-    handleChapterSelect(flatChapters.value[nextIndex], nextIndex);
+    handleChapterSelect(flatChapters.value[nextIndex]);
   }
 };
 
@@ -566,20 +826,15 @@ const getDifficultyTagType = (difficulty) => {
 
 // 生命周期
 onMounted(() => {
+  // 先获取真实数据
+  fetchChapterData();
+
   // 从路由参数初始化当前章节
   const chapterId = route.query.chapterId;
   if (chapterId) {
     const chapter = flatChapters.value.find(c => c.id === parseInt(chapterId));
     if (chapter && !chapter.locked) {
       handleChapterSelect(chapter);
-    }
-  }
-  
-  // 如果没有指定章节，默认选择第一个可用章节
-  if (!currentChapter.value) {
-    const firstAvailableChapter = flatChapters.value.find(c => !c.locked);
-    if (firstAvailableChapter) {
-      handleChapterSelect(firstAvailableChapter);
     }
   }
 });
@@ -835,6 +1090,21 @@ onUnmounted(() => {
   opacity: 0;
 }
 
+/* 章节标题左侧黑色竖线 - 始终显示 */
+.catalog-item.parent-item::before,
+.catalog-item.sub-item::before,
+.catalog-item.third-item::before {
+  height: 16px;
+  opacity: 1;
+  background: #333333;
+}
+
+/* 课时未选中时不显示任何竖线 */
+.catalog-item.lesson-item::before {
+  height: 0;
+  opacity: 0;
+}
+
 .catalog-item:hover {
   background-color: #f5f7fa;
   color: #303133;
@@ -890,6 +1160,13 @@ onUnmounted(() => {
   color: #b0b0b0;
 }
 
+/* 章节标题左侧黑色竖线 - 暗黑模式 */
+.theme-dark .catalog-item.parent-item::before,
+.theme-dark .catalog-item.sub-item::before,
+.theme-dark .catalog-item.third-item::before {
+  background: #e5e5e5;
+}
+
 .theme-dark .catalog-item.active .expand-icon {
   color: #7db3ff !important;
 }
@@ -937,13 +1214,27 @@ onUnmounted(() => {
   color: #7db3ff;
 }
 
+/* 有子章节的父章节样式 */
+.catalog-item.parent-item.has-children {
+  cursor: pointer;
+}
+
+/* 没有子章节的父章节（直接可点击） */
+.catalog-item.parent-item:not(.has-children) {
+  cursor: pointer;
+}
+
 /* 子章节样式 - 更柔和的设计 */
 .catalog-item.sub-item {
   margin-left: 6px;
   margin-right: 0;
   padding: 10px 12px;
   font-size: 13px;
-  border-left: 1px solid transparent;
+  cursor: pointer;
+}
+
+.catalog-item.sub-item.has-lessons {
+  cursor: pointer;
 }
 
 .catalog-item.sub-item:hover {
@@ -967,27 +1258,95 @@ onUnmounted(() => {
   opacity: 0.7;
 }
 
-/* 子章节与父章节的连接线 - 增加层次感 */
-.catalog-item.sub-item::after {
-  content: '';
-  position: absolute;
-  left: -6px;
-  top: 50%;
-  width: 6px;
-  height: 1px;
-  background-color: #dcdfe6;
+/* 三级章节样式 */
+.third-chapters {
+  overflow: hidden;
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.theme-dark .catalog-item.sub-item::after {
-  background-color: #404040;
+.third-chapters:not(.expanded) {
+  max-height: 0;
+  opacity: 0;
 }
 
-.catalog-item.sub-item.active::after {
-  background: linear-gradient(90deg, #409eff 0%, #dcdfe6 100%);
+.third-chapters.expanded {
+  max-height: 2000px;
+  opacity: 1;
+  margin-top: 4px;
 }
 
-.theme-dark .catalog-item.sub-item.active::after {
-  background: linear-gradient(90deg, #409eff 0%, #404040 100%);
+/* 三级章节组样式 */
+.third-chapter-group {
+  margin-bottom: 4px;
+}
+
+.catalog-item.third-item {
+  margin-left: 12px;
+  padding: 8px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.catalog-item.third-item:hover {
+  background-color: #f5f7fa;
+}
+
+.theme-dark .catalog-item.third-item:hover {
+  background-color: #2d2d2d;
+}
+
+.catalog-item.third-item .catalog-item-title {
+  font-size: 12px;
+}
+
+.catalog-item.third-item .expand-icon {
+  font-size: 10px;
+}
+
+/* 课时列表样式 - 更小的字体 */
+.lesson-list {
+  margin-left: 8px;
+  padding-left: 8px;
+}
+
+/* 一级章节课时缩进 */
+.level1-lessons {
+  margin-left: 6px;
+  padding-left: 6px;
+}
+
+.catalog-item.lesson-item {
+  padding: 8px 12px;
+  font-size: 13px;
+  border-radius: 6px;
+  margin: 2px 0;
+}
+
+.lesson-title {
+  font-size: 13px;
+  font-weight: 400;
+  color: #606266;
+}
+
+.theme-dark .lesson-title {
+  color: #b0b0b0;
+}
+
+.catalog-item.lesson-item:hover {
+  background-color: #f5f7fa;
+}
+
+.theme-dark .catalog-item.lesson-item:hover {
+  background-color: #2d2d2d;
+}
+
+.catalog-item.lesson-item.active .lesson-title {
+  color: #409eff;
+  font-weight: 500;
+}
+
+.theme-dark .catalog-item.lesson-item.active .lesson-title {
+  color: #7db3ff;
 }
 
 /* 子章节折叠/展开动画 - 更柔和的效果 */
@@ -1413,6 +1772,14 @@ onUnmounted(() => {
 
 .theme-dark .download-icon {
   color: #b0b0b0;
+}
+
+/* --- 加载状态 --- */
+.loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
 }
 
 /* --- 空状态 --- */
