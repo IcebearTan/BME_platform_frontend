@@ -191,4 +191,18 @@ const router = createRouter({
     ]
 })
 
+// 全局前置守卫：已登录用户访问首页时跳转到学习中心
+router.beforeEach((to, from, next) => {
+    const token = localStorage.getItem('token')
+    // 如果访问首页且有token，且是从其他页面导航过来的，则允许访问profile
+    if (to.path === '/' && token && from.path && from.path !== '/') {
+        next()
+    } else if (to.path === '/' && token) {
+        // 如果是刷新页面（没有from），则跳转到home
+        next('/home')
+    } else {
+        next()
+    }
+})
+
 export default router
