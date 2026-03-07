@@ -222,9 +222,9 @@ const isDark = computed(() => props.themeClass === 'theme-dark')
         </el-icon>
       </div>
 
-      <!-- 课时列表 - 展示在二级及以下章节下 -->
+      <!-- 课时列表 - 展示在所有章节下 -->
       <div
-        v-if="chapter.lessons && chapter.lessons.length > 0 && level >= 2"
+        v-if="chapter.lessons && chapter.lessons.length > 0"
         class="lesson-list"
       >
         <div
