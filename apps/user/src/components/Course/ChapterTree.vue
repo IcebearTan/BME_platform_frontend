@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { ArrowRight, Lock, VideoPlay, Document, Link, Reading, CircleCheck } from '@element-plus/icons-vue'
+import { Lock, VideoPlay, Document, Link, Reading, CircleCheck } from '@element-plus/icons-vue'
 
 const props = defineProps({
   chapters: {
@@ -42,12 +42,6 @@ const emit = defineEmits(['chapter-click', 'lesson-click'])
 // 计算解锁状态
 const checkUnlock = (chapterOrder) => {
   return chapterOrder <= props.chapterNum + 1
-}
-
-// 处理章节点击
-const handleClick = (chapter, index) => {
-  const currentIndex = props.parentIndex ? `${props.parentIndex}-${index + 1}` : String(index + 1)
-  emit('chapter-click', chapter, currentIndex)
 }
 
 // 处理课时点击
@@ -175,7 +169,6 @@ const isDark = computed(() => props.themeClass === 'theme-dark')
         :style="{
           paddingLeft: level === 1 ? '5px' : getLevelStyle(level)
         }"
-        @click="handleClick(chapter, index)"
       >
         <!-- 序号圆圈 - 仅第一级显示，使用顺序编号 -->
         <span
@@ -204,14 +197,6 @@ const isDark = computed(() => props.themeClass === 'theme-dark')
           :show-text="false"
           class="chapter-progress"
         />
-
-        <!-- 箭头图标 -->
-        <el-icon
-          v-if="isEnrolled && checkUnlock(chapter.order)"
-          class="chapter-arrow"
-        >
-          <ArrowRight />
-        </el-icon>
 
         <!-- 锁定图标 -->
         <el-icon
@@ -347,11 +332,13 @@ const isDark = computed(() => props.themeClass === 'theme-dark')
 /* 二级章节样式 */
 .chapter-item.level-2 {
   font-size: 15px;
+  font-weight: 500;
 }
 
 /* 三级及以下章节样式 */
 .chapter-item.level-3 {
   font-size: 14px;
+  font-weight: 500;
 }
 
 /* 亮色主题默认样式 */
@@ -457,7 +444,8 @@ const isDark = computed(() => props.themeClass === 'theme-dark')
 
 /* 章节进度圆环 */
 .chapter-progress {
-  margin-left: 10px;
+  margin-left: auto;
+  margin-right: 10px;
   flex-shrink: 0;
 }
 
