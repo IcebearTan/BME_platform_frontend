@@ -8,12 +8,17 @@ import './styles/global.css'
 import App from './App.vue'
 import router from './router'
 import store from './store'
+import { QuillEditor } from '@vueup/vue-quill'
+import '@vueup/vue-quill/dist/vue-quill.snow.css'
 
 const app = createApp(App)
 
 for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
     app.component(key, component)
 }
+
+// 注册 Quill 编辑器组件
+app.component('QuillEditor', QuillEditor)
 
 app.use(router)
 app.use(store)

@@ -137,6 +137,10 @@ const lessonForm = reactive({
   Resource_Url: ''
 });
 
+// 编辑课时相关
+const editingLessonId = ref(null);
+const isEditingLesson = computed(() => editingLessonId.value !== null);
+
 const lessonTypes = [
   { value: 'video', label: '视频' },
   { value: 'text', label: '图文' },
@@ -541,6 +545,69 @@ const addLesson = async () => {
   }
 };
 
+// 编辑课时 - 填充表单数据
+const editLesson = (lesson) => {
+  editingLessonId.value = lesson.id;
+  lessonForm.Lesson_Title = lesson.title;
+  lessonForm.Lesson_Type = lesson.type;
+  lessonForm.Lesson_Content = lesson.content || '';
+  lessonForm.Lesson_Duration = lesson.duration || 0;
+  lessonForm.Resource_Url = lesson.resource_url || '';
+  // 切换到编辑的章节
+  selectedChapterId.value = lesson.chapter_id;
+};
+
+// 保存编辑
+const saveLesson = async () => {
+  if (!lessonForm.Lesson_Title) {
+    ElMessage({ message: '请输入课时标题', type: 'warning' });
+    return;
+  }
+
+  // 根据课时类型验证必填字段
+  if (lessonForm.Lesson_Type === 'video' && !lessonForm.Resource_Url) {
+    ElMessage({ message: '视频课时请填写资源链接', type: 'warning' });
+    return;
+  }
+  if (lessonForm.Lesson_Type === 'link' && !lessonForm.Lesson_Content) {
+    ElMessage({ message: '外链课时请填写外链地址', type: 'warning' });
+    return;
+  }
+
+  loading.value = true;
+  try {
+    const data = {
+      lesson_id: editingLessonId.value,
+      Course_Id: courseId.value,
+      Chapter_Id: selectedChapterId.value,
+      Lesson_Title: lessonForm.Lesson_Title,
+      Lesson_Type: lessonForm.Lesson_Type,
+      Lesson_Content: lessonForm.Lesson_Content || '',
+      Lesson_Duration: lessonForm.Lesson_Duration || 0,
+      Resource_Url: lessonForm.Resource_Url || ''
+    };
+    await api.post('/course/lesson/edit', data);
+    ElMessage({ message: '课时更新成功', type: 'success' });
+    cancelEditLesson();
+    await fetchLessons();
+  } catch (error) {
+    console.error('Error saving lesson:', error);
+    ElMessage({ message: '课时更新失败', type: 'error' });
+  } finally {
+    loading.value = false;
+  }
+};
+
+// 取消编辑
+const cancelEditLesson = () => {
+  editingLessonId.value = null;
+  lessonForm.Lesson_Title = '';
+  lessonForm.Lesson_Type = 'video';
+  lessonForm.Lesson_Content = '';
+  lessonForm.Lesson_Duration = 0;
+  lessonForm.Resource_Url = '';
+};
+
 // 删除课时
 const deleteLesson = async (lesson) => {
   ElMessageBox.confirm('确定要删除该课时吗？', '提示', {
@@ -715,16 +782,37 @@ const goBack = () => {
               <el-input v-model="lessonForm.Lesson_Content" placeholder="请输入外链URL" />
             </el-form-item>
 
-            <!-- text/quiz/homework: 课时内容 -->
+            <!-- text/quiz/homework: 课时内容（富文本编辑器） -->
             <el-form-item :label="getContentLabel()" v-if="['text', 'quiz', 'homework'].includes(lessonForm.Lesson_Type)">
-              <el-input v-model="lessonForm.Lesson_Content" type="textarea" :rows="4" :placeholder="getContentPlaceholder()" />
+              <div style="border: 1px solid #dcdfe6; border-radius: 4px; width: 100%;">
+                <QuillEditor
+                  v-model:content="lessonForm.Lesson_Content"
+                  contentType="html"
+                  theme="snow"
+                  :toolbar="[
+                    ['bold', 'italic', 'underline', 'strike'],
+                    [{ 'header': [1, 2, 3, false] }],
+                    [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                    [{ 'indent': '-1'}, { 'indent': '+1' }],
+                    [{ 'align': [] }],
+                    [{ 'color': [] }, { 'background': [] }],
+                    ['link', 'image'],
+                    ['clean']
+                  ]"
+                  style="min-height: 200px;"
+                />
+              </div>
             </el-form-item>
 
             <el-form-item label="时长(分钟)">
               <el-input-number v-model="lessonForm.Lesson_Duration" :min="0" />
             </el-form-item>
             <el-form-item>
-              <el-button type="primary" @click="addLesson">添加课时</el-button>
+              <el-button v-if="!isEditingLesson" type="primary" @click="addLesson">添加课时</el-button>
+              <template v-else>
+                <el-button type="success" @click="saveLesson">保存修改</el-button>
+                <el-button @click="cancelEditLesson">取消</el-button>
+              </template>
             </el-form-item>
           </el-form>
 
@@ -739,8 +827,9 @@ const goBack = () => {
                 </template>
               </el-table-column>
               <el-table-column prop="duration" label="时长(分钟)" width="100" />
-              <el-table-column label="操作" width="120">
+              <el-table-column label="操作" width="150">
                 <template #default="scope">
+                  <el-button type="primary" size="small" @click="editLesson(scope.row)">编辑</el-button>
                   <el-button type="danger" size="small" @click="deleteLesson(scope.row)">删除</el-button>
                 </template>
               </el-table-column>
