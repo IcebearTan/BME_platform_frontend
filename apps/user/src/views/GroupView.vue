@@ -247,6 +247,7 @@ function handleCreateGroup() {
   isCreateFormVisible.value = true;
   // 重置表单
   createGroupForm.value = {
+    groupName: '',
     courseBinding: '',
     groupType: 'study',
     tutor: '当前用户',
@@ -732,6 +733,15 @@ onUnmounted(() => {
       :before-close="handleFormCancel"
     >
       <el-form :model="createGroupForm" label-width="100px">
+        <el-form-item label="小组名称" required>
+          <el-input
+            v-model="createGroupForm.groupName"
+            placeholder="请输入小组名称"
+            maxlength="30"
+            show-word-limit
+          />
+        </el-form-item>
+
         <el-form-item label="绑定课程" required>
           <el-select 
             v-model="createGroupForm.courseBinding" 
@@ -815,7 +825,7 @@ onUnmounted(() => {
           <el-button 
             type="primary" 
             @click="handleFormSubmit"
-            :disabled="!createGroupForm.courseBinding || !createGroupForm.academicYear || !createGroupForm.semester"
+            :disabled="!createGroupForm.groupName || !createGroupForm.courseBinding || !createGroupForm.academicYear || !createGroupForm.semester"
           >
             创建小组
           </el-button>

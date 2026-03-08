@@ -6,14 +6,16 @@
     
     <!-- 列表模式：显示课程分类标签 -->
     <div v-if="mode === 'list'" class="sidebar-menu">
-      <div 
-        v-for="item in listModeItems" 
+      <div
+        v-for="item in listModeItems"
         :key="item.id"
         class="sidebar-item"
         :class="{ 'active': activeTab === item.id }"
         @click="handleTabChange(item.id)"
       >
-        <span class="sidebar-icon">{{ item.icon }}</span>
+        <el-icon class="sidebar-icon">
+          <component :is="item.icon" />
+        </el-icon>
         <span class="sidebar-label">{{ item.label }}</span>
       </div>
     </div>
@@ -76,7 +78,7 @@
 <script setup>
 import { computed } from 'vue';
 import { useStore } from 'vuex';
-import { ArrowLeft, User, Bell, Document, Setting, HomeFilled, UserFilled, DataAnalysis, Clock } from '@element-plus/icons-vue';
+import { ArrowLeft, Bell, Document, Setting, HomeFilled, UserFilled, Clock, Reading, Notebook } from '@element-plus/icons-vue';
 
 // Props
 const props = defineProps({
@@ -120,8 +122,8 @@ const isDarkMode = computed(() => store.getters.isDarkMode);
 
 // 列表模式的导航项
 const listModeItems = [
-  { id: 'my-courses', label: '我听的课', icon: '📚' },
-  { id: 'my-teachings', label: '我教的课', icon: '🎓' }
+  { id: 'my-courses', label: '我听的课', icon: Reading },
+  { id: 'my-teachings', label: '我教的课', icon: Notebook }
 ];
 
 // 详情模式的导航项（根据课程类型显示不同内容）
@@ -231,13 +233,15 @@ const handleBackToList = () => {
   left: 0;
   width: 280px;
   height: calc(100vh - 60px);
-  padding: 24px 0;
-  border-right: 1px solid rgba(0, 0, 0, 0.06);
-  background-color: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
+  padding: 20px 16px;
+  background-color: #ffffff;
+  border-right: 1px solid #f0f0f0;
+  border-top: 1px solid #f0f0f0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
   transition: all 0.3s ease-in-out;
   z-index: 50;
   overflow-y: auto;
+  box-sizing: border-box;
 }
 
 .group-sidebar.header-hidden {
@@ -246,90 +250,103 @@ const handleBackToList = () => {
 }
 
 .theme-dark .group-sidebar {
-  background-color: rgba(26, 26, 26, 0.95);
-  border-right-color: rgba(255, 255, 255, 0.1);
+  background-color: #1f1f1f;
+  border-right-color: #2a2a2a;
+  border-top-color: #2a2a2a;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .sidebar-header {
-  padding: 0 24px 16px 24px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-  margin-bottom: 16px;
-}
-
-.theme-dark .sidebar-header {
-  border-bottom-color: rgba(255, 255, 255, 0.1);
+  padding: 0 8px 16px 8px;
+  margin-bottom: 12px;
 }
 
 .sidebar-title {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 600;
   margin: 0;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #323233;
+}
+
+.theme-dark .sidebar-title {
+  color: #e5e5e5;
 }
 
 /* 列表模式样式 */
 .sidebar-menu {
-  padding: 0 16px;
+  padding: 0 8px;
 }
 
 .sidebar-item {
   display: flex;
   align-items: center;
-  padding: 12px 16px;
+  padding: 14px 16px;
   margin: 4px 0;
-  border-radius: 12px;
+  border-radius: 16px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.25s ease;
   position: relative;
+  background-color: transparent;
 }
 
 .sidebar-item:hover {
-  transform: translateY(-1px);
-  background-color: rgba(102, 126, 234, 0.08);
+  background-color: #f5f7fa;
 }
 
 .theme-dark .sidebar-item:hover {
-  background-color: rgba(102, 126, 234, 0.15);
+  background-color: #2a2a2a;
 }
 
 .sidebar-item.active {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.25);
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
-  border: 1px solid rgba(102, 126, 234, 0.2);
+  background-color: #ecf5ff;
 }
 
 .theme-dark .sidebar-item.active {
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.2) 100%);
-  border: 1px solid rgba(102, 126, 234, 0.3);
+  background-color: #2d3a4f;
 }
 
 .sidebar-icon {
   font-size: 20px;
-  margin-right: 12px;
+  margin-right: 14px;
   flex-shrink: 0;
+  color: #909399;
+}
+
+.sidebar-item.active .sidebar-icon {
+  color: #409eff;
+}
+
+.theme-dark .sidebar-icon {
+  color: #606266;
+}
+
+.theme-dark .sidebar-item.active .sidebar-icon {
+  color: #409eff;
 }
 
 .sidebar-label {
-  font-size: 16px;
-  font-weight: 500;
+  font-size: 15px;
+  font-weight: 450;
   flex: 1;
+  color: #606266;
 }
 
 .sidebar-item.active .sidebar-label {
-  color: #667eea;
+  color: #409eff;
+  font-weight: 500;
+}
+
+.theme-dark .sidebar-label {
+  color: #c0c4cc;
 }
 
 .theme-dark .sidebar-item.active .sidebar-label {
-  color: #8fa4f3;
+  color: #409eff;
 }
 
 /* 详情模式样式 */
 .sidebar-content {
-  padding: 0 16px;
+  padding: 0 8px;
 }
 
 .back-button {
@@ -337,21 +354,26 @@ const handleBackToList = () => {
   align-items: center;
   padding: 12px 16px;
   margin-bottom: 20px;
-  border-radius: 12px;
+  border-radius: 14px;
   cursor: pointer;
-  transition: all 0.3s ease;
-  color: #667eea;
-  font-weight: 500;
+  transition: all 0.25s ease;
+  color: #409eff;
+  font-weight: 450;
   font-size: 14px;
+  background-color: #f5f7fa;
 }
 
 .back-button:hover {
-  background-color: rgba(102, 126, 234, 0.08);
+  background-color: #ecf5ff;
   transform: translateX(-2px);
 }
 
+.theme-dark .back-button {
+  background-color: #2a2a2a;
+}
+
 .theme-dark .back-button:hover {
-  background-color: rgba(102, 126, 234, 0.15);
+  background-color: #2d3a4f;
 }
 
 .back-icon {
@@ -360,16 +382,16 @@ const handleBackToList = () => {
 }
 
 .group-info {
-  padding: 16px;
+  padding: 18px;
   margin-bottom: 20px;
-  border-radius: 12px;
-  background-color: rgba(102, 126, 234, 0.05);
-  border: 1px solid rgba(102, 126, 234, 0.1);
+  border-radius: 16px;
+  background-color: #fafafa;
+  border: 1px solid #f0f0f0;
 }
 
 .theme-dark .group-info {
-  background-color: rgba(102, 126, 234, 0.1);
-  border-color: rgba(102, 126, 234, 0.2);
+  background-color: #252525;
+  border-color: #2a2a2a;
 }
 
 .group-avatar {
@@ -378,34 +400,34 @@ const handleBackToList = () => {
 }
 
 .avatar-placeholder {
-  width: 60px;
-  height: 60px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #409eff 0%, #67c23a 100%);
   color: white;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 600;
 }
 
 .group-name {
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 600;
   text-align: center;
   margin: 0 0 12px 0;
-  color: #1a1a1a;
+  color: #323233;
 }
 
 .theme-dark .group-name {
-  color: #ffffff;
+  color: #e5e5e5;
 }
 
 .group-meta {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .meta-item {
@@ -416,80 +438,81 @@ const handleBackToList = () => {
 }
 
 .meta-label {
-  color: #6b7280;
-  font-weight: 500;
+  color: #909399;
+  font-weight: 450;
 }
 
 .meta-value {
-  font-weight: 600;
-  color: #374151;
+  font-weight: 500;
+  color: #606266;
 }
 
 .theme-dark .meta-label {
-  color: #9ca3af;
+  color: #707070;
 }
 
 .theme-dark .meta-value {
-  color: #e5e7eb;
+  color: #c0c4cc;
 }
 
-.status-active { color: #10b981; }
-.status-completed { color: #6b7280; }
-.status-paused { color: #f59e0b; }
-.status-draft { color: #8b5cf6; }
+.status-active { color: #67c23a; }
+.status-completed { color: #909399; }
+.status-paused { color: #e6a23c; }
+.status-draft { color: #909399; }
 
 .detail-nav {
   margin-top: 16px;
 }
 
 .nav-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #6b7280;
-  margin-bottom: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #c0c4cc;
+  margin-bottom: 10px;
   padding: 0 16px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .theme-dark .nav-title {
-  color: #9ca3af;
+  color: #4a4a4a;
 }
 
 .nav-item {
   display: flex;
   align-items: center;
-  padding: 10px 16px;
-  margin: 2px 0;
-  border-radius: 8px;
+  padding: 12px 16px;
+  margin: 3px 0;
+  border-radius: 12px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.25s ease;
   font-size: 14px;
+  color: #606266;
 }
 
 .nav-item:hover {
-  background-color: rgba(102, 126, 234, 0.05);
+  background-color: #f5f7fa;
   transform: translateX(2px);
 }
 
 .theme-dark .nav-item:hover {
-  background-color: rgba(102, 126, 234, 0.1);
+  background-color: #2a2a2a;
 }
 
 .nav-item.active {
-  background-color: rgba(102, 126, 234, 0.1);
-  color: #667eea;
+  background-color: #ecf5ff;
+  color: #409eff;
   font-weight: 500;
 }
 
 .theme-dark .nav-item.active {
-  background-color: rgba(102, 126, 234, 0.2);
-  color: #8fa4f3;
+  background-color: #2d3a4f;
+  color: #409eff;
 }
 
 .nav-icon {
-  margin-right: 10px;
-  font-size: 16px;
+  margin-right: 12px;
+  font-size: 17px;
 }
 
 .nav-label {
@@ -498,7 +521,16 @@ const handleBackToList = () => {
 
 /* 滚动条样式 */
 .group-sidebar::-webkit-scrollbar {
-  width: 6px;
+  width: 4px;
+}
+
+.group-sidebar::-webkit-scrollbar-thumb {
+  background-color: #dcdfe6;
+  border-radius: 4px;
+}
+
+.theme-dark .group-sidebar::-webkit-scrollbar-thumb {
+  background-color: #3a3a3a;
 }
 
 .group-sidebar::-webkit-scrollbar-track {
