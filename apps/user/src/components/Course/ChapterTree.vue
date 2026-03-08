@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { Lock, VideoPlay, Document, Link, Reading, CircleCheck } from '@element-plus/icons-vue'
+import { VideoPlay, Document, Link, Reading, CircleCheck } from '@element-plus/icons-vue'
 
 const props = defineProps({
   chapters: {
@@ -38,11 +38,6 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['chapter-click', 'lesson-click'])
-
-// 计算解锁状态
-const checkUnlock = (chapterOrder) => {
-  return chapterOrder <= props.chapterNum + 1
-}
 
 // 处理课时点击
 const handleLessonClick = (lesson, chapter, chapterIndex) => {
@@ -131,13 +126,32 @@ const formatDuration = (minutes) => {
   return mins > 0 ? `${hours}小时${mins}分钟` : `${hours}小时`
 }
 
-// 计算章节进度百分比
+// 计算章节进度百分比 - 包括所有子章节的课时
 const getChapterProgress = (chapter) => {
-  if (!props.isEnrolled || !chapter.lessons || chapter.lessons.length === 0) return 0
-  const completedCount = chapter.lessons.filter(lesson =>
+  if (!props.isEnrolled) return 0
+
+  // 递归收集所有课时
+  const collectLessons = (node) => {
+    let lessons = []
+    if (node.lessons && node.lessons.length > 0) {
+      lessons = [...node.lessons]
+    }
+    if (node.children && node.children.length > 0) {
+      node.children.forEach(child => {
+        lessons = [...lessons, ...collectLessons(child)]
+      })
+    }
+    return lessons
+  }
+
+  const allLessons = collectLessons(chapter)
+  if (allLessons.length === 0) return 0
+
+  const completedCount = allLessons.filter(lesson =>
     props.completedLessons.includes(String(lesson.id))
   ).length
-  return Math.round((completedCount / chapter.lessons.length) * 100)
+
+  return Math.round((completedCount / allLessons.length) * 100)
 }
 
 // 检查课时是否已完成
@@ -160,8 +174,8 @@ const isDark = computed(() => props.themeClass === 'theme-dark')
       <div
         class="chapter-item"
         :class="{
-          'clickable': isEnrolled && checkUnlock(chapter.order),
-          'locked': !isEnrolled || !checkUnlock(chapter.order),
+          'clickable': true,
+          'locked': false,
           'level-1': level === 1,
           'level-2': level === 2,
           'level-3': level >= 3
@@ -186,9 +200,9 @@ const isDark = computed(() => props.themeClass === 'theme-dark')
           {{ chapter.name }}
         </span>
 
-        <!-- 章节进度圆环 - 仅第一级显示且已解锁 -->
+        <!-- 章节进度圆环 - 仅第一级显示 -->
         <el-progress
-          v-if="level === 1 && isEnrolled && checkUnlock(chapter.order)"
+          v-if="level === 1"
           type="circle"
           :percentage="getChapterProgress(chapter)"
           :width="24"
@@ -197,14 +211,6 @@ const isDark = computed(() => props.themeClass === 'theme-dark')
           :show-text="false"
           class="chapter-progress"
         />
-
-        <!-- 锁定图标 -->
-        <el-icon
-          v-if="!isEnrolled || !checkUnlock(chapter.order)"
-          class="lock-icon"
-        >
-          <Lock />
-        </el-icon>
       </div>
 
       <!-- 课时列表 - 展示在所有章节下 -->
@@ -217,8 +223,8 @@ const isDark = computed(() => props.themeClass === 'theme-dark')
           :key="lesson.id"
           class="lesson-item"
           :class="{
-            'clickable': isEnrolled && checkUnlock(chapter.order),
-            'locked': !isEnrolled || !checkUnlock(chapter.order)
+            'clickable': true,
+            'locked': false
           }"
           @click="handleLessonClick(lesson, chapter, index)"
         >
@@ -233,14 +239,6 @@ const isDark = computed(() => props.themeClass === 'theme-dark')
           <!-- 课时标题 -->
           <span class="lesson-title">{{ lesson.title }}</span>
 
-          <!-- 已完成勾选标记 -->
-          <el-icon
-            v-if="isEnrolled && isLessonCompleted(lesson)"
-            class="lesson-completed-icon"
-          >
-            <CircleCheck />
-          </el-icon>
-
           <!-- 课时类型标签 -->
           <span
             class="lesson-type-tag"
@@ -254,13 +252,15 @@ const isDark = computed(() => props.themeClass === 'theme-dark')
             {{ formatDuration(lesson.duration) }}
           </span>
 
-          <!-- 锁定图标 -->
-          <el-icon
-            v-if="!isEnrolled || !checkUnlock(chapter.order)"
-            class="lock-icon"
+          <!-- 完成状态标记 - 放在最右边 -->
+          <span
+            v-if="isEnrolled"
+            class="lesson-status-icon"
+            :class="{ 'is-completed': isLessonCompleted(lesson) }"
           >
-            <Lock />
-          </el-icon>
+            <el-icon v-if="isLessonCompleted(lesson)"><CircleCheck /></el-icon>
+            <span v-else class="empty-circle"></span>
+          </span>
         </div>
       </div>
 
@@ -445,16 +445,39 @@ const isDark = computed(() => props.themeClass === 'theme-dark')
 /* 章节进度圆环 */
 .chapter-progress {
   margin-left: auto;
-  margin-right: 10px;
+  margin-right: 0;
   flex-shrink: 0;
+  align-content: center;
 }
 
-/* 已完成课时勾选图标 */
-.lesson-completed-icon {
+/* 一级章节的进度圆环更大 */
+.chapter-item.level-1 .chapter-progress {
+  width: 32px !important;
+  height: 32px !important;
+}
+
+/* 课时状态图标 */
+.lesson-status-icon {
   font-size: 16px;
-  color: #67c23a;
   margin-left: 8px;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+}
+
+.lesson-status-icon.is-completed {
+  color: #67c23a;
+}
+
+.empty-circle {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #c0c4cc;
+  border-radius: 50%;
+  box-sizing: border-box;
 }
 
 /* 课时列表样式 */

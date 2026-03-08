@@ -116,6 +116,24 @@ const fetchCourseDetails = async () => {
 
     formatedCourseDetails.value = formatChapters(courseDetails.value, lessonsData.value)
 
+    // 获取学习进度（已完成课时）
+    try {
+      const progressRes = await api({
+        url: '/learningProgress/lesson/list',
+        method: 'get',
+        params: { Course_Id: courseId.value }
+      })
+      if (progressRes.data.code === 200 && progressRes.data.data) {
+        // 提取所有已完成课时的ID
+        const completed = progressRes.data.data
+          .filter(item => item.status === 'completed')
+          .map(item => String(item.lesson_id))
+        completedLessons.value = completed
+      }
+    } catch (e) {
+      console.warn('获取学习进度失败', e)
+    }
+
     if (chapterRes.data.code === 200) {
       //由于后端设计问题这里还需要修改
       // console.log(courseDetails.value)

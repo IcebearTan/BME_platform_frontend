@@ -231,17 +231,13 @@
                   <el-icon class="meta-icon"><Clock /></el-icon>
                   <span class="meta-text">{{ displayData.time }}</span>
                 </div>
-                <div class="meta-item" v-if="currentChapter?.progress !== undefined">
-                  <el-icon class="meta-icon"><TrendCharts /></el-icon>
-                  <span class="meta-text">{{ Math.round(currentChapter.progress) }}% 完成</span>
-                </div>
-                <div class="meta-item" v-if="currentChapter && !currentChapter.completed">
+                <div class="meta-item" v-if="currentLesson && !currentLesson.Lesson_Is_Complete">
                   <el-button type="primary" size="small" @click="handleMarkCompleted">
                     <el-icon><Select /></el-icon>
                     标记完成
                   </el-button>
                 </div>
-                <div class="meta-item" v-else-if="currentChapter?.completed">
+                <div class="meta-item" v-else-if="currentLesson?.Lesson_Is_Complete">
                   <el-tag type="success" size="large">
                     <el-icon><Select /></el-icon>
                     已完成
@@ -390,8 +386,7 @@ import {
   VideoPlay,
   Link,
   Download,
-  Clock,
-  TrendCharts
+  Clock
 } from '@element-plus/icons-vue';
 
 // 路由和状态管理
@@ -459,8 +454,10 @@ const fetchChapterData = async () => {
         // 合并课时基本信息和学习进度
         const lessons = (item.lessons || []).map(lesson => {
           const progress = progressMap[lesson.id] || {};
-          return {
-            ...lesson,
+          // 提取进度状态为独立的基本类型，避免引用共享对象
+          const isCompleted = progress.status === 'completed';
+          // 创建新的lesson对象，确保每个lesson有独立的完成状态
+          const newLesson = {
             // 统一字段名
             Lesson_Id: lesson.id,
             Lesson_Name: lesson.title,
@@ -469,10 +466,18 @@ const fetchChapterData = async () => {
             Lesson_Time: lesson.duration ? `${lesson.duration}分钟` : '0分钟',
             Lesson_Video: lesson.resource_url,
             Lesson_Cover: '',
-            // 学习进度状态
-            Lesson_Is_Complete: progress.status === 'completed',
-            lesson_progress: progress
+            // 学习进度状态 - 使用独立的布尔值，不再引用progress对象
+            Lesson_Is_Complete: isCompleted,
+            // 保存进度信息用于后续API调用
+            progressData: {
+              lesson_id: lesson.id,
+              course_id: courseId.value,
+              status: progress.status || 'not_started'
+            },
+            // 确保每个lesson有独立的id
+            id: lesson.id
           };
+          return newLesson;
         });
         lessonsMap[item.Chapter_Id] = lessons;
       });
@@ -579,6 +584,7 @@ const fetchChapterData = async () => {
     };
     markParent(rootNodes);
 
+    // 使用浅层ref，确保每个lesson对象独立
     chapterList.value = rootNodes;
 
     // 默认选中第一个有课时的章节
@@ -625,25 +631,17 @@ const fetchChapterData = async () => {
       const result = findLessonInChapter(rootNodes);
       if (result) {
         const { lesson, chapter } = result;
-        console.log('Loaded - Selecting lesson:', lesson.title || lesson.Lesson_Name, 'chapter:', chapter.name);
-        if (!chapter.locked) {
-          // 先展开父级章节
-          if (chapter.parent) {
-            chapter.parent.expanded = true;
-          }
-          if (chapter.parent && chapter.parent.parent) {
-            chapter.parent.parent.expanded = true;
-          }
-
-          currentChapter.value = chapter;
-          currentLesson.value = lesson;
-          currentChapterIndex.value = flatChapters.value.findIndex(c => c.id === chapter.id);
-
-          // 不需要更新路由，因为是从其他页面跳转过来的，路由参数已经正确
-          return;
+        // 先展开父级章节
+        if (chapter.parent) {
+          chapter.parent.expanded = true;
         }
-      } else {
-        console.log('Lesson not found with lessonId:', lessonId);
+        if (chapter.parent && chapter.parent.parent) {
+          chapter.parent.parent.expanded = true;
+        }
+
+        currentChapter.value = chapter;
+        currentLesson.value = lesson;
+        currentChapterIndex.value = flatChapters.value.findIndex(c => c.id === chapter.id);
       }
     }
 
@@ -662,22 +660,55 @@ const fetchChapterData = async () => {
   }
 };
 
-// 获取所有子章节的平铺数组（用于上一章/下一章导航）
+// 获取所有章节的平铺数组（用于上一章/下一章导航）
 const flatChapters = computed(() => {
   const chapters = [];
   const flatten = (nodes) => {
     nodes.forEach(node => {
-      // 如果节点有子章节，递归处理
+      // 先添加当前节点（如果有课时）
+      if (node.lessons && node.lessons.length > 0) {
+        chapters.push(node);
+      }
+      // 再递归处理子节点
       if (node.children && node.children.length > 0) {
         flatten(node.children);
       }
-      // 如果节点有课时，将该节点添加到列表（用于章节导航）
-      // 这里添加的是章节节点本身，不是课时
-      chapters.push(node);
     });
   };
   flatten(chapterList.value);
   return chapters;
+});
+
+// 获取所有课时的平铺数组（用于上一课/下一课导航）
+const flatLessons = computed(() => {
+  const lessons = [];
+  const flatten = (nodes) => {
+    nodes.forEach(node => {
+      // 如果有课时，添加所有课时
+      if (node.lessons && node.lessons.length > 0) {
+        node.lessons.forEach(lesson => {
+          lessons.push({
+            lesson,
+            chapter: node
+          });
+        });
+      }
+      // 递归处理子节点
+      if (node.children && node.children.length > 0) {
+        flatten(node.children);
+      }
+    });
+  };
+  flatten(chapterList.value);
+  return lessons;
+});
+
+// 当前课时索引
+const currentLessonIndex = computed(() => {
+  if (!currentLesson.value) return -1;
+  return flatLessons.value.findIndex(item =>
+    (item.lesson.Lesson_Id || item.lesson.id) === (currentLesson.value.Lesson_Id || currentLesson.value.id)
+  );
 });
 
 // 计算属性
@@ -685,11 +716,10 @@ const filteredChapterList = computed(() => {
   return chapterList.value;
 });
 
-const hasPrevChapter = computed(() => currentChapterIndex.value > 0);
+const hasPrevChapter = computed(() => currentLessonIndex.value > 0);
 
 const hasNextChapter = computed(() =>
-  currentChapterIndex.value < flatChapters.value.length - 1 &&
-  !flatChapters.value[currentChapterIndex.value + 1]?.locked
+  currentLessonIndex.value >= 0 && currentLessonIndex.value < flatLessons.value.length - 1
 );
 
 // 当前显示的数据（课时优先，否则使用章节）
@@ -744,19 +774,21 @@ const toggleThirdChapter = (thirdChapter) => {
 };
 
 const handleChapterSelect = (chapter) => {
-  if (chapter.locked) {
-    ElMessage.warning('请完成前面的章节后再学习此章节');
-    return;
-  }
-
   currentChapter.value = chapter;
-  currentLesson.value = null; // 清除当前课时
+  // 自动选择该章节的第一个课时
+  if (chapter.lessons && chapter.lessons.length > 0) {
+    currentLesson.value = chapter.lessons[0];
+  } else {
+    currentLesson.value = null;
+  }
   currentChapterIndex.value = flatChapters.value.findIndex(c => c.id === chapter.id);
 
   // 更新路由参数
-  router.replace({
-    query: { ...route.query, chapterId: chapter.id }
-  });
+  const query = { ...route.query, chapterId: chapter.id };
+  if (currentLesson.value) {
+    query.lessonId = currentLesson.value.Lesson_Id || currentLesson.value.id;
+  }
+  router.replace({ query });
 };
 
 // 处理课时点击
@@ -790,35 +822,104 @@ const handleLessonSelect = (lesson, chapterNode) => {
 
 const handlePrevChapter = () => {
   if (hasPrevChapter.value) {
-    const prevIndex = currentChapterIndex.value - 1;
-    handleChapterSelect(flatChapters.value[prevIndex]);
+    const prevIndex = currentLessonIndex.value - 1;
+    const prevItem = flatLessons.value[prevIndex];
+    if (prevItem) {
+      currentChapter.value = prevItem.chapter;
+      currentLesson.value = prevItem.lesson;
+      // 更新路由参数
+      const lessonId = prevItem.lesson.Lesson_Id || prevItem.lesson.id;
+      router.replace({
+        query: { ...route.query, chapterId: prevItem.chapter.id, lessonId: lessonId }
+      });
+    }
   }
 };
 
 const handleNextChapter = () => {
   if (hasNextChapter.value) {
-    const nextIndex = currentChapterIndex.value + 1;
-    handleChapterSelect(flatChapters.value[nextIndex]);
-  }
-};
-
-const handleMarkCompleted = () => {
-  if (currentChapter.value) {
-    currentChapter.value.completed = true;
-    currentChapter.value.progress = 100;
-    
-    // 解锁下一章节
-    const nextIndex = currentChapterIndex.value + 1;
-    if (nextIndex < flatChapters.value.length) {
-      flatChapters.value[nextIndex].locked = false;
+    const nextIndex = currentLessonIndex.value + 1;
+    const nextItem = flatLessons.value[nextIndex];
+    if (nextItem) {
+      // 展开父级章节
+      if (nextItem.chapter.parent) {
+        nextItem.chapter.parent.expanded = true;
+      }
+      if (nextItem.chapter.parent && nextItem.chapter.parent.parent) {
+        nextItem.chapter.parent.parent.expanded = true;
+      }
+      currentChapter.value = nextItem.chapter;
+      currentLesson.value = nextItem.lesson;
+      // 更新路由参数
+      const lessonId = nextItem.lesson.Lesson_Id || nextItem.lesson.id;
+      router.replace({
+        query: { ...route.query, chapterId: nextItem.chapter.id, lessonId: lessonId }
+      });
     }
-    
-    ElMessage.success('章节已标记为完成！');
   }
 };
 
-const handleVideoLoaded = (event) => {
-  console.log('视频加载完成:', event);
+const handleMarkCompleted = async () => {
+  if (currentLesson.value) {
+    const lessonId = currentLesson.value.Lesson_Id || currentLesson.value.id;
+    const courseIdVal = currentLesson.value.progressData?.course_id || courseId.value;
+
+    // 调用API保存进度
+    try {
+      await api({
+        url: '/learningProgress/lesson/update',
+        method: 'post',
+        data: {
+          Lesson_Id: lessonId,
+          Course_Id: courseIdVal,
+          Status: 'completed'
+        }
+      });
+    } catch (e) {
+      console.warn('保存进度失败', e);
+    }
+
+    // 使用唯一标识确保只更新当前课时（转换为数字确保类型匹配）
+    const targetId = Number(lessonId);
+
+    // 遍历chapterList找到对应课时并更新（使用find确保只更新正确的lesson）
+    const updateLessonInList = (nodes) => {
+      for (const node of nodes) {
+        if (node.lessons && node.lessons.length > 0) {
+          const lesson = node.lessons.find(l => Number(l.Lesson_Id || l.id) === targetId);
+          if (lesson) {
+            // 创建新的布尔值确保独立引用
+            lesson.Lesson_Is_Complete = true;
+            // 更新chapter的完成状态
+            node.completed = true;
+            node.progress = 100;
+            return true;
+          }
+        }
+        if (node.children && node.children.length > 0) {
+          if (updateLessonInList(node.children)) {
+            return true;
+          }
+        }
+      }
+      return false;
+    };
+
+    // 更新chapterList中的课时状态
+    updateLessonInList(chapterList.value);
+
+    // 同步更新currentLesson
+    currentLesson.value.Lesson_Is_Complete = true;
+    if (currentChapter.value) {
+      currentChapter.value.completed = true;
+      currentChapter.value.progress = 100;
+    }
+
+    ElMessage.success('课时已标记为完成！');
+  }
+};
+
+const handleVideoLoaded = () => {
 };
 
 const handleVideoProgress = (event) => {
@@ -895,7 +996,6 @@ watch(() => chapterList.value, () => {
     return;
   }
 
-  console.log('Watch chapterList triggered - chapterId:', chapterId, 'lessonId:', lessonId);
 
   // 确保章节数据已加载
   if (chapterList.value.length === 0) {
@@ -927,27 +1027,19 @@ watch(() => chapterList.value, () => {
 
   if (lessonId) {
     const result = findLessonInChapter(chapterList.value);
-    console.log('findLessonInChapter result:', result);
     if (result) {
       const { lesson, chapter } = result;
-      console.log('Found chapter.locked:', chapter.locked, 'chapter name:', chapter.name);
-      if (!chapter.locked) {
-        // 展开父级章节
-        if (chapter.parent) {
-          chapter.parent.expanded = true;
-        }
-        if (chapter.parent && chapter.parent.parent) {
-          chapter.parent.parent.expanded = true;
-        }
-
-        currentChapter.value = chapter;
-        currentLesson.value = lesson;
-        currentChapterIndex.value = flatChapters.value.findIndex(c => c.id === chapter.id);
-        console.log('chapterList watch set lesson:', lesson.Lesson_Name || lesson.title);
-        return;
+      // 展开父级章节
+      if (chapter.parent) {
+        chapter.parent.expanded = true;
       }
-    } else {
-      console.log('Lesson not found in chapterList watch');
+      if (chapter.parent && chapter.parent.parent) {
+        chapter.parent.parent.expanded = true;
+      }
+
+      currentChapter.value = chapter;
+      currentLesson.value = lesson;
+      currentChapterIndex.value = flatChapters.value.findIndex(c => c.id === chapter.id);
     }
   }
 
@@ -955,7 +1047,7 @@ watch(() => chapterList.value, () => {
   if (chapterId) {
     const targetChapterId = parseInt(chapterId);
     const chapter = flatChapters.value.find(c => c.id === targetChapterId);
-    if (chapter && !chapter.locked) {
+    if (chapter) {
       handleChapterSelect(chapter);
     }
   }
@@ -968,7 +1060,6 @@ watch(() => route.query, (newQuery) => {
 
   if (!chapterId && !lessonId) return;
 
-  console.log('Route query watch - chapterId:', chapterId, 'lessonId:', lessonId);
 
   // 确保章节数据已加载
   if (chapterList.value.length === 0) return;
@@ -976,7 +1067,6 @@ watch(() => route.query, (newQuery) => {
   // 检查是否已经是当前选中的课时
   const currentLessonId = currentLesson.value ? (currentLesson.value.Lesson_Id || currentLesson.value.id) : null;
   if (lessonId && currentLessonId && Number(currentLessonId) === parseInt(lessonId)) {
-    console.log('Lesson already selected, skipping');
     return;
   }
 
@@ -1004,28 +1094,24 @@ watch(() => route.query, (newQuery) => {
     const result = findLessonInChapter(chapterList.value);
     if (result) {
       const { lesson, chapter } = result;
-      if (!chapter.locked) {
-        // 展开父级章节
-        if (chapter.parent) {
-          chapter.parent.expanded = true;
-        }
-        if (chapter.parent && chapter.parent.parent) {
-          chapter.parent.parent.expanded = true;
-        }
-
-        currentChapter.value = chapter;
-        currentLesson.value = lesson;
-        currentChapterIndex.value = flatChapters.value.findIndex(c => c.id === chapter.id);
-        console.log('route watch set lesson:', lesson.Lesson_Name || lesson.title);
-        return;
+      // 展开父级章节
+      if (chapter.parent) {
+        chapter.parent.expanded = true;
       }
+      if (chapter.parent && chapter.parent.parent) {
+        chapter.parent.parent.expanded = true;
+      }
+
+      currentChapter.value = chapter;
+      currentLesson.value = lesson;
+      currentChapterIndex.value = flatChapters.value.findIndex(c => c.id === chapter.id);
     }
   }
 
   if (chapterId) {
     const targetChapterId = parseInt(chapterId);
     const chapter = flatChapters.value.find(c => c.id === targetChapterId);
-    if (chapter && !chapter.locked) {
+    if (chapter) {
       handleChapterSelect(chapter);
     }
   }
@@ -1641,18 +1727,21 @@ onUnmounted(() => {
 .content-wrapper {
   max-width: 1000px;
   margin: 0 auto;
-  padding: 24px 32px;
+  padding: 24px;
 }
 
 /* --- 章节标题区域 --- */
 .chapter-header {
-  padding: 20px 0 16px 0;
   border-bottom: 1px solid #f0f0f0;
-  margin-bottom: 24px;
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin: 0 0 24px 0;
 }
 
 .theme-dark .chapter-header {
   border-bottom: 1px solid #3a3a3a;
+  background: #252525;
 }
 
 .chapter-header-content {
@@ -1722,20 +1811,72 @@ onUnmounted(() => {
   color: #b0b0b0;
 }
 
+/* 统一风格的标记完成按钮 */
+.meta-item .el-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 10px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  background: #f5f7fa;
+  border: none;
+  color: #606266;
+}
+
+.meta-item .el-button:hover {
+  background: #e8ecf0;
+  color: #303133;
+  transform: translateY(-1px);
+}
+
+.theme-dark .meta-item .el-button {
+  background: #2d2d2d;
+  color: #b0b0b0;
+}
+
+.theme-dark .meta-item .el-button:hover {
+  background: #3a3a3a;
+  color: #e5e5e5;
+}
+
+/* 统一风格的已完成标签 */
+.meta-item .el-tag {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 10px;
+  background: #f0f9eb;
+  border: none;
+  color: #67c23a;
+}
+
+.meta-item .el-tag .el-icon {
+  font-size: 14px;
+}
+
+.theme-dark .meta-item .el-tag {
+  background: #1a3a1a;
+  color: #67c23a;
+}
+
 .chapter-content {
   display: flex;
   flex-direction: column;
   gap: 40px;
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 24px;
+}
+
+.theme-dark .chapter-content {
+  background: #252525;
 }
 
 /* --- 视频区域 --- */
 .video-section {
-  padding: 0 0 32px 0;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.theme-dark .video-section {
-  border-bottom: 1px solid #3a3a3a;
+  padding: 0 0 24px 0;
 }
 
 .video-container {
@@ -1755,13 +1896,7 @@ onUnmounted(() => {
 
 /* --- 文档内容区域 --- */
 .document-section {
-  padding: 0 0 32px 0;
-  border-bottom: 1px solid #f0f0f0;
-  margin-bottom: 32px;
-}
-
-.theme-dark .document-section {
-  border-bottom: 1px solid #3a3a3a;
+  padding: 0 0 24px 0;
 }
 
 .document-content {
@@ -1800,15 +1935,40 @@ onUnmounted(() => {
   margin: 16px 0;
 }
 
-/* --- 题目区域 --- */
-.questions-section {
-  padding: 0 0 32px 0;
-  border-bottom: 1px solid #f0f0f0;
-  margin-bottom: 32px;
+/* 文本对齐样式 - 支持富文本编辑器 Quill */
+.document-content :deep(p) {
+  text-align: inherit;
 }
 
-.theme-dark .questions-section {
-  border-bottom: 1px solid #3a3a3a;
+.document-content :deep(.ql-align-center) {
+  text-align: center !important;
+}
+
+.document-content :deep(.ql-align-right) {
+  text-align: right !important;
+}
+
+.document-content :deep(.ql-align-justify) {
+  text-align: justify !important;
+}
+
+.document-content :deep([style*="text-align: center"]) {
+  text-align: center !important;
+  display: block;
+}
+
+.document-content :deep([style*="text-align: right"]) {
+  text-align: right !important;
+  display: block;
+}
+
+.document-content :deep([style*="text-align: justify"]) {
+  text-align: justify !important;
+}
+
+/* --- 题目区域 --- */
+.questions-section {
+  padding: 0 0 24px 0;
 }
 
 .section-header {
@@ -1816,12 +1976,6 @@ onUnmounted(() => {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 24px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.theme-dark .section-header {
-  border-bottom: 1px solid #3a3a3a;
 }
 
 .section-header h3 {
@@ -1832,6 +1986,36 @@ onUnmounted(() => {
 }
 
 .theme-dark .section-header h3 {
+  color: #e5e5e5;
+}
+
+/* 区域标题按钮统一风格 */
+.section-header .el-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-weight: 500;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  background: #f5f7fa;
+  border: none;
+  color: #606266;
+}
+
+.section-header .el-button:hover {
+  background: #e8ecf0;
+  color: #303133;
+  transform: translateY(-1px);
+}
+
+.theme-dark .section-header .el-button {
+  background: #2d2d2d;
+  color: #b0b0b0;
+}
+
+.theme-dark .section-header .el-button:hover {
+  background: #3a3a3a;
   color: #e5e5e5;
 }
 
@@ -1992,8 +2176,92 @@ onUnmounted(() => {
   border-top: 1px solid #f0f0f0;
 }
 
+/* 统一风格的翻页按钮 - 简约柔和高级感 */
+.chapter-navigation .el-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-weight: 500;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: #ffffff;
+  border: 1px solid #e8ecf0;
+  color: #606266;
+}
+
+.chapter-navigation .el-button:hover:not(:disabled) {
+  background: #f5f7fa;
+  border-color: #d0d6dd;
+  color: #303133;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.chapter-navigation .el-button:disabled {
+  background: #f5f7fa;
+  border-color: #ebeef5;
+  color: #c0c4cc;
+  cursor: not-allowed;
+}
+
+/* 下一章节按钮 - 主色调 */
+.chapter-navigation .el-button--primary {
+  background: linear-gradient(135deg, #409eff 0%, #3375e8 100%);
+  border: none;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.25);
+}
+
+.chapter-navigation .el-button--primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #50a8ff 0%, #409eff 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(64, 158, 255, 0.35);
+}
+
+.chapter-navigation .el-button--primary:disabled {
+  background: #e8ecf0;
+  color: #c0c4cc;
+  box-shadow: none;
+}
+
 .theme-dark .chapter-navigation {
   border-top: 1px solid #3a3a3a;
+}
+
+.theme-dark .chapter-navigation .el-button {
+  background: #2d2d2d;
+  border-color: #3a3a3a;
+  color: #b0b0b0;
+}
+
+.theme-dark .chapter-navigation .el-button:hover:not(:disabled) {
+  background: #3a3a3a;
+  border-color: #4a4a4a;
+  color: #e5e5e5;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.theme-dark .chapter-navigation .el-button:disabled {
+  background: #252525;
+  border-color: #2d2d2d;
+  color: #4a4a4a;
+}
+
+.theme-dark .chapter-navigation .el-button--primary {
+  background: linear-gradient(135deg, #409eff 0%, #3375e8 100%);
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.25);
+}
+
+.theme-dark .chapter-navigation .el-button--primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #50a8ff 0%, #409eff 100%);
+  box-shadow: 0 6px 16px rgba(64, 158, 255, 0.35);
+}
+
+.theme-dark .chapter-navigation .el-button--primary:disabled {
+  background: #2d2d2d;
+  color: #4a4a4a;
+  box-shadow: none;
 }
 
 /* --- 响应式设计 --- */
@@ -2014,46 +2282,46 @@ onUnmounted(() => {
   .top-bar-content {
     padding: 0 16px;
   }
-  
+
   .main-content {
     flex-direction: column;
   }
-  
+
   .sidebar-catalog {
     width: 100%;
     max-height: 180px;
     order: 2;
   }
-  
+
   .content-area {
     order: 1;
   }
-  
+
   .content-wrapper {
-    padding: 20px 16px;
+    padding: 16px;
   }
-  
+
   .chapter-header {
-    padding: 20px 0;
-    margin-bottom: 24px;
+    padding: 16px;
+    margin-bottom: 16px;
   }
-  
+
   .chapter-meta {
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
   }
-  
+
   .questions-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .chapter-navigation {
     flex-direction: column;
     gap: 16px;
     padding-top: 20px;
   }
-  
+
   .nav-left, .nav-right {
     width: 100%;
     justify-content: center;
@@ -2065,28 +2333,29 @@ onUnmounted(() => {
   .content-wrapper {
     padding: 16px 12px;
   }
-  
+
   .chapter-header {
-    padding: 16px 0 12px 0;
+    padding: 16px;
     margin-bottom: 16px;
   }
-  
+
   .chapter-header-content {
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
   }
-  
+
   .chapter-meta {
     flex-direction: row;
     flex-wrap: wrap;
     gap: 12px;
   }
-  
+
   .chapter-content {
     gap: 24px;
+    padding: 16px;
   }
-  
+
   .video-section,
   .document-section,
   .questions-section,
@@ -2101,11 +2370,19 @@ onUnmounted(() => {
   .content-wrapper {
     padding: 12px 8px;
   }
-  
+
+  .chapter-header {
+    padding: 12px;
+  }
+
+  .chapter-content {
+    padding: 12px;
+  }
+
   .catalog-item {
     padding: 8px 16px;
   }
-  
+
   .catalog-item.parent-item {
     padding: 12px 16px;
   }
