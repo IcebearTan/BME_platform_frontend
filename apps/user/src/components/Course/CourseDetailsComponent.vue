@@ -281,7 +281,7 @@ const checkEnrollment = async () => {
 const checkGroupEnrollment = async () => {
   try {
     const res = await api({
-      url: '/course-group/check',
+      url: '/course-groups/check',
       method: 'get',
       params: {
         course_id: courseId.value

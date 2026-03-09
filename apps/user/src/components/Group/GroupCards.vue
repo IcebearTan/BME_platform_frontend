@@ -49,6 +49,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
 import { useStore } from 'vuex';
+import api from '../../api';
 
 // Props
 const props = defineProps({
@@ -79,124 +80,6 @@ const loading = ref(true);
 // 主题适配
 const isDarkMode = computed(() => store.getters.isDarkMode);
 
-// 模拟课程数据
-const mockCourses = {
-  'my-courses': [
-    {
-      id: 1,
-      title: 'Vue.js 高级开发小组',
-      description: '深入学习Vue.js框架的高级特性和最佳实践，包括Composition API、状态管理等内容。',
-      status: 'active',
-      studentCount: 156,
-      tutorName: '张教授',
-      academicYear: '2024',
-      semester: 'autumn',
-      lastUpdated: new Date('2024-10-01'),
-      createdAt: new Date('2024-09-15')
-    },
-    {
-      id: 2,
-      title: 'JavaScript 核心原理学习小组',
-      description: '从零开始深入理解JavaScript的核心概念，包括原型链、闭包、异步编程等。',
-      status: 'completed',
-      studentCount: 89,
-      tutorName: '李老师',
-      academicYear: '2024',
-      semester: 'summer',
-      lastUpdated: new Date('2024-09-20'),
-      createdAt: new Date('2024-08-01')
-    },
-    {
-      id: 3,
-      title: 'React Hooks 深度解析小组',
-      description: '全面掌握React Hooks的使用方法和原理，提升React开发效率。',
-      status: 'completed',
-      studentCount: 234,
-      tutorName: '王博士',
-      academicYear: '2024',
-      semester: 'spring',
-      lastUpdated: new Date('2024-09-25'),
-      createdAt: new Date('2024-09-01')
-    }
-  ],
-  'my-teachings': [
-    {
-      id: 4,
-      title: '前端工程化实践小组',
-      description: '教授现代前端开发的工程化方法，包括构建工具、代码规范、自动化部署等。',
-      status: 'active',
-      studentCount: 45,
-      tutorName: '陈老师',
-      academicYear: '2024',
-      semester: 'autumn',
-      lastUpdated: new Date('2024-10-05'),
-      createdAt: new Date('2024-09-10'),
-      settings: {
-        enableAttendance: true,
-        member: {
-          maxMembers: 50,
-          requireApproval: true,
-          enableAttendance: true
-        }
-      }
-    },
-    {
-      id: 5,
-      title: 'TypeScript 学习小组',
-      description: '系统性学习TypeScript语言特性，提升代码质量和开发效率。',
-      status: 'active',
-      studentCount: 12,
-      tutorName: '刘教授',
-      academicYear: '2025',
-      semester: 'winter',
-      lastUpdated: new Date('2024-10-02'),
-      createdAt: new Date('2024-09-28'),
-      settings: {
-        enableAttendance: false,
-        member: {
-          maxMembers: 30,
-          requireApproval: false,
-          enableAttendance: false
-        }
-      }
-    },
-    {
-      id: 6,
-      title: '生物医学工程创新小组',
-      description: '专注于生物医学工程领域的创新研究和实践，包括医疗设备设计、生物信号处理等前沿技术。',
-      status: 'active',
-      studentCount: 28,
-      tutorName: '张教授',
-      academicYear: '2024',
-      semester: 'autumn',
-      lastUpdated: new Date('2024-10-08'),
-      createdAt: new Date('2024-09-20'),
-      settings: {
-        enableAttendance: true,
-        member: {
-          maxMembers: 35,
-          requireApproval: true,
-          enableAttendance: true
-        },
-        attendanceRules: {
-          startTime: '08:30',
-          endTime: '17:00',
-          lateToleranceMinutes: 15,
-          earlyLeaveToleranceMinutes: 10,
-          checkInMethods: ['manual', 'qrcode', 'location'],
-          locationRadius: 50
-        },
-        statisticsSettings: {
-          period: 'weekly',
-          attendanceRateMethod: 'comprehensive',
-          autoReminder: true,
-          reminderMinutes: 15
-        }
-      }
-    }
-  ]
-};
-
 // 计算属性
 const filteredCourses = computed(() => {
   if (!props.searchQuery) {
@@ -214,18 +97,88 @@ const emptyStateMessage = computed(() => {
   return props.courseType === 'my-courses' ? '还没有加入小组' : '还没有管理的小组';
 });
 
-// 方法
+// 解析 term 字段 (格式: "2024-spring")
+const parseTerm = (term) => {
+  if (!term) return { academicYear: '', semester: '' };
+  const parts = term.split('-');
+  return {
+    academicYear: parts[0] || '',
+    semester: parts[1] || ''
+  };
+};
+
+// 从API获取小组数据
 const loadCourses = async () => {
   loading.value = true;
-  
-  // 清空当前数据，立即显示加载状态
   courses.value = [];
-  
-  // 模拟API调用，减少延迟
-  setTimeout(() => {
-    courses.value = mockCourses[props.courseType] || [];
+
+  try {
+    let res;
+
+    if (props.courseType === 'my-courses') {
+      // 学生视角：获取我加入的小组
+      res = await api({
+        url: '/course-groups?mine=learning',
+        method: 'get'
+      });
+
+      if (res.data && res.data.code === 200) {
+        const allGroups = res.data.data || [];
+        console.log('小组数据:', allGroups);
+
+        courses.value = allGroups.map(group => {
+          const { academicYear, semester } = parseTerm(group.term);
+          return {
+            id: group.id,
+            title: group.name,
+            description: '',
+            status: group.status || 'active',
+            studentCount: group.member_count || 0,
+            tutorName: group.teacher_name || '未指定',
+            courseId: group.course_id,
+            academicYear,
+            semester,
+            courseName: group.course_name || '',
+            groupType: 'study',
+            settings: {}
+          };
+        });
+      }
+    } else if (props.courseType === 'my-teachings') {
+      // 教师视角：获取我管理的小组
+      res = await api({
+        url: '/course-groups?mine=teaching',
+        method: 'get'
+      });
+
+      if (res.data && res.data.code === 200) {
+        const groups = res.data.data || [];
+        console.log('教师小组数据:', groups);
+        courses.value = groups.map(group => {
+          const { academicYear, semester } = parseTerm(group.term);
+          return {
+            id: group.id,
+            title: group.name,
+            description: '',
+            status: group.status || 'active',
+            studentCount: group.member_count || 0,
+            tutorName: group.teacher_name || '我',
+            courseId: group.course_id,
+            academicYear,
+            semester,
+            courseName: group.course_name || '',
+            groupType: 'study',
+            settings: {}
+          };
+        });
+      }
+    }
+  } catch (err) {
+    console.error('获取小组数据失败:', err);
+    courses.value = [];
+  } finally {
     loading.value = false;
-  }, 400);
+  }
 };
 
 const getStatusText = (status) => {

@@ -15,6 +15,8 @@ import StudentAttendanceView from "../components/Group/StudentAttendanceView.vue
 import { useStore } from 'vuex';
 import { Expand, Search, Plus } from '@element-plus/icons-vue';
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
+import api from '../api';
+import { ElMessage } from 'element-plus';
 
 const store = useStore();
 const router = useRouter();
@@ -126,13 +128,37 @@ const createGroupForm = ref({
   studentLimit: 30
 });
 
-const courseOptions = [
-  { value: 'course1', label: '生物医学工程导论' },
-  { value: 'course2', label: '医学图像处理' },
-  { value: 'course3', label: '生物信号处理' },
-  { value: 'course4', label: '医疗器械设计' },
-  { value: 'course5', label: '人工智能在医学中的应用' }
-];
+// 课程列表数据（从后端获取）
+const courseOptions = ref([]);
+
+// 获取课程列表
+const loadCourseOptions = async () => {
+  try {
+    const res = await api({
+      url: '/course/list',
+      method: 'get'
+    });
+    console.log('课程列表响应:', res.data);
+
+    // 响应可能是数组，也可能是 {code: 200, data: [...]} 格式
+    let courses = [];
+    if (Array.isArray(res.data)) {
+      courses = res.data;
+    } else if (res.data && res.data.code === 200) {
+      courses = res.data.data || [];
+    }
+
+    if (courses.length > 0) {
+      courseOptions.value = courses.map(course => ({
+        value: course.Course_Id || course.id,
+        label: course.Course_title || course.Course_Title || course.Course_Name || course.Course_Namecn || course.title || course.name
+      }));
+      console.log('课程选项:', courseOptions.value);
+    }
+  } catch (err) {
+    console.error('获取课程列表失败:', err);
+  }
+};
 
 const academicYearOptions = [
   { value: '2024', label: '2024年' },
@@ -255,18 +281,40 @@ function handleCreateGroup() {
     semester: '',
     studentLimit: 30
   };
+  // 加载课程列表
+  loadCourseOptions();
 }
 
-function handleFormSubmit() {
-  console.log('Creating group with data:', createGroupForm.value);
-  // TODO: 实现创建小组API调用
-  
-  // 模拟创建成功
-  setTimeout(() => {
-    isCreateFormVisible.value = false;
-    // 可以添加成功提示
-    console.log('小组创建成功！');
-  }, 1000);
+async function handleFormSubmit() {
+  if (!createGroupForm.value.groupName || !createGroupForm.value.courseBinding) {
+    ElMessage.warning('请填写完整信息');
+    return;
+  }
+
+  try {
+    const res = await api({
+      url: '/course-groups',
+      method: 'post',
+      data: {
+        name: createGroupForm.value.groupName,
+        course_id: createGroupForm.value.courseBinding,
+        student_limit: createGroupForm.value.studentLimit,
+        status: 'active'
+      }
+    });
+
+    if (res.data && (res.data.code === 201 || res.data.code === 200)) {
+      ElMessage.success('小组创建成功');
+      isCreateFormVisible.value = false;
+      // 刷新小组列表
+      // 可以通过事件或重新加载触发列表刷新
+    } else {
+      ElMessage.error(res.data?.message || '创建失败');
+    }
+  } catch (err) {
+    console.error('创建小组失败:', err);
+    ElMessage.error(err.response?.data?.message || '创建失败，请重试');
+  }
 }
 
 function handleFormCancel() {
