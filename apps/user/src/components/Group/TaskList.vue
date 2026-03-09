@@ -32,22 +32,6 @@
           </div>
         </div>
         
-        <!-- 类型筛选 -->
-        <div class="filter-group">
-          <span class="filter-group-label">类型筛选：</span>
-          <div class="filter-tabs">
-            <div 
-              v-for="typeFilter in taskTypeFilters"
-              :key="typeFilter.key"
-              class="filter-tab"
-              :class="{ 'active': activeTypeFilter === typeFilter.key }"
-              @click="activeTypeFilter = typeFilter.key"
-            >
-              <span class="filter-label">{{ typeFilter.label }}</span>
-              <span class="filter-count">({{ getTypeFilterCount(typeFilter.key) }})</span>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
 
@@ -91,9 +75,12 @@
             <div class="task-header">
               <div class="task-title-row">
                 <h4 class="task-title">{{ task.title }}</h4>
-                <span class="task-type-badge" :class="`type-${task.type}`">
-                  {{ getTaskTypeText(task.type) }}
-                </span>
+                <div class="task-badges">
+                  <!-- 学生端显示个人提交状态，教师端显示任务状态 -->
+                  <span class="task-status-badge" :class="`status-${isTeacher ? task.status : task.my_status}`">
+                    {{ getStatusBadgeText(isTeacher ? task.status : task.my_status) }}
+                  </span>
+                </div>
               </div>
             </div>
             
@@ -121,10 +108,22 @@
               </el-button>
               <template #dropdown>
                 <el-dropdown-menu>
-                  <el-dropdown-item :command="{ action: 'edit', task }">编辑任务</el-dropdown-item>
+                  <!-- 草稿状态：显示发布和编辑 -->
+                  <template v-if="task.status === 'draft'">
+                    <el-dropdown-item :command="{ action: 'edit', task }">编辑任务</el-dropdown-item>
+                    <el-dropdown-item :command="{ action: 'publish', task }">发布任务</el-dropdown-item>
+                  </template>
+                  <!-- 已发布状态：显示关闭和查看统计 -->
+                  <template v-else-if="task.status === 'published'">
+                    <el-dropdown-item :command="{ action: 'stats', task }">查看统计</el-dropdown-item>
+                    <el-dropdown-item :command="{ action: 'close', task }">关闭任务</el-dropdown-item>
+                  </template>
+                  <!-- 已关闭状态：只显示查看统计 -->
+                  <template v-else>
+                    <el-dropdown-item :command="{ action: 'stats', task }">查看统计</el-dropdown-item>
+                  </template>
                   <el-dropdown-item :command="{ action: 'copy', task }">复制任务</el-dropdown-item>
-                  <el-dropdown-item :command="{ action: 'stats', task }">查看统计</el-dropdown-item>
-                  <el-dropdown-item 
+                  <el-dropdown-item
                     :command="{ action: 'delete', task }"
                     class="danger-item"
                   >
@@ -138,13 +137,6 @@
           <!-- 学生操作区域 -->
           <div v-else class="student-actions">
             <div class="action-section">
-              <!-- 状态显示 -->
-              <div class="task-status">
-                <span class="status-tag" :class="`status-${getTaskActualStatus(task)}`">
-                  {{ getStatusText(getTaskActualStatus(task)) }}
-                </span>
-              </div>
-              
               <!-- 操作按钮 -->
               <div class="action-buttons">
                 <template v-if="task.type === 'exercise'">
@@ -161,10 +153,10 @@
                 
                 <template v-else>
                   <!-- 自定义任务单：提交按钮 -->
-                  <el-button 
+                  <el-button
                     v-if="getTaskActualStatus(task) !== 'completed'"
                     :type="getTaskActualStatus(task) === 'overdue' ? 'danger' : 'primary'"
-                    @click.stop="handleSubmitTask(task)"
+                    @click.stop="handleTaskClick(task)"
                   >
                     <el-icon><Upload /></el-icon>
                     {{ getTaskActualStatus(task) === 'overdue' ? '补交任务' : '提交任务' }}
@@ -183,10 +175,7 @@
       <p class="empty-message">{{ getEmptyMessage() }}</p>
       <div v-if="isTeacher" class="empty-actions">
         <el-button type="primary" @click="$emit('create-task', 'custom')">
-          创建自定义任务
-        </el-button>
-        <el-button type="success" @click="$emit('create-task', 'exercise')">
-          创建题目
+          创建任务
         </el-button>
       </div>
     </div>
@@ -285,7 +274,6 @@ const emit = defineEmits([
 // 响应式数据
 const searchQuery = ref('');
 const activeFilter = ref('all');
-const activeTypeFilter = ref('all');
 
 // 筛选选项
 const taskFilters = [
@@ -295,12 +283,6 @@ const taskFilters = [
   { key: 'week', label: '本周截止' },
   { key: 'overdue', label: '已逾期' },
   { key: 'no_due', label: '无截止时间' }
-];
-
-const taskTypeFilters = [
-  { key: 'all', label: '全部类型' },
-  { key: 'exercise', label: '题目' },
-  { key: 'custom', label: '自定义任务' }
 ];
 
 // 计算属性
@@ -319,11 +301,6 @@ const filteredTasks = computed(() => {
   // 截止时间过滤
   if (activeFilter.value !== 'all') {
     filtered = filtered.filter(task => matchesTimeFilter(task, activeFilter.value));
-  }
-
-  // 类型过滤
-  if (activeTypeFilter.value !== 'all') {
-    filtered = filtered.filter(task => task.type === activeTypeFilter.value);
   }
 
   return filtered;
@@ -409,17 +386,26 @@ const getTaskActualStatus = (task) => {
   return 'pending';
 };
 
-const getTaskTypeText = (type) => {
-  return type === 'exercise' ? '题目' : '自定义任务';
-};
-
-const getStatusText = (status) => {
-  const statusMap = {
-    pending: '未完成',
-    completed: '已完成',
-    overdue: '已逾期'
+const getStatusBadgeText = (status) => {
+  // 学生端：显示个人提交状态
+  const studentStatusMap = {
+    'not_started': '未提交',
+    'submitted': '已提交',
+    'late': '逾期提交',
+    'graded': '已评分',
+    'missed': '已过期'
   };
-  return statusMap[status] || '未知状态';
+  if (studentStatusMap[status]) {
+    return studentStatusMap[status];
+  }
+
+  // 教师端：显示任务状态
+  const teacherStatusMap = {
+    'draft': '草稿',
+    'published': '已发布',
+    'closed': '已关闭'
+  };
+  return teacherStatusMap[status] || status;
 };
 
 const getPreviewText = (text) => {
@@ -442,22 +428,12 @@ const getFilterCount = (filterKey) => {
   ).length;
 };
 
-const getTypeFilterCount = (typeKey) => {
-  return props.tasks.filter(task => 
-    typeKey === 'all' || task.type === typeKey
-  ).length;
-};
-
 const getEmptyMessage = () => {
   if (searchQuery.value) {
     return '没有找到匹配的任务';
   }
   if (activeFilter.value !== 'all') {
     return '该状态下暂无任务';
-  }
-  if (activeTypeFilter.value !== 'all') {
-    const typeText = activeTypeFilter.value === 'exercise' ? '题目任务' : '自定义任务';
-    return `暂无${typeText}`;
   }
   return '还没有布置任务';
 };
@@ -499,11 +475,6 @@ const handleTaskAction = (command) => {
 
 const handleSolveExercise = (task) => {
   emit('solve-exercise', task);
-};
-
-const handleSubmitTask = (task) => {
-  // 向父组件发射事件
-  emit('submit-task', task);
 };
 
 const handleSelectAll = () => {
@@ -730,7 +701,7 @@ const handleBatchDelete = () => {
 .task-checkbox {
   padding: 20px 0 20px 20px;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
 }
 
 .task-status-indicator {
@@ -792,6 +763,54 @@ const handleBatchDelete = () => {
   align-items: center;
 }
 
+.task-status-badge {
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.status-draft {
+  background-color: rgba(107, 114, 128, 0.1);
+  color: #6b7280;
+}
+
+.status-published {
+  background-color: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+}
+
+.status-closed {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+/* 学生端个人提交状态样式 */
+.status-not_started {
+  background-color: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+}
+
+.status-submitted {
+  background-color: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+}
+
+.status-late {
+  background-color: rgba(249, 115, 22, 0.1);
+  color: #f97316;
+}
+
+.status-graded {
+  background-color: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+}
+
+.status-missed {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
 .type-exercise {
   background-color: rgba(16, 185, 129, 0.1);
   color: #059669;
@@ -835,7 +854,7 @@ const handleBatchDelete = () => {
 .task-footer {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   gap: 16px;
   margin-top: 12px;
 }
@@ -897,13 +916,14 @@ const handleBatchDelete = () => {
 .task-actions {
   padding: 20px 20px 20px 0;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
 }
 
 .student-actions {
-  padding: 20px 20px 20px 0;
+  padding: 0 20px 0 0;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
+  margin: auto 0;
 }
 
 .action-section {
@@ -1033,19 +1053,18 @@ const handleBatchDelete = () => {
   }
   
   .task-card {
-    padding: 16px;
     flex-direction: column;
-    gap: 12px;
+    padding: 16px;
   }
-  
+
   .task-content {
-    width: 100%;
-    padding: 16px;
+    padding: 0;
   }
-  
+
   .student-actions {
-    padding: 16px;
-    width: 100%;
+    padding: 16px 0 0 0;
+    justify-content: flex-end;
+    margin: 0;
   }
   
   .action-section {

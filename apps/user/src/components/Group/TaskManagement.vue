@@ -23,19 +23,7 @@
       </div>
       
       <div class="header-actions">
-        <el-button 
-          v-if="!isExerciseTask" 
-          type="primary" 
-          @click="handleDownloadAll" 
-          :loading="downloadingAll"
-        >
-          <el-icon><Download /></el-icon>
-          批量下载
-        </el-button>
-        <el-button type="default" @click="handleExportStats">
-          <el-icon><Document /></el-icon>
-          导出统计
-        </el-button>
+        <!-- 头部操作按钮区域 -->
       </div>
     </div>
 
@@ -207,19 +195,9 @@
             <div class="action-buttons">
               <!-- 题目类型只显示基本操作 -->
               <template v-if="isExerciseTask">
-                <el-dropdown trigger="click" @command="(command) => handleMoreAction(command, submission)">
-                  <el-button type="text" size="small">
-                    <el-icon><MoreFilled /></el-icon>
-                  </el-button>
-                  <template #dropdown>
-                    <el-dropdown-menu>
-                      <el-dropdown-item command="resubmit" v-if="submission.submitTime">允许重新提交</el-dropdown-item>
-                      <el-dropdown-item command="extend" v-if="!submission.submitTime">延长截止时间</el-dropdown-item>
-                    </el-dropdown-menu>
-                  </template>
-                </el-dropdown>
+                <!-- 题目类型无额外操作 -->
               </template>
-              
+
               <!-- 自定义任务显示完整功能 -->
               <template v-else>
                 <el-tooltip content="批改作业" v-if="submission.submitTime && !submission.isGraded">
@@ -239,19 +217,6 @@
                     <el-icon><Download /></el-icon>
                   </el-button>
                 </el-tooltip>
-                
-                <el-dropdown trigger="click" @command="(command) => handleMoreAction(command, submission)">
-                  <el-button type="text" size="small">
-                    <el-icon><MoreFilled /></el-icon>
-                  </el-button>
-                  <template #dropdown>
-                    <el-dropdown-menu>
-                      <el-dropdown-item command="comment">添加评语</el-dropdown-item>
-                      <el-dropdown-item command="resubmit" v-if="submission.submitTime">允许重新提交</el-dropdown-item>
-                      <el-dropdown-item command="extend" v-if="!submission.submitTime">延长截止时间</el-dropdown-item>
-                    </el-dropdown-menu>
-                  </template>
-                </el-dropdown>
               </template>
             </div>
           </div>
@@ -344,6 +309,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useStore } from 'vuex';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import api from '../../api';
 import {
   Calendar,
   Clock,
@@ -357,8 +323,7 @@ import {
   TrendCharts,
   Search,
   View,
-  Edit,
-  MoreFilled
+  Edit
 } from '@element-plus/icons-vue';
 
 // Props
@@ -387,7 +352,6 @@ const store = useStore();
 // 响应式数据
 const searchQuery = ref('');
 const activeFilter = ref('all');
-const downloadingAll = ref(false);
 const saving = ref(false);
 
 // 对话框状态
@@ -722,80 +686,101 @@ const handleEditGrade = (submission) => {
 
 const handleSaveGrading = async () => {
   if (!gradingFormRef.value) return;
-  
+
   try {
     await gradingFormRef.value.validate();
-    
+
     saving.value = true;
-    
-    // 模拟保存
-    setTimeout(() => {
+
+    // 调用后端 API 保存批改
+    const res = await api({
+      url: `/tasks/${props.task.id}/submissions/${currentSubmission.value.id}/grade`,
+      method: 'post',
+      data: {
+        score: gradingForm.value.score,
+        feedback: gradingForm.value.comment
+      }
+    });
+
+    if (res.data && (res.data.code === 200 || res.data.code === 201)) {
+      // 更新本地数据
       const submission = currentSubmission.value;
       submission.score = gradingForm.value.score;
       submission.comment = gradingForm.value.comment;
       submission.isGraded = true;
       submission.gradedTime = new Date();
-      
+
       // 更新统计
       if (!submission.wasGraded) {
         stats.value.gradedCount++;
         submission.wasGraded = true;
       }
-      
+
       // 重新计算平均分
       const gradedSubmissions = submissions.value.filter(s => s.isGraded);
       if (gradedSubmissions.length > 0) {
         stats.value.averageScore = gradedSubmissions.reduce((sum, s) => sum + s.score, 0) / gradedSubmissions.length;
         stats.value.averageScore = Math.round(stats.value.averageScore * 10) / 10;
       }
-      
-      saving.value = false;
-      gradingDialogVisible.value = false;
-      
+
       ElMessage.success('批改完成');
       emit('grade-updated', submission);
-    }, 1000);
+    } else {
+      ElMessage.error(res.data?.message || '批改失败');
+    }
   } catch (error) {
-    console.error('表单验证失败:', error);
+    console.error('批改失败:', error);
+    ElMessage.error('批改失败，请重试');
+  } finally {
+    saving.value = false;
+    gradingDialogVisible.value = false;
   }
 };
 
-const handleDownloadSubmission = (submission) => {
+const handleDownloadSubmission = async (submission) => {
   console.log('下载提交文件:', submission);
-  // TODO: 实现文件下载
-  ElMessage.info('文件下载功能待实现');
-};
 
-const handleDownloadAll = () => {
-  downloadingAll.value = true;
-  // 模拟批量下载
-  setTimeout(() => {
-    downloadingAll.value = false;
-    ElMessage.success('批量下载完成');
-    emit('download-all');
-  }, 2000);
-};
+  if (!submission.files || submission.files.length === 0) {
+    ElMessage.warning('没有附件可下载');
+    return;
+  }
 
-const handleExportStats = () => {
-  console.log('导出统计数据');
-  emit('export-stats');
-  ElMessage.success('统计数据导出完成');
-};
+  try {
+    // 逐个下载文件
+    for (const file of submission.files) {
+      if (file.id) {
+        // 使用 API 下载
+        const res = await api({
+          url: `/tasks/${props.task.id}/submissions/${submission.id}/attachments/${file.id}`,
+          method: 'get',
+          responseType: 'blob'
+        });
 
-const handleMoreAction = (command, submission) => {
-  switch (command) {
-    case 'comment':
-      console.log('添加评语:', submission);
-      // TODO: 实现添加评语功能
-      break;
-    case 'resubmit':
-      console.log('允许重新提交:', submission);
-      // TODO: 实现允许重新提交功能
-      break;
-    case 'extend':
-      console.log('延长截止时间:', submission);
-      // TODO: 实现延长截止时间功能
-      break;
+        // 创建下载链接
+        const blob = new Blob([res.data]);
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = file.name || '附件';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      } else if (file.url) {
+        // 如果有直接 URL
+        const link = document.createElement('a');
+        link.href = file.url;
+        link.download = file.name || '附件';
+        link.target = '_blank';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    }
+    ElMessage.success('下载完成');
+  } catch (error) {
+    console.error('下载失败:', error);
+    ElMessage.error('文件下载失败');
   }
 };
 
@@ -805,10 +790,118 @@ const handlePreviewFile = (file) => {
   ElMessage.info('文件预览功能待实现');
 };
 
-onMounted(() => {
+// 获取提交列表
+const fetchSubmissions = async () => {
+  try {
+    const res = await api({
+      url: `/tasks/${props.task.id}/submissions`,
+      method: 'get'
+    });
+
+    if (res.data && res.data.code === 200) {
+      const data = res.data.data || [];
+
+      // 转换后端数据格式
+      submissions.value = data.map(item => ({
+        id: item.id,
+        studentId: item.student_id,
+        student: {
+          name: item.student_name || '未知学生',
+          studentId: item.student_id || '',
+          avatar: null
+        },
+        submitTime: item.submitted_at ? new Date(item.submitted_at) : null,
+        content: item.content_text || '',
+        files: item.attachments || [],
+        score: item.score,
+        comment: item.feedback,
+        isGraded: item.score !== null,
+        gradedTime: item.graded_at ? new Date(item.graded_at) : null,
+        attemptCount: item.attempt_no || 1
+      }));
+
+      // 计算统计数据
+      const actualSubmittedCount = submissions.value.filter(s => s.submitTime).length;
+      const actualGradedCount = submissions.value.filter(s => s.isGraded).length;
+
+      let actualAverageScore = 0;
+      const scoredSubmissions = submissions.value.filter(s => s.score !== null);
+      if (scoredSubmissions.length > 0) {
+        actualAverageScore = scoredSubmissions.reduce((sum, s) => sum + s.score, 0) / scoredSubmissions.length;
+      }
+
+      const actualTotalAttempts = submissions.value.reduce((sum, s) => {
+        return sum + (s.attemptCount || (s.submitTime ? 1 : 0));
+      }, 0);
+
+      // 获取学生总数
+      const studentsRes = await api({
+        url: `/course-groups/${props.task.group_id}/members`,
+        method: 'get'
+      });
+
+      const totalStudents = (studentsRes.data?.data?.length) || data.length || 25;
+
+      stats.value = {
+        totalStudents: totalStudents,
+        submittedCount: actualSubmittedCount,
+        gradedCount: actualGradedCount,
+        averageScore: Math.round(actualAverageScore * 10) / 10,
+        totalAttempts: actualTotalAttempts
+      };
+    }
+  } catch (error) {
+    console.error('获取提交列表失败:', error);
+    // 使用默认模拟数据
+    useDefaultData();
+  }
+};
+
+// 使用默认数据（API 失败时的后备）
+const useDefaultData = () => {
+  if (!props.task.totalScore) {
+    props.task.totalScore = 100;
+  }
+  if (!props.task.deadline) {
+    props.task.deadline = new Date('2024-10-15T23:59:59');
+  }
+  if (!props.task.publishDate) {
+    props.task.publishDate = new Date('2024-10-01T08:00:00');
+  }
+
+  const actualSubmittedCount = submissions.value.filter(s => s.submitTime).length;
+  const actualGradedCount = submissions.value.filter(s => s.isGraded).length;
+
+  let actualAverageScore = 0;
+  if (isExerciseTask.value) {
+    const scoredSubmissions = submissions.value.filter(s => s.score !== null);
+    actualAverageScore = scoredSubmissions.length > 0
+      ? scoredSubmissions.reduce((sum, s) => sum + s.score, 0) / scoredSubmissions.length
+      : 0;
+  } else {
+    const gradedSubmissions = submissions.value.filter(s => s.isGraded);
+    actualAverageScore = gradedSubmissions.length > 0
+      ? gradedSubmissions.reduce((sum, s) => sum + s.score, 0) / gradedSubmissions.length
+      : 0;
+  }
+
+  const actualTotalAttempts = submissions.value.reduce((sum, s) => {
+    return sum + (s.attemptCount || (s.submitTime ? 1 : 0));
+  }, 0);
+
+  stats.value = {
+    totalStudents: 25,
+    submittedCount: actualSubmittedCount,
+    gradedCount: actualGradedCount,
+    averageScore: Math.round(actualAverageScore * 10) / 10,
+    totalAttempts: actualTotalAttempts
+  };
+};
+
+onMounted(async () => {
   // 初始化数据
   console.log('任务管理组件已挂载，任务信息:', props.task);
-  
+
   // 为演示添加默认任务信息
   if (!props.task.totalScore) {
     props.task.totalScore = 100;
@@ -819,39 +912,9 @@ onMounted(() => {
   if (!props.task.publishDate) {
     props.task.publishDate = new Date('2024-10-01T08:00:00');
   }
-  
-  // 计算实际统计数据
-  const actualSubmittedCount = submissions.value.filter(s => s.submitTime).length;
-  const actualGradedCount = submissions.value.filter(s => s.isGraded).length;
-  
-  // 计算平均分
-  let actualAverageScore = 0;
-  if (isExerciseTask.value) {
-    // 练习题：计算所有有分数的提交的平均分
-    const scoredSubmissions = submissions.value.filter(s => s.score !== null);
-    actualAverageScore = scoredSubmissions.length > 0 
-      ? scoredSubmissions.reduce((sum, s) => sum + s.score, 0) / scoredSubmissions.length 
-      : 0;
-  } else {
-    // 自定义任务：只计算已批改的平均分
-    const gradedSubmissions = submissions.value.filter(s => s.isGraded);
-    actualAverageScore = gradedSubmissions.length > 0 
-      ? gradedSubmissions.reduce((sum, s) => sum + s.score, 0) / gradedSubmissions.length 
-      : 0;
-  }
-  
-  // 计算总提交次数（练习题可能有多次提交）
-  const actualTotalAttempts = submissions.value.reduce((sum, s) => {
-    return sum + (s.attemptCount || (s.submitTime ? 1 : 0));
-  }, 0);
-    
-  stats.value = {
-    totalStudents: 25,
-    submittedCount: actualSubmittedCount,
-    gradedCount: actualGradedCount,
-    averageScore: Math.round(actualAverageScore * 10) / 10,
-    totalAttempts: actualTotalAttempts
-  };
+
+  // 调用真实 API 获取数据
+  await fetchSubmissions();
 });
 </script>
 

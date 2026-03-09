@@ -140,53 +140,50 @@
         </div>
       </div>
 
-      <div class="progress-ranking-list">
-        <div 
-          v-for="(student, index) in progressRanking" 
+      <div class="ranking-list">
+        <div
+          v-for="(student, index) in progressRanking"
           :key="student.userId"
           class="ranking-item"
+          :class="{ 'rank-top-three': index < 3 }"
         >
-          <div class="rank-position">
-            <div 
-              class="rank-index"
-              :class="{
-                'index-gold': index === 0,
-                'index-silver': index === 1,
-                'index-bronze': index === 2
-              }"
-            >
-              {{ index + 1 }}
-            </div>
+          <!-- 排名 -->
+          <div class="rank-badge" :class="`rank-${index + 1}`">
+            {{ index + 1 }}
           </div>
 
-          <div class="student-avatar">
-            <el-avatar :size="32" :src="student.avatar">
+          <!-- 头像 -->
+          <div class="ranking-avatar">
+            <el-avatar :size="36" :src="student.avatar">
               {{ student.name?.charAt(0) || 'U' }}
             </el-avatar>
           </div>
-          
-          <div class="student-info">
-            <div class="student-name">{{ student.name }}</div>
-            <div class="progress-summary">
-              已完成 {{ student.completedTasks }} / {{ student.totalTasks }} 项任务
+
+          <!-- 信息 -->
+          <div class="ranking-info-content">
+            <div class="ranking-name">{{ student.name }}</div>
+            <div class="ranking-tasks">
+              已完成 {{ student.completedTasks }}/{{ student.totalTasks }} 项任务
             </div>
           </div>
 
-          <div class="progress-indicator">
-            <div class="progress-percentage">{{ student.progressPercentage }}%</div>
-            <el-progress 
-              :percentage="student.progressPercentage" 
-              :stroke-width="6"
-              :show-text="false"
-              :color="getProgressColor(student.progressPercentage)"
-            />
+          <!-- 进度条 -->
+          <div class="ranking-progress">
+            <div class="progress-text">{{ student.progressPercentage }}%</div>
+            <div class="progress-bar-wrapper">
+              <div
+                class="progress-bar-fill"
+                :style="{ width: student.progressPercentage + '%' }"
+                :class="`progress-${getProgressLevel(student.progressPercentage)}`"
+              ></div>
+            </div>
           </div>
         </div>
       </div>
 
       <!-- 无数据状态 -->
       <div v-if="progressRanking.length === 0" class="no-ranking">
-        <div class="no-ranking-icon">�</div>
+        <el-icon class="no-ranking-icon"><Document /></el-icon>
         <p class="no-ranking-text">暂无进度数据</p>
       </div>
     </div>
@@ -200,10 +197,10 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { useStore } from 'vuex';
 import { ElMessage } from 'element-plus';
 import api from '../../api';
-import { 
-  Reading, 
-  User, 
-  Calendar, 
+import {
+  Reading,
+  User,
+  Calendar,
   Clock,
   Avatar,
   Select,
@@ -463,6 +460,15 @@ const formatRelativeTime = (timestamp) => {
 };
 
 // 进度颜色计算方法
+// 进度等级
+const getProgressLevel = (percentage) => {
+  if (percentage >= 90) return 'excellent';
+  if (percentage >= 70) return 'good';
+  if (percentage >= 50) return 'normal';
+  return 'low';
+};
+
+// 进度颜色（保留以兼容其他地方可能使用）
 const getProgressColor = (percentage) => {
   if (percentage >= 90) return '#67c23a'; // 绿色
   if (percentage >= 80) return '#409eff'; // 蓝色
@@ -488,28 +494,34 @@ onMounted(() => {
   padding: 0;
 }
 
-/* 章节样式 */
+/* 章节样式 - 仿照sidebar风格 */
 .overview-section {
-  margin-bottom: 32px;
-  padding: 24px;
-  background: #ffffff;
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  margin-bottom: 24px;
+  padding: 20px;
+  background-color: #ffffff;
+  border: 1px solid #f0f0f0;
   border-radius: 16px;
-  transition: all 0.3s ease;
+  transition: all 0.25s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .theme-dark .overview-section {
-  background: rgba(40, 40, 40, 0.8);
-  border-color: rgba(255, 255, 255, 0.1);
+  background-color: #1f1f1f;
+  border-color: #2a2a2a;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.theme-dark .section-header {
+  border-bottom-color: #2a2a2a;
 }
 
 .header-actions {
@@ -521,7 +533,7 @@ onMounted(() => {
 .join-btn {
   font-weight: 500;
   letter-spacing: 0.3px;
-  transition: all 0.3s ease;
+  transition: all 0.25s ease;
   border: none;
 }
 
@@ -534,212 +546,233 @@ onMounted(() => {
   opacity: 0.6;
 }
 
-.theme-dark .section-header {
-  border-bottom-color: rgba(255, 255, 255, 0.1);
-}
-
 .section-title {
-  font-size: 20px;
-  font-weight: 700;
+  font-size: 17px;
+  font-weight: 600;
   margin: 0;
-  color: #1a1a1a;
+  color: #323233;
 }
 
 .theme-dark .section-title {
-  color: #ffffff;
+  color: #e5e5e5;
 }
 
 .section-subtitle {
-  font-size: 14px;
-  color: #6b7280;
+  font-size: 13px;
+  color: #909399;
   margin-top: 4px;
 }
 
 .theme-dark .section-subtitle {
-  color: #9ca3af;
-}
-
-.view-more-btn {
-  color: #667eea;
-  font-size: 14px;
-  padding: 0;
-}
-
-.view-more-btn:hover {
-  color: #5a67d8;
+  color: #707070;
 }
 
 /* 基本信息网格 */
 .info-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
 }
 
 .info-card {
   display: flex;
   align-items: center;
-  padding: 16px;
-  background: rgba(102, 126, 234, 0.04);
+  padding: 14px 16px;
+  background-color: #fafafa;
   border-radius: 12px;
-  border: 1px solid rgba(102, 126, 234, 0.1);
+  border: 1px solid #f0f0f0;
+  transition: all 0.25s ease;
+}
+
+.info-card:hover {
+  background-color: #f5f7fa;
+  transform: translateX(2px);
 }
 
 .theme-dark .info-card {
-  background: rgba(102, 126, 234, 0.1);
-  border-color: rgba(102, 126, 234, 0.2);
+  background-color: #252525;
+  border-color: #2a2a2a;
+}
+
+.theme-dark .info-card:hover {
+  background-color: #2a2a2a;
 }
 
 .info-icon {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #667eea;
-  color: white;
+  background-color: #ecf5ff;
+  color: #409eff;
   border-radius: 10px;
   margin-right: 12px;
-  font-size: 18px;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.theme-dark .info-icon {
+  background-color: #2d3a4f;
+  color: #409eff;
 }
 
 .info-content {
   flex: 1;
+  min-width: 0;
 }
 
 .info-label {
   font-size: 12px;
-  color: #6b7280;
-  font-weight: 500;
-  margin-bottom: 4px;
+  color: #909399;
+  font-weight: 450;
+  margin-bottom: 2px;
 }
 
 .theme-dark .info-label {
-  color: #9ca3af;
+  color: #707070;
 }
 
 .info-value {
   font-size: 14px;
-  font-weight: 600;
-  color: #1a1a1a;
+  font-weight: 500;
+  color: #606266;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .theme-dark .info-value {
-  color: #ffffff;
+  color: #c0c4cc;
 }
 
 /* 统计数据网格 */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
 }
 
 .stat-card {
-  padding: 20px;
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  border-radius: 16px;
+  padding: 16px;
+  background-color: #fafafa;
+  border: 1px solid #f0f0f0;
+  border-radius: 14px;
   position: relative;
-  transition: all 0.3s ease;
+  transition: all 0.25s ease;
 }
 
 .stat-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  background-color: #f5f7fa;
 }
 
 .theme-dark .stat-card {
-  background: linear-gradient(135deg, rgba(60, 60, 60, 0.8) 0%, rgba(40, 40, 40, 0.9) 100%);
-  border-color: rgba(255, 255, 255, 0.1);
+  background-color: #252525;
+  border-color: #2a2a2a;
 }
 
 .theme-dark .stat-card:hover {
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  background-color: #2a2a2a;
 }
 
 .stat-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .stat-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
-  color: white;
+  font-size: 18px;
 }
 
 .stat-icon.members {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background-color: #ecf5ff;
+  color: #409eff;
 }
 
 .stat-icon.tasks {
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  background-color: #fef0f0;
+  color: #f56c6c;
 }
 
 .stat-icon.activity {
-  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  background-color: #f0f9eb;
+  color: #67c23a;
 }
 
 .stat-icon.announcements {
-  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+  background-color: #fdf6ec;
+  color: #e6a23c;
 }
 
 .stat-icon.placeholder-icon {
-  background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%);
+  background-color: #f5f5f5;
+  color: #909399;
+}
+
+.theme-dark .stat-icon.members {
+  background-color: #2d3a4f;
+}
+
+.theme-dark .stat-icon.tasks {
+  background-color: #3d2a2a;
+}
+
+.theme-dark .stat-icon.activity {
+  background-color: #2a3d2a;
+}
+
+.theme-dark .stat-icon.announcements {
+  background-color: #3d352a;
 }
 
 .theme-dark .stat-icon.placeholder-icon {
-  background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+  background-color: #2a2a2a;
+  color: #606266;
 }
 
 .stat-card.placeholder {
-  opacity: 0.6;
-}
-
-.stat-card.placeholder .stat-number {
-  color: #9ca3af;
-}
-
-.theme-dark .stat-card.placeholder .stat-number {
-  color: #6b7280;
+  opacity: 0.5;
 }
 
 .stat-trend {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   font-size: 12px;
-  font-weight: 600;
-  padding: 4px 8px;
-  border-radius: 16px;
+  font-weight: 500;
+  padding: 3px 8px;
+  border-radius: 12px;
 }
 
 .stat-trend.positive {
-  background: rgba(34, 197, 94, 0.1);
-  color: #16a34a;
+  background: rgba(103, 194, 58, 0.1);
+  color: #67c23a;
 }
 
 .stat-trend.negative {
-  background: rgba(239, 68, 68, 0.1);
-  color: #dc2626;
+  background: rgba(245, 108, 108, 0.1);
+  color: #f56c6c;
 }
 
 .stat-badge {
-  background: #ff6b6b;
+  background: #f56c6c;
   color: white;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
-  padding: 4px 8px;
-  border-radius: 12px;
-  min-width: 20px;
+  padding: 3px 8px;
+  border-radius: 10px;
+  min-width: 18px;
   text-align: center;
 }
 
@@ -748,28 +781,28 @@ onMounted(() => {
 }
 
 .stat-number {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 700;
-  color: #1a1a1a;
-  margin-bottom: 4px;
+  color: #323233;
+  margin-bottom: 2px;
 }
 
 .theme-dark .stat-number {
-  color: #ffffff;
+  color: #e5e5e5;
 }
 
 .stat-label {
-  font-size: 14px;
-  color: #6b7280;
-  font-weight: 500;
+  font-size: 13px;
+  color: #909399;
+  font-weight: 450;
 }
 
 .theme-dark .stat-label {
-  color: #9ca3af;
+  color: #707070;
 }
 
 /* 进度排名列表 */
-.progress-ranking-list {
+.ranking-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -778,157 +811,217 @@ onMounted(() => {
 .ranking-item {
   display: flex;
   align-items: center;
-  padding: 16px 0;
-  border-bottom: 1px solid #f0f0f0;
-  transition: all 0.2s ease;
-}
-
-.theme-dark .ranking-item {
-  border-color: #404040;
-}
-
-.ranking-item:last-child {
-  border-bottom: none;
+  padding: 12px 14px;
+  background-color: #fafafa;
+  border: 1px solid #f0f0f0;
+  border-radius: 12px;
+  transition: all 0.25s ease;
 }
 
 .ranking-item:hover {
-  background: rgba(64, 158, 255, 0.02);
+  background-color: #f5f7fa;
+  transform: translateX(2px);
 }
 
-.rank-position {
-  margin-right: 16px;
+.theme-dark .ranking-item {
+  background-color: #252525;
+  border-color: #2a2a2a;
 }
 
-.rank-index {
-  font-size: 14px;
-  font-weight: 600;
+.theme-dark .ranking-item:hover {
+  background-color: #2a2a2a;
+}
+
+.ranking-item.rank-top-three {
+  background-color: #f0f9eb;
+  border-color: #e1f3d8;
+}
+
+.theme-dark .ranking-item.rank-top-three {
+  background-color: #1d2d1d;
+  border-color: #2a3d2a;
+}
+
+/* 排名徽章 */
+.rank-badge {
   width: 28px;
   height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
-  background: #f5f5f5;
-  color: #666;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-right: 12px;
+  background-color: #f5f5f5;
+  color: #909399;
 }
 
-.theme-dark .rank-index {
-  background: #404040;
-  color: #ccc;
+.theme-dark .rank-badge {
+  background-color: #2a2a2a;
+  color: #707070;
 }
 
-.rank-index.index-gold {
-  background: #FFD700;
+.rank-badge.rank-1 {
+  background: linear-gradient(135deg, #ffd700 0%, #ffb900 100%);
   color: #8B4513;
 }
 
-.rank-index.index-silver {
-  background: #C0C0C0;
+.rank-badge.rank-2 {
+  background: linear-gradient(135deg, #c0c0c0 0%, #a8a8a8 100%);
   color: #2F4F4F;
 }
 
-.rank-index.index-bronze {
-  background: #CD7F32;
-  color: #FFF;
+.rank-badge.rank-3 {
+  background: linear-gradient(135deg, #cd7f32 0%, #b87333 100%);
+  color: #fff;
 }
 
-.student-avatar {
-  margin-right: 16px;
+/* 头像 */
+.ranking-avatar {
+  margin-right: 12px;
 }
 
-.student-info {
+.ranking-avatar :deep(.el-avatar) {
+  border: 2px solid #fff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.theme-dark .ranking-avatar :deep(.el-avatar) {
+  border-color: #1f1f1f;
+}
+
+/* 信息 */
+.ranking-info-content {
   flex: 1;
+  min-width: 0;
 }
 
-.student-name {
-  font-size: 15px;
+.ranking-name {
+  font-size: 14px;
   font-weight: 500;
-  color: #1a1a1a;
-  margin-bottom: 4px;
+  color: #323233;
+  margin-bottom: 2px;
 }
 
-.theme-dark .student-name {
-  color: #f9fafb;
+.theme-dark .ranking-name {
+  color: #e5e5e5;
 }
 
-.progress-summary {
-  font-size: 13px;
-  color: #666;
-  font-weight: 400;
+.ranking-tasks {
+  font-size: 12px;
+  color: #909399;
 }
 
-.theme-dark .progress-summary {
-  color: #9ca3af;
+.theme-dark .ranking-tasks {
+  color: #707070;
 }
 
-.progress-indicator {
+/* 进度 */
+.ranking-progress {
+  min-width: 100px;
   text-align: right;
-  min-width: 120px;
 }
 
-.progress-percentage {
-  font-size: 16px;
+.progress-text {
+  font-size: 14px;
   font-weight: 600;
-  color: #2563eb;
+  color: #409eff;
   margin-bottom: 4px;
-  font-family: 'SF Mono', Monaco, 'Roboto Mono', monospace;
+}
+
+.progress-bar-wrapper {
+  height: 6px;
+  background-color: #f0f0f0;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.theme-dark .progress-bar-wrapper {
+  background-color: #2a2a2a;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.progress-excellent {
+  background: linear-gradient(90deg, #67c23a 0%, #85ce61 100%);
+}
+
+.progress-good {
+  background: linear-gradient(90deg, #409eff 0%, #66b1ff 100%);
+}
+
+.progress-normal {
+  background: linear-gradient(90deg, #e6a23c 0%, #ebb563 100%);
+}
+
+.progress-low {
+  background: linear-gradient(90deg, #f56c6c 0%, #f78989 100%);
+}
+
+.ranking-info {
+  display: flex;
+  align-items: center;
 }
 
 .member-count {
-  font-size: 13px;
-  color: #999;
+  font-size: 12px;
+  color: #909399;
 }
 
 .theme-dark .member-count {
-  color: #9ca3af;
+  color: #707070;
 }
 
 .no-ranking {
   text-align: center;
-  padding: 40px 20px;
+  padding: 32px 16px;
 }
 
 .no-ranking-icon {
-  font-size: 48px;
-  margin-bottom: 12px;
-  opacity: 0.6;
+  font-size: 40px;
+  margin-bottom: 8px;
+  color: #c0c4cc;
 }
 
 .no-ranking-text {
-  font-size: 14px;
-  color: #9ca3af;
+  font-size: 13px;
+  color: #909399;
   margin: 0;
 }
 
 /* 响应式设计 */
-/* 响应式设计 */
 @media (max-width: 768px) {
   .overview-section {
     padding: 16px;
-    margin-bottom: 24px;
+    margin-bottom: 16px;
   }
-  
+
   .section-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;
   }
-  
+
   .info-grid,
   .stats-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .stat-card {
-    padding: 16px;
+    padding: 14px;
   }
-  
+
   .ranking-item {
-    padding: 12px 0;
+    padding: 10px 0;
   }
-  
+
   .progress-indicator {
-    min-width: 100px;
+    min-width: 80px;
   }
 }
 
@@ -938,10 +1031,10 @@ onMounted(() => {
     text-align: center;
     gap: 8px;
   }
-  
+
   .info-icon {
     margin-right: 0;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
   }
 }
 </style>

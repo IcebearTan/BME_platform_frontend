@@ -35,16 +35,10 @@
         
         <!-- 管理员操作 -->
         <div v-if="isTeacher" class="header-actions">
-          <el-dropdown split-button type="primary" @click="handleCreateTask('custom')" @command="handleCreateTask">
+          <el-button type="primary" @click="handleCreateTask('custom')">
             <el-icon><DocumentAdd /></el-icon>
             创建任务
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item command="exercise">创建题目</el-dropdown-item>
-                <el-dropdown-item command="custom">创建自定义任务</el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
+          </el-button>
           <el-button type="default" size="default" @click="handleBatchManage">
             <el-icon><Setting /></el-icon>
             批量管理
@@ -64,7 +58,6 @@
         @manage-task="handleManageTask"
         @task-action="handleTaskAction"
         @solve-exercise="handleSolveExercise"
-        @submit-task="handleSubmitTask"
         @task-submitted="handleTaskSubmitted"
         @create-task="handleCreateTask"
         @cancel-batch-mode="cancelBatchMode"
@@ -88,181 +81,73 @@
         :rules="taskRules"
         label-width="100px"
       >
-        <el-form-item v-if="!editingTask" label="任务类型" prop="type">
-          <el-radio-group v-model="taskForm.type" @change="handleTaskTypeChange">
-            <el-radio label="exercise">题目任务</el-radio>
-            <el-radio label="custom">自定义任务</el-radio>
-          </el-radio-group>
-        </el-form-item>
-
-        <!-- 编辑模式下显示任务类型但不可修改 -->
-        <el-form-item v-else label="任务类型">
-          <span class="task-type-text">
-            {{ taskForm.type === 'exercise' ? '题目任务' : '自定义任务' }}
-          </span>
-        </el-form-item>
-
-        <el-form-item 
-          v-if="taskForm.type !== 'exercise'"
+        <el-form-item
           key="task-title"
-          label="任务标题" 
+          label="任务标题"
           prop="title"
         >
-          <el-input 
-            v-model="taskForm.title" 
+          <el-input
+            v-model="taskForm.title"
             placeholder="请输入任务标题"
             maxlength="100"
             show-word-limit
           />
         </el-form-item>
 
-        <!-- 题目筛选条件 - 仅新建模式显示 -->
-        <div v-if="taskForm.type === 'exercise' && !editingTask" key="exercise-filters" class="exercise-filters">
-          <el-row :gutter="12" align="middle">
-            <el-col :span="6">
-              <el-select
-                v-model="exerciseFilters.difficulty"
-                placeholder="难度筛选"
-                clearable
-                size="small"
-                style="width: 100%"
-                @change="onExerciseFilterChange"
-              >
-                <el-option label="全部难度" value="" />
-                <el-option label="简单" value="简单" />
-                <el-option label="中等" value="中等" />
-                <el-option label="困难" value="困难" />
-              </el-select>
-            </el-col>
-            <el-col :span="6">
-              <el-select
-                v-model="exerciseFilters.type"
-                placeholder="类型筛选"
-                clearable
-                size="small"
-                style="width: 100%"
-                @change="onExerciseFilterChange"
-              >
-                <el-option label="全部类型" value="" />
-                <el-option label="编程题" value="programming" />
-                <el-option label="计算题" value="calculation" />
-                <el-option label="逻辑题" value="logic" />
-              </el-select>
-            </el-col>
-            <el-col :span="8">
-              <el-input
-                v-model="exerciseFilters.keyword"
-                placeholder="搜索题目标题"
-                size="small"
-                clearable
-                @input="onExerciseFilterChange"
-              >
-                <template #prefix>
-                  <el-icon><Search /></el-icon>
-                </template>
-              </el-input>
-            </el-col>
-            <el-col :span="4">
-              <el-button 
-                size="small" 
-                @click="clearExerciseFilters"
-                :disabled="!hasActiveFilters"
-              >
-                清除筛选
-              </el-button>
-            </el-col>
-          </el-row>
-          <div v-if="filteredExerciseBank.length === 0 && hasActiveFilters" class="no-results-hint">
-            <el-text type="info" size="small">
-              <el-icon><Search /></el-icon>
-              没有找到匹配的题目，请调整筛选条件
-            </el-text>
-          </div>
-        </div>
-
-        <!-- 题目选择 - 新建模式 -->
-        <el-form-item 
-          v-if="taskForm.type === 'exercise' && !editingTask"
-          key="exercise-select"
-          label="选择题目" 
-          prop="exerciseId"
+        <el-form-item
+          label="任务内容"
+          prop="requirement_text"
         >
-          <el-select 
-            v-model="taskForm.exerciseId"
-            placeholder="从题库中选择题目"
-            filterable
-            style="width: 100%"
-            no-data-text="没有找到匹配的题目"
-          >
-            <el-option 
-              v-for="exercise in filteredExerciseBank"
-              :key="exercise.id"
-              :label="exercise.title"
-              :value="exercise.id"
-            >
-              <span style="float: left">{{ exercise.title }}</span>
-              <span style="float: right; color: #8492a6; font-size: 13px">
-                {{ exercise.difficulty }} | {{ getExerciseTypeLabel(exercise.type) }}
-              </span>
-            </el-option>
-          </el-select>
-        </el-form-item>
-
-        <!-- 题目显示 - 编辑模式 -->
-        <el-form-item 
-          v-if="taskForm.type === 'exercise' && editingTask"
-          key="exercise-display"
-          label="关联题目"
-        >
-          <div class="exercise-info">
-            <el-tag type="success" size="large">
-              {{ getCurrentExerciseTitle() }}
-            </el-tag>
-            <el-text type="info" size="small" style="margin-left: 8px;">
-              编辑模式下无法修改关联题目
-            </el-text>
-          </div>
-        </el-form-item>
-
-        <el-form-item 
-          v-if="taskForm.type === 'custom'"
-          key="task-description"
-          label="任务描述" 
-          prop="description"
-        >
-          <el-input 
-            v-model="taskForm.description"
+          <el-input
+            v-model="taskForm.requirement_text"
             type="textarea"
             :rows="4"
-            placeholder="请输入任务描述"
-            maxlength="500"
+            placeholder="请输入任务要求和内容"
+            maxlength="2000"
             show-word-limit
           />
         </el-form-item>
 
-        <el-form-item label="截止时间" prop="dueDate">
+        <el-form-item label="截止时间" prop="deadline_at">
           <el-date-picker
-            v-model="taskForm.dueDate"
+            v-model="taskForm.deadline_at"
             type="datetime"
             placeholder="选择截止时间"
             format="YYYY-MM-DD HH:mm"
-            value-format="YYYY-MM-DD HH:mm:ss"
+            value-format="YYYY-MM-DDTHH:mm:ss"
           />
         </el-form-item>
 
-        <el-form-item 
-          v-if="taskForm.type !== 'exercise'"
-          key="task-requirements"
-          label="任务要求"
-        >
-          <el-input 
-            v-model="taskForm.requirements"
-            type="textarea"
-            :rows="3"
-            placeholder="请输入任务具体要求和评分标准"
-            maxlength="1000"
-            show-word-limit
+        <!-- 提交设置 -->
+        <el-divider content-position="left">提交设置</el-divider>
+
+        <el-form-item label="允许逾期">
+          <el-switch v-model="taskForm.allow_late" />
+          <span class="form-tip">允许学生逾期提交作业</span>
+        </el-form-item>
+
+        <el-form-item label="提交次数">
+          <el-input-number
+            v-model="taskForm.max_attempts"
+            :min="0"
+            :max="10"
+            :step="1"
           />
+          <span class="form-tip">0 表示不限制提交次数</span>
+        </el-form-item>
+
+        <!-- 成绩设置 -->
+        <el-divider content-position="left">成绩设置</el-divider>
+
+        <el-form-item label="是否计分">
+          <el-switch v-model="taskForm.is_scored" />
+          <span class="form-tip">开启后需要为学生作业打分</span>
+        </el-form-item>
+
+        <el-form-item v-if="taskForm.is_scored" label="成绩范围">
+          <el-input-number v-model="taskForm.score_min" :min="0" :max="100" />
+          <span class="score-separator">-</span>
+          <el-input-number v-model="taskForm.score_max" :min="0" :max="100" />
         </el-form-item>
       </el-form>
 
@@ -288,7 +173,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch, nextTick } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useStore } from 'vuex';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -307,6 +192,7 @@ import {
 import TaskList from './TaskList.vue';
 import TaskSubmission from './TaskSubmission.vue';
 import TaskManagement from './TaskManagement.vue';
+import api from '../../api';
 
 // Props
 const props = defineProps({
@@ -346,13 +232,6 @@ const currentTaskType = ref('custom'); // 当前创建的任务类型
 const showTaskManagement = ref(false); // 是否显示任务管理组件
 const currentManagedTask = ref(null);  // 当前管理的任务
 
-// 题目筛选相关数据
-const exerciseFilters = ref({
-  difficulty: '',
-  type: '',
-  keyword: ''
-});
-
 // 对话框状态
 const isTaskDialogVisible = ref(false);
 const showSubmissionComponent = ref(false);
@@ -364,85 +243,21 @@ const taskFormRef = ref();
 const taskForm = ref({
   type: 'custom',
   title: '',
-  description: '',
-  exerciseId: '', // 选择的题目ID
-  dueDate: ''
+  requirement_text: '',  // 任务要求/描述
+  deadline_at: '',      // 截止时间 (ISO 8601)
+  allow_late: false,    // 是否允许逾期提交
+  max_attempts: 0,      // 提交次数限制 (0=不限制)
+  is_scored: true,      // 是否计分
+  score_min: 0,         // 最低分
+  score_max: 100,       // 最高分
+  exerciseId: ''        // 选择的题目ID
 });
-
-// 题库数据（模拟）
-const exerciseBank = ref([
-  { id: 1, title: 'Python基础语法练习', difficulty: '简单', type: 'programming' },
-  { id: 2, title: '数据结构实现', difficulty: '中等', type: 'programming' },
-  { id: 3, title: '算法设计与分析', difficulty: '困难', type: 'programming' },
-  { id: 4, title: '线性代数计算题', difficulty: '简单', type: 'calculation' },
-  { id: 5, title: '逻辑推理问题', difficulty: '中等', type: 'logic' },
-  { id: 6, title: 'Java面向对象编程', difficulty: '中等', type: 'programming' },
-  { id: 7, title: 'C++指针与内存管理', difficulty: '困难', type: 'programming' },
-  { id: 8, title: '概率统计计算', difficulty: '中等', type: 'calculation' },
-  { id: 9, title: '高等数学微积分', difficulty: '困难', type: 'calculation' },
-  { id: 10, title: '布尔逻辑与集合论', difficulty: '简单', type: 'logic' },
-  { id: 11, title: '数据库查询优化', difficulty: '困难', type: 'logic' },
-  { id: 12, title: 'JavaScript异步编程', difficulty: '中等', type: 'programming' },
-  { id: 13, title: '离散数学证明题', difficulty: '困难', type: 'logic' },
-  { id: 14, title: 'HTML与CSS基础', difficulty: '简单', type: 'programming' },
-  { id: 15, title: '物理计算与建模', difficulty: '中等', type: 'calculation' }
-]);
 
 // 主题适配
 const isDarkMode = computed(() => store.getters.isDarkMode);
 
 // 是否为教师（管理员）
 const isTeacher = computed(() => props.courseType === 'my-teachings');
-
-// 筛选后的题库
-const filteredExerciseBank = computed(() => {
-  try {
-    if (!exerciseBank.value || !Array.isArray(exerciseBank.value)) {
-      return [];
-    }
-    
-    let filtered = exerciseBank.value;
-    
-    // 按难度筛选
-    if (exerciseFilters.value?.difficulty) {
-      filtered = filtered.filter(exercise => 
-        exercise?.difficulty === exerciseFilters.value.difficulty
-      );
-    }
-    
-    // 按类型筛选
-    if (exerciseFilters.value?.type) {
-      filtered = filtered.filter(exercise => 
-        exercise?.type === exerciseFilters.value.type
-      );
-    }
-    
-    // 按关键词搜索
-    if (exerciseFilters.value?.keyword) {
-      const keyword = exerciseFilters.value.keyword.toLowerCase();
-      filtered = filtered.filter(exercise => 
-        exercise?.title?.toLowerCase().includes(keyword)
-      );
-    }
-    
-    return filtered || [];
-  } catch (error) {
-    console.warn('筛选题库时出现问题:', error);
-    return exerciseBank.value || [];
-  }
-});
-
-// 检查是否有激活的筛选条件
-const hasActiveFilters = computed(() => {
-  try {
-    return !!(exerciseFilters.value?.difficulty || 
-              exerciseFilters.value?.type || 
-              exerciseFilters.value?.keyword);
-  } catch (error) {
-    console.warn('检查筛选条件时出现问题:', error);
-    return false;
-  }
-});
 
 // 任务状态选项（简化为三种状态）
 const taskStatusOptions = [
@@ -460,145 +275,59 @@ const priorityOptions = [
 
 // 表单验证规则
 const taskRules = {
-  type: [
-    { required: true, message: '请选择任务类型', trigger: 'change' }
-  ],
   title: [
-    { 
-      required: true, 
-      message: '请输入任务标题', 
+    {
+      required: true,
+      message: '请输入任务标题',
       trigger: 'blur',
       validator: (rule, value, callback) => {
-        // 自定义任务或编辑模式下需要验证标题
-        if (taskForm.value.type === 'custom' || editingTask.value) {
-          if (!value || value.trim().length === 0) {
-            callback(new Error('请输入任务标题'));
-          } else if (value.length < 2 || value.length > 100) {
-            callback(new Error('标题长度在 2 到 100 个字符'));
-          } else {
-            callback();
-          }
-        } else {
-          // 新建题目任务不需要验证标题
-          callback();
-        }
-      }
-    }
-  ],
-  exerciseId: [
-    { 
-      required: true, 
-      message: '请选择题目', 
-      trigger: 'change',
-      validator: (rule, value, callback) => {
-        // 题目任务且非编辑模式时需要验证exerciseId
-        if (taskForm.value.type === 'exercise' && !editingTask.value && !value) {
-          callback(new Error('请选择题目'));
+        if (!value || value.trim().length === 0) {
+          callback(new Error('请输入任务标题'));
+        } else if (value.length < 2 || value.length > 100) {
+          callback(new Error('标题长度在 2 到 100 个字符'));
         } else {
           callback();
         }
       }
     }
-  ],
-  description: [
-    { 
-      required: true, 
-      message: '请输入任务描述', 
-      trigger: 'blur',
-      validator: (rule, value, callback) => {
-        if (taskForm.value.type === 'custom' && (!value || value.length < 5)) {
-          callback(new Error('任务描述长度至少 5 个字符'));
-        } else {
-          callback();
-        }
-      }
-    }
-  ],
-  dueDate: [
-    { required: true, message: '请选择截止时间', trigger: 'change' }
   ]
 };
-
-// 模拟任务数据
-const mockTasks = [
-  {
-    id: 1,
-    type: 'exercise',
-    title: '生物信号滤波练习',
-    description: '请计算给定生物信号的功率谱密度，并设计合适的滤波器去除噪声。',
-    exerciseId: 2,
-    createDate: new Date('2024-10-07'),
-    dueDate: new Date('2024-10-15'),
-    status: 'pending',
-    assignedDate: new Date('2024-10-07')
-  },
-  {
-    id: 2,
-    type: 'custom',
-    title: '实验报告：心电信号分析',
-    description: '基于实验数据，分析心电信号的特征，撰写实验报告。',
-    createDate: new Date('2024-10-06'),
-    dueDate: new Date('2024-10-07'), // 昨天截止，应该显示为逾期
-    status: 'pending', // 改为pending，会根据截止时间自动计算为overdue
-    assignedDate: new Date('2024-10-06')
-  },
-  {
-    id: 3,
-    type: 'exercise',
-    title: '医学图像处理基础测试',
-    description: '关于医学图像滤波方法的选择题测试。',
-    exerciseId: 4,
-    createDate: new Date('2024-10-05'),
-    dueDate: new Date('2024-10-10'),
-    status: 'completed',
-    assignedDate: new Date('2024-10-05')
-  },
-  {
-    id: 4,
-    type: 'custom',
-    title: 'Python编程作业',
-    description: '使用Python实现简单的数字滤波器设计。',
-    createDate: new Date('2024-10-04'),
-    dueDate: new Date('2024-10-11'),
-    status: 'pending',
-    assignedDate: new Date('2024-10-04')
-  },
-  {
-    id: 5,
-    type: 'exercise',
-    title: '信号处理基础练习',
-    description: '完成关于傅里叶变换和频域分析的练习题。',
-    exerciseId: 101,
-    createDate: new Date('2024-10-08'),
-    dueDate: new Date('2024-10-15'),
-    status: 'pending',
-    assignedDate: new Date('2024-10-08')
-  },
-  {
-    id: 6,
-    type: 'exercise', 
-    title: '数据结构算法测试',
-    description: '测试二叉树遍历和图论基础算法的理解。',
-    exerciseId: 102,
-    createDate: new Date('2024-10-07'),
-    dueDate: new Date('2024-10-14'),
-    status: 'pending',
-    assignedDate: new Date('2024-10-07')
-  }
-];
 
 // 计算属性
 
 // 方法
 const loadTasks = async () => {
-  loading.value = true;
-  
-  // 模拟API调用
-  setTimeout(() => {
-    // 直接使用模拟数据，状态计算交给 getTaskActualStatus 函数
-    tasks.value = [...mockTasks];
+  if (!props.groupData?.id) {
     loading.value = false;
-  }, 500);
+    return;
+  }
+
+  // 根据用户角色加载任务：教师用teaching，学生用learning
+  const mineType = isTeacher.value ? 'teaching' : 'learning';
+
+  try {
+    const res = await api({
+      url: `/tasks?group_id=${props.groupData.id}&mine=${mineType}`,
+      method: 'get'
+    });
+
+    if (res.data && res.data.code === 200) {
+      // 将后端字段映射为前端字段
+      tasks.value = (res.data.data || []).map(task => ({
+        ...task,
+        dueDate: task.deadline_at ? new Date(task.deadline_at.replace('Z', '')) : null,
+        description: task.requirement_text || task.description || '',
+        createDate: task.created_at ? new Date(task.created_at.replace('Z', '')) : null,
+        // 如果没有type字段，默认设为custom
+        type: task.type || 'custom'
+      }));
+    }
+  } catch (err) {
+    console.error('加载任务列表失败:', err);
+    tasks.value = [];
+  } finally {
+    loading.value = false;
+  }
 };
 
 const formatDateTime = (date) => {
@@ -638,23 +367,16 @@ const handleCreateTask = (taskType = 'custom') => {
   taskForm.value = {
     type: taskType,
     title: '',
-    description: '',
-    priority: 'medium',
-    dueDate: '',
-    requirements: '',
-    // 题目任务单专用字段
-    exerciseType: '',
-    referenceAnswer: '',
-    score: 10
+    requirement_text: '',
+    deadline_at: '',
+    allow_late: false,
+    max_attempts: 0,
+    is_scored: true,
+    score_min: 0,
+    score_max: 100,
+    exerciseId: ''
   };
-  
-  // 重置题目筛选条件
-  exerciseFilters.value = {
-    difficulty: '',
-    type: '',
-    keyword: ''
-  };
-  
+
   isTaskDialogVisible.value = true;
 };
 
@@ -662,76 +384,7 @@ const getCreateDialogTitle = () => {
   if (editingTask.value) {
     return '编辑任务';
   }
-  return currentTaskType.value === 'exercise' ? '创建题目' : '创建自定义任务';
-};
-
-const handleTaskTypeChange = async () => {
-  try {
-    // 同步更新当前任务类型，确保标题正确显示
-    currentTaskType.value = taskForm.value.type;
-    
-    // 使用 nextTick 确保 DOM 更新完成
-    await nextTick();
-    
-    // 当任务类型改变时，重置相关字段
-    if (taskForm.value.type === 'exercise') {
-      taskForm.value.exerciseType = '';
-      taskForm.value.referenceAnswer = '';
-      taskForm.value.score = 10;
-      // 清空自定义任务的字段
-      taskForm.value.title = '';
-      taskForm.value.description = '';
-      taskForm.value.requirements = '';
-      // 重置题目筛选条件
-      exerciseFilters.value = {
-        difficulty: '',
-        type: '',
-        keyword: ''
-      };
-    } else {
-      // 切换到自定义任务时，清空题目相关字段
-      taskForm.value.exerciseId = '';
-    }
-  } catch (error) {
-    console.warn('任务类型切换出现问题:', error);
-  }
-};
-
-// 题目筛选变化处理
-const onExerciseFilterChange = () => {
-  try {
-    // 当筛选条件变化时，如果当前选中的题目不在筛选结果中，则清空选择
-    if (taskForm.value?.exerciseId && filteredExerciseBank.value) {
-      const selectedExercise = filteredExerciseBank.value.find(
-        exercise => exercise.id === taskForm.value.exerciseId
-      );
-      if (!selectedExercise) {
-        taskForm.value.exerciseId = '';
-      }
-    }
-  } catch (error) {
-    console.warn('筛选处理出现问题:', error);
-  }
-};
-
-// 获取题目类型标签
-const getExerciseTypeLabel = (type) => {
-  const typeMap = {
-    programming: '编程题',
-    calculation: '计算题',
-    logic: '逻辑题'
-  };
-  return typeMap[type] || type;
-};
-
-// 获取当前编辑任务关联的题目标题
-const getCurrentExerciseTitle = () => {
-  if (!editingTask.value || !editingTask.value.exerciseId) {
-    return '未关联题目';
-  }
-  
-  const exercise = exerciseBank.value.find(ex => ex.id === editingTask.value.exerciseId);
-  return exercise ? exercise.title : `题目ID: ${editingTask.value.exerciseId}`;
+  return '创建任务';
 };
 
 // 获取优先级文本
@@ -769,19 +422,6 @@ const getTaskActualStatus = (task) => {
   return 'pending';
 };
 
-// 清除所有筛选条件
-const clearExerciseFilters = () => {
-  try {
-    exerciseFilters.value = {
-      difficulty: '',
-      type: '',
-      keyword: ''
-    };
-  } catch (error) {
-    console.warn('清除筛选条件出现问题:', error);
-  }
-};
-
 const handleCancelTask = () => {
   isTaskDialogVisible.value = false;
   editingTask.value = null;
@@ -817,9 +457,35 @@ const handleSelectAll = () => {
   // 这里可以添加一些额外的逻辑，比如通知后端等
 };
 
-const handleTaskClick = (task) => {
-  // 学生点击任务卡片时显示提交组件
-  selectedTask.value = task;
+const handleTaskClick = async (task) => {
+  // 学生点击任务卡片时显示提交组件，先获取任务详情
+  try {
+    const res = await api({
+      url: `/tasks/${task.id}`,
+      method: 'get'
+    });
+
+    console.log('任务详情返回:', res.data);
+
+    if (res.data && res.data.code === 200) {
+      const taskDetail = res.data.data;
+      selectedTask.value = {
+        ...task,
+        ...taskDetail,
+        dueDate: taskDetail.deadline_at ? new Date(taskDetail.deadline_at.replace('Z', '')) : null,
+        description: taskDetail.requirement_text || taskDetail.description || '',
+        createDate: taskDetail.created_at ? new Date(taskDetail.created_at.replace('Z', '')) : null,
+        type: taskDetail.type || task.type || 'custom'
+      };
+      console.log('合并后的任务:', selectedTask.value);
+    } else {
+      selectedTask.value = task;
+    }
+  } catch (err) {
+    console.error('获取任务详情失败:', err);
+    selectedTask.value = task;
+  }
+
   showSubmissionComponent.value = true;
 };
 
@@ -829,27 +495,73 @@ const handleManageTask = (task) => {
   showTaskManagement.value = true;
 };
 
-const handleTaskAction = ({ action, task }) => {
+const handleTaskAction = async ({ action, task }) => {
   console.log('Task action:', action, task);
-  
+
   switch (action) {
     case 'edit':
-      editingTask.value = task;
-      // 根据任务类型正确加载表单数据
-      taskForm.value = {
-        type: task.type,
-        title: task.title,
-        description: task.description,
-        priority: task.priority || 'medium',
-        dueDate: task.dueDate,
-        requirements: task.requirements || '',
-        // 题目任务相关字段
-        exerciseId: task.exerciseId || '',
-        exerciseType: task.exerciseType || '',
-        referenceAnswer: task.referenceAnswer || '',
-        score: task.score || 10
-      };
-      isTaskDialogVisible.value = true;
+      // 获取任务详情
+      try {
+        const res = await api({
+          url: `/tasks/${task.id}`,
+          method: 'get'
+        });
+        if (res.data && res.data.code === 200) {
+          const taskDetail = res.data.data;
+          editingTask.value = task;
+          taskForm.value = {
+            type: task.type || 'custom',
+            title: taskDetail.title || task.title || '',
+            requirement_text: taskDetail.requirement_text || '',
+            deadline_at: taskDetail.deadline_at ? taskDetail.deadline_at.replace('Z', '') : '',
+            allow_late: taskDetail.allow_late || false,
+            max_attempts: taskDetail.max_attempts || 0,
+            is_scored: taskDetail.is_scored || true,
+            score_min: taskDetail.score_min || 0,
+            score_max: taskDetail.score_max || 100
+          };
+          isTaskDialogVisible.value = true;
+        }
+      } catch (err) {
+        console.error('获取任务详情失败:', err);
+        ElMessage.error('获取任务详情失败');
+      }
+      break;
+    case 'publish':
+      // 发布任务
+      try {
+        const res = await api({
+          url: `/tasks/${task.id}/publish`,
+          method: 'post'
+        });
+        if (res.data && res.data.code === 200) {
+          ElMessage.success('任务已发布');
+          await loadTasks();
+        } else {
+          ElMessage.error(res.data?.message || '发布任务失败');
+        }
+      } catch (err) {
+        console.error('发布任务失败:', err);
+        ElMessage.error('发布任务失败，请稍后重试');
+      }
+      break;
+    case 'close':
+      // 关闭任务
+      try {
+        const res = await api({
+          url: `/tasks/${task.id}/close`,
+          method: 'post'
+        });
+        if (res.data && res.data.code === 200) {
+          ElMessage.success('任务已关闭');
+          await loadTasks();
+        } else {
+          ElMessage.error(res.data?.message || '关闭任务失败');
+        }
+      } catch (err) {
+        console.error('关闭任务失败:', err);
+        ElMessage.error('关闭任务失败，请稍后重试');
+      }
       break;
     case 'copy':
       handleCopyTask(task);
@@ -878,65 +590,85 @@ const handleCopyTask = (task) => {
     referenceAnswer: task.referenceAnswer || '',
     score: task.score || 10
   };
-  
-  // 重置题目筛选条件
-  exerciseFilters.value = {
-    difficulty: '',
-    type: '',
-    keyword: ''
-  };
-  
+
   isTaskDialogVisible.value = true;
   ElMessage.success('任务已复制，请修改相关信息后保存');
 };
 
-const handleDeleteTask = (task) => {
-  ElMessageBox.confirm(
-    '确定要删除这个任务吗？删除后无法恢复。',
-    '删除确认',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning',
-    }
-  ).then(() => {
-    const index = tasks.value.findIndex(item => item.id === task.id);
-    if (index > -1) {
-      tasks.value.splice(index, 1);
+const handleDeleteTask = async (task) => {
+  try {
+    await ElMessageBox.confirm(
+      '确定要删除这个任务吗？删除后无法恢复。',
+      '删除确认',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+      }
+    );
+
+    // 调用后端API删除任务
+    const res = await api({
+      url: `/tasks/${task.id}`,
+      method: 'delete'
+    });
+
+    if (res.data && res.data.code === 200) {
+      const index = tasks.value.findIndex(item => item.id === task.id);
+      if (index > -1) {
+        tasks.value.splice(index, 1);
+      }
       ElMessage.success('任务已删除');
       emit('task-delete', task);
+    } else {
+      ElMessage.error(res.data?.message || '删除失败');
     }
-  }).catch(() => {
-    // 取消删除
-  });
+  } catch (err) {
+    if (err !== 'cancel') {
+      console.error('删除任务失败:', err);
+      ElMessage.error('删除任务失败，请稍后重试');
+    }
+  }
 };
 
-const handleBatchDelete = () => {
-  ElMessageBox.confirm(
-    `确定要删除选中的 ${selectedTasks.value.length} 个任务吗？`,
-    '批量删除确认',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning',
-    }
-  ).then(() => {
+const handleBatchDelete = async () => {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除选中的 ${selectedTasks.value.length} 个任务吗？`,
+      '批量删除确认',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+      }
+    );
+
+    // 逐个删除任务
+    const deletePromises = selectedTasks.value.map(taskId =>
+      api({
+        url: `/tasks/${taskId}`,
+        method: 'delete'
+      })
+    );
+
+    await Promise.all(deletePromises);
+
     tasks.value = tasks.value.filter(
       task => !selectedTasks.value.includes(task.id)
     );
     ElMessage.success(`已删除 ${selectedTasks.value.length} 个任务`);
     selectedTasks.value = [];
-  });
+  } catch (err) {
+    if (err !== 'cancel') {
+      console.error('批量删除任务失败:', err);
+      ElMessage.error('批量删除失败，请稍后重试');
+    }
+  }
 };
 
 const handleStartTask = (task) => {
   task.status = 'in_progress';
   ElMessage.success('任务已开始');
-};
-
-const handleSubmitTask = (task) => {
-  selectedTask.value = task;
-  showSubmissionComponent.value = true;
 };
 
 const handleBackToTasks = () => {
@@ -953,9 +685,7 @@ const handleTaskSubmitted = (data) => {
   }
   
   // 这里可以添加提交成功后的处理逻辑
-  // 比如刷新任务列表、显示成功消息等
-  ElMessage.success('任务提交成功！');
-  
+
   // 返回任务列表
   handleBackToTasks();
   
@@ -990,60 +720,96 @@ const handleSolveExercise = (task) => {
 
 const handleSaveTask = async () => {
   if (!taskFormRef.value) return;
-  
+
   try {
     await taskFormRef.value.validate();
-    
+
     saving.value = true;
-    
-    // 模拟API调用
-    setTimeout(() => {
-      // 如果是题目任务，自动设置标题为选中题目的标题
-      const taskData = { ...taskForm.value };
-      if (taskData.type === 'exercise' && taskData.exerciseId) {
-        const selectedExercise = exerciseBank.value.find(ex => ex.id === taskData.exerciseId);
-        if (selectedExercise) {
-          taskData.title = selectedExercise.title;
+
+    const taskData = { ...taskForm.value };
+    const groupId = props.groupData?.id;
+
+    if (editingTask.value) {
+      // 编辑现有任务 - PUT /tasks/{id}
+      try {
+        // 格式化截止时间，添加时区信息
+        let deadlineAt = null;
+        if (taskData.deadline_at) {
+          deadlineAt = taskData.deadline_at + 'Z';
         }
-      }
-      
-      if (editingTask.value) {
-        // 编辑现有任务 - 不允许修改type和exerciseId
-        const updateData = { ...taskData };
-        delete updateData.type; // 不允许修改任务类型
-        if (editingTask.value.type === 'exercise') {
-          delete updateData.exerciseId; // 题目任务不允许修改exerciseId
-        }
-        
-        Object.assign(editingTask.value, {
-          ...updateData,
-          updateDate: new Date() // 记录更新时间而不是创建时间
+
+        const res = await api({
+          url: `/tasks/${editingTask.value.id}`,
+          method: 'put',
+          data: {
+            title: taskData.title,
+            requirement_text: taskData.requirement_text,
+            deadline_at: deadlineAt,
+            allow_late: taskData.allow_late,
+            max_attempts: taskData.max_attempts,
+            is_scored: taskData.is_scored,
+            score_min: taskData.score_min,
+            score_max: taskData.score_max
+          }
         });
-        ElMessage.success('任务已更新');
-        emit('task-edit', editingTask.value);
-      } else {
-        // 创建新任务
-        const newTask = {
-          id: Date.now(),
-          ...taskData,
-          assignBy: '当前用户',
-          createDate: new Date(),
-          status: 'pending',
-          completedCount: 0,
-          totalCount: 25, // 假设小组有25个学生
-          pendingCount: 25,
-          overdueCount: 0
-        };
-        tasks.value.unshift(newTask);
-        ElMessage.success('任务创建成功');
-        emit('task-create', newTask);
+
+        if (res.data && (res.data.code === 200 || res.data.code === 201)) {
+          ElMessage.success('任务已更新');
+          // 刷新任务列表
+          await loadTasks();
+          emit('task-edit', editingTask.value);
+        } else {
+          ElMessage.error(res.data?.message || '更新任务失败');
+        }
+      } catch (err) {
+        console.error('更新任务失败:', err);
+        ElMessage.error('更新任务失败，请稍后重试');
       }
-      
-      saving.value = false;
-      handleCancelTask();
-    }, 1000);
+    } else {
+      // 创建新任务 - POST /tasks
+      try {
+        // 格式化截止时间，添加时区信息
+        let deadlineAt = null;
+        if (taskData.deadline_at) {
+          deadlineAt = taskData.deadline_at + 'Z';
+        }
+
+        const res = await api({
+          url: '/tasks',
+          method: 'post',
+          data: {
+            group_id: groupId,
+            title: taskData.title,
+            requirement_text: taskData.requirement_text,
+            deadline_at: deadlineAt,
+            status: 'published',
+            allow_late: taskData.allow_late,
+            max_attempts: taskData.max_attempts,
+            is_scored: taskData.is_scored,
+            score_min: taskData.score_min,
+            score_max: taskData.score_max
+          }
+        });
+
+        if (res.data && (res.data.code === 200 || res.data.code === 201)) {
+          ElMessage.success('任务创建成功');
+          // 刷新任务列表
+          await loadTasks();
+          emit('task-create', res.data.data);
+        } else {
+          ElMessage.error(res.data?.message || '创建任务失败');
+        }
+      } catch (err) {
+        console.error('创建任务失败:', err);
+        ElMessage.error('创建任务失败，请稍后重试');
+      }
+    }
+
+    saving.value = false;
+    handleCancelTask();
   } catch (error) {
     console.error('Form validation failed:', error);
+    saving.value = false;
   }
 };
 
@@ -1060,7 +826,6 @@ const handleCloseTaskManagement = () => {
 
 const handleGradeUpdated = (submission) => {
   console.log('成绩已更新:', submission);
-  ElMessage.success('成绩已更新');
   // TODO: 刷新任务数据或更新统计
 };
 
@@ -1078,6 +843,13 @@ const handleExportStats = () => {
 
 onMounted(() => {
   loadTasks();
+});
+
+// 监听小组变化，重新加载任务
+watch(() => props.groupData?.id, (newGroupId) => {
+  if (newGroupId) {
+    loadTasks();
+  }
 });
 </script>
 
@@ -1772,6 +1544,17 @@ onMounted(() => {
 /* 对话框样式 */
 .task-dialog :deep(.el-dialog__body) {
   padding: 20px;
+}
+
+.form-tip {
+  margin-left: 12px;
+  font-size: 13px;
+  color: #909399;
+}
+
+.score-separator {
+  margin: 0 8px;
+  color: #909399;
 }
 
 .dialog-footer {
