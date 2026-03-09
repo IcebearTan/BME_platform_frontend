@@ -20,7 +20,7 @@
         <div class="course-card-content">
           <h3 class="course-title">{{ course.title }}</h3>
           <p class="course-description">{{ course.description }}</p>
-          
+
           <div class="course-meta">
             <div class="meta-item">
               <span class="meta-text">导生：{{ course.tutorName || '未指定' }}</span>
@@ -29,6 +29,20 @@
               <span class="meta-text">学员：{{ course.studentCount || 0 }}人</span>
             </div>
           </div>
+        </div>
+
+        <!-- 卡片底部：申请加入按钮（仅小组广场显示） -->
+        <div class="course-card-footer" v-if="courseType === 'all-groups'">
+          <el-button
+            :type="getJoinButtonType(course)"
+            :loading="course.joinLoading"
+            :disabled="course.joinStatus === 'joined'"
+            round
+            class="join-btn"
+            @click.stop="handleJoinGroup(course)"
+          >
+            {{ getJoinButtonText(course) }}
+          </el-button>
         </div>
       </div>
     </div>
@@ -49,6 +63,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
 import { useStore } from 'vuex';
+import { ElMessage } from 'element-plus';
 import api from '../../api';
 
 // Props
@@ -56,7 +71,7 @@ const props = defineProps({
   courseType: {
     type: String,
     required: true,
-    validator: (value) => ['my-courses', 'my-teachings'].includes(value)
+    validator: (value) => ['my-courses', 'my-teachings', 'all-groups'].includes(value)
   },
   searchQuery: {
     type: String,
@@ -94,7 +109,9 @@ const filteredCourses = computed(() => {
 
 // 空状态消息
 const emptyStateMessage = computed(() => {
-  return props.courseType === 'my-courses' ? '还没有加入小组' : '还没有管理的小组';
+  if (props.courseType === 'my-courses') return '还没有加入小组';
+  if (props.courseType === 'my-teachings') return '还没有管理的小组';
+  return '暂无可用小组';
 });
 
 // 解析 term 字段 (格式: "2024-spring")
@@ -153,7 +170,7 @@ const loadCourses = async () => {
 
       if (res.data && res.data.code === 200) {
         const groups = res.data.data || [];
-        console.log('教师小组数据:', groups);
+        console.log('我教的小组数据:', groups);
         courses.value = groups.map(group => {
           const { academicYear, semester } = parseTerm(group.term);
           return {
@@ -162,7 +179,7 @@ const loadCourses = async () => {
             description: '',
             status: group.status || 'active',
             studentCount: group.member_count || 0,
-            tutorName: group.teacher_name || '我',
+            tutorName: group.teacher_name || '未指定',
             courseId: group.course_id,
             academicYear,
             semester,
@@ -171,6 +188,41 @@ const loadCourses = async () => {
             settings: {}
           };
         });
+      }
+    } else if (props.courseType === 'all-groups') {
+      // 小组广场：获取所有小组
+      res = await api({
+        url: '/course-groups?mine=all',
+        method: 'get'
+      });
+
+      if (res.data && res.data.code === 200) {
+        const groups = res.data.data || [];
+        console.log('所有小组数据:', groups);
+
+        // 先设置基本信息
+        courses.value = groups.map(group => {
+          const { academicYear, semester } = parseTerm(group.term);
+          return {
+            id: group.id,
+            title: group.name,
+            description: '',
+            status: group.status || 'active',
+            studentCount: group.member_count || 0,
+            tutorName: group.teacher_name || '未指定',
+            courseId: group.course_id,
+            academicYear,
+            semester,
+            courseName: group.course_name || '',
+            groupType: 'study',
+            settings: {},
+            joinStatus: 'none',
+            joinLoading: false
+          };
+        });
+
+        // 获取每个小组的加入状态
+        await checkAllJoinStatus();
       }
     }
   } catch (err) {
@@ -247,6 +299,93 @@ const formatDate = (date) => {
 
 const handleCourseClick = (course) => {
   emit('course-click', course);
+};
+
+// 获取加入按钮文字
+const getJoinButtonText = (course) => {
+  const status = course.joinStatus;
+  if (status === 'joined') return '已加入';
+  if (status === 'pending') return '待审核';
+  return '申请加入';
+};
+
+// 获取加入按钮类型
+const getJoinButtonType = (course) => {
+  const status = course.joinStatus;
+  if (status === 'joined') return 'info';
+  if (status === 'pending') return 'warning';
+  return 'primary';
+};
+
+// 检查所有小组的加入状态
+const checkAllJoinStatus = async () => {
+  // 并发检查每个小组的加入状态
+  const promises = courses.value.map(async (course) => {
+    try {
+      // 检查是否已加入该课程的小组
+      const checkRes = await api({
+        url: `/course-groups/check?course_id=${course.courseId}`,
+        method: 'get'
+      });
+
+      if (checkRes.data && checkRes.data.code === 200) {
+        if (checkRes.data.enrolled) {
+          course.joinStatus = 'joined';
+          return;
+        }
+      }
+
+      // 检查是否有待审核的申请
+      const requestRes = await api({
+        url: `/course-groups/my-join-requests?course_id=${course.courseId}&status=pending`,
+        method: 'get'
+      });
+
+      if (requestRes.data && requestRes.data.code === 200) {
+        const requests = requestRes.data.data || [];
+        // 检查是否有该小组的待审核申请
+        const hasPending = requests.some(req => req.group_id === course.id);
+        if (hasPending) {
+          course.joinStatus = 'pending';
+        }
+      }
+    } catch (err) {
+      console.error(`检查小组${course.id}加入状态失败:`, err);
+    }
+  });
+
+  await Promise.all(promises);
+};
+
+// 处理加入小组
+const handleJoinGroup = async (course) => {
+  if (course.joinStatus === 'joined' || course.joinStatus === 'pending') {
+    return; // 已加入或待审核状态不能重复点击
+  }
+
+  course.joinLoading = true;
+
+  try {
+    const res = await api({
+      url: `/course-groups/${course.id}/join`,
+      method: 'post',
+      data: {
+        apply_reason: '申请加入小组'
+      }
+    });
+
+    if (res.data && (res.data.code === 200 || res.data.code === 201)) {
+      course.joinStatus = 'pending';
+      ElMessage.success('申请已提交，请等待审核');
+    } else {
+      ElMessage.error(res.data?.message || '申请加入失败');
+    }
+  } catch (err) {
+    console.error('申请加入小组失败:', err);
+    ElMessage.error('申请加入失败，请稍后重试');
+  } finally {
+    course.joinLoading = false;
+  }
 };
 
 const handleEditCourse = (course) => {
@@ -385,6 +524,15 @@ onMounted(() => {
   font-weight: 500;
 }
 
+/* 卡片底部按钮 */
+.course-card-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 12px 20px 16px 20px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  margin-top: 8px;
+}
 
 
 /* 空状态样式 */
@@ -539,5 +687,28 @@ onMounted(() => {
 .theme-dark .academic-year {
   color: #a1a1aa;
   background-color: rgba(161, 161, 170, 0.15);
+}
+
+.theme-dark .course-card-footer {
+  border-top-color: rgba(255, 255, 255, 0.1);
+}
+
+/* 简约柔和的加入按钮样式 */
+.join-btn {
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  transition: all 0.3s ease;
+  border: none;
+  padding: 6px 16px;
+  font-size: 13px;
+}
+
+.join-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
+}
+
+.join-btn.is-disabled {
+  opacity: 0.6;
 }
 </style>

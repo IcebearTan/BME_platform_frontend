@@ -32,19 +32,23 @@
 
       <!-- 小组基本信息 -->
       <div class="group-info" v-if="currentGroup">
-        <h3 class="group-name">{{ currentGroup.title }}</h3>
+        <h3 class="group-name">{{ currentGroup.title || '小组详情' }}</h3>
         <div class="group-meta">
+          <div class="meta-item" v-if="currentGroup.courseName || currentGroup.courseName === ''">
+            <span class="meta-label">课程：</span>
+            <span class="meta-value">{{ currentGroup.courseName || '未设置' }}</span>
+          </div>
           <div class="meta-item">
             <span class="meta-label">导生：</span>
             <span class="meta-value">{{ currentGroup.tutorName || '未指定' }}</span>
           </div>
           <div class="meta-item">
             <span class="meta-label">学年学期：</span>
-            <span class="meta-value">{{ formatAcademicYear(currentGroup.academicYear, currentGroup.semester) }}</span>
+            <span class="meta-value">{{ formatAcademicYear(currentGroup.academicYear, currentGroup.semester) || '未设置' }}</span>
           </div>
           <div class="meta-item">
             <span class="meta-label">成员数：</span>
-            <span class="meta-value">{{ currentGroup.studentCount }}人</span>
+            <span class="meta-value">{{ currentGroup.studentCount || 0 }}人</span>
           </div>
           <div class="meta-item">
             <span class="meta-label">状态：</span>
@@ -78,7 +82,7 @@
 <script setup>
 import { computed } from 'vue';
 import { useStore } from 'vuex';
-import { ArrowLeft, Bell, Document, Setting, HomeFilled, UserFilled, Clock, Reading, Notebook } from '@element-plus/icons-vue';
+import { ArrowLeft, Bell, Document, Setting, HomeFilled, UserFilled, Clock, Reading, Notebook, Grid } from '@element-plus/icons-vue';
 
 // Props
 const props = defineProps({
@@ -123,7 +127,8 @@ const isDarkMode = computed(() => store.getters.isDarkMode);
 // 列表模式的导航项
 const listModeItems = [
   { id: 'my-courses', label: '我听的课', icon: Reading },
-  { id: 'my-teachings', label: '我教的课', icon: Notebook }
+  { id: 'my-teachings', label: '我教的课', icon: Notebook },
+  { id: 'all-groups', label: '小组广场', icon: Grid }
 ];
 
 // 详情模式的导航项（根据课程类型显示不同内容）
@@ -170,7 +175,7 @@ const detailNavItems = computed(() => {
 // 侧边栏标题
 const sidebarTitle = computed(() => {
   if (props.mode === 'list') {
-    return '课程管理';
+    return '小组中心';
   } else {
     return props.courseType === 'my-teachings' ? '小组管理' : '小组信息';
   }

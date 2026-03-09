@@ -4,6 +4,19 @@
     <div class="overview-section">
       <div class="section-header">
         <h3 class="section-title">基本信息</h3>
+        <!-- 顶部右侧：申请加入按钮（仅小组广场进入时显示） -->
+        <div class="header-actions" v-if="showJoinButton">
+          <el-button
+            :type="joinButtonType"
+            :loading="joinLoading"
+            :disabled="joinStatus === 'joined'"
+            round
+            class="join-btn"
+            @click="handleJoinGroup"
+          >
+            {{ joinButtonText }}
+          </el-button>
+        </div>
       </div>
       
       <div class="info-grid">
@@ -183,8 +196,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useStore } from 'vuex';
+import { ElMessage } from 'element-plus';
+import api from '../../api';
 import { 
   Reading, 
   User, 
@@ -212,7 +227,7 @@ const props = defineProps({
   courseType: {
     type: String,
     required: true,
-    validator: (value) => ['my-courses', 'my-teachings'].includes(value)
+    validator: (value) => ['my-courses', 'my-teachings', 'all-groups'].includes(value)
   }
 });
 
@@ -313,6 +328,107 @@ const progressRanking = ref([
 const isDarkMode = computed(() => store.getters.isDarkMode);
 const isTeacher = computed(() => props.courseType === 'my-teachings');
 
+// 加入小组相关状态
+const joinStatus = ref('none'); // none, pending, joined
+const joinLoading = ref(false);
+
+// 是否显示加入按钮（仅从小组广场进入时显示）
+const showJoinButton = computed(() => {
+  return props.courseType === 'all-groups';
+});
+
+// 检查加入状态
+const checkJoinStatus = async () => {
+  if (!props.groupData || !props.groupData.courseId) return;
+
+  joinLoading.value = true;
+  try {
+    // 检查是否已加入该课程的小组
+    const checkRes = await api({
+      url: `/course-groups/check?course_id=${props.groupData.courseId}`,
+      method: 'get'
+    });
+
+    if (checkRes.data && checkRes.data.code === 200) {
+      if (checkRes.data.enrolled) {
+        joinStatus.value = 'joined';
+        joinLoading.value = false;
+        return;
+      }
+    }
+
+    // 检查是否有待审核的申请
+    const requestRes = await api({
+      url: `/course-groups/my-join-requests?course_id=${props.groupData.courseId}&status=pending`,
+      method: 'get'
+    });
+
+    if (requestRes.data && requestRes.data.code === 200) {
+      const requests = requestRes.data.data || [];
+      const hasPending = requests.some(req => req.group_id === props.groupData.id);
+      if (hasPending) {
+        joinStatus.value = 'pending';
+      }
+    }
+  } catch (err) {
+    console.error('检查加入状态失败:', err);
+  } finally {
+    joinLoading.value = false;
+  }
+};
+
+// 监听 groupData 变化时检查加入状态
+watch(() => props.groupData?.id, (newId) => {
+  if (newId && showJoinButton.value) {
+    checkJoinStatus();
+  }
+}, { immediate: true });
+
+// 加入按钮文字
+const joinButtonText = computed(() => {
+  if (joinStatus.value === 'joined') return '已加入';
+  if (joinStatus.value === 'pending') return '待审核';
+  return '申请加入';
+});
+
+// 加入按钮类型
+const joinButtonType = computed(() => {
+  if (joinStatus.value === 'joined') return 'info';
+  if (joinStatus.value === 'pending') return 'warning';
+  return 'primary';
+});
+
+// 处理加入小组
+const handleJoinGroup = async () => {
+  if (joinStatus.value === 'joined' || joinStatus.value === 'pending') {
+    return;
+  }
+
+  joinLoading.value = true;
+
+  try {
+    const res = await api({
+      url: `/course-groups/${props.groupData.id}/join`,
+      method: 'post',
+      data: {
+        apply_reason: '申请加入小组'
+      }
+    });
+
+    if (res.data && (res.data.code === 200 || res.data.code === 201)) {
+      joinStatus.value = 'pending';
+      ElMessage.success('申请已提交，请等待审核');
+    } else {
+      ElMessage.error(res.data?.message || '申请加入失败');
+    }
+  } catch (err) {
+    console.error('申请加入小组失败:', err);
+    ElMessage.error('申请加入失败，请稍后重试');
+  } finally {
+    joinLoading.value = false;
+  }
+};
+
 // 方法
 const formatDate = (date) => {
   if (!date) return '';
@@ -394,6 +510,28 @@ onMounted(() => {
   margin-bottom: 20px;
   padding-bottom: 16px;
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+}
+
+/* 简约柔和的加入按钮样式 */
+.join-btn {
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  transition: all 0.3s ease;
+  border: none;
+}
+
+.join-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
+}
+
+.join-btn.is-disabled {
+  opacity: 0.6;
 }
 
 .theme-dark .section-header {

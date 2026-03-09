@@ -295,7 +295,7 @@
 import { ref, reactive, computed, onMounted } from 'vue';
 import { useStore } from 'vuex';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { 
+import {
   InfoFilled,
   User,
   Bell,
@@ -356,7 +356,6 @@ const notificationSettings = reactive({
 // 主题适配
 const isDarkMode = computed(() => store.getters.isDarkMode);
 
-// 可用课程列表
 const availableCourses = ref([
   { id: 1, name: '生物医学工程基础' },
   { id: 2, name: '医学信号处理' },

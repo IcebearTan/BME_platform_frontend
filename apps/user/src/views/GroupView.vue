@@ -38,33 +38,73 @@ const activeDetailTab = ref('overview'); // 详情页导航
 const currentGroup = ref(null); // 当前选中的小组
 
 // --- 路由状态管理 ---
-const initializeFromRoute = () => {
+const initializeFromRoute = async () => {
   const query = route.query;
-  
+
   // 恢复选项卡状态
   if (query.tab && ['my-courses', 'my-teachings'].includes(query.tab)) {
     activeTab.value = query.tab;
   }
-  
+
   // 恢复模式状态
   if (query.mode && ['list', 'detail'].includes(query.mode)) {
     currentMode.value = query.mode;
   }
-  
+
   // 恢复详情页标签
   if (query.detailTab && ['overview', 'members', 'announcements', 'tasks', 'activities', 'settings', 'attendance'].includes(query.detailTab)) {
     activeDetailTab.value = query.detailTab;
   }
-  
-  // 恢复当前小组（这里可以根据实际需要从ID获取小组信息）
+
+  // 恢复当前小组（从API获取完整信息）
   if (query.groupId) {
-    // TODO: 根据 groupId 获取小组信息
+    const groupId = parseInt(query.groupId);
+
+    // 解析term字段
+    const parseTerm = (term) => {
+      if (!term) return { academicYear: '', semester: '' };
+      const parts = term.split('-');
+      return {
+        academicYear: parts[0] || '',
+        semester: parts[1] || ''
+      };
+    };
+
+    // 设置基本信息
     currentGroup.value = {
-      id: query.groupId,
+      id: groupId,
       title: query.groupTitle || '小组详情'
     };
+
+    // 从API获取完整数据
+    try {
+      const res = await api({
+        url: `/course-groups/${groupId}`,
+        method: 'get'
+      });
+
+      if (res.data && res.data.code === 200) {
+        const detail = res.data.data;
+        const { academicYear, semester } = parseTerm(detail.term);
+        currentGroup.value = {
+          ...currentGroup.value,
+          title: detail.name,
+          courseId: detail.course_id,
+          courseName: detail.course_name || '',
+          tutorName: detail.teacher?.name || '',
+          status: detail.status,
+          term: detail.term,
+          academicYear,
+          semester,
+          studentCount: detail.members?.length || 0,
+          members: detail.members || []
+        };
+      }
+    } catch (err) {
+      console.error('从URL恢复小组详情失败:', err);
+    }
   }
-  
+
   // 恢复搜索状态
   if (query.search) {
     searchQuery.value = query.search;
@@ -222,22 +262,61 @@ const handleTabChange = (tabId) => {
 };
 
 // --- 课程管理事件处理 ---
-function handleCourseClick(course) {
+async function handleCourseClick(course) {
   console.log('Course clicked:', course);
   // 切换到详情模式并设置当前小组
   currentMode.value = 'detail';
-  
-  // 确保小组有完整的设置结构
+
+  // 先设置基本信息
   currentGroup.value = {
     ...course,
     settings: {
-      enableAttendance: true, // 默认启用考勤功能
+      enableAttendance: true,
       ...course.settings
     }
   };
-  
+
+  // 解析term字段
+  const parseTerm = (term) => {
+    if (!term) return { academicYear: '', semester: '' };
+    const parts = term.split('-');
+    return {
+      academicYear: parts[0] || '',
+      semester: parts[1] || ''
+    };
+  };
+
+  // 获取小组详情以更新最新数据
+  try {
+    const res = await api({
+      url: `/course-groups/${course.id}`,
+      method: 'get'
+    });
+
+    if (res.data && res.data.code === 200) {
+      const detail = res.data.data;
+      const { academicYear, semester } = parseTerm(detail.term);
+      // 更新currentGroup的详细信息
+      currentGroup.value = {
+        ...currentGroup.value,
+        title: detail.name,
+        courseId: detail.course_id,
+        courseName: detail.course_name || '',
+        tutorName: detail.teacher?.name || '',
+        status: detail.status,
+        term: detail.term,
+        academicYear,
+        semester,
+        studentCount: detail.members?.length || 0,
+        members: detail.members || []
+      };
+    }
+  } catch (err) {
+    console.error('获取小组详情失败:', err);
+  }
+
   activeDetailTab.value = 'overview';
-  
+
   // 更新路由状态
   updateRouteQuery();
 }
@@ -740,7 +819,7 @@ onUnmounted(() => {
                   </div>
                   
                   <div v-else-if="activeDetailTab === 'settings'" class="detail-section">
-                    <GroupSettings 
+                    <GroupSettings
                       :group-data="currentGroup"
                       @settings-updated="handleSettingsUpdated"
                       @group-archived="handleGroupArchived"

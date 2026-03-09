@@ -4,49 +4,58 @@
     <div class="members-header">
       <div class="header-info">
         <h3 class="members-title">{{ isTeacher ? '成员管理' : '成员列表' }}</h3>
-        <div class="members-count">共 {{ filteredMembers.length }} 人</div>
+        <div class="members-count" v-if="activeRequestTab === 'members'">共 {{ filteredMembers.length }} 人</div>
       </div>
-      
-      <!-- 管理员操作 -->
-      <div v-if="isTeacher" class="header-actions">
-        <el-button type="primary" size="default" @click="handleAddMember">
-          <el-icon><Plus /></el-icon>
-          添加成员
-        </el-button>
-        <el-button type="default" size="default" @click="handleBatchManage">
-          <el-icon><Setting /></el-icon>
-          批量管理
-        </el-button>
-      </div>
-    </div>
 
-    <!-- 搜索和筛选 -->
-    <div class="members-filters">
-      <div class="search-container">
-        <el-icon class="search-icon">
-          <Search />
-        </el-icon>
-        <input 
-          v-model="searchQuery"
-          type="text" 
-          class="search-input"
-          placeholder="搜索成员姓名或学号..."
-        />
-      </div>
-      
-      <div class="filter-tabs">
-        <div 
-          v-for="filter in memberFilters"
-          :key="filter.key"
-          class="filter-tab"
-          :class="{ 'active': activeFilter === filter.key }"
-          @click="activeFilter = filter.key"
+      <!-- Tab 切换（仅老师可见） -->
+      <div v-if="isTeacher" class="header-tabs">
+        <div
+          class="tab-item"
+          :class="{ 'active': activeRequestTab === 'members' }"
+          @click="activeRequestTab = 'members'"
         >
-          <span class="filter-label">{{ filter.label }}</span>
-          <span class="filter-count">({{ getFilterCount(filter.key) }})</span>
+          成员列表
+        </div>
+        <div
+          class="tab-item"
+          :class="{ 'active': activeRequestTab === 'pending' }"
+          @click="activeRequestTab = 'pending'; fetchJoinRequests()"
+        >
+          加入申请
+          <el-badge :value="joinRequests.length" :hidden="joinRequests.length === 0" class="tab-badge" />
         </div>
       </div>
     </div>
+
+    <!-- 成员列表视图 -->
+    <template v-if="activeRequestTab === 'members'">
+      <!-- 搜索和筛选 -->
+      <div class="members-filters">
+        <div class="search-container">
+          <el-icon class="search-icon">
+            <Search />
+          </el-icon>
+          <input
+            v-model="searchQuery"
+            type="text"
+            class="search-input"
+            placeholder="搜索成员姓名或学号..."
+          />
+        </div>
+
+        <div class="filter-tabs">
+          <div
+            v-for="filter in memberFilters"
+            :key="filter.key"
+            class="filter-tab"
+            :class="{ 'active': activeFilter === filter.key }"
+            @click="activeFilter = filter.key"
+          >
+            <span class="filter-label">{{ filter.label }}</span>
+            <span class="filter-count">({{ getFilterCount(filter.key) }})</span>
+          </div>
+        </div>
+      </div>
 
     <!-- 成员列表 -->
     <div class="members-list" v-if="filteredMembers.length > 0">
@@ -77,16 +86,22 @@
         <div class="member-info">
           <div class="member-basic">
             <h4 class="member-name">{{ member.name }}</h4>
+            <el-tag v-if="member.role === 'leader'" size="small" type="warning">组长</el-tag>
+            <el-tag v-if="member.status === 'inactive'" size="small" type="info">已停用</el-tag>
           </div>
-          
+
           <div class="member-details">
             <div class="detail-item">
               <span class="detail-label">学号：</span>
-              <span class="detail-value">{{ member.studentId || '未设置' }}</span>
+              <span class="detail-value">{{ member.student_id || '未设置' }}</span>
             </div>
             <div class="detail-item">
               <span class="detail-label">加入时间：</span>
-              <span class="detail-value">{{ formatDate(member.joinDate) }}</span>
+              <span class="detail-value">{{ member.join_date }}</span>
+            </div>
+            <div class="detail-item" v-if="member.completion_rate !== undefined">
+              <span class="detail-label">完成率：</span>
+              <span class="detail-value">{{ member.completion_rate }}%</span>
             </div>
           </div>
         </div>
@@ -99,9 +114,12 @@
             </el-button>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item :command="{ action: 'edit', member }">编辑信息</el-dropdown-item>
+                <el-dropdown-item :command="{ action: 'setLeader', member }" v-if="member.role !== 'leader'">设为组长</el-dropdown-item>
+                <el-dropdown-item :command="{ action: 'setMember', member }" v-if="member.role === 'leader'">取消组长</el-dropdown-item>
+                <el-dropdown-item :command="{ action: 'setActive', member }" v-if="member.status === 'inactive'">启用成员</el-dropdown-item>
+                <el-dropdown-item :command="{ action: 'setInactive', member }" v-if="member.status === 'active'">停用成员</el-dropdown-item>
                 <el-dropdown-item :command="{ action: 'viewProfile', member }">查看详情</el-dropdown-item>
-                <el-dropdown-item 
+                <el-dropdown-item
                   :command="{ action: 'remove', member }"
                   class="danger-item"
                 >
@@ -144,13 +162,40 @@
         <el-button size="small" @click="cancelBatchMode">取消</el-button>
       </div>
     </div>
+    </template>
+
+    <!-- 加入申请视图（仅老师可见） -->
+    <template v-if="activeRequestTab === 'pending'">
+      <div class="request-list" v-loading="joinRequestsLoading">
+        <div v-if="joinRequests.length === 0" class="empty-requests">
+          暂无待审核的加入申请
+        </div>
+        <div v-else v-for="request in joinRequests" :key="request.id" class="request-item">
+          <div class="request-info">
+            <div class="request-student">{{ request.student_name }}</div>
+            <div class="request-reason">申请理由：{{ request.apply_reason || '无' }}</div>
+            <div class="request-time">申请时间：{{ request.created_at }}</div>
+          </div>
+          <div class="request-actions">
+            <el-button type="primary" size="small" @click="handleApproveRequest(request)">
+              通过
+            </el-button>
+            <el-button type="danger" size="small" @click="handleRejectRequest(request)">
+              拒绝
+            </el-button>
+          </div>
+        </div>
+      </div>
+    </template>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
 import { useStore } from 'vuex';
-import { Plus, Setting, Search, MoreFilled } from '@element-plus/icons-vue';
+import { Search, MoreFilled } from '@element-plus/icons-vue';
+import { ElMessage } from 'element-plus';
+import api from '../../api';
 
 // Props
 const props = defineProps({
@@ -161,7 +206,7 @@ const props = defineProps({
   courseType: {
     type: String,
     required: true,
-    validator: (value) => ['my-courses', 'my-teachings'].includes(value)
+    validator: (value) => ['my-courses', 'my-teachings', 'all-groups'].includes(value)
   }
 });
 
@@ -201,38 +246,6 @@ const memberFilters = [
   { key: 'all', label: '全部' }
 ];
 
-// 模拟成员数据
-const mockMembers = [
-  {
-    id: 1,
-    name: '张三',
-    studentId: '2021001',
-    avatar: null,
-    joinDate: new Date('2024-09-15')
-  },
-  {
-    id: 2,
-    name: '李四',
-    studentId: '2021002', 
-    avatar: null,
-    joinDate: new Date('2024-09-16')
-  },
-  {
-    id: 3,
-    name: '王五',
-    studentId: '2021003',
-    avatar: null,
-    joinDate: new Date('2024-09-15')
-  },
-  {
-    id: 4,
-    name: '赵六',
-    studentId: '2021004',
-    avatar: null,
-    joinDate: new Date('2024-09-20')
-  }
-];
-
 // 计算属性
 const filteredMembers = computed(() => {
   let filtered = members.value;
@@ -253,34 +266,97 @@ const filteredMembers = computed(() => {
 
 // 方法
 const loadMembers = async () => {
-  loading.value = true;
-  
-  // 模拟API调用
-  setTimeout(() => {
-    members.value = mockMembers;
+  if (!props.groupData?.id) {
     loading.value = false;
-  }, 500);
+    return;
+  }
+
+  loading.value = true;
+
+  try {
+    const res = await api({
+      url: `/course-groups/${props.groupData.id}/members`,
+      method: 'get'
+    });
+
+    if (res.data && res.data.code === 200) {
+      members.value = res.data.data || [];
+    } else {
+      members.value = [];
+    }
+  } catch (err) {
+    console.error('获取成员列表失败:', err);
+    members.value = [];
+  } finally {
+    loading.value = false;
+  }
+};
+
+// 更新成员角色
+const updateMemberRole = async (studentId, role) => {
+  try {
+    const res = await api({
+      url: `/course-groups/${props.groupData.id}/members/${studentId}/role`,
+      method: 'patch',
+      data: { role }
+    });
+
+    if (res.data && res.data.code === 200) {
+      ElMessage.success(role === 'leader' ? '已设为组长' : '已取消组长');
+      loadMembers(); // 刷新列表
+    } else {
+      ElMessage.error(res.data?.message || '操作失败');
+    }
+  } catch (err) {
+    console.error('更新角色失败:', err);
+    ElMessage.error('操作失败，请稍后重试');
+  }
+};
+
+// 更新成员状态
+const updateMemberStatus = async (studentId, status) => {
+  try {
+    const res = await api({
+      url: `/course-groups/${props.groupData.id}/members/${studentId}/status`,
+      method: 'patch',
+      data: { status }
+    });
+
+    if (res.data && res.data.code === 200) {
+      ElMessage.success(status === 'active' ? '已启用成员' : '已停用成员');
+      loadMembers(); // 刷新列表
+    } else {
+      ElMessage.error(res.data?.message || '操作失败');
+    }
+  } catch (err) {
+    console.error('更新状态失败:', err);
+    ElMessage.error('操作失败，请稍后重试');
+  }
+};
+
+// 移除成员
+const removeMember = async (studentId) => {
+  try {
+    const res = await api({
+      url: `/course-groups/${props.groupData.id}/members/${studentId}`,
+      method: 'delete'
+    });
+
+    if (res.data && res.data.code === 200) {
+      ElMessage.success('已移除成员');
+      loadMembers(); // 刷新列表
+    } else {
+      ElMessage.error(res.data?.message || '操作失败');
+    }
+  } catch (err) {
+    console.error('移除成员失败:', err);
+    ElMessage.error('操作失败，请稍后重试');
+  }
 };
 
 const getFilterCount = (filterKey) => {
   if (filterKey === 'all') return members.value.length;
   return members.value.length;
-};
-
-// 移除角色和状态相关的辅助函数
-
-const formatDate = (date) => {
-  if (!date) return '';
-  
-  const now = new Date();
-  const diffTime = Math.abs(now - date);
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  
-  if (diffDays === 0) return '今天';
-  if (diffDays === 1) return '昨天';
-  if (diffDays <= 7) return `${diffDays}天前`;
-  
-  return date.toLocaleDateString('zh-CN');
 };
 
 const getEmptyMessage = () => {
@@ -308,15 +384,24 @@ const handleMemberSelect = () => {
   // 处理成员选择
 };
 
-const handleMemberAction = ({ action, member }) => {
+const handleMemberAction = async ({ action, member }) => {
   console.log('Member action:', action, member);
-  
+
   switch (action) {
-    case 'edit':
-      emit('member-edit', member);
+    case 'setLeader':
+      await updateMemberRole(member.id, 'leader');
+      break;
+    case 'setMember':
+      await updateMemberRole(member.id, 'member');
+      break;
+    case 'setActive':
+      await updateMemberStatus(member.id, 'active');
+      break;
+    case 'setInactive':
+      await updateMemberStatus(member.id, 'inactive');
       break;
     case 'remove':
-      emit('member-remove', member);
+      await removeMember(member.id);
       break;
     case 'viewProfile':
       // TODO: 实现查看详情
@@ -343,8 +428,90 @@ const cancelBatchMode = () => {
   selectedMembers.value = [];
 };
 
+// ========== 加入申请审核功能（仅老师）==========
+const joinRequests = ref([]);
+const joinRequestsLoading = ref(false);
+const activeRequestTab = ref('members'); // members, pending
+
+// 获取加入申请列表
+const fetchJoinRequests = async () => {
+  if (!isTeacher.value || !props.groupData?.id) return;
+
+  joinRequestsLoading.value = true;
+  try {
+    const res = await api({
+      url: `/course-groups/${props.groupData.id}/join-requests?status=pending`,
+      method: 'get'
+    });
+
+    if (res.data && res.data.code === 200) {
+      joinRequests.value = res.data.data || [];
+    }
+  } catch (err) {
+    console.error('获取加入申请列表失败:', err);
+  } finally {
+    joinRequestsLoading.value = false;
+  }
+};
+
+// 通过申请
+const handleApproveRequest = async (request) => {
+  try {
+    const res = await api({
+      url: `/course-groups/${props.groupData.id}/join-requests/${request.id}/approve`,
+      method: 'post',
+      data: { review_note: '审核通过' }
+    });
+
+    if (res.data && res.data.code === 200) {
+      ElMessage.success('已通过该学生的加入申请');
+      fetchJoinRequests();
+      loadMembers();
+    } else {
+      ElMessage.error(res.data?.message || '操作失败');
+    }
+  } catch (err) {
+    console.error('通过申请失败:', err);
+    ElMessage.error('操作失败，请稍后重试');
+  }
+};
+
+// 拒绝申请
+const handleRejectRequest = async (request) => {
+  try {
+    const res = await api({
+      url: `/course-groups/${props.groupData.id}/join-requests/${request.id}/reject`,
+      method: 'post',
+      data: { review_note: '审核拒绝' }
+    });
+
+    if (res.data && res.data.code === 200) {
+      ElMessage.success('已拒绝该学生的加入申请');
+      fetchJoinRequests();
+    } else {
+      ElMessage.error(res.data?.message || '操作失败');
+    }
+  } catch (err) {
+    console.error('拒绝申请失败:', err);
+    ElMessage.error('操作失败，请稍后重试');
+  }
+};
+
+// 监听小组变化时重新加载
+watch(() => props.groupData?.id, (newId) => {
+  if (newId) {
+    loadMembers();
+    if (isTeacher.value) {
+      fetchJoinRequests();
+    }
+  }
+});
+
 onMounted(() => {
   loadMembers();
+  if (isTeacher.value) {
+    fetchJoinRequests();
+  }
 });
 </script>
 
@@ -366,6 +533,97 @@ onMounted(() => {
 
 .theme-dark .members-header {
   border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Tab 切换样式 */
+.header-tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.tab-item {
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #666;
+  transition: all 0.3s;
+  position: relative;
+}
+
+.tab-item:hover {
+  color: #667eea;
+}
+
+.tab-item.active {
+  color: #667eea;
+  background: rgba(102, 126, 234, 0.1);
+  font-weight: 600;
+}
+
+.tab-badge {
+  margin-left: 4px;
+}
+
+/* 加入申请列表样式 */
+.request-list {
+  padding: 16px 0;
+  min-height: 100px;
+}
+
+.empty-requests {
+  text-align: center;
+  color: #999;
+  padding: 40px 20px;
+}
+
+.request-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background: #f9fafb;
+  border-radius: 12px;
+  margin-bottom: 12px;
+}
+
+.theme-dark .request-item {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.request-info {
+  flex: 1;
+}
+
+.request-student {
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 4px;
+  font-size: 15px;
+}
+
+.theme-dark .request-student {
+  color: #fff;
+}
+
+.request-reason {
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 2px;
+}
+
+.theme-dark .request-reason {
+  color: #aaa;
+}
+
+.request-time {
+  font-size: 12px;
+  color: #999;
+}
+
+.request-actions {
+  display: flex;
+  gap: 8px;
 }
 
 .header-info {
@@ -507,22 +765,25 @@ onMounted(() => {
 .member-card {
   display: flex;
   align-items: center;
-  padding: 20px;
+  padding: 16px 20px;
   background: #ffffff;
   border: 1px solid rgba(0, 0, 0, 0.06);
-  border-radius: 12px;
-  transition: all 0.3s ease;
+  border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
+  margin-bottom: 12px;
 }
 
 .member-card:hover {
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+  border-color: rgba(102, 126, 234, 0.2);
 }
 
 .member-card.selected {
   border-color: #667eea;
-  background-color: rgba(102, 126, 234, 0.02);
+  background-color: rgba(102, 126, 234, 0.04);
 }
 
 .theme-dark .member-card {
@@ -531,7 +792,8 @@ onMounted(() => {
 }
 
 .theme-dark .member-card:hover {
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  border-color: rgba(102, 126, 234, 0.3);
 }
 
 .theme-dark .member-card.selected {
@@ -544,8 +806,8 @@ onMounted(() => {
 }
 
 .member-avatar {
-  width: 50px;
-  height: 50px;
+  width: 48px;
+  height: 48px;
   margin-right: 16px;
   flex-shrink: 0;
 }
@@ -566,7 +828,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
 }
 
@@ -574,7 +836,7 @@ onMounted(() => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .member-basic {
@@ -584,7 +846,7 @@ onMounted(() => {
 }
 
 .member-name {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   margin: 0;
   color: #1a1a1a;
@@ -598,24 +860,28 @@ onMounted(() => {
 
 .member-details {
   display: flex;
-  gap: 20px;
+  gap: 24px;
   flex-wrap: wrap;
 }
 
 .detail-item {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   font-size: 13px;
 }
 
 .detail-label {
-  color: #6b7280;
+  color: #9ca3af;
   font-weight: 500;
 }
 
 .detail-value {
-  color: #374151;
+  color: #6b7280;
+}
+
+.theme-dark .detail-value {
+  color: #a1a1aa;
 }
 
 .theme-dark .detail-label {
@@ -630,15 +896,19 @@ onMounted(() => {
 
 .member-actions {
   flex-shrink: 0;
+  margin-left: 8px;
 }
 
 .action-btn {
-  padding: 8px;
-  color: #6b7280;
+  padding: 6px 10px;
+  color: #9ca3af;
+  border-radius: 8px;
+  transition: all 0.2s ease;
 }
 
 .action-btn:hover {
   color: #667eea;
+  background: rgba(102, 126, 234, 0.1);
 }
 
 /* 空状态和加载状态 */
