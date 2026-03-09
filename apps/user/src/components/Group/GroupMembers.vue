@@ -86,8 +86,6 @@
         <div class="member-info">
           <div class="member-basic">
             <h4 class="member-name">{{ member.name }}</h4>
-            <el-tag v-if="member.role === 'leader'" size="small" type="warning">组长</el-tag>
-            <el-tag v-if="member.status === 'inactive'" size="small" type="info">已停用</el-tag>
           </div>
 
           <div class="member-details">
@@ -114,10 +112,6 @@
             </el-button>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item :command="{ action: 'setLeader', member }" v-if="member.role !== 'leader'">设为组长</el-dropdown-item>
-                <el-dropdown-item :command="{ action: 'setMember', member }" v-if="member.role === 'leader'">取消组长</el-dropdown-item>
-                <el-dropdown-item :command="{ action: 'setActive', member }" v-if="member.status === 'inactive'">启用成员</el-dropdown-item>
-                <el-dropdown-item :command="{ action: 'setInactive', member }" v-if="member.status === 'active'">停用成员</el-dropdown-item>
                 <el-dropdown-item :command="{ action: 'viewProfile', member }">查看详情</el-dropdown-item>
                 <el-dropdown-item
                   :command="{ action: 'remove', member }"
@@ -281,8 +275,10 @@ const loadMembers = async () => {
 
     if (res.data && res.data.code === 200) {
       members.value = res.data.data || [];
+      console.log('成员列表数据:', JSON.stringify(members.value, null, 2));
     } else {
       members.value = [];
+      console.log('API返回:', res.data);
     }
   } catch (err) {
     console.error('获取成员列表失败:', err);
