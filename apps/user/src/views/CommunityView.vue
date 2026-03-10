@@ -913,36 +913,36 @@ onUnmounted(() => {
   color: #f5f5f5;
 }
 
-.theme-dark .create-post-card ::v-deep .el-form-item__label {
+.theme-dark .create-post-card :deep(.el-form-item__label) {
   color: #d1d5db !important;
 }
 
-.theme-dark .create-post-card ::v-deep .el-input__wrapper {
+.theme-dark .create-post-card :deep(.el-input__wrapper) {
   background: #262626 !important;
   box-shadow: none !important;
   border: 1px solid rgba(255, 255, 255, 0.15) !important;
 }
 
-.theme-dark .create-post-card ::v-deep .el-input__inner {
+.theme-dark .create-post-card :deep(.el-input__inner) {
   color: #d1d5db !important;
   background: transparent !important;
 }
 
-.theme-dark .create-post-card ::v-deep .el-input__inner::placeholder {
+.theme-dark .create-post-card :deep(.el-input__inner)::placeholder {
   color: #6b7280 !important;
 }
 
-.theme-dark .create-post-card ::v-deep .el-textarea__inner {
+.theme-dark .create-post-card :deep(.el-textarea__inner) {
   background: #262626 !important;
   border: 1px solid rgba(255, 255, 255, 0.15) !important;
   color: #d1d5db !important;
 }
 
-.theme-dark .create-post-card ::v-deep .el-textarea__inner::placeholder {
+.theme-dark .create-post-card :deep(.el-textarea__inner)::placeholder {
   color: #6b7280 !important;
 }
 
-.theme-dark .create-post-card ::v-deep .el-select {
+.theme-dark .create-post-card :deep(.el-select) {
   --el-fill-color: #262626;
 }
 
