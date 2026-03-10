@@ -118,53 +118,30 @@
             </div>
           </main>
 
-          <!-- 右侧栏 (暂时禁用) -->
-          <aside class="right-sidebar" v-if="false">
-            <!-- 热门话题 -->
-            <SidebarWidget title="热门话题" :show-more="true" @more="handleMoreTopics">
-              <div
-                v-for="(topic, index) in hotTopics"
-                :key="index"
-                class="topic-item"
-                @click="handleTopicItemClick(topic)"
-              >
-                <div class="topic-rank">{{ index + 1 }}</div>
-                <div class="topic-content">
-                  <div class="topic-name">#{{ topic.name }}</div>
-                  <div class="topic-count">{{ topic.count }} 讨论</div>
-                </div>
-              </div>
-            </SidebarWidget>
-
-            <!-- 推荐用户 -->
-            <SidebarWidget title="推荐关注" :show-more="true" @more="handleMoreUsers">
-              <div
-                v-for="user in recommendUsers"
-                :key="user.id"
-                class="user-item"
-              >
-                <el-avatar :size="40" :src="user.avatar" />
-                <div class="user-info">
-                  <div class="user-name">{{ user.name }}</div>
-                  <div class="user-bio">{{ user.bio }}</div>
-                </div>
-                <el-button size="small" type="primary" plain>关注</el-button>
-              </div>
-            </SidebarWidget>
-
-            <!-- 活跃榜单 -->
-            <SidebarWidget title="本周活跃">
-              <div
-                v-for="(user, index) in activeUsers"
-                :key="index"
-                class="active-user-item"
-              >
-                <span class="rank-badge" :class="`rank-${index + 1}`">{{ index + 1 }}</span>
-                <el-avatar :size="32" :src="user.avatar" />
-                <span class="user-name">{{ user.name }}</span>
-                <span class="user-score">{{ user.score }}分</span>
-              </div>
-            </SidebarWidget>
+          <!-- 右侧栏 - 发布帖子 -->
+          <aside class="right-sidebar">
+            <!-- 发布帖子卡片 -->
+            <div class="create-post-card">
+              <h3 class="sidebar-title">发布新帖</h3>
+              <el-form :model="newThread" label-position="top" size="default">
+                <el-form-item label="标题">
+                  <el-input v-model="newThread.title" placeholder="请输入帖子标题" maxlength="100" show-word-limit />
+                </el-form-item>
+                <el-form-item label="内容">
+                  <el-input
+                    v-model="newThread.content"
+                    type="textarea"
+                    :rows="4"
+                    placeholder="分享你的想法..."
+                    maxlength="2000"
+                    show-word-limit
+                  />
+                </el-form-item>
+                <el-button type="primary" :loading="createLoading" @click="submitNewThread" class="submit-btn">
+                  发布帖子
+                </el-button>
+              </el-form>
+            </div>
           </aside>
         </div>
       </el-main>
@@ -174,7 +151,8 @@
       </el-footer> -->
     </el-container>
 
-    <!-- 帖子详情对话框 -->
+    <!-- 帖子详情对话框 (已禁用，改用内联展示) -->
+    <div v-if="false">
     <el-dialog
       v-model="threadDetailVisible"
       :title="currentThread?.title"
@@ -251,8 +229,10 @@
         </div>
       </div>
     </el-dialog>
+    </div>
 
-    <!-- 创建帖子对话框 -->
+    <!-- 创建帖子对话框 (已禁用，改用侧边栏) -->
+    <div v-if="false">
     <el-dialog
       v-model="createThreadVisible"
       title="发布新帖"
@@ -281,6 +261,7 @@
         <el-button type="primary" @click="submitNewThread" :loading="createLoading">发布</el-button>
       </template>
     </el-dialog>
+    </div>
   </div>
 </template>
 
@@ -357,20 +338,46 @@ const fetchThreads = async () => {
     })
     if (res.data && res.data.data) {
       // 将后端数据转换为前端格式
-      feedItems.value = res.data.data.map(thread => ({
+      const threads = res.data.data.map(thread => ({
         id: thread.id,
         type: 'discussion',
         title: thread.title,
+        content: thread.content,
         summary: thread.content ? thread.content.substring(0, 100) + '...' : '',
         category: thread.scope_type === 'global' ? '全局' : thread.scope_type,
         author: thread.author_name,
         authorId: thread.author_id,
         author_avatar: thread.author_avatar || '',
         publishTime: formatTimeAgo(thread.created_at),
-        replies: thread.reply_count,
+        reply_count: thread.reply_count || 0,
+        like_count: thread.like_count || 0,
         views: thread.view_count,
-        isHot: thread.is_pinned
+        isHot: thread.is_pinned,
+        liked: thread.liked || false,
+        replies: []
       }))
+
+      // 为每个帖子获取回复列表
+      for (const thread of threads) {
+        try {
+          const repliesRes = await api.get(`/discussions/threads/${thread.id}/replies`)
+          if (repliesRes.data && repliesRes.data.data) {
+            thread.replies = repliesRes.data.data.map(reply => ({
+              id: reply.id,
+              author: reply.author_name,
+              author_avatar: reply.author_avatar || '',
+              content: reply.content,
+              time: formatTimeAgo(reply.created_at),
+              like_count: reply.like_count || 0,
+              liked: reply.liked || false
+            }))
+          }
+        } catch (err) {
+          console.error(`获取帖子${thread.id}的回复失败:`, err)
+        }
+      }
+
+      feedItems.value = threads
     }
   } catch (error) {
     console.error('获取讨论列表失败:', error)
@@ -791,17 +798,18 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* 背景和布局 */
 .community-view-container {
   min-height: 100vh;
   transition: background-color 0.3s ease;
 }
 
 .theme-light .community-view-container {
-  background: #f5f7fa;
+  background: #f8fafc;
 }
 
 .theme-dark .community-view-container {
-  background: #1a1a1a;
+  background: #0f0f0f;
 }
 
 .common-layout {
@@ -820,12 +828,12 @@ onUnmounted(() => {
 
 .theme-light .header-container {
   background: #ffffff;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .theme-dark .header-container {
-  background: #2c2c2c;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  background: #1a1a1a;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .desktop-menu-container {
@@ -864,135 +872,487 @@ onUnmounted(() => {
   flex: 1;
   padding: 24px;
   padding-top: 80px;
-  max-width: 1400px;
+  max-width: 1200px;
   margin: 0 auto;
   width: 100%;
+  box-sizing: border-box;
 }
 
-/* 三栏布局 */
+/* 两栏布局 */
 .community-layout {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 0;
+  grid-template-columns: 1fr 320px;
+  gap: 24px;
   align-items: start;
-  max-width: 900px;
+  max-width: 1200px;
   margin: 0 auto;
 }
 
-/* 左侧导航栏 */
-.left-sidebar {
-  position: sticky;
-  top: 100px;
+.create-post-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
 }
 
-.nav-menu {
-  border-radius: 8px;
-  overflow: hidden;
+.theme-dark .create-post-card {
+  background: rgba(40, 40, 40, 0.8);
 }
 
-.theme-light .nav-menu {
+.sidebar-title {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.theme-light .sidebar-title {
+  color: #1a1a1a;
+}
+
+.theme-dark .sidebar-title {
+  color: #f5f5f5;
+}
+
+.theme-dark .create-post-card ::v-deep .el-form-item__label {
+  color: #d1d5db !important;
+}
+
+.theme-dark .create-post-card ::v-deep .el-input__wrapper {
+  background: #262626 !important;
+  box-shadow: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+}
+
+.theme-dark .create-post-card ::v-deep .el-input__inner {
+  color: #d1d5db !important;
+  background: transparent !important;
+}
+
+.theme-dark .create-post-card ::v-deep .el-input__inner::placeholder {
+  color: #6b7280 !important;
+}
+
+.theme-dark .create-post-card ::v-deep .el-textarea__inner {
+  background: #262626 !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  color: #d1d5db !important;
+}
+
+.theme-dark .create-post-card ::v-deep .el-textarea__inner::placeholder {
+  color: #6b7280 !important;
+}
+
+.theme-dark .create-post-card ::v-deep .el-select {
+  --el-fill-color: #262626;
+}
+
+.submit-btn {
+  width: 100%;
+  margin-top: 8px;
+}
+
+/* 筛选栏 */
+.filter-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 16px 20px;
+  border-radius: 16px;
+  transition: all 0.3s ease;
+}
+
+.theme-light .filter-bar {
   background: #ffffff;
-  border: 1px solid #e8e8e8;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
-.theme-dark .nav-menu {
-  background: #2c2c2c;
-  border: 1px solid #3a3a3a;
+.theme-dark .filter-bar {
+  background: #1a1a1a;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
-.nav-item {
+/* el-segmented 暗黑模式 */
+.theme-dark .filter-bar .el-segmented {
+  --el-segmented-bg-color: #262626;
+  --el-segmented-item-selected-bg-color: #3b82f6;
+  --el-segmented-item-selected-color: #ffffff;
+  --el-text-color-regular: #9ca3af;
+  --el-text-color: #d1d5db;
+}
+
+/* filter-bar中的按钮 */
+.theme-dark .filter-bar .el-button--primary {
+  background: #3b82f6;
+  border-color: #3b82f6;
+}
+
+/* 加载状态 */
+.theme-dark .load-more {
+  color: #a1a1aa;
+}
+
+/* 帖子详情对话框 */
+.thread-detail-dialog.theme-dark .el-dialog__header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  background: #1a1a1a !important;
+}
+
+.thread-detail-dialog.theme-dark .el-dialog__title {
+  color: #f5f5f5 !important;
+}
+
+.thread-detail-dialog.theme-dark .el-dialog__body {
+  background: #1a1a1a !important;
+  color: #d1d5db !important;
+}
+
+.thread-detail-dialog.theme-dark .thread-detail {
+  color: #d1d5db;
+}
+
+.thread-detail-dialog.theme-dark .thread-content {
+  color: #d1d5db;
+  background: transparent !important;
+}
+
+.thread-detail-dialog.theme-dark .thread-author .author-name {
+  color: #f5f5f5;
+}
+
+.thread-detail-dialog.theme-dark .thread-time {
+  color: #6b7280;
+}
+
+.thread-detail-dialog.theme-dark .thread-actions {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.thread-detail-dialog.theme-dark .el-button {
+  color: #9ca3af;
+}
+
+.thread-detail-dialog.theme-dark .el-button:hover {
+  color: #60a5fa;
+  background: rgba(96, 165, 250, 0.1);
+}
+
+.thread-detail-dialog.theme-dark .el-button--primary {
+  background: #3b82f6 !important;
+  border-color: #3b82f6 !important;
+  color: #fff !important;
+}
+
+/* 回复区域 */
+.thread-detail-dialog.theme-dark .reply-item {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.thread-detail-dialog.theme-dark .reply-author .author-name {
+  color: #f5f5f5;
+}
+
+.thread-detail-dialog.theme-dark .reply-time {
+  color: #6b7280;
+}
+
+.thread-detail-dialog.theme-dark .reply-text {
+  color: #d1d5db;
+}
+
+.thread-detail-dialog.theme-dark .children-replies {
+  border-left-color: rgba(255, 255, 255, 0.2);
+}
+
+.thread-detail-dialog.theme-dark .el-icon {
+  color: inherit !important;
+}
+
+/* 创建帖子对话框 */
+.create-thread-dialog.theme-dark .el-dialog__header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  background: #1a1a1a !important;
+}
+
+.create-thread-dialog.theme-dark .el-dialog__title {
+  color: #f5f5f5 !important;
+}
+
+.create-thread-dialog.theme-dark .el-dialog__body {
+  background: #1a1a1a !important;
+  color: #d1d5db !important;
+}
+
+.create-thread-dialog.theme-dark .el-input__wrapper {
+  background: #262626 !important;
+  box-shadow: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+}
+
+.create-thread-dialog.theme-dark .el-input__inner {
+  color: #d1d5db !important;
+  background: transparent !important;
+}
+
+.create-thread-dialog.theme-dark .el-input__inner::placeholder {
+  color: #6b7280 !important;
+}
+
+.create-thread-dialog.theme-dark .el-textarea__inner {
+  background: #262626 !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  color: #d1d5db !important;
+}
+
+.create-thread-dialog.theme-dark .el-textarea__inner::placeholder {
+  color: #6b7280 !important;
+}
+
+.create-thread-dialog.theme-dark .el-form-item__label {
+  color: #d1d5db !important;
+  background: transparent !important;
+}
+
+.create-thread-dialog.theme-dark .el-dialog__footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: #1a1a1a !important;
+}
+
+.create-thread-dialog.theme-dark .el-button--primary {
+  background: #3b82f6 !important;
+  border-color: #3b82f6 !important;
+}
+
+.create-thread-dialog.theme-dark .el-button--default {
+  background: #262626 !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  color: #d1d5db !important;
+}
+
+/* 加载状态 */
+.load-more {
+  text-align: center;
+  padding: 24px;
+}
+
+.theme-dark .load-more .el-button {
+  background: #262626;
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #d1d5db;
+}
+
+.theme-dark .load-more .el-button:hover {
+  background: #3b82f6;
+  border-color: #3b82f6;
+  color: #ffffff;
+}
+
+/* 帖子详情对话框样式 */
+.thread-detail {
+  padding: 0;
+}
+
+.thread-author {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  cursor: pointer;
-  transition: all 0.15s;
-  font-size: 14px;
-  font-weight: 400;
-}
-
-.theme-light .nav-item {
-  color: #4a5568;
-}
-
-.theme-dark .nav-item {
-  color: #a0aec0;
-}
-
-.theme-light .nav-item:hover {
-  background: #f7fafc;
-  color: #2d3748;
-}
-
-.theme-dark .nav-item:hover {
-  background: #3a3a3a;
-  color: #e2e8f0;
-}
-
-.theme-light .nav-item.active {
-  background: #edf2f7;
-  color: #1a202c;
-  font-weight: 500;
-}
-
-.theme-dark .nav-item.active {
-  background: #3a3a3a;
-  color: #ffffff;
-  font-weight: 500;
-}
-
-.nav-item .el-icon {
-  font-size: 18px;
-  opacity: 0.85;
-}
-
-/* 主内容区 */
-.main-content {
-  min-height: 100vh;
-}
-
-/* 活动Banner */
-.activity-banner {
+  gap: 14px;
   margin-bottom: 20px;
-  border-radius: 8px;
-  overflow: hidden;
 }
 
-.activity-banner :deep(.el-carousel__container) {
-  border-radius: 8px;
-}
-
-.activity-banner :deep(.el-carousel__indicators) {
+.thread-author .author-info {
   display: flex;
-  justify-content: flex-start;
-  padding-left: 24px;
-  bottom: 8px;
+  flex-direction: column;
+  gap: 2px;
 }
 
-.activity-banner :deep(.el-carousel__indicator) {
-  padding: 4px;
+.thread-author .author-name {
+  font-weight: 600;
+  font-size: 15px;
 }
 
-.activity-banner :deep(.el-carousel__button) {
-  width: 6px;
-  height: 6px;
-  border-radius: 3px;
-  opacity: 0.4;
+.theme-light .thread-author .author-name {
+  color: #1a1a1a;
 }
 
-.activity-banner :deep(.el-carousel__indicator.is-active .el-carousel__button) {
-  opacity: 1;
-  width: 18px;
+.theme-dark .thread-author .author-name {
+  color: #f5f5f5;
 }
 
-.banner-item {
-  width: 100%;
-  height: 100%;
-  cursor: pointer;
-  position: relative;
-  border-radius: 8px;
-  overflow: hidden;
-  transition: all 0.2s;
+.thread-time {
+  font-size: 12px;
+}
+
+.theme-light .thread-time {
+  color: #9ca3af;
+}
+
+.theme-dark .thread-time {
+  color: #6b7280;
+}
+
+.thread-content {
+  font-size: 14px;
+  line-height: 1.7;
+  margin-bottom: 20px;
+  white-space: pre-wrap;
+}
+
+.theme-light .thread-content {
+  color: #374151;
+}
+
+.theme-dark .thread-content {
+  color: #d1d5db;
+}
+
+.thread-actions {
+  display: flex;
+  gap: 16px;
+  padding: 16px 0;
+}
+
+.theme-light .thread-actions {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.theme-dark .thread-actions {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* 回复区域 */
+.replies-section {
+  margin-top: 24px;
+}
+
+.replies-section h4 {
+  margin: 0 0 16px 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.theme-light .replies-section h4 {
+  color: #374151;
+}
+
+.theme-dark .replies-section h4 {
+  color: #e5e7eb;
+}
+
+.reply-item {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 14px;
+  border-radius: 12px;
+  transition: all 0.2s ease;
+}
+
+.theme-light .reply-item {
+  background: #f9fafb;
+}
+
+.theme-dark .reply-item {
+  background: #1a1a1a;
+}
+
+.reply-item.child-reply {
+  margin-bottom: 8px;
+  padding: 10px;
+}
+
+.reply-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.reply-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.reply-author {
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.theme-light .reply-author {
+  color: #374151;
+}
+
+.theme-dark .reply-author {
+  color: #e5e7eb;
+}
+
+.reply-time {
+  font-size: 11px;
+}
+
+.theme-light .reply-time {
+  color: #9ca3af;
+}
+
+.theme-dark .reply-time {
+  color: #6b7280;
+}
+
+.reply-text {
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.theme-light .reply-text {
+  color: #4b5563;
+}
+
+.theme-dark .reply-text {
+  color: #d1d5db;
+}
+
+.reply-actions {
+  margin-top: 8px;
+}
+
+.children-replies {
+  margin-top: 12px;
+  padding-left: 12px;
+  border-left: 2px solid rgba(102, 126, 234, 0.2);
+}
+
+.theme-dark .children-replies {
+  border-left-color: rgba(102, 126, 234, 0.3);
+}
+
+/* 添加回复 */
+.add-reply {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+/* 创建帖子表单 */
+.create-thread-form {
+  padding: 10px 0;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .community-main-container {
+    padding: 16px;
+    padding-top: 72px;
+  }
+
+  .filter-bar {
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
+    padding: 14px 16px;
+  }
 }
 
 .theme-light .banner-item {
@@ -1186,7 +1546,6 @@ onUnmounted(() => {
 /* 右侧栏 */
 .right-sidebar {
   position: sticky;
-  top: 100px;
 }
 
 /* 话题项 */
@@ -1396,7 +1755,7 @@ onUnmounted(() => {
 /* 响应式设计 */
 @media (max-width: 1200px) {
   .community-layout {
-    grid-template-columns: 200px 1fr 260px;
+    grid-template-columns: 1fr 280px;
     gap: 16px;
   }
 }
@@ -1411,7 +1770,6 @@ onUnmounted(() => {
     grid-template-columns: 1fr;
   }
 
-  .left-sidebar,
   .right-sidebar {
     display: none;
   }
