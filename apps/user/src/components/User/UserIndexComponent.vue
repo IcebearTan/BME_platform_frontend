@@ -7,18 +7,12 @@ import { useStore } from 'vuex'
 import api from '../../api'
 
 import CalendarComponent from './CalendarComponent.vue'
-import UserActivityComponent from './UserActivityComponent.vue'
-import UserIndexGroupComponent from './UserIndexGroupComponent.vue'
-// import SeatLayoutComponent from '../SeatLayoutComponent.vue'
+import MedalShowcase from './MedalShowcase.vue'
 
 const User_Info = ref({})
-// 勋章列表与已获得勋章数量
-const Medal_List = ref([])
-const Medal_Count = ref(0)
-// 当前显示的勋章（如果有多个已获得的，以第一个为准）
-const CurrentMedal = ref(null)
 const router = useRouter()
 const store = useStore()
+const isDarkMode = computed(() => store.getters.isDarkMode)
 
 // 技能标签分割为数组，支持多分隔符
 const skillTags = computed(() => {
@@ -31,8 +25,6 @@ const skillTags = computed(() => {
 const tagTypes = ['primary', 'success', 'info', 'warning', 'danger']
 const getTagType = index => tagTypes[index % tagTypes.length]
 
-const toMedalWall = () => router.push('/medal/user-medal')
-
 // 获取用户信息，异常处理更健壮
 const fetchUserInfo = async () => {
   try {
@@ -40,7 +32,6 @@ const fetchUserInfo = async () => {
     if (res?.data?.code === 200) {
       User_Info.value = res.data
       return res.data
-    //   console.log(User_Info.value)
     } else {
       throw new Error(res?.data?.msg || '获取用户信息失败')
     }
@@ -53,49 +44,13 @@ const fetchUserInfo = async () => {
   }
 }
 
-// 获取用户勋章列表并统计
-const fetchUserMedals = async () => {
-  try {
-    const res = await api({ url: '/medal/user_medal_show', method: 'get' })
-    // 返回的数据结构假定为 { Medal: [...] }
-    const list = res?.data?.Medal || []
-    Medal_List.value = list
-    // 计算 Get_Time 不为 null 的数量
-    const obtained = list.filter(m => m.Get_Time).length
-    Medal_Count.value = obtained
-    // console.log('勋章列表:', list)
-    // 优先选择：既有 Get_Time 且 Medal_Id === User_Info.User_Medal 的勋章
-    const userMedalId = Number(User_Info.value?.User_Medal)
-    let matched = null
-    if (userMedalId) {
-      matched = list.find(m => m.Get_Time && Number(m.Medal_Id) === userMedalId)
-    }
-    // 若找不到匹配的，则回退到第一个有 Get_Time 的勋章
-    CurrentMedal.value = matched || list.find(m => m.Get_Time) || null
-  } catch (error) {
-    // 错误交由全局拦截器处理（例如 401 跳转）
-    console.error('fetchUserMedals error', error)
-  }
-}
-
 onMounted(async () => {
-  // 先获取用户信息，以便在 fetchUserMedals 中使用 User_Info.value.User_Medal 做匹配
   await fetchUserInfo()
-  await fetchUserMedals()
-})
-
-// 动态计算勋章图片路径：项目的 public/medals 下的图片可以通过 `/medals/<name>.png` 访问
-const medalImageSrc = computed(() => {
-  // 使用返回数据中的 Medal_Name 作为文件名（示例：VTK -> VTK.png）
-  const name = CurrentMedal.value?.Medal_Name
-  if (name) return `/medals/${name}.png`
-  // 回退图片（public/medals/Default.png）
-  return `/medals/Default.png`
 })
 </script>
 
 <template>
-  <el-row>
+  <el-row :class="{ 'theme-dark': isDarkMode }">
     <el-col :span="6">
       <div class="left-side">
         <div>
@@ -122,41 +77,15 @@ const medalImageSrc = computed(() => {
                 <span v-if="skillTags.length === 0" class="no-skill-tag">暂无技能标签</span>
               </div>
             </div>
-            <div class="profile-divider"></div>
           </div>
         </div>
       </div>
     </el-col>
 
     <el-col :span="18">
-      <div style="display: flex; margin-bottom: 10px;">
-        <div class="right-side" style="margin-left: 0;">
-          <UserIndexGroupComponent />
-        </div>
-        <div class="medal-card" @click="toMedalWall()">
-          <span style="height: 100%; width: 60%;">
-            <div style="padding: 20px; display: flex; align-items: center; font-size: large; font-weight: bold; padding-bottom: 0;">
-              勋章成就: 
-            </div>
-            <div style="padding: 20px; display: flex; align-items: center; font-size: 25px; font-weight: bold; padding-bottom: 0;">
-              {{ Medal_Count }}
-            </div>
-            <div class="medalInfo">
-              <div class="medalTitle">{{ CurrentMedal?.Medal_Name_CN || '暂无勋章' }}</div>
-              <div class="medalDate">获取时间：{{ CurrentMedal?.Get_Time || '无' }}</div>
-            </div>
-          </span>
-          <span style="display: flex; align-items: center; justify-content: center;">
-            <img :src="medalImageSrc" class="medal-image" />
-          </span>
-        </div>
-      </div>
       <div>
         <calendar-component/>
-      </div>
-      <!-- <user-activity-component/> -->
-      <div>
-        <UserActivityComponent />
+        <medal-showcase/>
       </div>
     </el-col>
   </el-row>
@@ -228,9 +157,8 @@ const medalImageSrc = computed(() => {
   border-radius: 10px;
   background-color: #fff;
   box-shadow: #e7edf5 0px 0px 10px 0px;
-  height: 100vh;
+  min-height: 400px;
   width: 90%;
-  margin-top: 10px;
 }
 
 .profile-title {
@@ -302,5 +230,80 @@ const medalImageSrc = computed(() => {
 .skill-tag:hover {
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* 暗黑模式 */
+.theme-dark .left-side {
+  background: rgba(40, 40, 40, 0.9);
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+}
+
+.theme-dark .profile-title {
+  color: #f5f5f5;
+}
+
+.theme-dark .profile-intro {
+  color: #a0a0a0;
+}
+
+.theme-dark .profile-info-item {
+  color: #a0a0a0;
+}
+
+.theme-dark .profile-skill-title {
+  color: #a0a0a0;
+}
+
+.theme-dark .no-skill-tag {
+  color: #666;
+}
+
+.theme-dark .profile-divider {
+  border-bottom-color: #3a3a3a;
+}
+
+.theme-dark .right-side,
+.theme-dark .medal-card {
+  background: rgba(40, 40, 40, 0.9);
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+}
+
+.theme-dark .medalTitle {
+  color: #f5f5f5;
+}
+
+.theme-dark .medalDate {
+  color: #888;
+}
+
+.theme-dark .medalInfo {
+  color: #a0a0a0;
+}
+
+/* 响应式设计 */
+@media (max-width: 1400px) {
+  :deep(.el-col-6) {
+    width: 25%;
+  }
+
+  :deep(.el-col-18) {
+    width: 75%;
+  }
+}
+
+@media (max-width: 768px) {
+  :deep(.el-col-6),
+  :deep(.el-col-18) {
+    width: 100%;
+  }
+
+  .profile-info-item {
+    padding: 12px;
+  }
+
+  .medal-card {
+    width: 100% !important;
+    margin: 10px 0;
+  }
 }
 </style>

@@ -138,6 +138,7 @@ const router = createRouter({
             path: '/medal',
             name: 'medal',
             component: MedalView,
+            redirect: '/medal/user-medal',
             children: [
                 {
                     path: '/medal/user-medal',
