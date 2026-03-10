@@ -23,11 +23,11 @@
       <el-main class="community-main-container">
         <!-- 三栏布局容器 -->
         <div class="community-layout">
-          <!-- 左侧导航栏 -->
-          <aside class="left-sidebar">
+          <!-- 左侧导航栏 (暂时禁用) -->
+          <aside class="left-sidebar" v-if="false">
             <div class="nav-menu">
-              <div 
-                v-for="item in navItems" 
+              <div
+                v-for="item in navItems"
                 :key="item.value"
                 :class="['nav-item', { 'active': activeFilter === item.value }]"
                 @click="handleFilterChange(item.value)"
@@ -40,10 +40,10 @@
 
           <!-- 中间主内容区 -->
           <main class="main-content">
-            <!-- 顶部活动Banner -->
-            <div class="activity-banner">
-              <el-carousel 
-                :interval="5000" 
+            <!-- 顶部活动Banner (暂时禁用) -->
+            <div class="activity-banner" v-if="false">
+              <el-carousel
+                :interval="5000"
                 height="120px"
                 indicator-position="outside"
                 arrow="hover"
@@ -118,12 +118,12 @@
             </div>
           </main>
 
-          <!-- 右侧栏 -->
-          <aside class="right-sidebar">
+          <!-- 右侧栏 (暂时禁用) -->
+          <aside class="right-sidebar" v-if="false">
             <!-- 热门话题 -->
             <SidebarWidget title="热门话题" :show-more="true" @more="handleMoreTopics">
-              <div 
-                v-for="(topic, index) in hotTopics" 
+              <div
+                v-for="(topic, index) in hotTopics"
                 :key="index"
                 class="topic-item"
                 @click="handleTopicItemClick(topic)"
@@ -138,8 +138,8 @@
 
             <!-- 推荐用户 -->
             <SidebarWidget title="推荐关注" :show-more="true" @more="handleMoreUsers">
-              <div 
-                v-for="user in recommendUsers" 
+              <div
+                v-for="user in recommendUsers"
                 :key="user.id"
                 class="user-item"
               >
@@ -154,8 +154,8 @@
 
             <!-- 活跃榜单 -->
             <SidebarWidget title="本周活跃">
-              <div 
-                v-for="(user, index) in activeUsers" 
+              <div
+                v-for="(user, index) in activeUsers"
                 :key="index"
                 class="active-user-item"
               >
@@ -173,6 +173,107 @@
         <PageFooterComponent />
       </el-footer> -->
     </el-container>
+
+    <!-- 帖子详情对话框 -->
+    <el-dialog
+      v-model="threadDetailVisible"
+      :title="currentThread?.title"
+      width="700px"
+      :class="['thread-detail-dialog', { 'theme-dark': isDarkMode }]"
+    >
+      <div v-if="currentThread" class="thread-detail">
+        <div class="thread-author">
+          <el-avatar :size="40" :src="currentThread.authorAvatar || ''" />
+          <div class="author-info">
+            <div class="author-name">{{ currentThread.author }}</div>
+            <div class="thread-time">{{ currentThread.publishTime }}</div>
+          </div>
+        </div>
+        <div class="thread-content">{{ currentThread.content }}</div>
+        <div class="thread-actions">
+          <el-button :type="currentThread.liked ? 'primary' : 'default'" text @click="handleThreadLike(currentThread)">
+            <span>{{ currentThread.liked ? '已赞' : '点赞' }}</span>
+            <span v-if="currentThread.likes">({{ currentThread.likes }})</span>
+          </el-button>
+          <el-button text>{{ currentThread.reply_count }} 回复</el-button>
+          <el-button text>{{ currentThread.view_count }} 浏览</el-button>
+        </div>
+
+        <!-- 回复列表 -->
+        <div class="replies-section">
+          <h4>全部回复 ({{ threadReplies.length }})</h4>
+          <div v-for="reply in threadReplies" :key="reply.id" class="reply-item">
+            <el-avatar :size="32" :src="reply.authorAvatar || ''" />
+            <div class="reply-content">
+              <div class="reply-header">
+                <span class="reply-author">{{ reply.author_name }}</span>
+                <span class="reply-time">{{ formatTimeAgo(reply.created_at) }}</span>
+              </div>
+              <div class="reply-text">{{ reply.content }}</div>
+              <div class="reply-actions">
+                <el-button text size="small" @click="handleReplyLike(reply)">
+                  {{ reply.liked ? '已赞' : '赞' }} ({{ reply.like_count }})
+                </el-button>
+              </div>
+              <!-- 子回复 -->
+              <div v-if="reply.children && reply.children.length > 0" class="children-replies">
+                <div v-for="child in reply.children" :key="child.id" class="reply-item child-reply">
+                  <el-avatar :size="28" :src="child.authorAvatar || ''" />
+                  <div class="reply-content">
+                    <div class="reply-header">
+                      <span class="reply-author">{{ child.author_name }}</span>
+                      <span class="reply-time">{{ formatTimeAgo(child.created_at) }}</span>
+                    </div>
+                    <div class="reply-text">{{ child.content }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 添加回复 -->
+          <div class="add-reply">
+            <el-input
+              v-model="newReplyContent"
+              type="textarea"
+              :rows="3"
+              placeholder="写下你的回复..."
+            />
+            <el-button type="primary" @click="submitReply" :loading="replyLoading">提交回复</el-button>
+          </div>
+        </div>
+      </div>
+    </el-dialog>
+
+    <!-- 创建帖子对话框 -->
+    <el-dialog
+      v-model="createThreadVisible"
+      title="发布新帖"
+      width="600px"
+      :class="['create-thread-dialog', { 'theme-dark': isDarkMode }]"
+    >
+      <div class="create-thread-form">
+        <el-form :model="newThread" label-width="80px">
+          <el-form-item label="标题">
+            <el-input v-model="newThread.title" placeholder="请输入帖子标题" maxlength="100" show-word-limit />
+          </el-form-item>
+          <el-form-item label="内容">
+            <el-input
+              v-model="newThread.content"
+              type="textarea"
+              :rows="6"
+              placeholder="请输入帖子内容..."
+              maxlength="5000"
+              show-word-limit
+            />
+          </el-form-item>
+        </el-form>
+      </div>
+      <template #footer>
+        <el-button @click="createThreadVisible = false">取消</el-button>
+        <el-button type="primary" @click="submitNewThread" :loading="createLoading">发布</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -185,7 +286,8 @@ import MobileMenuComponent from '../components/MobileMenuComponent.vue'
 import TweetCard from '../components/Community/TweetCard.vue'
 import DiscussionCard from '../components/Community/DiscussionCard.vue'
 import SidebarWidget from '../components/Community/SidebarWidget.vue'
-import { 
+import api from '../api'
+import {
   Grid, Collection, Document, ChatDotRound, User, TrendCharts, Plus, ArrowRight
 } from '@element-plus/icons-vue'
 import { Menu as Expand } from '@element-plus/icons-vue'
@@ -228,8 +330,63 @@ const handleFilterChange = (value) => {
 }
 
 // 排序选项
-const sortType = ref('推荐')
-const sortOptions = ['推荐', '最新', '热门']
+const sortType = ref('latest')
+const sortOptions = [
+  { label: '最新', value: 'latest' },
+  { label: '热门', value: 'pinned' }
+]
+
+// 加载讨论区数据
+const fetchThreads = async () => {
+  loading.value = true
+  try {
+    const res = await api.get('/discussions/threads', {
+      params: {
+        page: 1,
+        per_page: 20,
+        sort: sortType.value
+      }
+    })
+    if (res.data && res.data.data) {
+      // 将后端数据转换为前端格式
+      feedItems.value = res.data.data.map(thread => ({
+        id: thread.id,
+        type: 'discussion',
+        title: thread.title,
+        summary: thread.content ? thread.content.substring(0, 100) + '...' : '',
+        category: thread.scope_type === 'global' ? '全局' : thread.scope_type,
+        author: thread.author_name,
+        authorId: thread.author_id,
+        authorAvatar: '',
+        publishTime: formatTimeAgo(thread.created_at),
+        replies: thread.reply_count,
+        views: thread.view_count,
+        isHot: thread.is_pinned
+      }))
+    }
+  } catch (error) {
+    console.error('获取讨论列表失败:', error)
+  } finally {
+    loading.value = false
+  }
+}
+
+// 格式化时间
+const formatTimeAgo = (dateStr) => {
+  if (!dateStr) return ''
+  const date = new Date(dateStr)
+  const now = new Date()
+  const diff = now - date
+  const minutes = Math.floor(diff / 60000)
+  const hours = Math.floor(diff / 3600000)
+  const days = Math.floor(diff / 86400000)
+
+  if (minutes < 1) return '刚刚'
+  if (minutes < 60) return `${minutes}分钟前`
+  if (hours < 24) return `${hours}小时前`
+  if (days < 30) return `${days}天前`
+  return date.toLocaleDateString('zh-CN')
+}
 
 // 专题数据
 const topics = ref([
@@ -407,13 +564,31 @@ const activeUsers = ref([
 const loading = ref(false)
 const hasMore = ref(true)
 
+// 帖子详情相关状态
+const threadDetailVisible = ref(false)
+const currentThread = ref(null)
+const threadReplies = ref([])
+const newReplyContent = ref('')
+const replyLoading = ref(false)
+
+// 创建帖子相关状态
+const createThreadVisible = ref(false)
+const newThread = ref({
+  title: '',
+  content: '',
+  scope_type: 'global',
+  scope_id: null
+})
+const createLoading = ref(false)
+
 // 事件处理
 const handleTopicClick = (topic) => {
   ElMessage.info(`进入专题: ${topic.title}`)
 }
 
 const handleCreatePost = () => {
-  ElMessage.info('打开发布编辑器')
+  createThreadVisible.value = true
+  newThread.value = { title: '', content: '', scope_type: 'global', scope_id: null }
 }
 
 const handleTweetClick = (tweet) => {
@@ -453,8 +628,119 @@ const handleImageClick = ({ tweetId, index, images }) => {
   ElMessage.info(`查看图片: 第${index + 1}张`)
 }
 
-const handleDiscussionClick = (discussion) => {
-  ElMessage.info(`查看讨论: ${discussion.title}`)
+const handleDiscussionClick = async (discussion) => {
+  try {
+    // 获取帖子详情
+    const res = await api.get(`/discussions/threads/${discussion.id}`)
+    if (res.data && res.data.data) {
+      const thread = res.data.data
+      currentThread.value = {
+        ...discussion,
+        content: thread.content,
+        reply_count: thread.reply_count,
+        view_count: thread.view_count,
+        like_count: thread.like_count,
+        is_pinned: thread.is_pinned,
+        created_at: thread.created_at
+      }
+      // 获取回复列表
+      const repliesRes = await api.get(`/discussions/threads/${discussion.id}/replies`)
+      if (repliesRes.data && repliesRes.data.data) {
+        threadReplies.value = repliesRes.data.data
+      }
+      threadDetailVisible.value = true
+    }
+  } catch (error) {
+    console.error('获取帖子详情失败:', error)
+    ElMessage.error('获取帖子详情失败')
+  }
+}
+
+// 点赞帖子
+const handleThreadLike = async (thread) => {
+  try {
+    const res = await api.post('/discussions/reactions', {
+      target_type: 'thread',
+      target_id: thread.id,
+      reaction_type: 'like'
+    })
+    if (res.data && res.data.data) {
+      thread.liked = res.data.data.liked
+      thread.likes = (thread.likes || 0) + (thread.liked ? 1 : -1)
+    }
+  } catch (error) {
+    console.error('点赞失败:', error)
+  }
+}
+
+// 点赞回复
+const handleReplyLike = async (reply) => {
+  try {
+    const res = await api.post('/discussions/reactions', {
+      target_type: 'reply',
+      target_id: reply.id,
+      reaction_type: 'like'
+    })
+    if (res.data && res.data.data) {
+      reply.liked = res.data.data.liked
+      reply.like_count = (reply.like_count || 0) + (reply.liked ? 1 : -1)
+    }
+  } catch (error) {
+    console.error('点赞失败:', error)
+  }
+}
+
+// 提交新帖子
+const submitNewThread = async () => {
+  if (!newThread.value.title || !newThread.value.content) {
+    ElMessage.warning('请填写标题和内容')
+    return
+  }
+  createLoading.value = true
+  try {
+    const res = await api.post('/discussions/threads', newThread.value)
+    if (res.data && res.data.code === 201) {
+      ElMessage.success('发布成功')
+      createThreadVisible.value = false
+      fetchThreads() // 刷新列表
+    }
+  } catch (error) {
+    console.error('发布帖子失败:', error)
+    ElMessage.error('发布失败')
+  } finally {
+    createLoading.value = false
+  }
+}
+
+// 提交回复
+const submitReply = async () => {
+  if (!newReplyContent.value.trim()) {
+    ElMessage.warning('请输入回复内容')
+    return
+  }
+  if (!currentThread.value) return
+  replyLoading.value = true
+  try {
+    const res = await api.post(`/discussions/threads/${currentThread.value.id}/replies`, {
+      content: newReplyContent.value
+    })
+    if (res.data && res.data.code === 201) {
+      ElMessage.success('回复成功')
+      newReplyContent.value = ''
+      // 刷新回复列表
+      const repliesRes = await api.get(`/discussions/threads/${currentThread.value.id}/replies`)
+      if (repliesRes.data && repliesRes.data.data) {
+        threadReplies.value = repliesRes.data.data
+      }
+      // 更新回复数
+      currentThread.value.reply_count = (currentThread.value.reply_count || 0) + 1
+    }
+  } catch (error) {
+    console.error('回复失败:', error)
+    ElMessage.error('回复失败')
+  } finally {
+    replyLoading.value = false
+  }
 }
 
 const handleTopicItemClick = (topic) => {
@@ -480,6 +766,13 @@ const loadMore = () => {
 onMounted(() => {
   checkScreenSize()
   window.addEventListener('resize', checkScreenSize)
+  fetchThreads()
+})
+
+// 监听排序变化
+import { watch } from 'vue'
+watch(sortType, () => {
+  fetchThreads()
 })
 
 onUnmounted(() => {
@@ -569,9 +862,11 @@ onUnmounted(() => {
 /* 三栏布局 */
 .community-layout {
   display: grid;
-  grid-template-columns: 240px 1fr 280px;
-  gap: 24px;
+  grid-template-columns: 1fr;
+  gap: 0;
   align-items: start;
+  max-width: 900px;
+  margin: 0 auto;
 }
 
 /* 左侧导航栏 */
@@ -1159,5 +1454,190 @@ onUnmounted(() => {
   .activity-banner :deep(.el-carousel__indicators) {
     padding-left: 16px;
   }
+}
+
+/* 帖子详情对话框样式 */
+.thread-detail {
+  padding: 0;
+}
+
+.thread-author {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.thread-author .author-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.thread-author .author-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.theme-light .thread-author .author-name {
+  color: #24292f;
+}
+
+.theme-dark .thread-author .author-name {
+  color: #c9d1d9;
+}
+
+.thread-time {
+  font-size: 12px;
+}
+
+.theme-light .thread-time {
+  color: #57606a;
+}
+
+.theme-dark .thread-time {
+  color: #8b949e;
+}
+
+.thread-content {
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: 16px;
+  white-space: pre-wrap;
+}
+
+.theme-light .thread-content {
+  color: #24292f;
+}
+
+.theme-dark .thread-content {
+  color: #c9d1d9;
+}
+
+.thread-actions {
+  display: flex;
+  gap: 8px;
+  padding: 12px 0;
+  border-bottom: 1px solid #d0d7de;
+}
+
+.theme-dark .thread-actions {
+  border-bottom-color: #30363d;
+}
+
+/* 回复区域 */
+.replies-section {
+  margin-top: 20px;
+}
+
+.replies-section h4 {
+  margin: 0 0 16px 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.theme-light .replies-section h4 {
+  color: #24292f;
+}
+
+.theme-dark .replies-section h4 {
+  color: #c9d1d9;
+}
+
+.reply-item {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 12px;
+  border-radius: 8px;
+}
+
+.theme-light .reply-item {
+  background: #f6f8fa;
+}
+
+.theme-dark .reply-item {
+  background: #161b22;
+}
+
+.reply-item.child-reply {
+  margin-bottom: 8px;
+  padding: 8px;
+}
+
+.reply-content {
+  flex: 1;
+}
+
+.reply-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.reply-author {
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.theme-light .reply-author {
+  color: #24292f;
+}
+
+.theme-dark .reply-author {
+  color: #c9d1d9;
+}
+
+.reply-time {
+  font-size: 12px;
+}
+
+.theme-light .reply-time {
+  color: #57606a;
+}
+
+.theme-dark .reply-time {
+  color: #8b949e;
+}
+
+.reply-text {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.theme-light .reply-text {
+  color: #24292f;
+}
+
+.theme-dark .reply-text {
+  color: #c9d1d9;
+}
+
+.reply-actions {
+  margin-top: 8px;
+}
+
+.children-replies {
+  margin-top: 12px;
+  padding-left: 12px;
+  border-left: 2px solid #d0d7de;
+}
+
+.theme-dark .children-replies {
+  border-left-color: #30363d;
+}
+
+/* 添加回复 */
+.add-reply {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+/* 创建帖子表单 */
+.create-thread-form {
+  padding: 10px 0;
 }
 </style>
