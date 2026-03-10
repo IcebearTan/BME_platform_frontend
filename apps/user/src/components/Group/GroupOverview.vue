@@ -26,7 +26,7 @@
           </div>
           <div class="info-content">
             <div class="info-label">绑定课程</div>
-            <div class="info-value">{{ groupData?.courseName || '生物医学工程导论' }}</div>
+            <div class="info-value">{{ groupData?.courseName || '暂无' }}</div>
           </div>
         </div>
 
@@ -36,7 +36,7 @@
           </div>
           <div class="info-content">
             <div class="info-label">导师</div>
-            <div class="info-value">{{ groupData?.tutorName || '张教授' }}</div>
+            <div class="info-value">{{ groupData?.tutorName || '未设置' }}</div>
           </div>
         </div>
 
@@ -45,8 +45,8 @@
             <el-icon><Calendar /></el-icon>
           </div>
           <div class="info-content">
-            <div class="info-label">学期</div>
-            <div class="info-value">{{ groupData?.semester || '2024-2025学年 第一学期' }}</div>
+            <div class="info-label">学年学期</div>
+            <div class="info-value">{{ formattedSemester }}</div>
           </div>
         </div>
 
@@ -55,8 +55,8 @@
             <el-icon><Clock /></el-icon>
           </div>
           <div class="info-content">
-            <div class="info-label">创建时间</div>
-            <div class="info-value">{{ formatDate(groupData?.createDate) || '2024年9月15日' }}</div>
+            <div class="info-label">小组状态</div>
+            <div class="info-value" :class="getStatusClass(groupData?.status)">{{ getStatusText(groupData?.status) }}</div>
           </div>
         </div>
       </div>
@@ -77,11 +77,11 @@
             </div>
             <div class="stat-trend positive" v-if="isTeacher">
               <el-icon><ArrowUp /></el-icon>
-              <span>+{{ statsData.memberGrowth || 3 }}</span>
+              <span>+{{ statsData.memberGrowth }}</span>
             </div>
           </div>
           <div class="stat-content">
-            <div class="stat-number">{{ statsData.totalMembers || 25 }}</div>
+            <div class="stat-number">{{ totalMembers }}</div>
             <div class="stat-label">成员总数</div>
           </div>
         </div>
@@ -91,17 +91,15 @@
             <div class="stat-icon tasks">
               <el-icon><Select /></el-icon>
             </div>
-            <div class="stat-trend positive" v-if="isTeacher">
-              <el-icon><ArrowUp /></el-icon>
-              <span>{{ Math.round((statsData.completedTasks / statsData.totalTasks) * 100) || 85 }}%</span>
-            </div>
           </div>
           <div class="stat-content">
-            <div class="stat-number">{{ statsData.completedTasks || 17 }}/{{ statsData.totalTasks || 20 }}</div>
-            <div class="stat-label">任务完成</div>
+            <div class="stat-number">{{ statsData.totalTasks }}</div>
+            <div class="stat-label">任务数量</div>
           </div>
         </div>
 
+        <!-- 公告消息 - 已禁用 -->
+        <!--
         <div class="stat-card">
           <div class="stat-header">
             <div class="stat-icon announcements">
@@ -114,8 +112,9 @@
             <div class="stat-label">公告消息</div>
           </div>
         </div>
+        -->
 
-        
+
         <!-- 预留位置，用于未来功能扩展 -->
         <div class="stat-card placeholder">
           <div class="stat-header">
@@ -131,60 +130,14 @@
       </div>
     </div>
 
-    <!-- 进度排名 -->
+    <!-- 最新消息 -->
     <div class="overview-section">
       <div class="section-header">
-        <h3 class="section-title">进度排名</h3>
-        <div class="ranking-info">
-          <span class="member-count">共 {{ progressRanking.length }} 名成员</span>
-        </div>
+        <h3 class="section-title">最新消息</h3>
       </div>
-
-      <div class="ranking-list">
-        <div
-          v-for="(student, index) in progressRanking"
-          :key="student.userId"
-          class="ranking-item"
-          :class="{ 'rank-top-three': index < 3 }"
-        >
-          <!-- 排名 -->
-          <div class="rank-badge" :class="`rank-${index + 1}`">
-            {{ index + 1 }}
-          </div>
-
-          <!-- 头像 -->
-          <div class="ranking-avatar">
-            <el-avatar :size="36" :src="student.avatar">
-              {{ student.name?.charAt(0) || 'U' }}
-            </el-avatar>
-          </div>
-
-          <!-- 信息 -->
-          <div class="ranking-info-content">
-            <div class="ranking-name">{{ student.name }}</div>
-            <div class="ranking-tasks">
-              已完成 {{ student.completedTasks }}/{{ student.totalTasks }} 项任务
-            </div>
-          </div>
-
-          <!-- 进度条 -->
-          <div class="ranking-progress">
-            <div class="progress-text">{{ student.progressPercentage }}%</div>
-            <div class="progress-bar-wrapper">
-              <div
-                class="progress-bar-fill"
-                :style="{ width: student.progressPercentage + '%' }"
-                :class="`progress-${getProgressLevel(student.progressPercentage)}`"
-              ></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 无数据状态 -->
-      <div v-if="progressRanking.length === 0" class="no-ranking">
-        <el-icon class="no-ranking-icon"><Document /></el-icon>
-        <p class="no-ranking-text">暂无进度数据</p>
+      <div class="developing-message">
+        <el-icon class="developing-icon"><Bell /></el-icon>
+        <p class="developing-text">正在开发，敬请期待</p>
       </div>
     </div>
 
@@ -233,97 +186,63 @@ const emit = defineEmits([
   'view-activities'
 ]);
 
+// 格式化学年学期显示
+const formattedSemester = computed(() => {
+  const { academicYear, semester, term } = props.groupData || {};
+
+  // 处理 spring/summer/autumn/winter 格式
+  const semesterMap = {
+    'spring': '春季',
+    'summer': '夏季',
+    'autumn': '秋季',
+    'winter': '冬季'
+  };
+
+  // 如果有term字段，先解析再格式化
+  if (term) {
+    const parts = term.split('-');
+    const year = parts[0] || '';
+    const sem = parts[1] || '';
+    if (year && sem) {
+      return `${year}年${semesterMap[sem] || sem}`;
+    }
+    return term;
+  }
+
+  // 使用 academicYear 和 semester 字段
+  if (academicYear && semester) {
+    return `${academicYear}年${semesterMap[semester] || semester}`;
+  }
+
+  // 默认值
+  return '未设置';
+});
+
 // Vuex store
 const store = useStore();
 
 // 响应式数据
 const statsData = ref({
-  totalMembers: 25,
-  memberGrowth: 3,
-  totalTasks: 20,
-  completedTasks: 17,
-  totalAnnouncements: 8,
-  unreadCount: 3
+  totalMembers: 0,
+  memberGrowth: 0,
+  totalTasks: 0,
+  completedTasks: 0,
+  totalAnnouncements: 0,
+  unreadCount: 0
 });
 
-const recentActivities = ref([
-  {
-    id: 1,
-    userName: '张三',
-    action: '提交了',
-    target: '第三章作业',
-    type: 'task',
-    timestamp: new Date(Date.now() - 1000 * 60 * 30), // 30分钟前
-    userAvatar: null
-  },
-  {
-    id: 2,
-    userName: '李四',
-    action: '发布了公告',
-    target: '下周实验安排',
-    type: 'announcement',
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2小时前
-    userAvatar: null
-  },
-  {
-    id: 3,
-    userName: '王五',
-    action: '加入了小组',
-    target: '',
-    type: 'member',
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1天前
-    userAvatar: null
-  },
-
-]);
 
 // 进度排名数据
-const progressRanking = ref([
-  {
-    userId: 1,
-    name: '陈小明',
-    avatar: '/src/assets/ChenMinJie.jpg',
-    completedTasks: 18,
-    totalTasks: 20,
-    progressPercentage: 90
-  },
-  {
-    userId: 2,
-    name: '李小华',
-    avatar: '/src/assets/LuMengXuan.jpg',
-    completedTasks: 17,
-    totalTasks: 20,
-    progressPercentage: 85
-  },
-  {
-    userId: 3,
-    name: '王小刚',
-    avatar: '/src/assets/Jerry_Scintilla_avatar.jpg',
-    completedTasks: 16,
-    totalTasks: 20,
-    progressPercentage: 80
-  },
-  {
-    userId: 4,
-    name: '赵小丽',
-    avatar: '/src/assets/ジエ_avatar.png',
-    completedTasks: 15,
-    totalTasks: 20,
-    progressPercentage: 75
-  },
-  {
-    userId: 5,
-    name: '刘小强',
-    avatar: '/src/assets/ice_bear_avatar.jpg',
-    completedTasks: 14,
-    totalTasks: 20,
-    progressPercentage: 70
-  }
-]);
+const progressRanking = ref([]);
 
 // 计算属性
 const isDarkMode = computed(() => store.getters.isDarkMode);
 const isTeacher = computed(() => props.courseType === 'my-teachings');
+
+// 成员总数从 groupData 获取
+const totalMembers = computed(() => {
+  return props.groupData?.studentCount || props.groupData?.members?.length || 0;
+});
 
 // 加入小组相关状态
 const joinStatus = ref('none'); // none, pending, joined
@@ -427,6 +346,25 @@ const handleJoinGroup = async () => {
 };
 
 // 方法
+const getStatusText = (status) => {
+  const statusMap = {
+    'active': '进行中',
+    'completed': '已结束',
+    'paused': '已暂停',
+  };
+  return statusMap[status] || status || '未知';
+};
+
+const getStatusClass = (status) => {
+  const statusClassMap = {
+    'active': 'status-active',
+    'completed': 'status-completed',
+    'paused': 'status-paused',
+    'draft': 'status-draft'
+  };
+  return statusClassMap[status] || '';
+};
+
 const formatDate = (date) => {
   if (!date) return '';
   
@@ -483,8 +421,35 @@ const handleViewAllActivities = () => {
   emit('view-activities');
 };
 
+// 获取任务数量
+const fetchTaskCount = async () => {
+  if (!props.groupData || !props.groupData.id) return;
+
+  try {
+    const res = await api({
+      url: `/tasks?group_id=${props.groupData.id}`,
+      method: 'get'
+    });
+
+    // API返回格式可能是 res.data.data 或者 res.data
+    const tasks = res.data?.data || res.data || [];
+    if (Array.isArray(tasks)) {
+      statsData.value.totalTasks = tasks.length;
+    }
+  } catch (error) {
+    console.error('获取任务数量失败:', error);
+  }
+};
+
+// 监听 groupData 变化，获取任务数量
+watch(() => props.groupData, (newGroupData) => {
+  if (newGroupData && newGroupData.id) {
+    fetchTaskCount();
+  }
+}, { immediate: true });
+
 onMounted(() => {
-  // 可以在这里加载实际数据
+  fetchTaskCount();
 });
 </script>
 
@@ -1036,5 +1001,31 @@ onMounted(() => {
     margin-right: 0;
     margin-bottom: 6px;
   }
+}
+
+/* 状态颜色 */
+.status-active { color: #67c23a; }
+.status-completed { color: #909399; }
+.status-paused { color: #e6a23c; }
+.status-draft { color: #909399; }
+
+/* 正在开发提示 */
+.developing-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  color: #909399;
+}
+
+.developing-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.developing-text {
+  font-size: 16px;
+  margin: 0;
 }
 </style>

@@ -36,6 +36,16 @@ const currentMode = ref('list'); // 'list' | 'detail'
 const activeTab = ref('my-courses'); // 默认选择"我听的课"
 const activeDetailTab = ref('overview'); // 详情页导航
 const currentGroup = ref(null); // 当前选中的小组
+const cachedGroup = ref(null); // 缓存的小组数据，用于切换标签时保持数据
+const loadingDetail = ref(false); // 详情页加载状态
+
+// 缓存当前小组数据
+const cachedCurrentGroup = computed(() => {
+  if (currentGroup.value) {
+    cachedGroup.value = currentGroup.value;
+  }
+  return cachedGroup.value || currentGroup.value;
+});
 
 // --- 路由状态管理 ---
 const initializeFromRoute = async () => {
@@ -89,6 +99,7 @@ const initializeFromRoute = async () => {
         currentGroup.value = {
           ...currentGroup.value,
           title: detail.name,
+          description: detail.description || '',
           courseId: detail.course_id,
           courseName: detail.course_name || '',
           tutorName: detail.teacher?.name || '',
@@ -97,7 +108,9 @@ const initializeFromRoute = async () => {
           academicYear,
           semester,
           studentCount: detail.members?.length || 0,
-          members: detail.members || []
+          members: detail.members || [],
+          studentLimit: detail.student_limit || 30,
+          createDate: detail.created_at || ''
         };
       }
     } catch (err) {
@@ -246,17 +259,12 @@ const toggleMobileMenu = () => {
 
 const handleTabChange = (tabId) => {
   if (activeTab.value === tabId) return; // 如果是同一个标签，不执行切换
-  
+
   activeTab.value = tabId; // 直接切换，不显示切换动画
-  
-  // 切换标签时重置搜索和详情状态
+
+  // 切换标签时重置搜索状态，但不重置当前小组数据
   searchQuery.value = '';
-  if (currentMode.value === 'detail') {
-    currentMode.value = 'list';
-    currentGroup.value = null;
-    activeDetailTab.value = 'overview';
-  }
-  
+
   // 更新路由状态
   updateRouteQuery();
 };
@@ -264,6 +272,8 @@ const handleTabChange = (tabId) => {
 // --- 课程管理事件处理 ---
 async function handleCourseClick(course) {
   console.log('Course clicked:', course);
+  // 显示加载动画
+  loadingDetail.value = true;
   // 切换到详情模式并设置当前小组
   currentMode.value = 'detail';
 
@@ -300,6 +310,7 @@ async function handleCourseClick(course) {
       currentGroup.value = {
         ...currentGroup.value,
         title: detail.name,
+        description: detail.description || '',
         courseId: detail.course_id,
         courseName: detail.course_name || '',
         tutorName: detail.teacher?.name || '',
@@ -308,7 +319,9 @@ async function handleCourseClick(course) {
         academicYear,
         semester,
         studentCount: detail.members?.length || 0,
-        members: detail.members || []
+        members: detail.members || [],
+        studentLimit: detail.student_limit || 30,
+        createDate: detail.created_at || ''
       };
     }
   } catch (err) {
@@ -319,6 +332,9 @@ async function handleCourseClick(course) {
 
   // 更新路由状态
   updateRouteQuery();
+
+  // 隐藏加载动画
+  loadingDetail.value = false;
 }
 
 function handleEditCourse(courseId) {
@@ -538,7 +554,7 @@ function handleActivityRefresh() {
 // --- 小组设置事件处理 ---
 function handleSettingsUpdated(event) {
   console.log('设置已更新:', event);
-  
+
   // 根据不同类型的设置更新处理
   switch (event.type) {
     case 'basic':
@@ -552,6 +568,10 @@ function handleSettingsUpdated(event) {
       if (currentGroup.value) {
         currentGroup.value.settings = currentGroup.value.settings || {};
         currentGroup.value.settings.member = event.data;
+        // 同时更新成员上限
+        if (event.data.maxMembers) {
+          currentGroup.value.studentLimit = event.data.maxMembers;
+        }
       }
       break;
     case 'notification':
@@ -562,8 +582,6 @@ function handleSettingsUpdated(event) {
       }
       break;
   }
-  
-  // TODO: 调用API保存设置到后端
 }
 
 function handleGroupArchived(groupId) {
@@ -703,11 +721,11 @@ onUnmounted(() => {
       <el-main class="main-container">
         <div class="group-content">
           <!-- 独立的侧边栏组件 -->
-          <GroupSidebar 
+          <GroupSidebar
             :mode="currentMode"
             :active-tab="activeTab"
             :active-detail-tab="activeDetailTab"
-            :current-group="currentGroup"
+            :current-group="cachedCurrentGroup"
             :course-type="activeTab"
             :is-header-hidden="isHeaderHidden"
             @tab-change="handleSidebarTabChange"
@@ -766,8 +784,13 @@ onUnmounted(() => {
             <!-- 详情模式：显示小组详情内容 -->
             <template v-else-if="currentMode === 'detail'">
               <div class="detail-content">
+                <!-- 加载动画 -->
+                <div v-if="loadingDetail" class="loading-container">
+                  <div class="loading-spinner"></div>
+                  <p class="loading-text">加载课程中...</p>
+                </div>
                 <!-- 详情内容区域 - 根据activeDetailTab显示不同内容 -->
-                <div class="detail-body">
+                <div v-else class="detail-body">
                   <div v-if="activeDetailTab === 'overview'" class="detail-section">
                     <GroupOverview 
                       :group-data="currentGroup"
@@ -1060,6 +1083,38 @@ onUnmounted(() => {
   width: 100%;
   max-width: 100%;
   overflow: hidden;
+}
+
+/* 加载动画样式 - 与GroupCards一致 */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  text-align: center;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(102, 126, 234, 0.2);
+  border-left-color: #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-container .loading-text {
+  font-size: 16px;
+  color: #8a8a8a;
+  margin: 0;
 }
 
 .detail-body {

@@ -62,6 +62,13 @@ html, body {
   background-color: #1a1a1a;
   color: #ffffff;
 }
+
+/* 暗黑模式 input 字数统计 */
+.theme-dark .el-input__count-inner {
+  background-color: #2a2a2a !important;
+  color: #707070 !important;
+}
+
 @media (max-width: 768px) {
 
   /*小屏幕时候强制禁止横向翻动*/

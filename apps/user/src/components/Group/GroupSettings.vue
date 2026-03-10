@@ -34,7 +34,7 @@
           </el-form-item>
 
           <el-form-item label="小组描述" prop="description">
-            <el-input 
+            <el-input
               v-model="basicForm.description"
               type="textarea"
               :rows="4"
@@ -44,54 +44,9 @@
             />
           </el-form-item>
 
-          <el-form-item label="所属课程">
-            <el-select 
-              v-model="basicForm.courseId"
-              placeholder="选择所属课程"
-              style="width: 100%"
-            >
-              <el-option 
-                v-for="course in availableCourses"
-                :key="course.id"
-                :label="course.name"
-                :value="course.id"
-              />
-            </el-select>
-          </el-form-item>
-
-          <el-form-item label="学年学期">
-            <el-row :gutter="12">
-              <el-col :span="12">
-                <el-select 
-                  v-model="basicForm.academicYear"
-                  placeholder="学年"
-                  style="width: 100%"
-                >
-                  <el-option 
-                    v-for="year in academicYears"
-                    :key="year"
-                    :label="`${year}-${year + 1}学年`"
-                    :value="year"
-                  />
-                </el-select>
-              </el-col>
-              <el-col :span="12">
-                <el-select 
-                  v-model="basicForm.semester"
-                  placeholder="学期"
-                  style="width: 100%"
-                >
-                  <el-option label="第一学期" value="1" />
-                  <el-option label="第二学期" value="2" />
-                </el-select>
-              </el-col>
-            </el-row>
-          </el-form-item>
-
           <el-form-item label="小组状态">
             <el-radio-group v-model="basicForm.status">
-              <el-radio label="active">活跃</el-radio>
-              <el-radio label="inactive">暂停</el-radio>
+              <el-radio label="active">进行中</el-radio>
               <el-radio label="completed">已结束</el-radio>
             </el-radio-group>
           </el-form-item>
@@ -100,7 +55,6 @@
             <el-button type="primary" @click="handleSaveBasicInfo" :loading="saving">
               保存基本信息
             </el-button>
-            <el-button @click="handleResetBasicInfo">重置</el-button>
           </el-form-item>
         </el-form>
       </div>
@@ -131,38 +85,42 @@
           <div class="setting-item">
             <div class="setting-info">
               <div class="setting-label">需要审核</div>
-              <div class="setting-desc">新成员加入需要管理员审核</div>
+              <div class="setting-desc">新成员加入需要管理员审核（默认开启）</div>
             </div>
             <div class="setting-control">
-              <el-switch 
+              <el-switch
                 v-model="memberSettings.requireApproval"
-                @change="handleMemberSettingChange"
+                disabled
               />
             </div>
           </div>
 
+          <!-- 考勤设置 - 暂时禁用 -->
+          <!--
           <div class="setting-item">
             <div class="setting-info">
               <div class="setting-label">考勤设置</div>
               <div class="setting-desc">是否启用小组考勤功能</div>
             </div>
             <div class="setting-control">
-              <el-switch 
+              <el-switch
                 v-model="memberSettings.enableAttendance"
                 @change="handleMemberSettingChange"
               />
             </div>
           </div>
+          -->
         </div>
       </div>
 
-      <!-- 通知设置 -->
+      <!-- 通知设置 - 暂时禁用 -->
+      <!--
       <div class="settings-section">
         <div class="section-header">
           <el-icon class="section-icon"><Bell /></el-icon>
           <h4 class="section-title">通知设置</h4>
         </div>
-        
+
         <div class="settings-form">
           <div class="setting-item">
             <div class="setting-info">
@@ -170,7 +128,7 @@
               <div class="setting-desc">有新任务发布时通知成员</div>
             </div>
             <div class="setting-control">
-              <el-switch 
+              <el-switch
                 v-model="notificationSettings.newTask"
                 @change="handleNotificationChange"
               />
@@ -183,7 +141,7 @@
               <div class="setting-desc">任务即将截止时提醒成员</div>
             </div>
             <div class="setting-control">
-              <el-switch 
+              <el-switch
                 v-model="notificationSettings.deadline"
                 @change="handleNotificationChange"
               />
@@ -196,7 +154,7 @@
               <div class="setting-desc">提前多长时间提醒</div>
             </div>
             <div class="setting-control">
-              <el-select 
+              <el-select
                 v-model="notificationSettings.deadlineHours"
                 style="width: 150px"
                 @change="handleNotificationChange"
@@ -216,7 +174,7 @@
               <div class="setting-desc">有新公告发布时通知成员</div>
             </div>
             <div class="setting-control">
-              <el-switch 
+              <el-switch
                 v-model="notificationSettings.announcement"
                 @change="handleNotificationChange"
               />
@@ -229,7 +187,7 @@
               <div class="setting-desc">成员加入或离开时通知</div>
             </div>
             <div class="setting-control">
-              <el-switch 
+              <el-switch
                 v-model="notificationSettings.memberChange"
                 @change="handleNotificationChange"
               />
@@ -237,69 +195,27 @@
           </div>
         </div>
       </div>
+      -->
 
-      <!-- 高级设置 -->
-      <div class="settings-section">
-        <div class="section-header">
-          <el-icon class="section-icon"><Setting /></el-icon>
-          <h4 class="section-title">高级设置</h4>
-        </div>
-        
-        <div class="settings-form">
-          <div class="setting-item">
-            <div class="setting-info">
-              <div class="setting-label">归档小组</div>
-              <div class="setting-desc">将小组设为只读状态，保留历史数据</div>
-            </div>
-            <div class="setting-control">
-              <el-button 
-                type="warning" 
-                @click="handleArchiveGroup"
-                :disabled="basicForm.status === 'completed'"
-              >
-                {{ basicForm.status === 'completed' ? '已归档' : '归档小组' }}
-              </el-button>
-            </div>
-          </div>
-
-          <div class="setting-item">
-            <div class="setting-info">
-              <div class="setting-label">导出数据</div>
-              <div class="setting-desc">导出小组的所有数据和活动记录</div>
-            </div>
-            <div class="setting-control">
-              <el-button type="default" @click="handleExportData" :loading="exporting">
-                导出数据
-              </el-button>
-            </div>
-          </div>
-
-          <div class="setting-item danger-zone">
-            <div class="setting-info">
-              <div class="setting-label">删除小组</div>
-              <div class="setting-desc">永久删除小组及所有相关数据，此操作不可恢复</div>
-            </div>
-            <div class="setting-control">
-              <el-button type="danger" @click="handleDeleteGroup">
-                删除小组
-              </el-button>
-            </div>
-          </div>
-        </div>
+      <!-- 删除小组 -->
+      <div class="delete-group-section">
+        <el-button type="danger" @click="handleDeleteGroup">
+          删除小组
+        </el-button>
+        <p class="delete-hint">永久删除小组及所有相关数据，此操作不可恢复</p>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted, watch, nextTick } from 'vue';
 import { useStore } from 'vuex';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import api from '../../api';
 import {
   InfoFilled,
-  User,
-  Bell,
-  Setting
+  User
 } from '@element-plus/icons-vue';
 
 // Props
@@ -340,7 +256,7 @@ const basicForm = reactive({
 // 成员设置
 const memberSettings = reactive({
   maxMembers: 30,
-  requireApproval: false,
+  requireApproval: true,
   enableAttendance: true
 });
 
@@ -356,19 +272,25 @@ const notificationSettings = reactive({
 // 主题适配
 const isDarkMode = computed(() => store.getters.isDarkMode);
 
-const availableCourses = ref([
-  { id: 1, name: '生物医学工程基础' },
-  { id: 2, name: '医学信号处理' },
-  { id: 3, name: '医学图像分析' },
-  { id: 4, name: '生物材料学' },
-  { id: 5, name: '医疗器械设计' }
-]);
+const availableCourses = ref([]);
 
-// 学年选项
-const academicYears = computed(() => {
-  const currentYear = new Date().getFullYear();
-  return Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
-});
+// 获取课程列表 - 暂时禁用因为API不存在
+// const fetchCourses = async () => {
+//   try {
+//     const res = await api({
+//       url: '/courses/my',
+//       method: 'get'
+//     });
+//     if (res.data && res.data.code === 200) {
+//       availableCourses.value = (res.data.data || []).map(course => ({
+//         id: course.id,
+//         name: course.name
+//       }));
+//     }
+//   } catch (error) {
+//     console.error('获取课程列表失败:', error);
+//   }
+// };
 
 // 表单验证规则
 const basicRules = {
@@ -383,61 +305,130 @@ const basicRules = {
 
 // 方法
 const initializeSettings = () => {
-  if (props.groupData) {
-    Object.assign(basicForm, {
-      groupName: props.groupData.title || '',
-      description: props.groupData.description || '',
-      courseId: props.groupData.courseId || '',
-      academicYear: props.groupData.academicYear || 2024,
-      semester: props.groupData.semester || '1',
-      status: props.groupData.status || 'active'
-    });
-    
-    // 从props中加载其他设置，如果没有则使用默认值
-    if (props.groupData.settings) {
-      Object.assign(memberSettings, props.groupData.settings.member || {});
-      Object.assign(notificationSettings, props.groupData.settings.notification || {});
-    }
+  console.log('=== initializeSettings START ===');
+  console.log('groupData.studentLimit:', props.groupData?.studentLimit);
+
+  if (!props.groupData) {
+    console.log('groupData is empty');
+    return;
   }
+
+  // 处理学期映射
+  const semesterMap = {
+    'spring': '1',
+    'summer': '2',
+    'autumn': '1',
+    'winter': '2'
+  };
+  const semesterValue = props.groupData.semester || '1';
+  const mappedSemester = semesterMap[semesterValue] || semesterValue;
+
+  Object.assign(basicForm, {
+    groupName: props.groupData.title || props.groupData.name || '',
+    description: props.groupData.description || props.groupData.desc || '',
+    courseId: props.groupData.courseId || props.groupData.course_id || '',
+    academicYear: parseInt(props.groupData.academicYear) || new Date().getFullYear(),
+    semester: mappedSemester,
+    status: props.groupData.status || 'active'
+  });
+
+  // 从props中加载其他设置
+  if (props.groupData.settings) {
+    Object.assign(memberSettings, props.groupData.settings.member || {});
+    Object.assign(notificationSettings, props.groupData.settings.notification || {});
+  }
+
+  // 加载成员上限
+  const limitVal = props.groupData.studentLimit;
+  console.log('limitVal:', limitVal, 'isNaN:', isNaN(limitVal));
+  if (limitVal !== undefined && limitVal !== null && !isNaN(limitVal)) {
+    memberSettings.maxMembers = Number(limitVal);
+  }
+
+  console.log('memberSettings.maxMembers after init:', memberSettings.maxMembers);
+  console.log('=== initializeSettings END ===');
 };
 
 const handleSaveBasicInfo = async () => {
   if (!basicFormRef.value) return;
-  
+
   try {
     await basicFormRef.value.validate();
-    
+
     saving.value = true;
-    
-    // 模拟API调用
-    setTimeout(() => {
+
+    // 调用API更新小组信息
+    const res = await api({
+      url: `/course-groups/${props.groupData.id}`,
+      method: 'put',
+      data: {
+        name: basicForm.groupName,
+        description: basicForm.description,
+        status: basicForm.status
+      }
+    });
+
+    if (res.data && res.data.code === 200) {
       ElMessage.success('基本信息已保存');
-      saving.value = false;
-      
       // 触发更新事件
       emit('settings-updated', {
         type: 'basic',
         data: { ...basicForm }
       });
-    }, 1000);
+    } else {
+      ElMessage.error(res.data?.message || '保存失败');
+    }
   } catch (error) {
-    console.error('表单验证失败:', error);
+    console.error('保存失败:', error);
+    ElMessage.error('保存失败');
+  } finally {
+    saving.value = false;
   }
 };
 
-const handleResetBasicInfo = () => {
-  basicFormRef.value?.resetFields();
-  initializeSettings();
-  ElMessage.info('已重置为原始数据');
-};
-
-const handleMemberSettingChange = () => {
-  // 自动保存成员设置
-  emit('settings-updated', {
-    type: 'member',
-    data: { ...memberSettings }
+// 监听 groupData 变化，重新初始化设置
+watch(() => props.groupData, () => {
+  nextTick(() => {
+    initializeSettings();
   });
-  ElMessage.success('成员设置已更新');
+}, { deep: true });
+
+// 专门监听 studentLimit 变化
+watch(() => props.groupData?.studentLimit, (newVal) => {
+  if (newVal !== undefined && newVal !== null) {
+    memberSettings.maxMembers = newVal;
+  }
+});
+
+const handleMemberSettingChange = async () => {
+  console.log('handleMemberSettingChange called, maxMembers:', memberSettings.maxMembers);
+  console.log('groupData.id:', props.groupData?.id);
+
+  try {
+    // 调用API更新小组人数限制
+    const res = await api({
+      url: `/course-groups/${props.groupData.id}`,
+      method: 'put',
+      data: {
+        student_limit: memberSettings.maxMembers
+      }
+    });
+
+    console.log('API response:', res.data);
+
+    if (res.data && res.data.code === 200) {
+      emit('settings-updated', {
+        type: 'member',
+        data: { ...memberSettings }
+      });
+      ElMessage.success('成员设置已更新');
+    } else {
+      ElMessage.error(res.data?.message || '保存失败');
+    }
+  } catch (error) {
+    console.error('保存成员设置失败:', error);
+    ElMessage.error('保存失败');
+  }
 };
 
 const handleNotificationChange = () => {
@@ -515,6 +506,17 @@ onMounted(() => {
 });
 </script>
 
+<style>
+/* 暗黑模式字数统计背景 - 全局样式 */
+.theme-dark .el-input__count,
+.theme-dark .el-input__word-count,
+.theme-dark .el-textarea__count,
+.theme-dark .el-textarea__word-count {
+  background-color: #2a2a2a !important;
+  color: #707070 !important;
+}
+</style>
+
 <style scoped>
 .group-settings {
   width: 100%;
@@ -525,12 +527,10 @@ onMounted(() => {
 .settings-header {
   padding: 20px 24px;
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-  background: rgba(248, 250, 252, 0.8);
 }
 
 .theme-dark .settings-header {
   border-bottom-color: rgba(255, 255, 255, 0.1);
-  background: rgba(30, 30, 30, 0.8);
 }
 
 .settings-title {
@@ -750,5 +750,92 @@ onMounted(() => {
   .settings-form {
     padding: 16px;
   }
+}
+
+/* 危险操作区域样式 */
+.danger-section {
+  border-color: #fde2e2;
+}
+
+.theme-dark .danger-section {
+  border-color: #5c3838;
+}
+
+.danger-title {
+  color: #f56c6c;
+}
+
+.theme-dark .danger-title {
+  color: #f56c6c;
+}
+
+/* 删除小组区域 */
+.delete-group-section {
+  padding: 20px;
+  text-align: center;
+}
+
+.delete-hint {
+  margin-top: 12px;
+  color: #909399;
+  font-size: 13px;
+}
+
+/* 暗黑模式适配 - 深层穿透 */
+.theme-dark :deep(.el-input__wrapper),
+.theme-dark :deep(.el-textarea__inner) {
+  background-color: #2a2a2a;
+  box-shadow: 0 0 0 1px #3a3a3a inset;
+}
+
+.theme-dark :deep(.el-input__inner),
+.theme-dark :deep(.el-textarea__inner) {
+  color: #e5e5e5;
+}
+
+.theme-dark :deep(.el-input__inner::placeholder),
+.theme-dark :deep(.el-textarea__inner::placeholder) {
+  color: #707070;
+}
+
+.theme-dark :deep(.el-select .el-input__wrapper) {
+  background-color: #2a2a2a;
+  box-shadow: 0 0 0 1px #3a3a3a inset;
+}
+
+.theme-dark :deep(.el-radio-group),
+.theme-dark :deep(.el-switch__core) {
+  background-color: #2a2a2a;
+}
+
+.theme-dark :deep(.el-button) {
+  background-color: #2a2a2a;
+  border-color: #3a3a3a;
+  color: #e5e5e5;
+}
+
+/* 暗黑模式下danger按钮保持红色 */
+.theme-dark :deep(.el-button--danger) {
+  background-color: #f56c6c;
+  border-color: #f56c6c;
+  color: #fff;
+}
+
+.theme-dark :deep(.el-button--danger:hover) {
+  background-color: #f78989;
+  border-color: #f78989;
+}
+
+/* 暗黑模式字数统计背景 */
+.theme-dark .el-input__count,
+.theme-dark .el-input__word-count,
+.theme-dark .el-textarea__count,
+.theme-dark .el-textarea__word-count,
+.theme-dark :deep(.el-input__count),
+.theme-dark :deep(.el-input__word-count),
+.theme-dark :deep(.el-textarea__count),
+.theme-dark :deep(.el-textarea__word-count) {
+  background-color: #2a2a2a !important;
+  color: #707070 !important;
 }
 </style>

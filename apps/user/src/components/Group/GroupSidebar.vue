@@ -30,35 +30,6 @@
         <span>返回列表</span>
       </div>
 
-      <!-- 小组基本信息 -->
-      <div class="group-info" v-if="currentGroup">
-        <h3 class="group-name">{{ currentGroup.title || '小组详情' }}</h3>
-        <div class="group-meta">
-          <div class="meta-item" v-if="currentGroup.courseName || currentGroup.courseName === ''">
-            <span class="meta-label">课程：</span>
-            <span class="meta-value">{{ currentGroup.courseName || '未设置' }}</span>
-          </div>
-          <div class="meta-item">
-            <span class="meta-label">导生：</span>
-            <span class="meta-value">{{ currentGroup.tutorName || '未指定' }}</span>
-          </div>
-          <div class="meta-item">
-            <span class="meta-label">学年学期：</span>
-            <span class="meta-value">{{ formatAcademicYear(currentGroup.academicYear, currentGroup.semester) || '未设置' }}</span>
-          </div>
-          <div class="meta-item">
-            <span class="meta-label">成员数：</span>
-            <span class="meta-value">{{ currentGroup.studentCount || 0 }}人</span>
-          </div>
-          <div class="meta-item">
-            <span class="meta-label">状态：</span>
-            <span class="meta-value" :class="getStatusClass(currentGroup.status)">
-              {{ getStatusText(currentGroup.status) }}
-            </span>
-          </div>
-        </div>
-      </div>
-
       <!-- 详情导航菜单 -->
       <div class="detail-nav">
         <!-- <div class="nav-title">小组管理</div> -->
@@ -82,7 +53,7 @@
 <script setup>
 import { computed } from 'vue';
 import { useStore } from 'vuex';
-import { ArrowLeft, Bell, Document, Setting, HomeFilled, UserFilled, Clock, Reading, Notebook, Grid } from '@element-plus/icons-vue';
+import { ArrowLeft, Document, Setting, HomeFilled, UserFilled, Reading, Notebook, Grid } from '@element-plus/icons-vue';
 
 // Props
 const props = defineProps({
@@ -135,8 +106,7 @@ const listModeItems = [
 const detailNavItems = computed(() => {
   const baseItems = [
     { key: 'overview', label: '概览', icon: HomeFilled },
-    { key: 'members', label: '成员', icon: UserFilled },
-    { key: 'announcements', label: '公告', icon: Bell }
+    { key: 'members', label: '成员', icon: UserFilled }
   ];
 
   // 根据课程类型添加不同的导航项
@@ -146,11 +116,6 @@ const detailNavItems = computed(() => {
       ...baseItems,
       { key: 'tasks', label: '任务管理', icon: Document }
     ];
-
-    // 如果小组启用了考勤功能，添加考勤管理选项
-    if (props.currentGroup?.settings?.enableAttendance) {
-      teacherItems.push({ key: 'attendance', label: '考勤管理', icon: Clock });
-    }
 
     // 设置选项放在最后
     teacherItems.push({ key: 'settings', label: '小组设置', icon: Setting });
@@ -162,11 +127,6 @@ const detailNavItems = computed(() => {
       ...baseItems,
       { key: 'tasks', label: '任务单', icon: Document }
     ];
-
-    // 学生也可以查看考勤（如果启用了考勤功能）
-    if (props.currentGroup?.settings?.enableAttendance) {
-      studentItems.push({ key: 'attendance', label: '我的考勤', icon: Clock });
-    }
 
     return studentItems;
   }
@@ -180,42 +140,6 @@ const sidebarTitle = computed(() => {
     return props.courseType === 'my-teachings' ? '小组管理' : '小组信息';
   }
 });
-
-// 格式化学年学期
-const formatAcademicYear = (year, semester) => {
-  const semesterMap = {
-    'spring': '春',
-    'summer': '夏', 
-    'autumn': '秋',
-    'winter': '冬'
-  };
-  
-  if (year && semester) {
-    return `${year}年${semesterMap[semester] || semester}季`;
-  }
-  return year ? `${year}年` : '';
-};
-
-// 状态相关
-const getStatusText = (status) => {
-  const statusMap = {
-    'active': '进行中',
-    'completed': '已结束',
-    'paused': '已暂停',
-    'draft': '草稿'
-  };
-  return statusMap[status] || status;
-};
-
-const getStatusClass = (status) => {
-  const statusClassMap = {
-    'active': 'status-active',
-    'completed': 'status-completed',
-    'paused': 'status-paused',
-    'draft': 'status-draft'
-  };
-  return statusClassMap[status] || 'status-active';
-};
 
 // 事件处理
 const handleTabChange = (tabId) => {
@@ -386,85 +310,6 @@ const handleBackToList = () => {
   font-size: 16px;
 }
 
-.group-info {
-  padding: 18px;
-  margin-bottom: 20px;
-  border-radius: 16px;
-  background-color: #fafafa;
-  border: 1px solid #f0f0f0;
-}
-
-.theme-dark .group-info {
-  background-color: #252525;
-  border-color: #2a2a2a;
-}
-
-.group-avatar {
-  text-align: center;
-  margin-bottom: 12px;
-}
-
-.avatar-placeholder {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #409eff 0%, #67c23a 100%);
-  color: white;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 22px;
-  font-weight: 600;
-}
-
-.group-name {
-  font-size: 17px;
-  font-weight: 600;
-  text-align: center;
-  margin: 0 0 12px 0;
-  color: #323233;
-}
-
-.theme-dark .group-name {
-  color: #e5e5e5;
-}
-
-.group-meta {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.meta-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 13px;
-}
-
-.meta-label {
-  color: #909399;
-  font-weight: 450;
-}
-
-.meta-value {
-  font-weight: 500;
-  color: #606266;
-}
-
-.theme-dark .meta-label {
-  color: #707070;
-}
-
-.theme-dark .meta-value {
-  color: #c0c4cc;
-}
-
-.status-active { color: #67c23a; }
-.status-completed { color: #909399; }
-.status-paused { color: #e6a23c; }
-.status-draft { color: #909399; }
-
 .detail-nav {
   margin-top: 16px;
 }
@@ -580,21 +425,6 @@ const handleBackToList = () => {
   .back-icon {
     font-size: 13px;
     margin-right: 5px;
-  }
-  
-  .group-info {
-    padding: 10px;
-    margin-bottom: 14px;
-  }
-  
-  .group-name {
-    font-size: 15px;
-    margin-bottom: 8px;
-  }
-  
-  .meta-item {
-    font-size: 11px;
-    gap: 4px;
   }
   
   .nav-item {
