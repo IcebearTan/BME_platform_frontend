@@ -358,11 +358,6 @@ function handleGoToCourseChapter(courseId, chapterId = null) {
   });
 }
 
-// --- 搜索功能 ---
-function handleSearchInput(value) {
-  searchQuery.value = value;
-}
-
 // --- 创建小组功能 ---
 function handleCreateGroup() {
   isCreateFormVisible.value = true;
@@ -744,12 +739,11 @@ onUnmounted(() => {
                     <el-icon class="search-icon">
                       <Search />
                     </el-icon>
-                    <input 
+                    <input
                       v-model="searchQuery"
-                      type="text" 
+                      type="text"
                       class="search-input"
                       placeholder="搜索小组..."
-                      @input="handleSearchInput"
                       @focus="isSearchFocused = true"
                       @blur="isSearchFocused = false"
                     />

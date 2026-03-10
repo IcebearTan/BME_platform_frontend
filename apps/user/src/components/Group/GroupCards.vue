@@ -19,14 +19,16 @@
         
         <div class="course-card-content">
           <h3 class="course-title">{{ course.title }}</h3>
-          <p class="course-description">{{ course.description }}</p>
 
-          <div class="course-meta">
-            <div class="meta-item">
-              <span class="meta-text">导生：{{ course.tutorName || '未指定' }}</span>
-            </div>
-            <div class="meta-item">
-              <span class="meta-text">学员：{{ course.studentCount || 0 }}人</span>
+          <div class="course-card-body">
+            <div class="course-description">{{ course.description }}</div>
+            <div class="course-meta">
+              <div class="meta-item">
+                <span class="meta-text">导生：{{ course.tutorName || '未指定' }}</span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-text">学员：{{ course.studentCount || 0 }}人</span>
+              </div>
             </div>
           </div>
         </div>
@@ -148,7 +150,7 @@ const loadCourses = async () => {
           return {
             id: group.id,
             title: group.name,
-            description: '',
+            description: group.description || '',
             status: group.status || 'active',
             studentCount: group.member_count || 0,
             tutorName: group.teacher_name || '未指定',
@@ -176,7 +178,7 @@ const loadCourses = async () => {
           return {
             id: group.id,
             title: group.name,
-            description: '',
+            description: group.description || '',
             status: group.status || 'active',
             studentCount: group.member_count || 0,
             tutorName: group.teacher_name || '未指定',
@@ -206,7 +208,7 @@ const loadCourses = async () => {
           return {
             id: group.id,
             title: group.name,
-            description: '',
+            description: group.description || '',
             status: group.status || 'active',
             studentCount: group.member_count || 0,
             tutorName: group.teacher_name || '未指定',
@@ -474,14 +476,14 @@ onMounted(() => {
 
 
 .course-card-content {
-  padding: 16px 20px 20px 20px;
+  padding: 16px 20px 16px 20px;
 }
 
 .course-title {
   font-size: 18px;
   font-weight: 700;
   color: #1a1a1a;
-  margin: 0 0 8px 0;
+  margin: 0 0 12px 0;
   line-height: 1.4;
   overflow: hidden;
   display: -webkit-box;
@@ -490,11 +492,19 @@ onMounted(() => {
   -webkit-box-orient: vertical;
 }
 
+.course-card-body {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
 .course-description {
   font-size: 14px;
   color: #6b7280;
   line-height: 1.5;
-  margin: 0 0 16px 0;
+  margin: 0;
+  flex: 1;
+  padding-right: 16px;
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -506,6 +516,8 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  align-items: flex-end;
+  flex-shrink: 0;
 }
 
 .meta-item {
@@ -527,7 +539,7 @@ onMounted(() => {
 /* 卡片底部按钮 */
 .course-card-footer {
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
   align-items: center;
   padding: 12px 20px 16px 20px;
   border-top: 1px solid rgba(0, 0, 0, 0.06);
