@@ -108,7 +108,8 @@ const studyEntries = ref([
     description: '练习巩固知识点',
     icon: '📝',
     route: '/question-bank',
-    color: '#67C23A'
+    color: '#67C23A',
+    disabled: true
   },
   {
     id: 'groups',
@@ -124,7 +125,8 @@ const studyEntries = ref([
     description: '检验学习效果',
     icon: '✅',
     route: '/exam',
-    color: '#F56C6C'
+    color: '#F56C6C',
+    disabled: true
   },
   {
     id: 'resources',
@@ -133,7 +135,7 @@ const studyEntries = ref([
     icon: '📖',
     route: '/resources',
     color: '#909399',
-    disabled: true // 未来功能
+    disabled: true
   }
 ])
 

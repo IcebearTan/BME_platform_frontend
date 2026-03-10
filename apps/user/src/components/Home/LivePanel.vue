@@ -108,6 +108,7 @@ import SeatMap from './SeatMap.vue'
 import UserGreeting from './UserGreeting.vue'
 import CheckinStatus from './CheckinStatus.vue'
 import MonthlyStatsPanel from './MonthlyStatsPanel.vue'
+import api from '../../api'
 
 // Store
 const store = useStore()
@@ -321,16 +322,27 @@ function handleRoomChange(roomId) {
 // 获取月度统计数据
 async function fetchMonthlyStats() {
   try {
-    // 这里应该调用实际的API
-    // const response = await fetch('/api/monthly_stats')
-    // const data = await response.json()
-    
-    // 临时使用模拟数据
-    const mockData = calculateMonthlyStatsFromRecords()
-    monthlyStatsData.value = mockData
-    
-    return mockData
+    // 调用实际的API获取用户学习统计数据
+    const res = await api.get('/records/my_stats')
+    // 后端返回格式: { code: 200, data: { total_days, month_hours, month_rank } }
+    const data = res.data.data
+    if (data) {
+      const stats = {
+        totalDays: data.total_days || 0,
+        totalHours: Math.floor(data.month_hours || 0),
+        rank: data.month_rank || null
+      }
+      monthlyStatsData.value = stats
+      // 同时更新学习统计数据
+      studyStats.value = {
+        todayHours: '-',
+        weekHours: '-',
+        totalDays: stats.totalDays + '天'
+      }
+      return stats
+    }
   } catch (error) {
+    console.error('获取月度统计数据失败:', error)
     // 使用备用计算方法
     return calculateMonthlyStatsFromRecords()
   }
