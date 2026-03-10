@@ -142,7 +142,6 @@ const isSearchInputExpand = () => {
 
 const searchInputClass = ref('search-input')
 const searchInput = ref(null)
-const showNotificationHover = ref(false)
 
 // 主题状态管理
 const isDarkMode = computed(() => store.getters.isDarkMode)
@@ -167,11 +166,6 @@ const checkTimeTheme = () => {
 const toggleTheme = () => {
   store.commit('toggleTheme')
   console.log(`🎨 主题切换: ${isDarkMode.value ? '🌙 夜间模式' : '☀️ 白天模式'}`)
-}
-
-// 处理消息点击事件
-const handleNotificationClick = () => {
-  router.push('/notifications')
 }
 
 onMounted(() => {
@@ -270,22 +264,7 @@ const handleUserInfo = () => {
               </div>
             </div>
         </el-menu-item>
-        
-        <!-- 消息提醒组件 -->
-        <el-menu-item v-if="isLogin" class="custom-menu-item notification-menu-item" :class="{ 'theme-dark': isDarkMode, 'theme-light': !isDarkMode }">
-            <div 
-              class="notification-wrapper"
-              @click="handleNotificationClick"
-              @mouseenter="showNotificationHover = true"
-              @mouseleave="showNotificationHover = false"
-            >
-              <NotificationComponent 
-                :show-hover="showNotificationHover"
-                @click-bell="handleNotificationClick"
-              />
-            </div>
-        </el-menu-item>
-        
+
         <el-menu-item v-if="isLogin" class="custom-menu-item theme-menu-item" :class="{ 'theme-dark': isDarkMode, 'theme-light': !isDarkMode }">
             <div class="user-avatar" style="cursor: pointer;">
                 <el-popover
