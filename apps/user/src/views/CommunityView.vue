@@ -80,9 +80,6 @@
             <!-- 筛选栏 -->
             <div class="filter-bar">
               <el-segmented v-model="sortType" :options="sortOptions" size="default" />
-              <el-button type="primary" :icon="Plus" @click="handleCreatePost">
-                发布内容
-              </el-button>
             </div>
 
             <!-- 信息流 -->
@@ -105,7 +102,6 @@
                 <DiscussionCard 
                   v-else-if="item.type === 'discussion'"
                   :discussion="item"
-                  @click="handleDiscussionClick"
                 />
               </template>
 

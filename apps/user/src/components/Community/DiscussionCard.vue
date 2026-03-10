@@ -154,8 +154,13 @@ const formatNumber = (num) => {
 const handleLike = async () => {
   try {
     const res = await api({
-      url: `/discussions/threads/${props.discussion.id}/like`,
-      method: 'POST'
+      url: `/discussions/reactions`,
+      method: 'POST',
+      data: {
+        target_type: 'thread',
+        target_id: props.discussion.id,
+        reaction_type: 'like'
+      }
     })
     if (res.data.code === 200) {
       props.discussion.liked = !props.discussion.liked
@@ -174,8 +179,13 @@ const handleReply = () => {
 const handleReplyLike = async (reply) => {
   try {
     const res = await api({
-      url: `/discussions/replies/${reply.id}/like`,
-      method: 'POST'
+      url: `/discussions/reactions`,
+      method: 'POST',
+      data: {
+        target_type: 'reply',
+        target_id: reply.id,
+        reaction_type: 'like'
+      }
     })
     if (res.data.code === 200) {
       reply.liked = !reply.liked
@@ -448,10 +458,14 @@ const submitReply = async () => {
   flex: 1;
 }
 
-.theme-dark .reply-input-section .el-textarea__inner {
-  background: #262626;
-  border-color: rgba(255, 255, 255, 0.1);
-  color: #d1d5db;
+.theme-dark .reply-input-section :deep(.el-textarea__inner) {
+  background: #262626 !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  color: #d1d5db !important;
+}
+
+.theme-dark .reply-input-section :deep(.el-textarea__inner)::placeholder {
+  color: #6b7280 !important;
 }
 
 /* 响应式 */
