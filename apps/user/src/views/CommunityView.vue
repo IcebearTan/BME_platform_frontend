@@ -183,27 +183,34 @@
     >
       <div v-if="currentThread" class="thread-detail">
         <div class="thread-author">
-          <el-avatar :size="40" :src="currentThread.authorAvatar || ''" />
+          <el-avatar :size="40" :src="currentThread.author_avatar || ''" />
           <div class="author-info">
-            <div class="author-name">{{ currentThread.author }}</div>
-            <div class="thread-time">{{ currentThread.publishTime }}</div>
+            <div class="author-name">{{ currentThread.author_name }}</div>
+            <div class="thread-time">{{ formatTimeAgo(currentThread.created_at) }}</div>
           </div>
         </div>
         <div class="thread-content">{{ currentThread.content }}</div>
         <div class="thread-actions">
           <el-button :type="currentThread.liked ? 'primary' : 'default'" text @click="handleThreadLike(currentThread)">
+            <el-icon><StarFilled v-if="currentThread.liked" /><Star v-else /></el-icon>
             <span>{{ currentThread.liked ? '已赞' : '点赞' }}</span>
-            <span v-if="currentThread.likes">({{ currentThread.likes }})</span>
+            <span v-if="currentThread.like_count">({{ currentThread.like_count }})</span>
           </el-button>
-          <el-button text>{{ currentThread.reply_count }} 回复</el-button>
-          <el-button text>{{ currentThread.view_count }} 浏览</el-button>
+          <el-button text>
+            <el-icon><ChatDotRound /></el-icon>
+            {{ currentThread.reply_count }} 回复
+          </el-button>
+          <el-button text>
+            <el-icon><View /></el-icon>
+            {{ currentThread.view_count }} 浏览
+          </el-button>
         </div>
 
         <!-- 回复列表 -->
         <div class="replies-section">
           <h4>全部回复 ({{ threadReplies.length }})</h4>
           <div v-for="reply in threadReplies" :key="reply.id" class="reply-item">
-            <el-avatar :size="32" :src="reply.authorAvatar || ''" />
+            <el-avatar :size="32" :src="reply.author_avatar || ''" />
             <div class="reply-content">
               <div class="reply-header">
                 <span class="reply-author">{{ reply.author_name }}</span>
@@ -218,7 +225,7 @@
               <!-- 子回复 -->
               <div v-if="reply.children && reply.children.length > 0" class="children-replies">
                 <div v-for="child in reply.children" :key="child.id" class="reply-item child-reply">
-                  <el-avatar :size="28" :src="child.authorAvatar || ''" />
+                  <el-avatar :size="28" :src="child.author_avatar || ''" />
                   <div class="reply-content">
                     <div class="reply-header">
                       <span class="reply-author">{{ child.author_name }}</span>
@@ -291,6 +298,7 @@ import {
   Grid, Collection, Document, ChatDotRound, User, TrendCharts, Plus, ArrowRight
 } from '@element-plus/icons-vue'
 import { Menu as Expand } from '@element-plus/icons-vue'
+import { View, Star, StarFilled } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
 const store = useStore()
@@ -357,7 +365,7 @@ const fetchThreads = async () => {
         category: thread.scope_type === 'global' ? '全局' : thread.scope_type,
         author: thread.author_name,
         authorId: thread.author_id,
-        authorAvatar: '',
+        author_avatar: thread.author_avatar || '',
         publishTime: formatTimeAgo(thread.created_at),
         replies: thread.reply_count,
         views: thread.view_count,
@@ -637,6 +645,8 @@ const handleDiscussionClick = async (discussion) => {
       currentThread.value = {
         ...discussion,
         content: thread.content,
+        author_name: thread.author_name,
+        author_avatar: thread.author_avatar,
         reply_count: thread.reply_count,
         view_count: thread.view_count,
         like_count: thread.like_count,

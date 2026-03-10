@@ -16,7 +16,7 @@
     <!-- 底部信息 -->
     <div class="discussion-footer">
       <div class="author-info">
-        <el-avatar :size="24" :src="discussion.authorAvatar" />
+        <el-avatar :size="24" :src="discussion.author_avatar" />
         <span class="author-name">{{ discussion.author }}</span>
         <span class="publish-time">· {{ discussion.publishTime }}</span>
       </div>
