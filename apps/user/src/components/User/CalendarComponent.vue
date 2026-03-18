@@ -15,52 +15,22 @@ const isDarkMode = computed(() => store.getters.isDarkMode);
 const yearAttendenceData = ref([]);
 
 const fetchYearAttendanceData = async () => {
-  // Mock data for testing the glowing effect
-  yearAttendenceData.value = generateMockData();
-
-  // Uncomment below for real API
-  // try {
-  //   const response = await api({
-  //     url: '/records/yearly',
-  //     method: 'get'
-  //   })
-  //   yearAttendenceData.value = response.data;
-  // } catch (error) {
-  //   console.error('Error fetching year attendance data:', error);
-  // }
-};
-
-// Generate mock data for the whole year
-const generateMockData = () => {
-  const data = [];
-  const today = new Date();
-  const currentYear = today.getFullYear();
-
-  for (let month = 0; month < 12; month++) {
-    const daysInMonth = new Date(currentYear, month + 1, 0).getDate();
-    for (let day = 1; day <= daysInMonth; day++) {
-      const date = `${currentYear}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-
-      // Random attendance: 30% chance of attendance, with varying hours
-      let total_hours = 0;
-      let color = '';
-      if (Math.random() < 0.3) {
-        total_hours = Math.floor(Math.random() * 8) + 1; // 1-8 hours
-        // Color gradient from green to cyan based on hours
-        const hue = 160 + (total_hours / 8) * 40; // 160-200 (green to cyan)
-        color = `#1de2c8`;
-      }
-
-      data.push({
-        date,
-        total_hours,
-        color,
-        count: total_hours > 0 ? 1 : 0
-      });
+  try {
+    const response = await api({
+      url: '/records/yearly',
+      method: 'get'
+    })
+    // 后端直接返回数组，不需要检查 code
+    if (Array.isArray(response.data)) {
+      yearAttendenceData.value = response.data;
+    } else if (response.data && response.data.code === 200) {
+      yearAttendenceData.value = response.data.data || [];
     }
+  } catch (error) {
+    console.error('Error fetching year attendance data:', error);
+    // 失败时使用空数据
+    yearAttendenceData.value = [];
   }
-
-  return data;
 };
 
 onMounted(() => {

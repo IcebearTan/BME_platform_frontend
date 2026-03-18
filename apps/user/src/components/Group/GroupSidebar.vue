@@ -95,15 +95,15 @@ const emit = defineEmits([
 const store = useStore();
 const isDarkMode = computed(() => store.getters.isDarkMode);
 const user = computed(() => store.state.user);
-const userRole = computed(() => user.value?.role || 'student');
+const userRole = computed(() => user.value?.User_Mode || 'user');
 
 // 列表模式的导航项 - 根据用户角色过滤
 const listModeItems = computed(() => {
   const items = [
     { id: 'my-courses', label: '我听的课', icon: Reading }
   ];
-  // 只有教师角色才显示"我教的课"
-  if (userRole.value === 'teacher') {
+  // 只有教师和管理员角色才显示"我教的课"
+  if (userRole.value === 'teacher' || userRole.value === 'admin') {
     items.push({ id: 'my-teachings', label: '我教的课', icon: Notebook });
   }
   items.push({ id: 'all-groups', label: '小组广场', icon: Grid });

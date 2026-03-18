@@ -343,7 +343,7 @@ const fetchThreads = async () => {
         category: thread.scope_type === 'global' ? '全局' : thread.scope_type,
         author: thread.author_name,
         authorId: thread.author_id,
-        author_avatar: thread.author_avatar || '',
+        author_avatar: '', // 先留空，后续异步加载
         publishTime: formatTimeAgo(thread.created_at),
         reply_count: thread.reply_count || 0,
         like_count: thread.like_count || 0,
@@ -353,20 +353,40 @@ const fetchThreads = async () => {
         replies: []
       }))
 
+      // 异步加载帖子作者头像
+      for (const thread of threads) {
+        thread.author_avatar = await fetchAvatar(thread.authorId)
+      }
+
       // 为每个帖子获取回复列表
       for (const thread of threads) {
         try {
           const repliesRes = await api.get(`/discussions/threads/${thread.id}/replies`)
           if (repliesRes.data && repliesRes.data.data) {
-            thread.replies = repliesRes.data.data.map(reply => ({
+            const replies = repliesRes.data.data.map(reply => ({
               id: reply.id,
               author: reply.author_name,
-              author_avatar: reply.author_avatar || '',
+              authorId: reply.author_id,
+              author_avatar: '', // 先留空，后续异步加载
               content: reply.content,
               time: formatTimeAgo(reply.created_at),
               like_count: reply.like_count || 0,
-              liked: reply.liked || false
+              liked: reply.liked || false,
+              children: reply.children || []
             }))
+
+            // 异步加载回复作者头像
+            for (const reply of replies) {
+              reply.author_avatar = await fetchAvatar(reply.authorId)
+              // 异步加载子回复作者头像
+              if (reply.children && reply.children.length > 0) {
+                for (const child of reply.children) {
+                  child.author_avatar = await fetchAvatar(child.author_id)
+                }
+              }
+            }
+
+            thread.replies = replies
           }
         } catch (err) {
           console.error(`获取帖子${thread.id}的回复失败:`, err)
@@ -575,6 +595,32 @@ const activeUsers = ref([
 const loading = ref(false)
 const hasMore = ref(true)
 
+// 头像缓存
+const avatarCache = ref({})
+const defaultAvatar = 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png'
+
+// 按需获取用户头像
+const fetchAvatar = async (userId) => {
+  if (!userId) return defaultAvatar
+  if (avatarCache.value[userId]) return avatarCache.value[userId]
+
+  try {
+    const res = await api({
+      url: '/user/user_avatars_id',
+      method: 'get',
+      params: { User_Id: userId }
+    })
+    if (res.data.code === 200 && res.data.User_Avatar) {
+      const avatar = 'data:image/jpeg;base64,' + res.data.User_Avatar
+      avatarCache.value[userId] = avatar
+      return avatar
+    }
+  } catch (err) {
+    console.error('获取头像失败:', err)
+  }
+  return defaultAvatar
+}
+
 // 帖子详情相关状态
 const threadDetailVisible = ref(false)
 const currentThread = ref(null)
@@ -645,11 +691,14 @@ const handleDiscussionClick = async (discussion) => {
     const res = await api.get(`/discussions/threads/${discussion.id}`)
     if (res.data && res.data.data) {
       const thread = res.data.data
+      // 获取作者头像
+      const authorAvatar = await fetchAvatar(thread.author_id)
       currentThread.value = {
         ...discussion,
         content: thread.content,
         author_name: thread.author_name,
-        author_avatar: thread.author_avatar,
+        author_id: thread.author_id,
+        author_avatar: authorAvatar,
         reply_count: thread.reply_count,
         view_count: thread.view_count,
         like_count: thread.like_count,
@@ -659,7 +708,12 @@ const handleDiscussionClick = async (discussion) => {
       // 获取回复列表
       const repliesRes = await api.get(`/discussions/threads/${discussion.id}/replies`)
       if (repliesRes.data && repliesRes.data.data) {
-        threadReplies.value = repliesRes.data.data
+        // 异步加载回复作者头像
+        const replies = repliesRes.data.data
+        for (const reply of replies) {
+          reply.author_avatar = await fetchAvatar(reply.author_id)
+        }
+        threadReplies.value = replies
       }
       threadDetailVisible.value = true
     }
