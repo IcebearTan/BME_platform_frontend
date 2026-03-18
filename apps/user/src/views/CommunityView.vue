@@ -85,22 +85,8 @@
             <!-- 信息流 -->
             <div class="feed-list">
               <template v-for="item in feedItems" :key="item.id">
-                <!-- 推文卡片 -->
-                <TweetCard 
-                  v-if="item.type === 'tweet'"
-                  :tweet="item"
-                  @click="handleTweetClick"
-                  @user-click="handleUserClick"
-                  @comment="handleComment"
-                  @share="handleShare"
-                  @like="handleLike"
-                  @bookmark="handleBookmark"
-                  @image-click="handleImageClick"
-                />
-                
                 <!-- 讨论贴卡片 -->
-                <DiscussionCard 
-                  v-else-if="item.type === 'discussion'"
+                <DiscussionCard
                   :discussion="item"
                 />
               </template>
@@ -267,12 +253,10 @@ import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
 import MenuComponent from '../components/MenuComponent.vue'
 import MobileMenuComponent from '../components/MobileMenuComponent.vue'
-import TweetCard from '../components/Community/TweetCard.vue'
 import DiscussionCard from '../components/Community/DiscussionCard.vue'
-import SidebarWidget from '../components/Community/SidebarWidget.vue'
 import api from '../api'
 import {
-  Grid, Collection, Document, ChatDotRound, User, TrendCharts, Plus, ArrowRight
+  Grid, Collection, ChatDotRound, User, TrendCharts, ArrowRight
 } from '@element-plus/icons-vue'
 import { Menu as Expand } from '@element-plus/icons-vue'
 import { View, Star, StarFilled } from '@element-plus/icons-vue'
@@ -459,137 +443,8 @@ const topics = ref([
   }
 ])
 
-// 混合信息流数据（推文 + 讨论贴）
-const feedItems = ref([
-  {
-    id: 't1',
-    type: 'tweet',
-    author: '张老师',
-    authorId: 'u1',
-    authorAvatar: 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png',
-    badge: '认证',
-    content: '刚完成了一个Vue3项目的重构，使用 Composition API 后代码组织清晰多了！分享几个实用技巧 #前端开发 #Vue3',
-    images: [],
-    publishTime: '2小时前',
-    comments: 23,
-    shares: 5,
-    likes: 156,
-    liked: false,
-    bookmarked: false
-  },
-  {
-    id: 't2',
-    type: 'tweet',
-    author: '小明同学',
-    authorId: 'u2',
-    authorAvatar: 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png',
-    content: '今天学习了Python的装饰器，终于理解了闭包的概念 💡 感觉打开了新世界的大门！@张老师 谢谢你的教程',
-    images: [],
-    publishTime: '3小时前',
-    comments: 12,
-    shares: 2,
-    likes: 89,
-    liked: true,
-    bookmarked: false
-  },
-  {
-    id: 'd1',
-    type: 'discussion',
-    title: '如何在Vue3中优雅地处理全局状态？',
-    summary: '在开发大型Vue3项目时，我发现Pinia相比Vuex更加简洁易用，但在某些复杂场景下该如何选择？大家有什么建议吗...',
-    category: '前端开发',
-    author: '李工程师',
-    authorId: 'u3',
-    authorAvatar: 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png',
-    publishTime: '5小时前',
-    replies: 45,
-    views: 1230,
-    isHot: true
-  },
-  {
-    id: 't3',
-    type: 'tweet',
-    author: '王博士',
-    authorId: 'u4',
-    authorAvatar: 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png',
-    badge: '专家',
-    content: '推荐一个数据可视化库 ECharts，功能强大且文档完善。这是我用它做的一个项目效果 👇',
-    images: [],
-    publishTime: '6小时前',
-    comments: 34,
-    shares: 18,
-    likes: 267,
-    liked: false,
-    bookmarked: true
-  },
-  {
-    id: 'd2',
-    type: 'discussion',
-    title: '推荐一些适合初学者的Python练习项目',
-    summary: '刚学完Python基础语法，想找一些实战项目来练手，有没有好的推荐？最好是难度适中、能学到实用技能的项目...',
-    category: 'Python',
-    author: '新手上路',
-    authorId: 'u5',
-    authorAvatar: 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png',
-    publishTime: '8小时前',
-    replies: 78,
-    views: 892,
-    isHot: true
-  },
-  {
-    id: 't4',
-    type: 'tweet',
-    author: '陈开发',
-    authorId: 'u6',
-    authorAvatar: 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png',
-    content: '终于把异步编程搞明白了！Promise、async/await 原来是这样工作的 🎉 #JavaScript #学习笔记',
-    images: [],
-    publishTime: '10小时前',
-    comments: 19,
-    shares: 7,
-    likes: 134,
-    liked: false,
-    bookmarked: false
-  }
-])
-
-// 热门话题
-const hotTopics = ref([
-  { name: '前端开发', count: '12.3k' },
-  { name: 'Python编程', count: '8.9k' },
-  { name: 'Vue3实战', count: '7.2k' },
-  { name: '算法学习', count: '6.5k' },
-  { name: '机器学习', count: '5.8k' }
-])
-
-// 推荐用户
-const recommendUsers = ref([
-  {
-    id: 1,
-    name: '李老师',
-    avatar: 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png',
-    bio: '资深前端工程师 · 10年经验'
-  },
-  {
-    id: 2,
-    name: '王专家',
-    avatar: 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png',
-    bio: 'AI算法研究员 · 清华大学'
-  },
-  {
-    id: 3,
-    name: '赵架构',
-    avatar: 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png',
-    bio: '系统架构师 · 大厂技术专家'
-  }
-])
-
-// 活跃用户
-const activeUsers = ref([
-  { name: '编程小能手', avatar: 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png', score: 2850 },
-  { name: '算法达人', avatar: 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png', score: 2630 },
-  { name: '前端大佬', avatar: 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png', score: 2410 }
-])
+// 混合信息流数据（现在只显示讨论贴）
+const feedItems = ref([])
 
 // 加载状态
 const loading = ref(false)
@@ -641,86 +496,6 @@ const createLoading = ref(false)
 // 事件处理
 const handleTopicClick = (topic) => {
   ElMessage.info(`进入专题: ${topic.title}`)
-}
-
-const handleCreatePost = () => {
-  createThreadVisible.value = true
-  newThread.value = { title: '', content: '', scope_type: 'global', scope_id: null }
-}
-
-const handleTweetClick = (tweet) => {
-  ElMessage.info(`查看推文详情: ${tweet.id}`)
-}
-
-const handleUserClick = (userId) => {
-  ElMessage.info(`查看用户主页: ${userId}`)
-}
-
-const handleComment = (tweetId) => {
-  ElMessage.info(`评论推文: ${tweetId}`)
-}
-
-const handleShare = (tweetId) => {
-  ElMessage.info(`分享推文: ${tweetId}`)
-}
-
-const handleLike = (tweetId) => {
-  const item = feedItems.value.find(i => i.id === tweetId)
-  if (item) {
-    item.liked = !item.liked
-    item.likes += item.liked ? 1 : -1
-    ElMessage.success(item.liked ? '已点赞' : '取消点赞')
-  }
-}
-
-const handleBookmark = (tweetId) => {
-  const item = feedItems.value.find(i => i.id === tweetId)
-  if (item) {
-    item.bookmarked = !item.bookmarked
-    ElMessage.success(item.bookmarked ? '已收藏' : '取消收藏')
-  }
-}
-
-const handleImageClick = ({ tweetId, index, images }) => {
-  ElMessage.info(`查看图片: 第${index + 1}张`)
-}
-
-const handleDiscussionClick = async (discussion) => {
-  try {
-    // 获取帖子详情
-    const res = await api.get(`/discussions/threads/${discussion.id}`)
-    if (res.data && res.data.data) {
-      const thread = res.data.data
-      // 获取作者头像
-      const authorAvatar = await fetchAvatar(thread.author_id)
-      currentThread.value = {
-        ...discussion,
-        content: thread.content,
-        author_name: thread.author_name,
-        author_id: thread.author_id,
-        author_avatar: authorAvatar,
-        reply_count: thread.reply_count,
-        view_count: thread.view_count,
-        like_count: thread.like_count,
-        is_pinned: thread.is_pinned,
-        created_at: thread.created_at
-      }
-      // 获取回复列表
-      const repliesRes = await api.get(`/discussions/threads/${discussion.id}/replies`)
-      if (repliesRes.data && repliesRes.data.data) {
-        // 异步加载回复作者头像
-        const replies = repliesRes.data.data
-        for (const reply of replies) {
-          reply.author_avatar = await fetchAvatar(reply.author_id)
-        }
-        threadReplies.value = replies
-      }
-      threadDetailVisible.value = true
-    }
-  } catch (error) {
-    console.error('获取帖子详情失败:', error)
-    ElMessage.error('获取帖子详情失败')
-  }
 }
 
 // 点赞帖子
@@ -808,18 +583,6 @@ const submitReply = async () => {
   } finally {
     replyLoading.value = false
   }
-}
-
-const handleTopicItemClick = (topic) => {
-  ElMessage.info(`查看话题: #${topic.name}`)
-}
-
-const handleMoreTopics = () => {
-  ElMessage.info('查看更多话题')
-}
-
-const handleMoreUsers = () => {
-  ElMessage.info('查看更多推荐用户')
 }
 
 const loadMore = () => {
