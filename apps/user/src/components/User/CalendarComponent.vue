@@ -165,26 +165,26 @@ const getDayCellStyle = (day) => {
       lightColor = `hsl(${180 + whiteRatio * 20}, 90%, ${70 + whiteRatio * 20}%)`;
     }
   } else {
-    // 明亮模式：时长越短颜色越明显，长时间淡一些
+    // 明亮模式：时长越长颜色越深
     if (hours <= 3) {
-      // 短时间：明显颜色
-      glowSize = 8 + hours * 2;
-      glowOpacity = 0.3 + hours * 0.15;
-      bgOpacity = 0.7 + hours * 0.1;
+      // 短时间：浅色
+      glowSize = 6 + hours * 2;
+      glowOpacity = 0.2 + hours * 0.1;
+      bgOpacity = 0.5 + hours * 0.1;
       lightColor = baseColor;
     } else if (hours <= 6) {
-      // 中等时间：颜色变淡
-      const fadeRatio = (hours - 3) / 3;
-      glowSize = 12 + fadeRatio * 4;
-      glowOpacity = 0.5 - fadeRatio * 0.2;
-      bgOpacity = 0.8 - fadeRatio * 0.15;
+      // 中等时间：颜色变深
+      const ratio = (hours - 3) / 3;
+      glowSize = 10 + ratio * 6;
+      glowOpacity = 0.4 + ratio * 0.2;
+      bgOpacity = 0.6 + ratio * 0.15;
       lightColor = baseColor;
     } else {
-      // 长时间(7-8h)：更淡
-      const fadeRatio = (hours - 6) / 2;
-      glowSize = 16 - fadeRatio * 4;
-      glowOpacity = 0.3 - fadeRatio * 0.1;
-      bgOpacity = 0.65 - fadeRatio * 0.1;
+      // 长时间(7-8h)：最深
+      const ratio = (hours - 6) / 2;
+      glowSize = 14 + ratio * 4;
+      glowOpacity = 0.6 + ratio * 0.15;
+      bgOpacity = 0.75 + ratio * 0.1;
       lightColor = baseColor;
     }
   }
