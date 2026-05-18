@@ -37,16 +37,7 @@ const router = createRouter({
         return { top: 0 }
     },
     routes: [
-        {
-            path: '/',
-            name: 'profile',
-            component: ProfileView
-        },
-        {
-            path: '/home',
-            name: 'home',
-            component: HomeView
-        },
+        // ── 公开路由（无需登录）──
         {
             path: '/login',
             name: 'login',
@@ -58,24 +49,40 @@ const router = createRouter({
             component: RegisterView
         },
         {
-            path: '/user',
-            name: 'user',
-            component: UserIndex,
+            path: '/find_password',
+            name: 'find_password',
+            component: FindPasswordView,
         },
         {
             path: '/about',
             name: 'about',
             component: AboutUsView,
         },
+
+        // ── 需要登录的路由 ──
         {
-            path: '/find_password',
-            name: 'find_password',
-            component: FindPasswordView,
+            path: '/',
+            name: 'profile',
+            component: ProfileView,
+            meta: { requiresAuth: true }
+        },
+        {
+            path: '/home',
+            name: 'home',
+            component: HomeView,
+            meta: { requiresAuth: true }
+        },
+        {
+            path: '/user',
+            name: 'user',
+            component: UserIndex,
+            meta: { requiresAuth: true }
         },
         {
             path: '/user-center',
             name: 'user-center',
             component: UserCenter,
+            meta: { requiresAuth: true },
             children: [
                 {
                     path: '/user-center/user-info',
@@ -92,13 +99,14 @@ const router = createRouter({
         {
             path: '/article',
             name: 'article',
-            component: ArticleView
+            component: ArticleView,
+            meta: { requiresAuth: true }
         },
-
         {
             path: '/study',
             name: 'study',
             component: StudyView,
+            meta: { requiresAuth: true },
             children: [
                 {
                     path: '/study/details',
@@ -116,6 +124,7 @@ const router = createRouter({
             path: '/exam',
             name: 'exam',
             component: ExamView,
+            meta: { requiresAuth: true },
             children: [
                 {
                     path: '/exam/details',
@@ -133,11 +142,13 @@ const router = createRouter({
             path: '/discuss',
             name: 'discuss',
             component: CourseDetailsComponent,
+            meta: { requiresAuth: true }
         },
         {
             path: '/medal',
             name: 'medal',
             component: MedalView,
+            meta: { requiresAuth: true },
             redirect: '/medal/user-medal',
             children: [
                 {
@@ -151,56 +162,64 @@ const router = createRouter({
             path: '/notifications',
             name: 'notifications',
             component: NotificationView,
+            meta: { requiresAuth: true }
         },
         {
             path: '/group',
             name: 'group',
             component: GroupView,
+            meta: { requiresAuth: true }
         },
         {
             path: '/exercise/:id',
             name: 'exercise-solve',
             component: ExerciseSolveView,
+            meta: { requiresAuth: true },
             props: true
         },
         {
             path: '/course/chapter/:courseId',
             name: 'course-chapter',
             component: CourseChapterView,
+            meta: { requiresAuth: true },
             props: true
         },
         {
             path: '/question-bank',
             name: 'question-bank',
-            component: QuestionBankView
+            component: QuestionBankView,
+            meta: { requiresAuth: true }
         },
         {
             path: '/service-hall',
             name: 'service-hall',
-            component: ServiceHallView
+            component: ServiceHallView,
+            meta: { requiresAuth: true }
         },
         {
             path: '/service/3d-print',
             name: '3d-print',
-            component: ThreeDPrintView
+            component: ThreeDPrintView,
+            meta: { requiresAuth: true }
         },
         {
             path: '/community',
             name: 'community',
-            component: CommunityView
+            component: CommunityView,
+            meta: { requiresAuth: true }
         },
     ]
 })
 
-// 全局前置守卫：已登录用户访问首页时跳转到学习中心
 router.beforeEach((to, from, next) => {
     const token = localStorage.getItem('token')
-    // 如果访问首页且有token，且是从其他页面导航过来的，则允许访问profile
-    if (to.path === '/' && token && from.path && from.path !== '/') {
-        next()
-    } else if (to.path === '/' && token) {
-        // 如果是刷新页面（没有from），则跳转到home
-        next('/home')
+
+    if (to.meta.requiresAuth && !token) {
+        // 未登录，重定向到登录页，并记录原目标以便登录后跳回
+        next({ name: 'login', query: { redirect: to.fullPath } })
+    } else if (token && (to.name === 'login' || to.name === 'register')) {
+        // 已登录用户不允许再访问登录/注册页
+        next({ name: 'home' })
     } else {
         next()
     }

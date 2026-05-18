@@ -1,9 +1,9 @@
 // Mock 配置文件
 // 用于控制是否启用 mock 数据模式
+// 通过环境变量 VITE_USE_MOCK=true 开启，见 .env.development
 
 export const mockConfig = {
-    // 是否启用 mock 模式（开发阶段可以设置为 true）
-    enabled: true,
+    enabled: import.meta.env.VITE_USE_MOCK === 'true',
 
     // API 基础URL（如果有后端服务的话）
     apiBaseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000',
@@ -56,14 +56,7 @@ export const mockApiRequest = async (apiCall, mockResponse, delay = mockConfig.r
             }, delay)
         })
     } else {
-        // 使用真实 API
-        try {
-            return await apiCall()
-        } catch (error) {
-            console.warn('[API] 真实API调用失败，回退到mock数据:', error.message)
-            // API失败时回退到mock数据
-            return await mockResponse()
-        }
+        return await apiCall()
     }
 }
 
