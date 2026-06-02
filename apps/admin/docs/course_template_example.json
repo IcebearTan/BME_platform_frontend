@@ -1,0 +1,104 @@
+{
+  "course": {
+    "title": "Python数据分析实战",
+    "introduction": "从零开始学习Python数据分析，涵盖数据处理、可视化和机器学习基础",
+    "difficulty": 3,
+    "tags": "Python,数据分析",
+    "other_tags": "实战项目,入门友好"
+  },
+  "chapters": [
+    {
+      "key": "ch1",
+      "name": "Python基础回顾",
+      "order": 1,
+      "level": 1,
+      "parent_key": null,
+      "lessons": [
+        {
+          "title": "Python环境搭建",
+          "type": "video",
+          "content": "",
+          "duration": 30,
+          "order": 1,
+          "resource_url": "https://example.com/videos/python-setup.mp4"
+        },
+        {
+          "title": "基础语法速览",
+          "type": "text",
+          "content": "<h2>本节要点</h2><p>变量、数据类型、控制流</p>",
+          "duration": 15,
+          "order": 2
+        }
+      ]
+    },
+    {
+      "key": "ch1-1",
+      "name": "1.1 数据类型详解",
+      "order": 2,
+      "level": 2,
+      "parent_key": "ch1",
+      "lessons": [
+        {
+          "title": "列表与字典",
+          "type": "video",
+          "content": "",
+          "duration": 25,
+          "order": 1
+        },
+        {
+          "title": "课后测验",
+          "type": "quiz",
+          "content": "以下哪些是可变类型？",
+          "duration": 10,
+          "order": 2
+        }
+      ]
+    },
+    {
+      "key": "ch2",
+      "name": "NumPy科学计算",
+      "order": 3,
+      "level": 1,
+      "parent_key": null,
+      "lessons": [
+        {
+          "title": "NumPy数组基础",
+          "type": "video",
+          "content": "",
+          "duration": 40,
+          "order": 1
+        },
+        {
+          "title": "数组运算练习",
+          "type": "homework",
+          "content": "完成以下数组操作练习题",
+          "duration": 30,
+          "order": 2
+        }
+      ]
+    },
+    {
+      "key": "ch3",
+      "name": "Pandas数据处理",
+      "order": 4,
+      "level": 1,
+      "parent_key": null,
+      "lessons": [
+        {
+          "title": "DataFrame入门",
+          "type": "video",
+          "content": "",
+          "duration": 35,
+          "order": 1
+        },
+        {
+          "title": "参考文档",
+          "type": "link",
+          "content": "https://pandas.pydata.org/docs/",
+          "duration": 5,
+          "order": 2
+        }
+      ]
+    }
+  ]
+}

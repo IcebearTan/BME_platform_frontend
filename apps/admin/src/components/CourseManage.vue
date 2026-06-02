@@ -2,6 +2,7 @@
 import api from '../api';
 import { ref, reactive, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { Upload } from '@element-plus/icons-vue';
 import router from '../router';
 
 const formInline = reactive({
@@ -15,6 +16,12 @@ const currentPage = ref(1);
 const pageSize = ref(10);
 const totalItems = ref(0);
 const loading = ref(false);
+
+// 导入相关状态
+const importDialogVisible = ref(false);
+const importPreview = ref(null);
+const importLoading = ref(false);
+const importErrors = ref([]);
 
 const tableLabel = ref([
   {
@@ -106,6 +113,72 @@ const handleAdd = () => {
   router.push({ path: '/course/create' });
 };
 
+const handleImport = () => {
+  importDialogVisible.value = true;
+  importPreview.value = null;
+  importErrors.value = [];
+};
+
+const handleImportFileChange = (file) => {
+  if (!file.name.endsWith('.json')) {
+    ElMessage.error('请选择 JSON 文件');
+    return false;
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    ElMessage.error('文件大小不能超过 5MB');
+    return false;
+  }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      importPreview.value = data;
+      importErrors.value = [];
+    } catch (err) {
+      ElMessage.error('JSON 格式错误，请检查文件');
+      importPreview.value = null;
+    }
+  };
+  reader.readAsText(file.raw);
+  return false;
+};
+
+const buildPreviewTree = (data) => {
+  return (data.chapters || []).map(ch => ({
+    label: ch.name,
+    children: (ch.lessons || []).map(les => ({
+      label: `${les.title} (${les.type || 'text'}, ${les.duration || 0}分钟)`
+    }))
+  }));
+};
+
+const confirmImport = async () => {
+  if (!importPreview.value) {
+    ElMessage.warning('请先选择并预览文件');
+    return;
+  }
+  importLoading.value = true;
+  importErrors.value = [];
+  try {
+    const response = await api.post('/course/import', importPreview.value);
+    ElMessage.success(response.data.message || '导入成功');
+    importDialogVisible.value = false;
+    fetchCourses();
+  } catch (error) {
+    const msg = error.response?.data?.message;
+    if (Array.isArray(msg)) {
+      importErrors.value = msg;
+    } else if (typeof msg === 'object') {
+      importErrors.value = Object.entries(msg).map(([k, v]) => `${k}: ${v}`);
+    } else {
+      importErrors.value = [msg || '导入失败，请检查数据格式'];
+    }
+    ElMessage.error('导入失败');
+  } finally {
+    importLoading.value = false;
+  }
+};
+
 const handleEdit = (course) => {
   router.push({ path: `/course/edit/${course.Course_Id}` });
 };
@@ -141,6 +214,9 @@ const handleDelete = (course) => {
         课程管理
         <el-button type="warning" @click="handleAdd" size="large" style="margin-left: 10px;">
           添加课程
+        </el-button>
+        <el-button type="success" @click="handleImport" size="large" style="margin-left: 10px;">
+          导入课程
         </el-button>
       </div>
       <div class="r-container">
@@ -200,6 +276,57 @@ const handleDelete = (course) => {
         </div>
       </div>
     </div>
+
+    <!-- 批量导入弹窗 -->
+    <el-dialog v-model="importDialogVisible" title="批量导入课程" width="700px" destroy-on-close>
+      <div v-if="!importPreview">
+        <el-upload
+          drag
+          accept=".json"
+          :auto-upload="false"
+          :limit="1"
+          :on-change="handleImportFileChange"
+        >
+          <el-icon style="font-size: 48px; color: #909399;"><Upload /></el-icon>
+          <div style="margin-top: 8px;">将 JSON 文件拖拽到此处，或 <em>点击上传</em></div>
+          <template #tip>
+            <div class="el-upload__tip">仅支持 .json 格式的课程大纲文件，最大 5MB</div>
+          </template>
+        </el-upload>
+      </div>
+
+      <div v-if="importPreview">
+        <el-descriptions title="课程预览" :column="2" border>
+          <el-descriptions-item label="课程标题">{{ importPreview.course?.title }}</el-descriptions-item>
+          <el-descriptions-item label="难度">{{ importPreview.course?.difficulty || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="课程介绍" :span="2">{{ importPreview.course?.introduction }}</el-descriptions-item>
+          <el-descriptions-item label="章节数">{{ importPreview.chapters?.length || 0 }}</el-descriptions-item>
+          <el-descriptions-item label="课时数">{{ importPreview.chapters?.reduce((s, c) => s + (c.lessons?.length || 0), 0) || 0 }}</el-descriptions-item>
+        </el-descriptions>
+
+        <el-tree
+          :data="buildPreviewTree(importPreview)"
+          :props="{ label: 'label', children: 'children' }"
+          default-expand-all
+          style="margin-top: 16px; max-height: 300px; overflow: auto;"
+        />
+
+        <el-alert v-if="importErrors.length" type="error" style="margin-top: 12px;" :closable="false">
+          <template #title>导入错误</template>
+          <ul style="margin: 4px 0; padding-left: 20px;">
+            <li v-for="(err, i) in importErrors" :key="i">{{ err }}</li>
+          </ul>
+        </el-alert>
+      </div>
+
+      <template #footer>
+        <el-button @click="importDialogVisible = false">取消</el-button>
+        <el-button v-if="importPreview" @click="importPreview = null">重新选择</el-button>
+        <el-button type="primary" @click="confirmImport" :loading="importLoading" v-if="importPreview">
+          确认导入
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
