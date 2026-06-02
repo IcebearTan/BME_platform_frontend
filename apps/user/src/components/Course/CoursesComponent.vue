@@ -30,7 +30,21 @@ const randomColor = (courseName) => {
     return colorPalette[index];
 };
 
-const courseList = ref([])  // 使用 ref 来声明响应式数据
+const USE_MOCK = false  // 本地调试用 mock 数据，上线前改为 false
+
+const mockCourseList = [
+    { Course_Id: '1', Course_title: '生物医学工程导论', Course_Introduction: '介绍生物医学工程的基本概念和发展方向', Course_Chapters: 8, Course_Class_Hour: 120, Course_Time: '2026-03-15 10:00:00', Course_Tags: '硬件组' },
+    { Course_Id: '2', Course_title: '医学影像处理', Course_Introduction: '学习CT、MRI等医学影像的处理与分析技术', Course_Chapters: 12, Course_Class_Hour: 180, Course_Time: '2026-05-20 14:00:00', Course_Tags: '软件组' },
+    { Course_Id: '3', Course_title: '嵌入式系统设计', Course_Introduction: '学习嵌入式系统的软硬件协同设计方法', Course_Chapters: 10, Course_Class_Hour: 150, Course_Time: '2026-01-10 09:00:00', Course_Tags: '硬件组' },
+    { Course_Id: '4', Course_title: '人工智能在医疗中的应用', Course_Introduction: '探索AI技术在疾病诊断、药物研发等领域的应用', Course_Chapters: 15, Course_Class_Hour: 200, Course_Time: '2025-09-01 10:00:00', Course_Tags: '软件组' },
+    { Course_Id: '5', Course_title: '生物材料学基础', Course_Introduction: '学习各类生物材料的性能及其医学应用', Course_Chapters: 6, Course_Class_Hour: 90, Course_Time: '2025-06-15 08:30:00', Course_Tags: '硬件组' },
+    { Course_Id: '6', Course_title: '先进制造工艺', Course_Introduction: '了解3D打印、精密加工等先进制造技术', Course_Chapters: 9, Course_Class_Hour: 135, Course_Time: '2025-03-20 14:00:00', Course_Tags: '先进制造组' },
+    { Course_Id: '7', Course_title: '数字信号处理', Course_Introduction: '学习信号处理的基本理论和算法实现', Course_Chapters: 11, Course_Class_Hour: 165, Course_Time: '2024-09-01 10:00:00', Course_Tags: '软件组' },
+    { Course_Id: '8', Course_title: '医学仪器原理', Course_Introduction: '掌握常见医学检测仪器的工作原理与设计', Course_Chapters: 7, Course_Class_Hour: 105, Course_Time: '2024-03-15 09:00:00', Course_Tags: '硬件组' },
+    { Course_Id: '9', Course_title: 'Python数据分析', Course_Introduction: '从零开始学习Python数据分析', Course_Chapters: 4, Course_Class_Hour: 60, Course_Time: '2026-06-01 10:00:00', Course_Tags: '软件组' },
+]
+
+const courseList = ref([])
 
 const buttons = reactive([
     { label: '全部课程', active: true },
@@ -47,14 +61,16 @@ const setActive = (index) => {
 };
 
 const getCourseList = async () => {
+    if (USE_MOCK) {
+        courseList.value = mockCourseList
+        return
+    }
     try {
         const res = await api({
             url: '/course/list',
             method: 'get',
         })
-        courseList.value = res.data  // 将返回的数据赋值给响应式变量
-        console.log(courseList.value)
-
+        courseList.value = res.data
     } catch (err) {
         console.error(err)
     }
@@ -72,9 +88,21 @@ const filteredCourses = computed(() => {
     if (!activeBtn || activeBtn.label === '全部课程') {
         return courseList.value;
     }
-    // 假设每个课程有 Group 字段
     return courseList.value.filter(course => course.Course_Tags === activeBtn.label);
 });
+
+// 计算属性：按年份分组，年份降序排列
+const groupedCourses = computed(() => {
+    const groups = {}
+    filteredCourses.value.forEach(course => {
+        const year = course.Course_Time ? course.Course_Time.substring(0, 4) : '未知'
+        if (!groups[year]) groups[year] = []
+        groups[year].push(course)
+    })
+    return Object.keys(groups)
+        .sort((a, b) => b - a)
+        .map(year => ({ year, courses: groups[year] }))
+})
 
 const hoverCourse = ref(null)
 const hoverPosition = ref({ x: 0, y: 0 })
@@ -152,21 +180,29 @@ onMounted(() => {
                 </el-card>
             </template>
             <template v-else>
-                <div class="course-card" :class="themeClass" v-for="course in filteredCourses" :key="course.Course_Id"
-                    @click="handleCourseClick(course.Course_Id)"
-                    @mouseenter="handleMouseEnter(course, $event)"
-                    @mouseleave="handleMouseLeave">
-                    <div class="book-cover" 
-                         :class="getTextSizeClass(course.Course_title)"
-                         :style="{ backgroundColor: randomColor(course.Course_title) }">
-                        {{ course.Course_title }}
+                <div v-for="group in groupedCourses" :key="group.year" style="width: 100%;">
+                    <div class="year-divider" :class="themeClass">
+                        <span class="year-label">{{ group.year }}</span>
+                        <span class="year-count">{{ group.courses.length }} 门课程</span>
                     </div>
-                    <div class="book-info">
-                        <div class="course-content">
-                            <div class="course-title">{{ course.Course_title }}</div>
-                            <div class="course-description">{{ course.Course_Introduction }}</div>
+                    <div class="course-grid">
+                        <div class="course-card" :class="themeClass" v-for="course in group.courses" :key="course.Course_Id"
+                            @click="handleCourseClick(course.Course_Id)"
+                            @mouseenter="handleMouseEnter(course, $event)"
+                            @mouseleave="handleMouseLeave">
+                            <div class="book-cover"
+                                 :class="getTextSizeClass(course.Course_title)"
+                                 :style="{ backgroundColor: randomColor(course.Course_title) }">
+                                {{ course.Course_title }}
+                            </div>
+                            <div class="book-info">
+                                <div class="course-content">
+                                    <div class="course-title">{{ course.Course_title }}</div>
+                                    <div class="course-description">{{ course.Course_Introduction }}</div>
+                                </div>
+                                <div class="course-stats">共 {{ course.Course_Chapters }} 章 · {{ formatClassHour(course.Course_Class_Hour) }}</div>
+                            </div>
                         </div>
-                        <div class="course-stats">共 {{ course.Course_Chapters }} 章 · {{ formatClassHour(course.Course_Class_Hour) }}</div>
                     </div>
                 </div>
 
@@ -339,12 +375,60 @@ onMounted(() => {
 
 .columnContainer {
     display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 1300px;
+    margin-top: 25px;
+}
+
+.year-divider {
+    width: 100%;
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    padding: 20px 0 10px 0;
+    border-bottom: 1px solid;
+    margin-bottom: 10px;
+}
+
+.theme-light .year-divider {
+    border-color: #e0e0e0;
+}
+
+.theme-dark .year-divider {
+    border-color: #404040;
+}
+
+.year-label {
+    font-size: 24px;
+    font-weight: 800;
+}
+
+.theme-light .year-label {
+    color: #333;
+}
+
+.theme-dark .year-label {
+    color: #e6e6e6;
+}
+
+.year-count {
+    font-size: 13px;
+}
+
+.theme-light .year-count {
+    color: #999;
+}
+
+.theme-dark .year-count {
+    color: #777;
+}
+
+.course-grid {
+    display: flex;
     align-items: center;
     flex-wrap: wrap;
-
-    width: 1300px;
-
-    margin-top: 25px;
+    width: 100%;
 }
 
 .course-card {
@@ -397,21 +481,14 @@ onMounted(() => {
 
 /* 媒体查询：当屏幕宽度小于等于 768px 时 (竖屏模式) */
 @media (max-width: 768px) {
-    /* .mainContainer 的调整如果 CoursesComponent 内部有这个类，也一并移动 */
-    /* 如果 .mainContainer 是 StudyView 的，则保留在 StudyView */
-    /* .mainContainer {
-    margin-left: 0;
-    margin-right: 0;
-    padding-left: 10px;
-    padding-right: 10px;
-    box-sizing: border-box;
-  } */
-
     .columnContainer {
-        /* 确保这个类名与 CoursesComponent.vue 中包裹卡片的容器一致 */
-        flex-direction: column !important;
         align-items: center !important;
         width: 100% !important;
+    }
+
+    .course-grid {
+        flex-direction: column !important;
+        align-items: center !important;
     }
 
     .course-card {
