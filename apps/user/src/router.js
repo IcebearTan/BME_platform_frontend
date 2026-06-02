@@ -28,6 +28,7 @@ import QuestionBankView from './views/QuestionBankView.vue';
 import ServiceHallView from './views/ServiceHallView.vue';
 import ThreeDPrintView from './views/ThreeDPrintView.vue';
 import CommunityView from './views/CommunityView.vue';
+import DesignDemoView from './views/DesignDemoView.vue';
 
 import MyFeedbacksComponent from './components/User/MyFeedbacksComponent.vue';
 
@@ -37,6 +38,13 @@ const router = createRouter({
         return { top: 0 }
     },
     routes: [
+        // ── 设计 Demo（临时，重构完成后删除）──
+        {
+            path: '/design-demo',
+            name: 'design-demo',
+            component: DesignDemoView
+        },
+
         // ── 公开路由（无需登录）──
         {
             path: '/login',
