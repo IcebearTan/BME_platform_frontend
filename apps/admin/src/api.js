@@ -2,7 +2,10 @@ import axios from 'axios';
 
 // const API_URL = 'http://110.41.177.107:8000';
 // const API_URL = 'http://139.159.157.5:5000';
-const API_URL = 'http://127.0.0.1:5000';
+// const API_URL = 'http://127.0.0.1:5000';
+
+export const API_URL = 'http://172.25.56.83:8080/api';
+
 
 
 const api = axios.create({
