@@ -30,6 +30,30 @@ onUnmounted(() => window.removeEventListener('resize', checkScreenSize));
 
 const activeTab = ref('keys');
 
+// ---------- 服务接入信息 ----------
+const serviceInfo = reactive({ base_url: '', chat_url: '', models: [] });
+const serviceInfoLoading = ref(false);
+const modelsOpen = ref([]);
+
+const fetchServiceInfo = async () => {
+  serviceInfoLoading.value = true;
+  try {
+    const res = await api.get('/llm/service-info');
+    Object.assign(serviceInfo, res.data.data);
+  } catch (e) { /* ignore */ } finally {
+    serviceInfoLoading.value = false;
+  }
+};
+
+const copyText = async (text) => {
+  try {
+    await navigator.clipboard.writeText(text);
+    ElMessage.success('已复制');
+  } catch {
+    ElMessage.warning('复制失败，请手动复制');
+  }
+};
+
 // ---------- 用量与配额 ----------
 const usage = reactive({ spend: null, max_budget: null, remaining: null, budget_duration: null });
 const usagePercent = computed(() => {
@@ -43,11 +67,16 @@ const usageStatus = computed(() => {
 });
 const fmtMoney = (v) => (v === null || v === undefined ? '-' : `$${Number(v).toFixed(4)}`);
 
-const fetchUsage = async () => {
+const usageRefreshing = ref(false);
+
+const fetchUsage = async (forceRefresh = false) => {
+  if (forceRefresh) usageRefreshing.value = true;
   try {
-    const res = await api.get('/llm/usage');
+    const res = await api.get('/llm/usage', { params: forceRefresh ? { refresh: 1 } : {} });
     Object.assign(usage, res.data.data);
-  } catch (e) { /* ignore */ }
+  } catch (e) { /* ignore */ } finally {
+    if (forceRefresh) usageRefreshing.value = false;
+  }
 };
 
 // ---------- 我的 Key ----------
@@ -145,6 +174,7 @@ const refreshAll = () => {
   fetchUsage();
   fetchKeys();
   fetchRequests();
+  fetchServiceInfo();
 };
 </script>
 
@@ -192,6 +222,7 @@ const refreshAll = () => {
             </div>
             <div class="usage-progress">
               <el-progress :percentage="usagePercent" :status="usageStatus" :stroke-width="14" />
+              <el-button :loading="usageRefreshing" size="small" plain @click="fetchUsage(true)">刷新</el-button>
               <el-button type="primary" plain size="small" class="apply-btn" @click="openRequest">申请更多额度</el-button>
             </div>
           </div>
@@ -234,6 +265,62 @@ const refreshAll = () => {
                 <el-table-column prop="created_at" label="申请时间" width="180" />
               </el-table>
               <el-empty v-if="requests.length === 0" description="暂无申请记录" />
+            </el-tab-pane>
+
+            <!-- 接入说明 -->
+            <el-tab-pane label="接入说明" name="guide">
+              <div v-loading="serviceInfoLoading" class="guide-section">
+                <div class="guide-block">
+                  <div class="guide-label">接口地址</div>
+                  <div class="guide-row">
+                    <span class="guide-tag">Base URL</span>
+                    <code class="guide-code">{{ serviceInfo.base_url || '-' }}</code>
+                    <el-button v-if="serviceInfo.base_url" size="small" plain @click="copyText(serviceInfo.base_url)">复制</el-button>
+                  </div>
+                  <div class="guide-row">
+                    <span class="guide-tag">Chat 端点</span>
+                    <code class="guide-code">{{ serviceInfo.chat_url || '-' }}</code>
+                    <el-button v-if="serviceInfo.chat_url" size="small" plain @click="copyText(serviceInfo.chat_url)">复制</el-button>
+                  </div>
+                </div>
+
+                <div class="guide-block">
+                  <el-collapse v-model="modelsOpen">
+                    <el-collapse-item name="models">
+                      <template #title>
+                        <span class="guide-label" style="margin:0;">可用模型</span>
+                        <el-tag v-if="serviceInfo.models.length" size="small" style="margin-left:8px;">{{ serviceInfo.models.length }} 个</el-tag>
+                      </template>
+                      <el-empty v-if="!serviceInfo.models.length" description="暂未配置可用模型" />
+                      <el-table v-else :data="serviceInfo.models" border style="width:100%;margin-top:8px;">
+                        <el-table-column prop="id" label="模型 ID" min-width="180" />
+                        <el-table-column prop="request_url" label="请求 URL" min-width="260" show-overflow-tooltip />
+                        <el-table-column label="操作" width="88">
+                          <template #default="{ row }">
+                            <el-button size="small" plain @click="copyText(row.id)">复制 ID</el-button>
+                          </template>
+                        </el-table-column>
+                      </el-table>
+                    </el-collapse-item>
+                  </el-collapse>
+                </div>
+
+                <div class="guide-block">
+                  <div class="guide-label">调用示例（OpenAI SDK）</div>
+                  <pre class="guide-pre">from openai import OpenAI
+
+client = OpenAI(
+    api_key="你的 API Key",
+    base_url="{{ serviceInfo.base_url || 'http://...' }}"
+)
+
+response = client.chat.completions.create(
+    model="{{ serviceInfo.models[0]?.id || 'model-name' }}",
+    messages=[{"role": "user", "content": "你好"}]
+)
+print(response.choices[0].message.content)</pre>
+                </div>
+              </div>
             </el-tab-pane>
           </el-tabs>
         </div>
@@ -337,8 +424,18 @@ const refreshAll = () => {
 
 .tab-toolbar { margin-bottom: 12px; }
 
+.guide-section { display: flex; flex-direction: column; gap: 24px; }
+.guide-block {}
+.guide-label { font-size: 15px; font-weight: 600; margin-bottom: 10px; color: var(--guide-label-color, #303133); }
+.guide-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+.guide-tag { font-size: 12px; color: #fff; background: #409eff; border-radius: 4px; padding: 2px 8px; flex-shrink: 0; }
+.guide-code { font-family: monospace; font-size: 13px; background: var(--code-bg, #f5f7fa); padding: 4px 10px; border-radius: 4px; word-break: break-all; }
+.guide-pre { font-family: monospace; font-size: 13px; background: var(--code-bg, #f5f7fa); padding: 16px; border-radius: 8px; overflow-x: auto; white-space: pre; margin: 0; line-height: 1.6; }
+
 .theme-dark .usage-card { background: #1f1f1f; }
 .theme-dark .main-title { color: #e5e5e5; }
+.theme-dark .guide-label { color: #e5e5e5; }
+.theme-dark { --code-bg: #2a2a2a; }
 
 @media (max-width: 768px) {
   .usage-card { grid-template-columns: repeat(2, 1fr); }
