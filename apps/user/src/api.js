@@ -35,8 +35,8 @@ api.interceptors.response.use(
                 localStorage.removeItem('token');
                 // 延迟跳转，保证提示能完整显示
                 setTimeout(() => {
-                    if (window.location.pathname !== '/login') {
-                        window.location.href = '/login';
+                    if (window.location.pathname !== '/AMEII/login') {
+                        window.location.href = '/AMEII/login';
                     }
                     window.__hasShownLoginExpire = false;
                 }, 1000);

@@ -164,6 +164,7 @@ const quickActions = ref([
 </template>
 
 <style lang="scss" scoped>
+@use 'sass:color';
 @use '../styles/variables' as *;
 
 // ── Page ──
@@ -274,7 +275,7 @@ const quickActions = ref([
     }
 
     &.is-active {
-      color: lighten($brand, 8%);
+      color: color.adjust($brand, $lightness: 8%);
       background: rgba($brand, 0.12);
     }
   }
@@ -508,7 +509,7 @@ const quickActions = ref([
 
   &:hover { opacity: 0.75; }
 
-  .theme-dark & { color: lighten($brand, 10%); }
+  .theme-dark & { color: color.adjust($brand, $lightness: 10%); }
 }
 
 // ── Courses ──
