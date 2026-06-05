@@ -23,3 +23,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Workspace and local docs
+BME_backend.code-workspace
+oauth_external_integration.md
