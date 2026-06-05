@@ -173,11 +173,7 @@ onMounted(() => {
 
 <template>
     <div class="headContainer" :class="themeClass">
-        <!-- 这里强制设置了缩放 -->
-        <div style="min-width: 1500px;">
             <LearningPathComponent />
-        </div>
-
     </div>
     <div class="mainContainer" :class="themeClass">
         <div style="width: 1300px;">
