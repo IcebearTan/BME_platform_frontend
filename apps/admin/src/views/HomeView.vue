@@ -5,7 +5,7 @@ import { useRouter } from 'vue-router'
 import {
   Document, User, ChatLineRound, Trophy, Setting, Location,
   Grid, Fold, Bell, ArrowDown, Clock, EditPen, TrendCharts,
-  HomeFilled, Picture, Search, List, Plus
+  HomeFilled, Picture, Search, List, Plus, Cpu, DataLine, Key
 } from '@element-plus/icons-vue';
 
 export default {
@@ -329,6 +329,37 @@ const handleClose = (key, keyPath) => {
             >
               <el-icon><Search /></el-icon>
               <span>勋章查询</span>
+            </el-menu-item>
+          </el-sub-menu>
+
+          <el-sub-menu index="8">
+            <template #title>
+              <el-icon class="menu-icon"><Cpu /></el-icon>
+              <span class="menu-text">大模型服务</span>
+            </template>
+            <el-menu-item
+              index="/llm/projects"
+              @click="router.push('/llm/projects')"
+              class="submenu-item"
+            >
+              <el-icon><Grid /></el-icon>
+              <span>项目管理</span>
+            </el-menu-item>
+            <el-menu-item
+              index="/llm/users"
+              @click="router.push('/llm/users')"
+              class="submenu-item"
+            >
+              <el-icon><DataLine /></el-icon>
+              <span>用户用量看板</span>
+            </el-menu-item>
+            <el-menu-item
+              index="/llm/quota-requests"
+              @click="router.push('/llm/quota-requests')"
+              class="submenu-item"
+            >
+              <el-icon><Key /></el-icon>
+              <span>增额申请审批</span>
             </el-menu-item>
           </el-sub-menu>
         </el-menu>
