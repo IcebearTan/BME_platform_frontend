@@ -56,9 +56,10 @@
         <template #default="{ row }">{{ formatMoney(row.spend) }}</template>
       </el-table-column>
       <el-table-column prop="created_at" label="创建时间" width="170" />
-      <el-table-column label="操作" width="220" fixed="right">
+      <el-table-column label="操作" width="290" fixed="right">
         <template #default="{ row }">
           <el-button size="small" @click="viewUsage(row)">用量</el-button>
+          <el-button size="small" :loading="copyingProjectId === row.id" @click="copyProjectKey(row)">复制Key</el-button>
           <el-button size="small" type="warning" @click="regenerateKey(row)">重置Key</el-button>
           <el-button size="small" type="danger" @click="removeProject(row)">删除</el-button>
         </template>
@@ -233,6 +234,20 @@ const copyKey = async () => {
     ElMessage.success('已复制');
   } catch {
     ElMessage.warning('复制失败，请手动复制');
+  }
+};
+
+const copyingProjectId = ref(null);
+const copyProjectKey = async (row) => {
+  copyingProjectId.value = row.id;
+  try {
+    const res = await api.get(`/llm/admin/projects/${row.id}/reveal-key`);
+    await navigator.clipboard.writeText(res.data.data.litellm_key);
+    ElMessage.success('Key 已复制');
+  } catch {
+    ElMessage.warning('复制失败，请重试');
+  } finally {
+    copyingProjectId.value = null;
   }
 };
 
