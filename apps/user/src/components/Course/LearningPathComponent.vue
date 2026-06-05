@@ -26,6 +26,12 @@
       <div class="subtitle">成为卓越工程师</div>
     </div>
 
+    <div class="hint-arrow" :class="{ hide: activeGroup }">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+        <path d="M9 6L15 12L9 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+
     <div class="right-area" ref="rightAreaRef">
       <!-- group buttons: never move -->
       <div class="group-buttons">
@@ -39,7 +45,7 @@
           :data-node-id="node.id"
           @mouseenter="handleGroupEnter(node.group)"
         >
-          <span class="dot" :style="{ background: nodeColor(node.group) }"></span>
+          <span class="dot" :class="'dot-' + node.group"></span>
           <span>{{ node.label }}</span>
         </div>
       </div>
@@ -234,23 +240,46 @@ onUnmounted(() => {
 
 /* ---- left title ---- */
 .left-title {
-  width: 180px;
+  width: 220px;
   flex-shrink: 0;
-  padding-right: 20px;
+  padding-right: 24px;
   box-sizing: border-box;
 }
 
 .title {
-  font-size: 28px;
-  font-weight: 600;
-  margin-bottom: 4px;
+  font-size: 34px;
+  font-weight: 700;
+  margin-bottom: 6px;
   white-space: nowrap;
+  letter-spacing: 1px;
 }
 
 .subtitle {
-  font-size: 16px;
+  font-size: 20px;
   color: #555;
   white-space: nowrap;
+}
+
+/* ---- hint arrow ---- */
+.hint-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #bbb;
+  margin: 0 4px;
+  animation: arrowPulse 2s ease-in-out infinite;
+  transition: opacity 0.3s, transform 0.3s;
+  flex-shrink: 0;
+}
+
+.hint-arrow.hide {
+  opacity: 0;
+  transform: translateX(-6px);
+}
+
+@keyframes arrowPulse {
+  0%, 100% { transform: translateX(0); opacity: 0.5; }
+  50% { transform: translateX(6px); opacity: 1; }
 }
 
 /* ---- right area ---- */
@@ -327,13 +356,20 @@ onUnmounted(() => {
 
 /* group buttons */
 .group-btn {
-  height: 36px;
-  padding: 6px 18px;
-  font-size: 15px;
-  font-weight: 600;
-  border-radius: 8px;
+  height: 44px;
+  padding: 8px 22px;
+  font-size: 16px;
+  font-weight: 700;
+  border-radius: 12px;
+  border-width: 1.5px;
+  border-style: solid;
   cursor: pointer;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   transition: opacity 0.2s, transform 0.2s, box-shadow 0.2s;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.5),
+    0 1px 4px rgba(0,0,0,0.06);
 }
 
 .group-btn.dimmed {
@@ -341,34 +377,47 @@ onUnmounted(() => {
 }
 
 .group-btn.active {
-  transform: scale(1.05);
-  box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+  transform: scale(1.08);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.6),
+    0 4px 16px rgba(0,0,0,0.1);
   z-index: 3;
 }
 
 .dot {
-  width: 10px;
-  height: 10px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
-  margin-right: 8px;
+  margin-right: 10px;
   flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
 }
 
-/* group colors */
-.group-hardware { border-color: #f5a68a; color: #c0391a; }
-.group-hardware.group-btn { background: #fff3ee; }
-.group-hardware.level-1 { background: #fff7f3; }
-.group-hardware.level-2 { background: #fff7f3; }
+.dot-hardware {
+  background: radial-gradient(circle at 35% 35%, #ffb89e, #ef582a 70%);
+}
+.dot-software {
+  background: radial-gradient(circle at 35% 35%, #b8d4ff, #2761ff 70%);
+}
+.dot-manufacturing {
+  background: radial-gradient(circle at 35% 35%, #a8e8b8, #2eaa50 70%);
+}
 
-.group-software { border-color: #8fb8ff; color: #1a4fcc; }
-.group-software.group-btn { background: #edf3ff; }
-.group-software.level-1 { background: #f5f8ff; }
-.group-software.level-2 { background: #f5f8ff; }
+/* group colors - glass effect */
+.group-hardware { border-color: rgba(240, 140, 110, 0.5); color: #b53318; }
+.group-hardware.group-btn { background: rgba(255, 235, 225, 0.65); }
+.group-hardware.level-1 { background: rgba(255, 240, 233, 0.55); border-color: rgba(240, 140, 110, 0.35); }
+.group-hardware.level-2 { background: rgba(255, 240, 233, 0.45); border-color: rgba(240, 140, 110, 0.3); }
 
-.group-manufacturing { border-color: #7dd896; color: #1e8040; }
-.group-manufacturing.group-btn { background: #eef9f0; }
-.group-manufacturing.level-1 { background: #f5fcf6; }
-.group-manufacturing.level-2 { background: #f5fcf6; }
+.group-software { border-color: rgba(100, 155, 240, 0.5); color: #1a3fa0; }
+.group-software.group-btn { background: rgba(225, 235, 255, 0.65); }
+.group-software.level-1 { background: rgba(232, 240, 255, 0.55); border-color: rgba(100, 155, 240, 0.35); }
+.group-software.level-2 { background: rgba(232, 240, 255, 0.45); border-color: rgba(100, 155, 240, 0.3); }
+
+.group-manufacturing { border-color: rgba(90, 200, 120, 0.5); color: #1a6e35; }
+.group-manufacturing.group-btn { background: rgba(228, 248, 234, 0.65); }
+.group-manufacturing.level-1 { background: rgba(235, 250, 240, 0.55); border-color: rgba(90, 200, 120, 0.35); }
+.group-manufacturing.level-2 { background: rgba(235, 250, 240, 0.45); border-color: rgba(90, 200, 120, 0.3); }
 
 .level-1 { font-size: 12px; }
 .level-2 { font-size: 11px; padding: 4px 10px; height: 26px; border-radius: 5px; }

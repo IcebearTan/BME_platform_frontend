@@ -279,22 +279,62 @@ onMounted(() => {
     align-items: center;
     width: 100%;
     height: 300px;
-    transition: all 0.3s ease-in-out;
+    position: relative;
+    overflow: hidden;
+}
+
+.headContainer::before,
+.headContainer::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background-size: 28px 28px;
+    animation: dotBreathe 6s ease-in-out infinite;
+}
+
+.headContainer > * {
+    position: relative;
+    z-index: 1;
+}
+
+.headContainer::before {
+    background-position: 14px 14px;
+    animation-delay: 2s;
+}
+
+.headContainer::after {
+    background-position: 14px 0;
+    animation-delay: 4s;
+}
+
+@keyframes dotBreathe {
+    0%, 100% { opacity: 0; }
+    40%, 60% { opacity: 1; }
 }
 
 /* 主题适配 - 头部容器 */
 .theme-light .headContainer {
     background-color: #f5f4f2;
-    background-image: repeating-radial-gradient(circle, rgb(255, 255, 255) 1px, transparent 3px, transparent 18px);
+    background-image: radial-gradient(circle, rgba(0, 0, 0, 0.055) 1.5px, transparent 1.5px);
+    background-size: 28px 28px;
+}
+
+.theme-light .headContainer::before,
+.theme-light .headContainer::after {
+    background-image: radial-gradient(circle, rgba(0, 0, 0, 0.055) 1.5px, transparent 1.5px);
 }
 
 .theme-dark .headContainer {
     background-color: #2a2a2a;
-    background-image: repeating-radial-gradient(circle, rgb(70, 70, 70) 1px, transparent 3px, transparent 18px);
+    background-image: radial-gradient(circle, rgba(255, 255, 255, 0.055) 1.5px, transparent 1.5px);
+    background-size: 28px 28px;
 }
 
-.headContainer:hover{
-    background-size: 180px 180px;
+.theme-dark .headContainer::before,
+.theme-dark .headContainer::after {
+    background-image: radial-gradient(circle, rgba(255, 255, 255, 0.055) 1.5px, transparent 1.5px);
 }
 
 .headGraph {
