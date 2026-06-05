@@ -218,7 +218,7 @@ const handleUserInfo = () => {
             <!-- 左侧导航区域 -->
             <div class="menu-left-section">
                 <el-menu-item index="/" class="home-menu-item" style="margin: 0;">
-                    <img style="width: 50px" src="../assets/Logo_NewYear.png" />
+                    <img style="width: 50px" src="../assets/New_Logo1.png" />
                     <span class="ameii-text">AMEII</span>
                 </el-menu-item>
                 <el-menu-item index="/home" class="study-center-item">
