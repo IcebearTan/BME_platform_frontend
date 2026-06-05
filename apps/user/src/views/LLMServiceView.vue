@@ -277,6 +277,16 @@ const refreshAll = () => {
                   </template>
                 </el-table-column>
                 <el-table-column prop="review_comment" label="审批意见" min-width="140" show-overflow-tooltip />
+                <el-table-column label="额度到期" width="180">
+                  <template #default="{ row }">
+                    <template v-if="row.status === 'approved'">
+                      <el-tag v-if="row.reverted_at" size="small" type="info">已回滚</el-tag>
+                      <span v-else-if="row.override_expires_at" style="font-size:12px;">{{ row.override_expires_at }}</span>
+                      <span v-else>—</span>
+                    </template>
+                    <span v-else>—</span>
+                  </template>
+                </el-table-column>
                 <el-table-column prop="created_at" label="申请时间" width="180" />
               </el-table>
               <el-empty v-if="requests.length === 0" description="暂无申请记录" />
