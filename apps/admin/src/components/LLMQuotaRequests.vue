@@ -26,6 +26,16 @@
         </template>
       </el-table-column>
       <el-table-column prop="created_at" label="申请时间" width="170" />
+      <el-table-column label="额度到期" width="170">
+        <template #default="{ row }">
+          <template v-if="row.status === 'approved'">
+            <el-tag v-if="row.reverted_at" size="small" type="info">已回滚 {{ row.reverted_at?.slice(0,10) }}</el-tag>
+            <span v-else-if="row.override_expires_at" style="font-size:12px;color:#e6a23c;">{{ row.override_expires_at }}</span>
+            <span v-else>—</span>
+          </template>
+          <span v-else>—</span>
+        </template>
+      </el-table-column>
       <el-table-column label="操作" width="170" fixed="right">
         <template #default="{ row }">
           <template v-if="row.status === 'pending'">
