@@ -1,5 +1,45 @@
 <template>
   <div class="llm-page selectable">
+    <!-- 服务接入信息 -->
+    <el-collapse v-model="infoOpen" class="info-collapse">
+      <el-collapse-item name="info">
+        <template #title>
+          <span style="font-weight:600;">服务接入信息</span>
+          <el-tag size="small" type="info" style="margin-left:8px;">Base URL &amp; 可用模型</el-tag>
+        </template>
+        <div v-loading="serviceLoading" class="info-body">
+          <div class="info-row">
+            <span class="info-label">Base URL</span>
+            <code class="info-code">{{ serviceInfo.base_url || '-' }}</code>
+            <el-button v-if="serviceInfo.base_url" size="small" plain @click="copyText(serviceInfo.base_url)">复制</el-button>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Chat 端点</span>
+            <code class="info-code">{{ serviceInfo.chat_url || '-' }}</code>
+            <el-button v-if="serviceInfo.chat_url" size="small" plain @click="copyText(serviceInfo.chat_url)">复制</el-button>
+          </div>
+          <el-collapse v-model="modelsOpen" style="margin-top:12px;">
+            <el-collapse-item name="models">
+              <template #title>
+                <span style="font-size:13px;color:#606266;">可用模型</span>
+                <el-tag v-if="serviceInfo.models.length" size="small" style="margin-left:8px;">{{ serviceInfo.models.length }} 个</el-tag>
+              </template>
+              <el-empty v-if="!serviceInfo.models.length" description="暂无可用模型" :image-size="48" />
+              <el-table v-else :data="serviceInfo.models" border size="small" style="width:100%;margin-top:6px;">
+                <el-table-column prop="id" label="模型 ID" min-width="160" />
+                <el-table-column prop="request_url" label="请求 URL" min-width="240" show-overflow-tooltip />
+                <el-table-column label="" width="88">
+                  <template #default="{ row }">
+                    <el-button size="small" plain @click="copyText(row.id)">复制 ID</el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </el-collapse-item>
+          </el-collapse>
+        </div>
+      </el-collapse-item>
+    </el-collapse>
+
     <div class="page-header">
       <span class="title">大模型项目管理</span>
       <el-button type="primary" @click="openCreate">新建项目</el-button>
@@ -81,6 +121,31 @@ const keyVisible = ref(false);
 const plainKey = ref('');
 const usageVisible = ref(false);
 const usageDetail = ref('');
+
+// ---------- 服务接入信息 ----------
+const infoOpen = ref(['info']);
+const modelsOpen = ref([]);
+const serviceLoading = ref(false);
+const serviceInfo = reactive({ base_url: '', chat_url: '', models: [] });
+
+const fetchServiceInfo = async () => {
+  serviceLoading.value = true;
+  try {
+    const res = await api.get('/llm/service-info');
+    Object.assign(serviceInfo, res.data.data);
+  } catch (e) { /* ignore */ } finally {
+    serviceLoading.value = false;
+  }
+};
+
+const copyText = async (text) => {
+  try {
+    await navigator.clipboard.writeText(text);
+    ElMessage.success('已复制');
+  } catch {
+    ElMessage.warning('复制失败，请手动复制');
+  }
+};
 
 const form = reactive({ name: '', description: '', models: '' });
 
@@ -171,7 +236,10 @@ const copyKey = async () => {
   }
 };
 
-onMounted(fetchProjects);
+onMounted(() => {
+  fetchProjects();
+  fetchServiceInfo();
+});
 </script>
 
 <style scoped>
@@ -179,4 +247,10 @@ onMounted(fetchProjects);
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .page-header .title { font-size: 20px; font-weight: 600; }
 .usage-json { max-height: 420px; overflow: auto; background: #f5f7fa; padding: 12px; border-radius: 6px; font-size: 12px; }
+
+.info-collapse { margin-bottom: 20px; }
+.info-body { padding: 4px 0 8px; }
+.info-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+.info-label { font-size: 12px; color: #fff; background: #409eff; border-radius: 4px; padding: 2px 8px; flex-shrink: 0; }
+.info-code { font-family: monospace; font-size: 13px; background: #f5f7fa; padding: 4px 10px; border-radius: 4px; word-break: break-all; }
 </style>
