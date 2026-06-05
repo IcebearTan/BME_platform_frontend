@@ -113,6 +113,20 @@ const submitCreateKey = async () => {
   }
 };
 
+const copyingKeyId = ref(null);
+const copyExistingKey = async (row) => {
+  copyingKeyId.value = row.id;
+  try {
+    const res = await api.get(`/llm/keys/${row.id}/reveal`);
+    await navigator.clipboard.writeText(res.data.data.litellm_key);
+    ElMessage.success('Key 已复制');
+  } catch {
+    ElMessage.warning('复制失败，请重试');
+  } finally {
+    copyingKeyId.value = null;
+  }
+};
+
 const deleteKey = async (row) => {
   try {
     await ElMessageBox.confirm(`确认删除 Key「${row.key_alias}」？删除后将立即失效。`, '提示', { type: 'warning' });
@@ -237,8 +251,9 @@ const refreshAll = () => {
                 <el-table-column prop="key_alias" label="别名" min-width="140" />
                 <el-table-column prop="litellm_key" label="Key" min-width="180" />
                 <el-table-column prop="created_at" label="创建时间" width="180" />
-                <el-table-column label="操作" width="100" fixed="right">
+                <el-table-column label="操作" width="160" fixed="right">
                   <template #default="{ row }">
+                    <el-button size="small" :loading="copyingKeyId === row.id" @click="copyExistingKey(row)">复制</el-button>
                     <el-button size="small" type="danger" @click="deleteKey(row)">删除</el-button>
                   </template>
                 </el-table-column>
