@@ -141,7 +141,7 @@ header {
 
 header h1 {
   margin: 0;
-  font-size: 2.5rem;
+  font-size: 40px;
 }
 
 nav {
@@ -155,7 +155,7 @@ nav a {
   color: black;
   text-decoration: none;
   margin: 0 15px;
-  font-size: 1.1rem;
+  font-size: 18px;
 }
 
 nav a:hover {
@@ -190,7 +190,7 @@ main {
 }
 
 .about-section h2 {
-  font-size: 2rem;
+  font-size: 32px;
   margin-bottom: 10px;
 }
 

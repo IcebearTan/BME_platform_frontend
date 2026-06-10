@@ -1,43 +1,60 @@
 <template>
-  <div class="notification-view" :class="{ loading: loading }">
-    <!-- 顶部菜单 -->
-    <div class="notification-menu-wrapper">
-      <MenuComponent />
-    </div>
-    
-    <div class="notification-container">
-      <div class="notification-header">
-        <h1>消息中心</h1>
-        <div class="header-actions">
-          <el-button type="primary" @click="markAllAsRead" v-if="totalUnread > 0">
-            <el-icon><Check /></el-icon>
-            全部已读
-          </el-button>
-          <el-button @click="refreshMessages" :disabled="refreshing">
-            <el-icon :class="{ 'refresh-spinning': refreshing }">
-              <Refresh />
-            </el-icon>
-            {{ refreshing ? '刷新中...' : '刷新' }}
-          </el-button>
-        </div>
-      </div>
+  <div :class="['notification-view', { 'theme-dark': isDarkMode, 'theme-light': !isDarkMode }]">
+    <el-container class="common-layout">
+      <el-header class="header-container">
+        <MenuComponent />
+      </el-header>
+      <el-main class="main-container">
+        <div class="max-w-[960px] mx-auto px-[20px] py-[24px]">
+          <!-- 页面标题栏 -->
+          <div class="flex justify-between items-center mb-[20px]">
+            <div class="flex items-center gap-[10px]">
+              <span class="inline-block w-[4px] h-[20px] rounded-full bg-gradient-to-b from-blue-500 to-blue-400"></span>
+              <h1 class="text-[18px] font-semibold text-gray-800 leading-none">消息中心</h1>
+              <span
+                v-if="totalUnread > 0"
+                class="inline-flex items-center justify-center min-w-[20px] h-[20px] px-[6px]
+                       text-[12px] font-medium text-white bg-red-500 rounded-full leading-none"
+              >
+                {{ totalUnread }}
+              </span>
+            </div>
 
-      <!-- 根据用户身份加载对应的组件 -->
-      <TeacherNotificationComponent 
-        v-if="isTeacher"
-        :notifications="notifications"
-        :total-unread="totalUnread"
-        @mark-read="markAsRead"
-        @mark-all-read="markAllAsRead"
-        @refresh="refreshMessages"
-        @quick-reply="handleQuickReply"
-      />
-      
-      <StudentNotificationComponent 
-        v-else
-        @refresh="refreshMessages"
-      />
-    </div>
+            <div class="flex gap-[10px]">
+              <button
+                v-if="totalUnread > 0"
+                @click="markAllAsRead"
+                class="inline-flex items-center gap-[6px] px-[14px] py-[7px]
+                       text-[13px] text-white bg-blue-500 rounded-[6px] cursor-pointer
+                       hover:bg-blue-600 active:bg-blue-700 transition-colors"
+              >
+                <Check class="w-[14px] h-[14px]" />
+                全部已读
+              </button>
+            </div>
+          </div>
+
+          <!-- 根据用户身份加载对应的组件 -->
+          <TeacherNotificationComponent
+            v-if="isTeacher"
+            :notifications="notifications"
+            :total-unread="totalUnread"
+            @mark-read="markAsRead"
+            @mark-all-read="markAllAsRead"
+            @refresh="refreshMessages"
+            @quick-reply="handleQuickReply"
+          />
+
+          <StudentNotificationComponent
+            v-else
+            @refresh="refreshMessages"
+          />
+        </div>
+      </el-main>
+      <el-footer class="page-footer">
+        <PageFooterComponent />
+      </el-footer>
+    </el-container>
   </div>
 </template>
 
@@ -45,19 +62,17 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useStore } from 'vuex'
-import { ElMessage } from 'element-plus'
-import { 
-  Check, Refresh
-} from '@element-plus/icons-vue'
+import { Check, Refresh } from '@element-plus/icons-vue'
 import api from '../api'
 import MenuComponent from '../components/MenuComponent.vue'
+import PageFooterComponent from '../components/PageFooterComponent.vue'
 import TeacherNotificationComponent from '../components/Notification/TeacherNotificationComponent.vue'
 import StudentNotificationComponent from '../components/Notification/StudentNotificationComponent.vue'
-// 导入mock数据用于测试
 import { mockNotifications, calculateUnreadCount } from '../mock/notificationData.js'
 
 const router = useRouter()
 const store = useStore()
+const isDarkMode = computed(() => store.state.isDarkMode)
 
 // 响应式数据
 const notifications = ref({
@@ -191,115 +206,58 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* 全局滚动条样式优化，防止闪烁 */
-html {
-  overflow-y: scroll; /* 始终显示垂直滚动条 */
-}
-
-.notification-view {
+.common-layout {
   min-height: 100vh;
-  background-color: #f5f7fa;
-  /* 防止内容加载时的闪烁 */
-  opacity: 1;
-  transition: opacity 0.2s ease-in-out;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 
-/* 页面加载时的过渡效果 */
-.notification-view.loading {
-  opacity: 0.8;
-}
-
-.notification-menu-wrapper {
-  background: white;
-  border-bottom: 1px solid #e6e6e6;
+.header-container {
   display: flex;
   justify-content: center;
-  padding: 0;
-  /* 固定高度，防止菜单加载时的跳动 */
-  min-height: 60px;
-}
-
-.notification-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 20px;
-  /* 防止内容宽度变化导致的闪烁 */
-  width: calc(100% - 40px);
-  box-sizing: border-box;
-}
-
-.notification-header {
-  display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
-  background: white;
-  padding: 24px 32px;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-  /* 防止内容加载时的高度跳动 */
-  min-height: 80px;
-  box-sizing: border-box;
+  padding: 0;
+  height: 60px;
 }
 
-.notification-header h1 {
-  margin: 0;
-  color: #303133;
-  font-size: 28px;
-  font-weight: 600;
+.theme-light .header-container {
+  border-bottom: solid 1px #e6e6e6;
+  background-color: #ffffff;
 }
 
-.header-actions {
+.theme-dark .header-container {
+  border-bottom: solid 1px #34495e;
+  background-color: #2c3e50;
+}
+
+.main-container {
+  padding: 20px;
+  min-height: calc(100vh - 60px);
+}
+
+.theme-light .main-container {
+  background-color: #f5f7fa;
+}
+
+.theme-dark .main-container {
+  background-color: #1a1a2e;
+}
+</style>
+
+<style>
+.el-header {
+  padding: 0;
+}
+
+.page-footer {
   display: flex;
-  gap: 12px;
-}
-
-/* 刷新按钮旋转动画 */
-.refresh-spinning {
-  animation: refresh-rotate 1s linear infinite;
-}
-
-@keyframes refresh-rotate {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* 移动端适配 */
-@media (max-width: 768px) {
-  .notification-view {
-    padding: 16px;
-  }
-  
-  .notification-container {
-    width: calc(100% - 32px);
-    padding: 16px;
-  }
-  
-  .notification-header {
-    padding: 20px;
-    flex-direction: column;
-    gap: 16px;
-    align-items: flex-start;
-    min-height: 120px;
-  }
-}
-
-/* 防止滚动条导致的布局偏移 */
-body {
-  overflow-x: hidden;
-}
-
-/* 优化滚动性能 */
-.notification-view * {
-  -webkit-overflow-scrolling: touch;
-}
-
-/* 防止字体加载导致的布局跳动 */
-.notification-header h1 {
-  font-display: swap;
+  align-items: center;
+  flex-direction: column;
+  padding: 10px;
+  background-color: #252525;
+  width: 100%;
+  min-height: 400px;
+  color: #ffffff;
 }
 </style>
