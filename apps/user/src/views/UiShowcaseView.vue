@@ -57,46 +57,213 @@
         </div>
       </div>
 
-      <!-- ━━━━ Card ━━━━ -->
+      <!-- ━━━━ ButtonBar ━━━━ -->
       <div style="margin-bottom: 40px;">
-        <h2 style="font-size: 16px; font-weight: 600; color: #374151; margin: 0 0 16px;">BmeCard 卡片</h2>
+        <h2 style="font-size: 16px; font-weight: 600; color: #374151; margin: 0 0 16px;">BmeButtonBar 按钮栏</h2>
+        <div style="background: linear-gradient(135deg, #dbeafe 0%, #e0e7ff 30%, #fce7f3 60%, #d1fae5 100%); border-radius: 16px; padding: 28px 24px;">
+          <div style="font-size: 13px; color: #6b7280; margin-bottom: 14px;">基础用法（v-model 双向绑定）</div>
+          <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center;">
+            <BmeButtonBar :items="barItems1" v-model="barValue1" />
+            <BmeButtonBar :items="barItems2" v-model="barValue2" size="sm" />
+          </div>
+          <div style="font-size: 13px; color: #9ca3af; margin-top: 16px;">
+            当前选中：{{ barValue1 }}
+          </div>
+        </div>
+      </div>
+
+      <!-- ━━━━ Card 基础变体 ━━━━ -->
+      <div style="margin-bottom: 40px;">
+        <h2 style="font-size: 16px; font-weight: 600; color: #374151; margin: 0 0 16px;">BmeCard 卡片 · 基础变体</h2>
+        <div style="background: linear-gradient(135deg, #dbeafe 0%, #e0e7ff 30%, #fce7f3 60%, #d1fae5 100%); border-radius: 16px; padding: 24px;">
+          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
+            <!-- default -->
+            <BmeCard variant="default">
+              <template #header>Default 默认</template>
+              <p style="font-size: 13px; color: #6b7280; margin: 0; line-height: 1.6;">
+                标准卡片样式，柔和阴影 + 圆角。鼠标悬停时轻微上浮，折射光跟随光标移动。
+              </p>
+            </BmeCard>
+
+            <!-- elevated -->
+            <BmeCard variant="elevated">
+              <template #header>Elevated 浮起</template>
+              <p style="font-size: 13px; color: #6b7280; margin: 0; line-height: 1.6;">
+                更高层次的卡片，更强的阴影和悬停上浮距离，适合对话框、弹层等场景。
+              </p>
+            </BmeCard>
+
+            <!-- inset -->
+            <BmeCard variant="inset">
+              <template #header>Inset 凹陷</template>
+              <p style="font-size: 13px; color: #6b7280; margin: 0; line-height: 1.6;">
+                内凹效果，悬停时不会上浮。适合嵌入在已有容器内的内容区域。
+              </p>
+            </BmeCard>
+
+            <!-- glass -->
+            <BmeCard :glass="true">
+              <template #header>Glass 毛玻璃</template>
+              <p style="font-size: 13px; color: #6b7280; margin: 0; line-height: 1.6;">
+                更强的毛玻璃效果，更高的模糊强度和透明度，在渐变或图片背景上效果出众。
+              </p>
+            </BmeCard>
+          </div>
+        </div>
+      </div>
+
+      <!-- ━━━━ Card 尺寸 ━━━━ -->
+      <div style="margin-bottom: 40px;">
+        <h2 style="font-size: 16px; font-weight: 600; color: #374151; margin: 0 0 16px;">BmeCard 卡片 · 尺寸</h2>
+        <div style="background: linear-gradient(135deg, #dbeafe 0%, #e0e7ff 30%, #fce7f3 60%, #d1fae5 100%); border-radius: 16px; padding: 24px;">
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
+            <BmeCard size="sm">
+              <template #header>Small</template>
+              <p style="font-size: 12px; color: #6b7280; margin: 0;">紧凑内边距，适合标签组、小面板。</p>
+            </BmeCard>
+            <BmeCard size="md">
+              <template #header>Medium</template>
+              <p style="font-size: 13px; color: #6b7280; margin: 0;">默认尺寸，平衡可读性和紧凑度。</p>
+            </BmeCard>
+            <BmeCard size="lg">
+              <template #header>Large</template>
+              <p style="font-size: 14px; color: #6b7280; margin: 0;">宽松内边距，适合大段文本或表单。</p>
+            </BmeCard>
+          </div>
+        </div>
+      </div>
+
+      <!-- ━━━━ Card 色彩底色 ━━━━ -->
+      <div style="margin-bottom: 40px;">
+        <h2 style="font-size: 16px; font-weight: 600; color: #374151; margin: 0 0 16px;">BmeCard 卡片 · 色彩底色</h2>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
+          <BmeCard :tinted="true" accent="primary" :glass="true">
+            <div style="text-align: center; padding: 8px 0;">
+              <div style="font-size: 28px; font-weight: 700; color: #3b82f6; line-height: 1;">128</div>
+              <div style="font-size: 13px; color: #6b7280; margin-top: 6px;">课程总数</div>
+            </div>
+          </BmeCard>
+
+          <BmeCard :tinted="true" accent="success" :glass="true">
+            <div style="text-align: center; padding: 8px 0;">
+              <div style="font-size: 28px; font-weight: 700; color: #22c55e; line-height: 1;">96</div>
+              <div style="font-size: 13px; color: #6b7280; margin-top: 6px;">已完成</div>
+            </div>
+          </BmeCard>
+
+          <BmeCard :tinted="true" accent="danger" :glass="true">
+            <div style="text-align: center; padding: 8px 0;">
+              <div style="font-size: 28px; font-weight: 700; color: #ef4444; line-height: 1;">5</div>
+              <div style="font-size: 13px; color: #6b7280; margin-top: 6px;">待处理</div>
+            </div>
+          </BmeCard>
+
+          <BmeCard :tinted="true" accent="warning" :glass="true">
+            <div style="text-align: center; padding: 8px 0;">
+              <div style="font-size: 28px; font-weight: 700; color: #f59e0b; line-height: 1;">12</div>
+              <div style="font-size: 13px; color: #6b7280; margin-top: 6px;">即将截止</div>
+            </div>
+          </BmeCard>
+
+          <BmeCard :tinted="true" accent="info" :glass="true">
+            <div style="text-align: center; padding: 8px 0;">
+              <div style="font-size: 28px; font-weight: 700; color: #06b6d4; line-height: 1;">3</div>
+              <div style="font-size: 13px; color: #6b7280; margin-top: 6px;">新通知</div>
+            </div>
+          </BmeCard>
+
+          <!-- 无 accent 的 tinted -->
+          <BmeCard :tinted="true" :glass="true">
+            <div style="text-align: center; padding: 8px 0;">
+              <div style="font-size: 28px; font-weight: 700; color: #8b5cf6; line-height: 1;">A+</div>
+              <div style="font-size: 13px; color: #6b7280; margin-top: 6px;">平均绩点</div>
+            </div>
+          </BmeCard>
+        </div>
+      </div>
+
+      <!-- ━━━━ Card 可交互 ━━━━ -->
+      <div style="margin-bottom: 40px;">
+        <h2 style="font-size: 16px; font-weight: 600; color: #374151; margin: 0 0 16px;">BmeCard 卡片 · 可交互</h2>
+        <div style="font-size: 13px; color: #9ca3af; margin-bottom: 12px;">
+          设置 <code style="background: rgba(0,0,0,0.06); padding: 2px 6px; border-radius: 4px; font-size: 12px;">interactive</code> 后卡片可点击，带 pointer 光标和按下反馈
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
+          <BmeCard :interactive="true" @click="cardClicked('课程')">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <div style="width: 40px; height: 40px; border-radius: 12px; background: rgba(59,130,246,0.12); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                <Document style="width: 20px; height: 20px; color: #3b82f6;" />
+              </div>
+              <div>
+                <div style="font-size: 14px; font-weight: 600; color: #1f2937;">我的课程</div>
+                <div style="font-size: 12px; color: #9ca3af;">本学期 6 门课程</div>
+              </div>
+            </div>
+          </BmeCard>
+
+          <BmeCard :interactive="true" @click="cardClicked('作业')">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <div style="width: 40px; height: 40px; border-radius: 12px; background: rgba(245,158,11,0.12); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                <Bell style="width: 20px; height: 20px; color: #f59e0b;" />
+              </div>
+              <div>
+                <div style="font-size: 14px; font-weight: 600; color: #1f2937;">待交作业</div>
+                <div style="font-size: 12px; color: #9ca3af;">3 份作业待提交</div>
+              </div>
+            </div>
+          </BmeCard>
+
+          <BmeCard :interactive="true" :tinted="true" accent="success" :glass="true" @click="cardClicked('成绩')">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <div style="width: 40px; height: 40px; border-radius: 12px; background: rgba(34,197,94,0.15); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                <Check style="width: 20px; height: 20px; color: #22c55e;" />
+              </div>
+              <div>
+                <div style="font-size: 14px; font-weight: 600; color: #1f2937;">成绩查询</div>
+                <div style="font-size: 12px; color: #9ca3af;">查看本学期成绩</div>
+              </div>
+            </div>
+          </BmeCard>
+        </div>
+        <div v-if="clickedCard" style="margin-top: 12px; font-size: 13px; color: #6b7280;">
+          点击了：<strong style="color: #3b82f6;">{{ clickedCard }}</strong>
+        </div>
+      </div>
+
+      <!-- ━━━━ Card 完整结构 ━━━━ -->
+      <div style="margin-bottom: 40px;">
+        <h2 style="font-size: 16px; font-weight: 600; color: #374151; margin: 0 0 16px;">BmeCard 卡片 · 完整结构</h2>
         <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
-          <!-- 基础卡片 -->
+          <!-- header + body + footer -->
           <BmeCard>
-            <template #header>基础卡片</template>
+            <template #header>
+              <div style="display: flex; align-items: center; justify-content: space-between;">
+                <span>Header / Body / Footer</span>
+                <BmeBadge :value="3" type="danger" />
+              </div>
+            </template>
             <p style="font-size: 13px; color: #6b7280; margin: 0; line-height: 1.6;">
-              这是默认的卡片样式，带有柔和阴影和圆角，适合大多数内容展示场景。
-            </p>
-          </BmeCard>
-
-          <!-- 毛玻璃卡片 -->
-          <BmeCard :glass="true">
-            <template #header>毛玻璃卡片</template>
-            <p style="font-size: 13px; color: #6b7280; margin: 0; line-height: 1.6;">
-              半透明背景 + 高斯模糊效果，在有渐变或图片的背景上效果最佳。
-            </p>
-          </BmeCard>
-
-          <!-- 带底部 -->
-          <BmeCard>
-            <template #header>完整结构</template>
-            <p style="font-size: 13px; color: #6b7280; margin: 0; line-height: 1.6;">
-              卡片支持 header、body、footer 三个插槽，灵活组织内容。
+              卡片支持 header、default（body）、footer 三个插槽，结构清晰。
             </p>
             <template #footer>
               <div style="display: flex; gap: 8px;">
-                <BmeButton type="primary" size="sm">确认</BmeButton>
+                <BmeButton size="sm">确认</BmeButton>
                 <BmeButton type="ghost" size="sm">取消</BmeButton>
               </div>
             </template>
           </BmeCard>
 
-          <!-- 纯内容卡片 -->
-          <BmeCard>
-            <div style="text-align: center; padding: 12px 0;">
-              <div style="font-size: 28px; font-weight: 700; color: #3b82f6; line-height: 1;">128</div>
-              <div style="font-size: 13px; color: #9ca3af; margin-top: 6px;">今日活跃用户</div>
-            </div>
+          <!-- glass + header + footer -->
+          <BmeCard :glass="true">
+            <template #header>毛玻璃 + 底部操作</template>
+            <p style="font-size: 13px; color: #6b7280; margin: 0; line-height: 1.6;">
+              毛玻璃模式可以和任何其他特性自由组合。
+            </p>
+            <template #footer>
+              <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                <BmeButton type="danger" size="sm">删除</BmeButton>
+              </div>
+            </template>
           </BmeCard>
         </div>
       </div>
@@ -209,12 +376,34 @@
 import { ref } from 'vue'
 import MenuComponent from '../components/MenuComponent.vue'
 import BmeButton from '../components/ui/BmeButton.vue'
+import BmeButtonBar from '../components/ui/BmeButtonBar.vue'
 import BmeCard from '../components/ui/BmeCard.vue'
 import BmeBadge from '../components/ui/BmeBadge.vue'
 import BmeTag from '../components/ui/BmeTag.vue'
-import { Document, Check } from '@element-plus/icons-vue'
+import { Document, Check, Bell, User, Setting } from '@element-plus/icons-vue'
 
 const lit1 = ref(false)
 const lit2 = ref(true)
 const lit3 = ref(false)
+
+// ButtonBar 数据
+const barValue1 = ref('all')
+const barItems1 = [
+  { value: 'all', label: '全部', icon: Bell },
+  { value: 'group', label: '小组', icon: User, badge: 5 },
+  { value: 'system', label: '系统', icon: Setting },
+]
+
+const barValue2 = ref('task')
+const barItems2 = [
+  { value: 'task', label: '任务' },
+  { value: 'homework', label: '作业', badge: 3 },
+  { value: 'leave', label: '请假' },
+]
+
+// Card 交互
+const clickedCard = ref(null)
+function cardClicked(name) {
+  clickedCard.value = name
+}
 </script>

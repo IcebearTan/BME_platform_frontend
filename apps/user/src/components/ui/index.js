@@ -1,4 +1,5 @@
 export { default as BmeButton } from './BmeButton.vue'
+export { default as BmeButtonBar } from './BmeButtonBar.vue'
 export { default as BmeCard } from './BmeCard.vue'
 export { default as BmeBadge } from './BmeBadge.vue'
 export { default as BmeTag } from './BmeTag.vue'

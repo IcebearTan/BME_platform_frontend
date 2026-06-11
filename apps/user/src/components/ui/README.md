@@ -84,15 +84,24 @@ const isAlert = ref(false)
 
 ## BmeCard 卡片
 
-圆角卡片容器，支持标准模式和毛玻璃模式。
+圆角卡片容器，支持多种变体、毛玻璃、色彩底色和可交互模式。所有卡片都具有鼠标追踪折射和色散效果。
 
 ### Props
 
 | 属性 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `glass` | `boolean` | `false` | 启用毛玻璃效果 |
-| `hoverable` | `boolean` | `false` | hover 上浮效果（预留） |
-| `padding` | `string` | `'20px'` | 内容区内边距 |
+| `variant` | `string` | `'default'` | 卡片变体：`default` / `elevated` / `inset` |
+| `size` | `string` | `'md'` | 尺寸：`sm` / `md` / `lg`（控制内边距） |
+| `glass` | `boolean` | `false` | 启用增强毛玻璃效果（更强模糊 + 透明） |
+| `interactive` | `boolean` | `false` | 可交互卡片，带点击反馈和 `cursor: pointer` |
+| `tinted` | `boolean` | `false` | 启用色彩底色模式 |
+| `accent` | `string` | `null` | 强调色：`primary` / `success` / `warning` / `danger` / `info`（需配合 `tinted`） |
+
+### Events
+
+| 事件 | 参数 | 说明 |
+|------|------|------|
+| `click` | `Event` | 点击事件（`interactive` 模式下触发） |
 
 ### Slots
 
@@ -106,7 +115,7 @@ const isAlert = ref(false)
 
 ```vue
 <template>
-  <!-- 基础卡片 -->
+  <!-- 默认卡片 -->
   <BmeCard>
     <template #header>标题</template>
     <p>卡片内容</p>
@@ -115,17 +124,26 @@ const isAlert = ref(false)
     </template>
   </BmeCard>
 
+  <!-- 变体：elevated / inset -->
+  <BmeCard variant="elevated">浮起效果</BmeCard>
+  <BmeCard variant="inset">凹陷效果</BmeCard>
+
   <!-- 毛玻璃卡片 -->
   <BmeCard :glass="true">
-    <p>半透明 + 高斯模糊效果</p>
+    <p>增强模糊 + 半透明</p>
   </BmeCard>
 
-  <!-- 纯内容卡片 -->
-  <BmeCard>
+  <!-- 色彩底色卡片 -->
+  <BmeCard :tinted="true" accent="primary" :glass="true">
     <div style="text-align: center;">
-      <div style="font-size: 28px; font-weight: 700;">128</div>
-      <div>今日活跃</div>
+      <div style="font-size: 28px; font-weight: 700; color: #3b82f6;">128</div>
+      <div>课程总数</div>
     </div>
+  </BmeCard>
+
+  <!-- 可交互卡片 -->
+  <BmeCard :interactive="true" @click="handleClick">
+    <p>点击我有反馈</p>
   </BmeCard>
 </template>
 
@@ -133,6 +151,13 @@ const isAlert = ref(false)
 import { BmeCard } from '@/components/ui'
 </script>
 ```
+
+### 视觉特性
+
+- **鼠标追踪折射**：鼠标悬停移动时，卡片内折射光和色散彩虹跟随鼠标实时变化
+- **弹性上浮**：hover 时以水滴弹性曲线上浮，active 按下时轻微缩放
+- **顶部高光线**：卡片顶部 1px 渐变白线，模拟玻璃边缘高光
+- **色彩底色**：`tinted` 模式下叠加 35% 透明度的色彩渐变，搭配 `glass` 使用效果最佳
 
 ---
 
