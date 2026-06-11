@@ -1,61 +1,22 @@
 <template>
   <div>
     <!-- Tab 筛选栏 -->
-    <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 16px;">
-      <button
-        v-for="tab in messageTabs"
-        :key="tab.key"
-        @click="switchTab(tab.key)"
-        :style="{
-          display: 'inline-flex', alignItems: 'center', gap: '6px',
-          padding: '7px 16px', borderRadius: '20px', fontSize: '13px',
-          cursor: 'pointer', border: '1px solid',
-          transition: 'all 0.2s',
-          background: activeTab === tab.key ? '#1f2937' : '#fff',
-          color: activeTab === tab.key ? '#fff' : '#777',
-          borderColor: activeTab === tab.key ? '#1f2937' : '#e5e7eb',
-        }"
-      >
-        <component :is="tab.icon" style="width: 14px; height: 14px;" />
-        <span>{{ tab.label }}</span>
-        <span
-          v-if="getUnreadCount(tab.key) > 0"
-          :style="{
-            minWidth: '18px', height: '18px', padding: '0 5px',
-            borderRadius: '10px', fontSize: '11px', fontWeight: '500',
-            lineHeight: '18px', textAlign: 'center',
-            background: activeTab === tab.key ? 'rgba(255,255,255,0.2)' : '#fef2f2',
-            color: activeTab === tab.key ? '#fff' : '#ef4444',
-          }"
-        >{{ getUnreadCount(tab.key) }}</span>
-      </button>
-    </div>
+    <BmeButtonBar :items="messageTabItems" v-model="activeTab" />
 
     <!-- 小组通知子分类 -->
-    <div v-if="activeTab === 'group'" style="display: flex; align-items: center; gap: 4px; margin-bottom: 14px; padding-left: 4px;">
-      <button
-        v-for="sub in [{ key: 'all', label: '全部' }, ...groupSubTabs]"
-        :key="sub.key"
-        @click="switchGroupSubTab(sub.key)"
-        :style="{
-          padding: '5px 12px', borderRadius: '6px', fontSize: '12px',
-          cursor: 'pointer', border: 'none', background: 'transparent',
-          transition: 'all 0.15s',
-          color: activeGroupSubTab === sub.key ? '#3b82f6' : '#999',
-          fontWeight: activeGroupSubTab === sub.key ? '600' : '400',
-        }"
-      >{{ sub.label }}</button>
+    <div v-if="activeTab === 'group'" style="margin-top: 12px;">
+      <BmeButtonBar :items="groupSubTabItems" v-model="activeGroupSubTab" size="sm" />
     </div>
 
-    <!-- 消息列表容器 -->
-    <div style="background: #fff; border-radius: 12px; border: 1px solid #f0f0f0; overflow: hidden;">
+    <!-- 消息列表 -->
+    <BmeCard style="margin-top: 16px;">
       <!-- 列表头 -->
-      <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; borderBottom: '1px solid #fafafa';">
-        <span style="font-size: 13px; color: #bbb;">{{ getCurrentTabLabel }} · {{ filteredMessages.length }} 条</span>
+      <div style="display: flex; align-items: center; justify-content: space-between;">
+        <span style="font-size: 13px; color: #9ca3af;">{{ getCurrentTabLabel }} · {{ filteredMessages.length }} 条</span>
       </div>
 
       <!-- 空状态 -->
-      <div v-if="filteredMessages.length === 0" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 0; color: #ddd;">
+      <div v-if="filteredMessages.length === 0" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 0; color: #d1d5db;">
         <svg style="width: 40px; height: 40px; margin-bottom: 10px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
         </svg>
@@ -63,112 +24,80 @@
       </div>
 
       <!-- 消息列表 -->
-      <div v-else>
-        <div
+      <div v-else style="margin-top: 12px; display: flex; flex-direction: column; gap: 6px;">
+        <BmeCard
           v-for="message in paginatedMessages"
           :key="message.id"
+          :interactive="true"
+          variant="inset"
+          size="sm"
           @click="handleMessageClick(message)"
-          :style="{
-            display: 'flex', alignItems: 'flex-start', gap: '14px',
-            padding: '14px 20px', cursor: 'pointer',
-            transition: 'background 0.15s',
-            background: !message.is_read ? 'rgba(239,246,255,0.5)' : 'transparent',
-            borderBottom: '1px solid #fafafa',
-          }"
-          @mouseenter="$event.currentTarget.style.background = '#f9fafb'"
-          @mouseleave="$event.currentTarget.style.background = !message.is_read ? 'rgba(239,246,255,0.5)' : 'transparent'"
         >
-          <!-- 图标 -->
-          <div
-            :style="{
-              width: '36px', height: '36px', borderRadius: '10px',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              flexShrink: '0', marginTop: '2px',
-              background: getMessageStyle(getMessageType(message)).bg,
-            }"
-          >
-            <component
-              :is="getMessageIcon(getMessageType(message))"
-              :style="{ width: '18px', height: '18px', color: getMessageStyle(getMessageType(message)).color }"
-            />
-          </div>
-
-          <!-- 内容 -->
-          <div style="flex: 1; min-width: 0;">
-            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-              <span
-                :style="{
-                  fontSize: '14px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                  fontWeight: message.is_read ? '500' : '600',
-                  color: message.is_read ? '#666' : '#111',
-                }"
-              >{{ message.title }}</span>
-              <span
-                :style="{
-                  flexShrink: '0', fontSize: '11px', padding: '1px 8px',
-                  borderRadius: '10px', fontWeight: '500',
-                  background: getMessageStyle(getMessageType(message)).bg,
-                  color: getMessageStyle(getMessageType(message)).color,
-                }"
-              >{{ getMessageTypeLabel(getMessageType(message)) }}</span>
+          <div style="display: flex; align-items: flex-start; gap: 12px;">
+            <!-- 图标 -->
+            <div
+              :style="{
+                width: '36px', height: '36px', borderRadius: '10px',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: '0',
+                background: getMessageStyle(getMessageType(message)).bg,
+              }"
+            >
+              <component
+                :is="getMessageIcon(getMessageType(message))"
+                :style="{ width: '18px', height: '18px', color: getMessageStyle(getMessageType(message)).color }"
+              />
             </div>
-            <p style="font-size: 13px; color: #999; line-height: 1.5; margin: 0 0 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-              {{ message.content }}
-            </p>
-            <div style="display: flex; align-items: center; justify-content: space-between;">
-              <span style="font-size: 12px; color: #ccc;">{{ formatTime(message.create_time) }}</span>
-              <div style="display: flex; gap: 4px;">
-                <button
-                  v-if="!message.is_read"
-                  @click.stop="markAsRead(message.id)"
-                  style="font-size: 12px; color: #3b82f6; background: none; border: none; cursor: pointer; padding: 2px 6px; border-radius: 4px;"
-                  @mouseenter="$event.target.style.background = '#eff6ff'"
-                  @mouseleave="$event.target.style.background = 'none'"
-                >标记已读</button>
-                <button
-                  @click.stop="handleMessageNavigation(message)"
-                  style="font-size: 12px; color: #aaa; background: none; border: none; cursor: pointer; padding: 2px 6px; border-radius: 4px;"
-                  @mouseenter="$event.target.style.background = '#f3f4f6'"
-                  @mouseleave="$event.target.style.background = 'none'"
-                >{{ getNavigationButtonText(message) }}</button>
+
+            <!-- 内容 -->
+            <div style="flex: 1; min-width: 0;">
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                <span
+                  :style="{
+                    fontSize: '14px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    fontWeight: message.is_read ? '500' : '600',
+                    color: message.is_read ? '#6b7280' : '#1f2937',
+                  }"
+                >{{ message.title }}</span>
+                <BmeTag :type="getMessageTagType(getMessageType(message))" size="sm" :round="true">
+                  {{ getMessageTypeLabel(getMessageType(message)) }}
+                </BmeTag>
+              </div>
+              <p style="font-size: 13px; color: #9ca3af; line-height: 1.5; margin: 0 0 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                {{ message.content }}
+              </p>
+              <div style="display: flex; align-items: center; justify-content: space-between;">
+                <span style="font-size: 12px; color: #d1d5db;">{{ formatTime(message.create_time) }}</span>
+                <div style="display: flex; gap: 6px;">
+                  <BmeButton v-if="!message.is_read" type="ghost" size="sm" @click.stop="markAsRead(message.id)">
+                    标记已读
+                  </BmeButton>
+                  <BmeButton type="ghost" size="sm" @click.stop="handleMessageNavigation(message)">
+                    {{ getNavigationButtonText(message) }}
+                  </BmeButton>
+                </div>
               </div>
             </div>
-          </div>
 
-          <!-- 未读蓝点 -->
-          <div
-            v-if="!message.is_read"
-            style="width: 8px; height: 8px; border-radius: 50%; background: #3b82f6; flex-shrink: 0; margin-top: 8px;"
-          ></div>
-        </div>
+            <!-- 未读蓝点 -->
+            <div
+              v-if="!message.is_read"
+              style="width: 8px; height: 8px; border-radius: 50%; background: #3b82f6; flex-shrink: 0; margin-top: 8px;"
+            ></div>
+          </div>
+        </BmeCard>
       </div>
 
       <!-- 分页 -->
       <div
         v-if="filteredMessages.length > pageSize"
-        style="display: flex; align-items: center; justify-content: center; gap: 12px; padding: 14px 0; border-top: 1px solid #fafafa;"
+        style="display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(0,0,0,0.04);"
       >
-        <button
-          @click="currentPage = Math.max(1, currentPage - 1)"
-          :disabled="currentPage === 1"
-          :style="{
-            padding: '6px 14px', fontSize: '13px', color: '#666', background: '#fff',
-            border: '1px solid #e5e7eb', borderRadius: '6px', cursor: 'pointer',
-            opacity: currentPage === 1 ? '0.3' : '1',
-          }"
-        >上一页</button>
-        <span style="font-size: 13px; color: #999;">{{ currentPage }} / {{ totalPages }}</span>
-        <button
-          @click="currentPage = Math.min(totalPages, currentPage + 1)"
-          :disabled="currentPage === totalPages"
-          :style="{
-            padding: '6px 14px', fontSize: '13px', color: '#666', background: '#fff',
-            border: '1px solid #e5e7eb', borderRadius: '6px', cursor: 'pointer',
-            opacity: currentPage === totalPages ? '0.3' : '1',
-          }"
-        >下一页</button>
+        <BmeButton size="sm" :disabled="currentPage === 1" @click="currentPage = Math.max(1, currentPage - 1)">上一页</BmeButton>
+        <span style="font-size: 13px; color: #9ca3af;">{{ currentPage }} / {{ totalPages }}</span>
+        <BmeButton size="sm" :disabled="currentPage === totalPages" @click="currentPage = Math.min(totalPages, currentPage + 1)">下一页</BmeButton>
       </div>
-    </div>
+    </BmeCard>
   </div>
 </template>
 
@@ -179,6 +108,7 @@ import { useStore } from 'vuex'
 import { ElMessage } from 'element-plus'
 import { Bell, Document, User, Edit, Message, Setting, Star } from '@element-plus/icons-vue'
 import api from '../../api'
+import { BmeButton, BmeButtonBar, BmeCard, BmeTag } from '../ui'
 import { mockNotifications, mockNotificationApiResponses, calculateUnreadCount } from '../../mock/notificationData'
 import { mockApiRequest } from '../../mock/config'
 
@@ -194,17 +124,36 @@ const activeGroupSubTab = ref('all')
 const currentPage = ref(1)
 const pageSize = 20
 
+// BmeButtonBar 选项数据
 const messageTabs = [
   { key: 'all', label: '全部', icon: Bell },
   { key: 'group', label: '小组通知', icon: User },
   { key: 'system', label: '系统', icon: Setting }
 ]
 
+const messageTabItems = computed(() =>
+  messageTabs.map(tab => ({
+    value: tab.key,
+    label: tab.label,
+    icon: tab.icon,
+    badge: getUnreadCount(tab.key) || undefined,
+  }))
+)
+
 const groupSubTabs = [
+  { key: 'all', label: '全部' },
   { key: 'task', label: '任务发布' },
   { key: 'homework', label: '作业批改' },
-  { key: 'leave', label: '请假反馈' }
+  { key: 'leave', label: '请假反馈' },
 ]
+
+const groupSubTabItems = computed(() =>
+  groupSubTabs.map(sub => ({
+    value: sub.key,
+    label: sub.label,
+    badge: sub.key !== 'all' ? getUnreadCount(sub.key) || undefined : undefined,
+  }))
+)
 
 const ACTIVE_TAB_KEY = 'student-notification-active-tab'
 
@@ -228,13 +177,23 @@ const getCurrentTabLabel = computed(() => messageTabs.find(t => t.key === active
 const filteredMessages = computed(() => getCurrentMessages.value)
 const totalPages = computed(() => Math.ceil(filteredMessages.value.length / pageSize))
 const paginatedMessages = computed(() => filteredMessages.value.slice((currentPage.value - 1) * pageSize, currentPage.value * pageSize))
-const groupMessages = computed(() =>
-  (notifications.value.task || []).length + (notifications.value.homework || []).length + (notifications.value.leave || []).length
-)
 
-const switchTab = (tabKey) => { activeTab.value = tabKey; currentPage.value = 1; if (tabKey === 'group') activeGroupSubTab.value = 'all'; localStorage.setItem(ACTIVE_TAB_KEY, tabKey) }
-const switchGroupSubTab = (subTabKey) => { activeGroupSubTab.value = subTabKey; currentPage.value = 1 }
-const restoreActiveTab = () => { const s = localStorage.getItem(ACTIVE_TAB_KEY); if (s && messageTabs.some(t => t.key === s)) activeTab.value = s }
+const switchTab = (tabKey) => {
+  // BmeButtonBar emits the value directly via v-model
+}
+const switchGroupSubTab = (subTabKey) => {
+  // handled by v-model
+}
+
+const restoreActiveTab = () => {
+  const s = localStorage.getItem(ACTIVE_TAB_KEY)
+  if (s && messageTabs.some(t => t.key === s)) activeTab.value = s
+}
+
+// 当 tab 切换时重置分页
+import { watch } from 'vue'
+watch(activeTab, () => { currentPage.value = 1 })
+watch(activeGroupSubTab, () => { currentPage.value = 1 })
 
 const getUnreadCount = (type) => {
   if (type === 'all') return totalUnread.value
@@ -249,11 +208,20 @@ const getMessageType = (message) => {
 
 const getMessageIcon = (type) => ({ task: Document, homework: Edit, leave: Message, system: Setting }[type] || Document)
 const getMessageStyle = (type) => ({
-  task: { bg: '#eff6ff', color: '#3b82f6' },
-  homework: { bg: '#ecfdf5', color: '#10b981' },
-  leave: { bg: '#fffbeb', color: '#f59e0b' },
-  system: { bg: '#f3f4f6', color: '#9ca3af' },
-}[type] || { bg: '#f3f4f6', color: '#9ca3af' })
+  task: { bg: 'rgba(59,130,246,0.1)', color: '#3b82f6' },
+  homework: { bg: 'rgba(34,197,94,0.1)', color: '#22c55e' },
+  leave: { bg: 'rgba(245,158,11,0.1)', color: '#f59e0b' },
+  system: { bg: 'rgba(156,163,175,0.1)', color: '#9ca3af' },
+}[type] || { bg: 'rgba(156,163,175,0.1)', color: '#9ca3af' })
+
+// 将消息类型映射到 BmeTag 的 type
+const getMessageTagType = (type) => ({
+  task: 'primary',
+  homework: 'success',
+  leave: 'warning',
+  system: 'neutral',
+}[type] || 'neutral')
+
 const getMessageTypeLabel = (type) => ({ task: '任务', homework: '作业', leave: '请假', system: '系统' }[type] || '其他')
 
 const handleMessageClick = async (message) => {

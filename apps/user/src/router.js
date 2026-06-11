@@ -169,7 +169,7 @@ const router = createRouter({
             path: '/notifications',
             name: 'notifications',
             component: NotificationView,
-            meta: { requiresAuth: true }
+            meta: { requiresAuth: false }
         },
         {
             path: '/group',
