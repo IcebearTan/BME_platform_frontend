@@ -9,7 +9,7 @@
     </div>
 
     <!-- 消息列表 -->
-    <DewCard style="margin-top: 16px;">
+    <DewCard style="margin-top: 16px;" size="lg" :no-hover="true">
       <!-- 列表头 -->
       <div style="display: flex; align-items: center; justify-content: space-between;">
         <span style="font-size: 13px; color: #9ca3af;">{{ getCurrentTabLabel }} · {{ filteredMessages.length }} 条</span>
