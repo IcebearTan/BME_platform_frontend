@@ -33,7 +33,7 @@ const activeTab = ref('keys');
 // ---------- 服务接入信息 ----------
 const serviceInfo = reactive({ base_url: '', chat_url: '', messages_url: '', models: [] });
 const serviceInfoLoading = ref(false);
-const modelsOpen = ref([]);
+const modelsOpen = ref(['models']);
 // Anthropic SDK 的 base_url 是 messages_url 去掉 /v1/messages 后缀
 const anthropicBaseUrl = computed(() =>
   serviceInfo.messages_url ? serviceInfo.messages_url.replace(/\/v1\/messages$/, '') : ''
@@ -188,6 +188,19 @@ const submitRequest = async () => {
   }
 };
 
+const modelCompat = (id) => {
+  const lower = (id || '').toLowerCase();
+  if (lower.includes('deepseek')) {
+    return lower.includes('anthropic')
+      ? { openai: false, claude: true }
+      : { openai: true,  claude: false };
+  }
+  if (lower.startsWith('qwen')) {
+    return { openai: true, claude: false };
+  }
+  return { openai: true, claude: true };
+};
+
 const refreshAll = () => {
   fetchUsage();
   fetchKeys();
@@ -225,6 +238,12 @@ const refreshAll = () => {
               </div>
               <h1 class="main-title">服务控制台</h1>
               <p class="sub-title">创建 API Key，接入平台大模型，轻松管理调用额度与权限</p>
+              <div class="campus-notice">
+                <svg class="campus-notice-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <span>大模型服务仅限于在<strong>中山大学校园网内网</strong>环境下使用</span>
+              </div>
             </div>
             <div class="header-deco" aria-hidden="true">
               <svg viewBox="0 0 200 160" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -441,11 +460,11 @@ const refreshAll = () => {
                               <code class="model-id">{{ row.id }}</code>
                             </template>
                           </el-table-column>
-                          <el-table-column label="兼容格式" width="200">
-                            <template #default>
+                          <el-table-column label="兼容格式" width="260">
+                            <template #default="{ row }">
                               <div class="model-compat-tags">
-                                <span class="compat-tag compat-openai">OpenAI 兼容</span>
-                                <span class="compat-tag compat-claude">Claude API 兼容</span>
+                                <span v-if="modelCompat(row.id).openai" class="compat-tag compat-openai">OpenAI 兼容</span>
+                                <span v-if="modelCompat(row.id).claude" class="compat-tag compat-claude">Claude API 兼容</span>
                               </div>
                             </template>
                           </el-table-column>
@@ -455,7 +474,7 @@ const refreshAll = () => {
                             </template>
                           </el-table-column>
                         </el-table>
-                        <p class="models-note">以上模型均同时兼容 OpenAI 与 Claude API 两种调用格式，请求时使用对应端点地址即可。</p>
+                        <p class="models-note">不同模型支持的调用格式有所差异，请参考上方标注选择对应端点地址。deepseek 系列（anthropic 变体）仅支持 Claude API 格式；deepseek 标准版及 qwen 系列仅支持 OpenAI 兼容格式；其余模型两种格式均可使用。</p>
                       </template>
                     </el-collapse-item>
                   </el-collapse>
@@ -697,6 +716,34 @@ message <span class="syn-op">=</span> client.messages.create(
   font-size: 14px;
   margin: 0;
   line-height: 1.6;
+}
+.campus-notice {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 14px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  background: rgba(234, 179, 8, 0.1);
+  border: 1px solid rgba(234, 179, 8, 0.35);
+  font-size: 13px;
+  color: #92400e;
+  font-weight: 500;
+  line-height: 1.5;
+}
+.theme-dark .campus-notice {
+  background: rgba(234, 179, 8, 0.08);
+  border-color: rgba(234, 179, 8, 0.25);
+  color: #fde68a;
+}
+.campus-notice-icon {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  color: #d97706;
+}
+.theme-dark .campus-notice-icon {
+  color: #fbbf24;
 }
 .header-deco {
   position: absolute;
@@ -965,7 +1012,7 @@ message <span class="syn-op">=</span> client.messages.create(
 .models-collapse :deep(.el-collapse-item__content) { padding: 12px 0 0; }
 
 /* Model compat tags */
-.model-compat-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.model-compat-tags { display: flex; gap: 6px; flex-wrap: nowrap; align-items: center; }
 .compat-tag {
   font-size: 10px;
   font-weight: 600;
