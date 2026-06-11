@@ -1,0 +1,288 @@
+<template>
+  <button
+    ref="btnRef"
+    class="bme-btn"
+    :class="[
+      `bme-btn--${type}`,
+      `bme-btn--${size}`,
+      { 'bme-btn--block': block, 'bme-btn--lit': active }
+    ]"
+    :disabled="disabled"
+    :style="sizeStyle"
+    @mouseenter="onEnter"
+    @mousemove="onMove"
+    @mouseleave="onLeave"
+    @click="$emit('click', $event)"
+  >
+    <span class="bme-btn__refraction" :style="refractionStyle"></span>
+    <span class="bme-btn__chromatic" :style="chromaticStyle"></span>
+    <!-- 隐藏测量层：始终渲染内容用于计算真实宽度 -->
+    <span ref="measureRef" class="bme-btn__measure">
+      <slot />
+    </span>
+    <!-- 可见内容层 -->
+    <span class="bme-btn__content">
+      <slot />
+    </span>
+  </button>
+</template>
+
+<script setup>
+import { ref, reactive, computed, onMounted, onUpdated, nextTick, watch } from 'vue'
+
+const props = defineProps({
+  type: { type: String, default: 'glass' },
+  size: { type: String, default: 'md' },
+  disabled: { type: Boolean, default: false },
+  block: { type: Boolean, default: false },
+  active: { type: Boolean, default: false },
+})
+
+defineEmits(['click'])
+
+const btnRef = ref(null)
+const measureRef = ref(null)
+const state = reactive({ hovering: false, x: 0.5, y: 0.5 })
+const currentWidth = ref(null)
+
+// 测量内容真实宽度
+function measureWidth() {
+  if (!measureRef.value || props.block) return
+  currentWidth.value = measureRef.value.offsetWidth
+}
+
+// 挂载和每次更新后都重新测量
+onMounted(() => nextTick(measureWidth))
+onUpdated(() => nextTick(measureWidth))
+
+// 主动测量触发点：slot 内容变化时
+watch(() => props.active, () => nextTick(measureWidth))
+
+// 将计算出的宽度注入按钮 style，让 CSS transition 接管过渡
+const sizeStyle = computed(() => {
+  if (props.block || currentWidth.value === null) return null
+  const paddingMap = { sm: 36, md: 52, lg: 72 }
+  const pad = paddingMap[props.size] || 52
+  return { width: `${currentWidth.value + pad}px` }
+})
+
+function onEnter() { state.hovering = true }
+function onMove(e) {
+  if (!btnRef.value) return
+  const r = btnRef.value.getBoundingClientRect()
+  state.x = (e.clientX - r.left) / r.width
+  state.y = (e.clientY - r.top) / r.height
+}
+function onLeave() { state.hovering = false; state.x = 0.5; state.y = 0.5 }
+
+const refractionStyle = computed(() => {
+  const cx = (state.x * 100).toFixed(1)
+  const cy = (state.y * 100).toFixed(1)
+  const i = state.hovering ? 0.7 : 0.4
+  return {
+    background: `radial-gradient(ellipse at ${cx}% ${cy}%, rgba(255,255,255,${(0.5*i).toFixed(2)}) 0%, rgba(180,200,255,${(0.25*i).toFixed(2)}) 20%, rgba(200,160,255,${(0.15*i).toFixed(2)}) 40%, rgba(255,180,200,${(0.1*i).toFixed(2)}) 60%, transparent 100%)`,
+    opacity: state.hovering ? '1' : '0.6',
+    transition: state.hovering ? 'opacity 0.1s' : 'opacity 0.4s',
+  }
+})
+
+const chromaticStyle = computed(() => {
+  if (!state.hovering) return { opacity: '0' }
+  const cx = (state.x * 100).toFixed(1)
+  const cy = (state.y * 100).toFixed(1)
+  return {
+    opacity: '1',
+    background: `radial-gradient(ellipse at ${cx}% ${cy}%, rgba(255,100,100,0.08) 0%, rgba(100,255,100,0.06) 25%, rgba(100,100,255,0.08) 50%, transparent 100%)`,
+  }
+})
+</script>
+
+<style scoped>
+.bme-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 9999px;
+  cursor: pointer;
+  outline: none;
+  overflow: hidden;
+  isolation: isolate;
+  backdrop-filter: blur(20px) saturate(1.5);
+  -webkit-backdrop-filter: blur(20px) saturate(1.5);
+  /* 水滴弹性过渡：所有属性统一使用带回弹的曲线 */
+  transition:
+    width 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
+    transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+    background 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+    border-color 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.bme-btn--block { width: 100% !important; }
+
+/* 测量层：不可见但占据空间，用于精确测量内容宽度 */
+.bme-btn__measure {
+  position: absolute;
+  visibility: hidden;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  pointer-events: none;
+}
+
+/* 可见内容层 */
+.bme-btn__content {
+  position: relative;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+  font-family: inherit;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  pointer-events: none;
+  transition: text-shadow 0.25s ease;
+}
+
+.bme-btn__refraction {
+  position: absolute;
+  inset: -2px;
+  z-index: 1;
+  border-radius: inherit;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+}
+
+.bme-btn__chromatic {
+  position: absolute;
+  inset: -1px;
+  z-index: 1;
+  border-radius: inherit;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  transition: opacity 0.4s ease;
+}
+
+/* ── 尺寸 ── */
+.bme-btn--sm { height: 32px; }
+.bme-btn--sm .bme-btn__content,
+.bme-btn--sm .bme-btn__measure { font-size: 12px; }
+
+.bme-btn--md { height: 40px; }
+.bme-btn--md .bme-btn__content,
+.bme-btn--md .bme-btn__measure { font-size: 14px; }
+
+.bme-btn--lg { height: 50px; }
+.bme-btn--lg .bme-btn__content,
+.bme-btn--lg .bme-btn__measure { font-size: 15px; }
+
+/* ━━━━ Glass（默认） ━━━━ */
+.bme-btn--glass {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #374151;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.04), inset 0 0 0 0.5px rgba(255,255,255,0.3), inset 0 1px 0 rgba(255,255,255,0.35);
+}
+.bme-btn--glass:hover {
+  background: rgba(255, 255, 255, 0.25);
+  box-shadow: 0 6px 24px rgba(0,0,0,0.07), inset 0 0 0 0.5px rgba(255,255,255,0.35), inset 0 1px 0 rgba(255,255,255,0.4);
+  transform: translateY(-1px);
+}
+
+/* ━━━━ Danger ━━━━ */
+.bme-btn--danger {
+  background: rgba(239, 68, 68, 0.16);
+  border: 1px solid rgba(239, 68, 68, 0.22);
+  color: #ef4444;
+  box-shadow: 0 2px 8px rgba(239,68,68,0.1), inset 0 0 0 0.5px rgba(255,255,255,0.15), inset 0 1px 0 rgba(255,255,255,0.2);
+}
+.bme-btn--danger:hover {
+  background: rgba(239, 68, 68, 0.25);
+  box-shadow: 0 6px 24px rgba(239,68,68,0.18), inset 0 0 0 0.5px rgba(255,255,255,0.2), inset 0 1px 0 rgba(255,255,255,0.3);
+  transform: translateY(-1px);
+}
+.bme-btn--danger:hover .bme-btn__content { text-shadow: 0 0 12px rgba(239,68,68,0.3); }
+
+/* ━━━━ Ghost ━━━━ */
+.bme-btn--ghost {
+  background: transparent;
+  border: 1px solid transparent;
+  color: #6b7280;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.bme-btn--ghost .bme-btn__refraction,
+.bme-btn--ghost .bme-btn__chromatic { display: none; }
+.bme-btn--ghost:hover { background: rgba(0,0,0,0.04); color: #374151; }
+
+/* ━━━━ 点亮状态（可叠加在任意 type 上） ━━━━ */
+.bme-btn--lit {
+  background: rgba(255, 255, 255, 0.5) !important;
+  border-color: rgba(255, 255, 255, 0.55) !important;
+  color: #1f2937 !important;
+  box-shadow:
+    0 0 20px rgba(255, 255, 255, 0.2),
+    0 0 40px rgba(255, 255, 255, 0.08),
+    inset 0 0 10px rgba(255, 255, 255, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5) !important;
+}
+.bme-btn--lit:hover {
+  background: rgba(255, 255, 255, 0.6) !important;
+  box-shadow:
+    0 0 28px rgba(255, 255, 255, 0.3),
+    0 0 56px rgba(255, 255, 255, 0.12),
+    inset 0 0 14px rgba(255, 255, 255, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
+  transform: translateY(-1px);
+}
+.bme-btn--lit .bme-btn__content {
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
+}
+
+/* ━━━━ Danger 点亮态 — 红色光焰 ━━━━ */
+.bme-btn--danger.bme-btn--lit {
+  background: rgba(239, 68, 68, 0.55) !important;
+  border-color: rgba(239, 68, 68, 0.6) !important;
+  color: #fff !important;
+  box-shadow:
+    0 0 24px rgba(239, 68, 68, 0.35),
+    0 0 48px rgba(239, 68, 68, 0.15),
+    inset 0 0 12px rgba(255, 120, 120, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35) !important;
+}
+.bme-btn--danger.bme-btn--lit:hover {
+  background: rgba(239, 68, 68, 0.65) !important;
+  box-shadow:
+    0 0 32px rgba(239, 68, 68, 0.4),
+    0 0 64px rgba(239, 68, 68, 0.18),
+    inset 0 0 16px rgba(255, 120, 120, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
+  transform: translateY(-1px);
+}
+.bme-btn--danger.bme-btn--lit .bme-btn__content {
+  text-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+}
+
+/* ── active 按下 ── */
+.bme-btn:active:not(:disabled) { transform: translateY(0.5px) scale(0.97) !important; }
+
+/* ── 禁用 ── */
+.bme-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+  transform: none !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(8px);
+}
+.bme-btn:disabled .bme-btn__refraction,
+.bme-btn:disabled .bme-btn__chromatic { opacity: 0 !important; }
+</style>

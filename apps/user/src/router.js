@@ -28,6 +28,7 @@ import QuestionBankView from './views/QuestionBankView.vue';
 import ServiceHallView from './views/ServiceHallView.vue';
 import ThreeDPrintView from './views/ThreeDPrintView.vue';
 import CommunityView from './views/CommunityView.vue';
+import UiShowcaseView from './views/UiShowcaseView.vue';
 import MyFeedbacksComponent from './components/User/MyFeedbacksComponent.vue';
 
 const router = createRouter({
@@ -36,6 +37,13 @@ const router = createRouter({
         return { top: 0 }
     },
     routes: [
+        // ── UI 组件展示（开发用）──
+        {
+            path: '/ui-showcase',
+            name: 'ui-showcase',
+            component: UiShowcaseView
+        },
+
         // ── 公开路由（无需登录）──
         {
             path: '/login',
