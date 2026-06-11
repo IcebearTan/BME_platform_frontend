@@ -1,11 +1,11 @@
 <template>
   <button
     ref="btnRef"
-    class="bme-btn"
+    class="dew-btn"
     :class="[
-      `bme-btn--${type}`,
-      `bme-btn--${size}`,
-      { 'bme-btn--block': block, 'bme-btn--lit': active }
+      `dew-btn--${type}`,
+      `dew-btn--${size}`,
+      { 'dew-btn--block': block, 'dew-btn--lit': active }
     ]"
     :disabled="disabled"
     :style="sizeStyle"
@@ -14,14 +14,14 @@
     @mouseleave="onLeave"
     @click="$emit('click', $event)"
   >
-    <span class="bme-btn__refraction" :style="refractionStyle"></span>
-    <span class="bme-btn__chromatic" :style="chromaticStyle"></span>
+    <span class="dew-btn__refraction" :style="refractionStyle"></span>
+    <span class="dew-btn__chromatic" :style="chromaticStyle"></span>
     <!-- 隐藏测量层：始终渲染内容用于计算真实宽度 -->
-    <span ref="measureRef" class="bme-btn__measure">
+    <span ref="measureRef" class="dew-btn__measure">
       <slot />
     </span>
     <!-- 可见内容层 -->
-    <span class="bme-btn__content">
+    <span class="dew-btn__content">
       <slot />
     </span>
   </button>
@@ -98,7 +98,7 @@ const chromaticStyle = computed(() => {
 </script>
 
 <style scoped>
-.bme-btn {
+.dew-btn {
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -121,10 +121,10 @@ const chromaticStyle = computed(() => {
   -webkit-tap-highlight-color: transparent;
 }
 
-.bme-btn--block { width: 100% !important; }
+.dew-btn--block { width: 100% !important; }
 
 /* 测量层：不可见但占据空间，用于精确测量内容宽度 */
-.bme-btn__measure {
+.dew-btn__measure {
   position: absolute;
   visibility: hidden;
   white-space: nowrap;
@@ -137,7 +137,7 @@ const chromaticStyle = computed(() => {
 }
 
 /* 可见内容层 */
-.bme-btn__content {
+.dew-btn__content {
   position: relative;
   z-index: 3;
   display: inline-flex;
@@ -152,7 +152,7 @@ const chromaticStyle = computed(() => {
   transition: text-shadow 0.25s ease;
 }
 
-.bme-btn__refraction {
+.dew-btn__refraction {
   position: absolute;
   inset: -2px;
   z-index: 1;
@@ -161,7 +161,7 @@ const chromaticStyle = computed(() => {
   pointer-events: none;
 }
 
-.bme-btn__chromatic {
+.dew-btn__chromatic {
   position: absolute;
   inset: -1px;
   z-index: 1;
@@ -172,47 +172,47 @@ const chromaticStyle = computed(() => {
 }
 
 /* ── 尺寸 ── */
-.bme-btn--sm { height: 32px; }
-.bme-btn--sm .bme-btn__content,
-.bme-btn--sm .bme-btn__measure { font-size: 12px; }
+.dew-btn--sm { height: 32px; }
+.dew-btn--sm .dew-btn__content,
+.dew-btn--sm .dew-btn__measure { font-size: 12px; }
 
-.bme-btn--md { height: 40px; }
-.bme-btn--md .bme-btn__content,
-.bme-btn--md .bme-btn__measure { font-size: 14px; }
+.dew-btn--md { height: 40px; }
+.dew-btn--md .dew-btn__content,
+.dew-btn--md .dew-btn__measure { font-size: 14px; }
 
-.bme-btn--lg { height: 50px; }
-.bme-btn--lg .bme-btn__content,
-.bme-btn--lg .bme-btn__measure { font-size: 15px; }
+.dew-btn--lg { height: 50px; }
+.dew-btn--lg .dew-btn__content,
+.dew-btn--lg .dew-btn__measure { font-size: 15px; }
 
 /* ━━━━ Glass（默认） ━━━━ */
-.bme-btn--glass {
+.dew-btn--glass {
   background: rgba(255, 255, 255, 0.15);
   border: 1px solid rgba(255, 255, 255, 0.25);
   color: #374151;
   box-shadow: 0 2px 12px rgba(0,0,0,0.04), inset 0 0 0 0.5px rgba(255,255,255,0.3), inset 0 1px 0 rgba(255,255,255,0.35);
 }
-.bme-btn--glass:hover {
+.dew-btn--glass:hover {
   background: rgba(255, 255, 255, 0.25);
   box-shadow: 0 6px 24px rgba(0,0,0,0.07), inset 0 0 0 0.5px rgba(255,255,255,0.35), inset 0 1px 0 rgba(255,255,255,0.4);
   transform: translateY(-1px);
 }
 
 /* ━━━━ Danger ━━━━ */
-.bme-btn--danger {
+.dew-btn--danger {
   background: rgba(239, 68, 68, 0.16);
   border: 1px solid rgba(239, 68, 68, 0.22);
   color: #ef4444;
   box-shadow: 0 2px 8px rgba(239,68,68,0.1), inset 0 0 0 0.5px rgba(255,255,255,0.15), inset 0 1px 0 rgba(255,255,255,0.2);
 }
-.bme-btn--danger:hover {
+.dew-btn--danger:hover {
   background: rgba(239, 68, 68, 0.25);
   box-shadow: 0 6px 24px rgba(239,68,68,0.18), inset 0 0 0 0.5px rgba(255,255,255,0.2), inset 0 1px 0 rgba(255,255,255,0.3);
   transform: translateY(-1px);
 }
-.bme-btn--danger:hover .bme-btn__content { text-shadow: 0 0 12px rgba(239,68,68,0.3); }
+.dew-btn--danger:hover .dew-btn__content { text-shadow: 0 0 12px rgba(239,68,68,0.3); }
 
 /* ━━━━ Ghost ━━━━ */
-.bme-btn--ghost {
+.dew-btn--ghost {
   background: transparent;
   border: 1px solid transparent;
   color: #6b7280;
@@ -220,12 +220,12 @@ const chromaticStyle = computed(() => {
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
-.bme-btn--ghost .bme-btn__refraction,
-.bme-btn--ghost .bme-btn__chromatic { display: none; }
-.bme-btn--ghost:hover { background: rgba(0,0,0,0.04); color: #374151; }
+.dew-btn--ghost .dew-btn__refraction,
+.dew-btn--ghost .dew-btn__chromatic { display: none; }
+.dew-btn--ghost:hover { background: rgba(0,0,0,0.04); color: #374151; }
 
 /* ━━━━ 点亮状态（可叠加在任意 type 上） ━━━━ */
-.bme-btn--lit {
+.dew-btn--lit {
   background: rgba(255, 255, 255, 0.5) !important;
   border-color: rgba(255, 255, 255, 0.55) !important;
   color: #1f2937 !important;
@@ -235,7 +235,7 @@ const chromaticStyle = computed(() => {
     inset 0 0 10px rgba(255, 255, 255, 0.25),
     inset 0 1px 0 rgba(255, 255, 255, 0.5) !important;
 }
-.bme-btn--lit:hover {
+.dew-btn--lit:hover {
   background: rgba(255, 255, 255, 0.6) !important;
   box-shadow:
     0 0 28px rgba(255, 255, 255, 0.3),
@@ -244,12 +244,12 @@ const chromaticStyle = computed(() => {
     inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
   transform: translateY(-1px);
 }
-.bme-btn--lit .bme-btn__content {
+.dew-btn--lit .dew-btn__content {
   text-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
 }
 
 /* ━━━━ Danger 点亮态 — 红色光焰 ━━━━ */
-.bme-btn--danger.bme-btn--lit {
+.dew-btn--danger.dew-btn--lit {
   background: rgba(239, 68, 68, 0.55) !important;
   border-color: rgba(239, 68, 68, 0.6) !important;
   color: #fff !important;
@@ -259,7 +259,7 @@ const chromaticStyle = computed(() => {
     inset 0 0 12px rgba(255, 120, 120, 0.25),
     inset 0 1px 0 rgba(255, 255, 255, 0.35) !important;
 }
-.bme-btn--danger.bme-btn--lit:hover {
+.dew-btn--danger.dew-btn--lit:hover {
   background: rgba(239, 68, 68, 0.65) !important;
   box-shadow:
     0 0 32px rgba(239, 68, 68, 0.4),
@@ -268,21 +268,21 @@ const chromaticStyle = computed(() => {
     inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
   transform: translateY(-1px);
 }
-.bme-btn--danger.bme-btn--lit .bme-btn__content {
+.dew-btn--danger.dew-btn--lit .dew-btn__content {
   text-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
 }
 
 /* ── active 按下 ── */
-.bme-btn:active:not(:disabled) { transform: translateY(0.5px) scale(0.97) !important; }
+.dew-btn:active:not(:disabled) { transform: translateY(0.5px) scale(0.97) !important; }
 
 /* ── 禁用 ── */
-.bme-btn:disabled {
+.dew-btn:disabled {
   cursor: not-allowed;
   opacity: 0.35;
   transform: none !important;
   box-shadow: none !important;
   backdrop-filter: blur(8px);
 }
-.bme-btn:disabled .bme-btn__refraction,
-.bme-btn:disabled .bme-btn__chromatic { opacity: 0 !important; }
+.dew-btn:disabled .dew-btn__refraction,
+.dew-btn:disabled .dew-btn__chromatic { opacity: 0 !important; }
 </style>

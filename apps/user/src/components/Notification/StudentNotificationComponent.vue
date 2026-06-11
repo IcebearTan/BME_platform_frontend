@@ -1,15 +1,15 @@
 <template>
   <div>
     <!-- Tab 筛选栏 -->
-    <BmeButtonBar :items="messageTabItems" v-model="activeTab" />
+    <DewButtonBar :items="messageTabItems" v-model="activeTab" />
 
     <!-- 小组通知子分类 -->
     <div v-if="activeTab === 'group'" style="margin-top: 12px;">
-      <BmeButtonBar :items="groupSubTabItems" v-model="activeGroupSubTab" size="sm" />
+      <DewButtonBar :items="groupSubTabItems" v-model="activeGroupSubTab" size="sm" />
     </div>
 
     <!-- 消息列表 -->
-    <BmeCard style="margin-top: 16px;">
+    <DewCard style="margin-top: 16px;">
       <!-- 列表头 -->
       <div style="display: flex; align-items: center; justify-content: space-between;">
         <span style="font-size: 13px; color: #9ca3af;">{{ getCurrentTabLabel }} · {{ filteredMessages.length }} 条</span>
@@ -25,7 +25,7 @@
 
       <!-- 消息列表 -->
       <div v-else style="margin-top: 12px; display: flex; flex-direction: column; gap: 6px;">
-        <BmeCard
+        <DewCard
           v-for="message in paginatedMessages"
           :key="message.id"
           :interactive="true"
@@ -59,9 +59,9 @@
                     color: message.is_read ? '#6b7280' : '#1f2937',
                   }"
                 >{{ message.title }}</span>
-                <BmeTag :type="getMessageTagType(getMessageType(message))" size="sm" :round="true">
+                <DewTag :type="getMessageTagType(getMessageType(message))" size="sm" :round="true">
                   {{ getMessageTypeLabel(getMessageType(message)) }}
-                </BmeTag>
+                </DewTag>
               </div>
               <p style="font-size: 13px; color: #9ca3af; line-height: 1.5; margin: 0 0 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                 {{ message.content }}
@@ -69,12 +69,12 @@
               <div style="display: flex; align-items: center; justify-content: space-between;">
                 <span style="font-size: 12px; color: #d1d5db;">{{ formatTime(message.create_time) }}</span>
                 <div style="display: flex; gap: 6px;">
-                  <BmeButton v-if="!message.is_read" type="ghost" size="sm" @click.stop="markAsRead(message.id)">
+                  <DewButton v-if="!message.is_read" type="ghost" size="sm" @click.stop="markAsRead(message.id)">
                     标记已读
-                  </BmeButton>
-                  <BmeButton type="ghost" size="sm" @click.stop="handleMessageNavigation(message)">
+                  </DewButton>
+                  <DewButton type="ghost" size="sm" @click.stop="handleMessageNavigation(message)">
                     {{ getNavigationButtonText(message) }}
-                  </BmeButton>
+                  </DewButton>
                 </div>
               </div>
             </div>
@@ -85,7 +85,7 @@
               style="width: 8px; height: 8px; border-radius: 50%; background: #3b82f6; flex-shrink: 0; margin-top: 8px;"
             ></div>
           </div>
-        </BmeCard>
+        </DewCard>
       </div>
 
       <!-- 分页 -->
@@ -93,11 +93,11 @@
         v-if="filteredMessages.length > pageSize"
         style="display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(0,0,0,0.04);"
       >
-        <BmeButton size="sm" :disabled="currentPage === 1" @click="currentPage = Math.max(1, currentPage - 1)">上一页</BmeButton>
+        <DewButton size="sm" :disabled="currentPage === 1" @click="currentPage = Math.max(1, currentPage - 1)">上一页</DewButton>
         <span style="font-size: 13px; color: #9ca3af;">{{ currentPage }} / {{ totalPages }}</span>
-        <BmeButton size="sm" :disabled="currentPage === totalPages" @click="currentPage = Math.min(totalPages, currentPage + 1)">下一页</BmeButton>
+        <DewButton size="sm" :disabled="currentPage === totalPages" @click="currentPage = Math.min(totalPages, currentPage + 1)">下一页</DewButton>
       </div>
-    </BmeCard>
+    </DewCard>
   </div>
 </template>
 
@@ -108,7 +108,7 @@ import { useStore } from 'vuex'
 import { ElMessage } from 'element-plus'
 import { Bell, Document, User, Edit, Message, Setting, Star } from '@element-plus/icons-vue'
 import api from '../../api'
-import { BmeButton, BmeButtonBar, BmeCard, BmeTag } from '../ui'
+import { DewButton, DewButtonBar, DewCard, DewTag } from '../ui'
 import { mockNotifications, mockNotificationApiResponses, calculateUnreadCount } from '../../mock/notificationData'
 import { mockApiRequest } from '../../mock/config'
 
@@ -124,7 +124,7 @@ const activeGroupSubTab = ref('all')
 const currentPage = ref(1)
 const pageSize = 20
 
-// BmeButtonBar 选项数据
+// DewButtonBar 选项数据
 const messageTabs = [
   { key: 'all', label: '全部', icon: Bell },
   { key: 'group', label: '小组通知', icon: User },
@@ -179,7 +179,7 @@ const totalPages = computed(() => Math.ceil(filteredMessages.value.length / page
 const paginatedMessages = computed(() => filteredMessages.value.slice((currentPage.value - 1) * pageSize, currentPage.value * pageSize))
 
 const switchTab = (tabKey) => {
-  // BmeButtonBar emits the value directly via v-model
+  // DewButtonBar emits the value directly via v-model
 }
 const switchGroupSubTab = (subTabKey) => {
   // handled by v-model
@@ -214,7 +214,7 @@ const getMessageStyle = (type) => ({
   system: { bg: 'rgba(156,163,175,0.1)', color: '#9ca3af' },
 }[type] || { bg: 'rgba(156,163,175,0.1)', color: '#9ca3af' })
 
-// 将消息类型映射到 BmeTag 的 type
+// 将消息类型映射到 DewTag 的 type
 const getMessageTagType = (type) => ({
   task: 'primary',
   homework: 'success',

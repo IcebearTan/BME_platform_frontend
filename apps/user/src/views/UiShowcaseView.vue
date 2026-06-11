@@ -9,7 +9,7 @@
       <div style="margin-bottom: 40px;">
         <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
           <span style="display: inline-block; width: 4px; height: 24px; border-radius: 2px; background: linear-gradient(180deg, #3b82f6, #8b5cf6);"></span>
-          <h1 style="font-size: 24px; font-weight: 700; color: #1f2937; margin: 0;">BME UI 组件库</h1>
+          <h1 style="font-size: 24px; font-weight: 700; color: #1f2937; margin: 0;">Dew UI 组件库</h1>
         </div>
         <p style="font-size: 14px; color: #9ca3af; margin: 0; padding-left: 14px;">
           圆润 · 毛玻璃 · 柔和阴影 · 现代控件风格
@@ -18,53 +18,53 @@
 
       <!-- ━━━━ Button ━━━━ -->
       <div style="margin-bottom: 40px;">
-        <h2 style="font-size: 16px; font-weight: 600; color: #374151; margin: 0 0 16px;">BmeButton 按钮</h2>
+        <h2 style="font-size: 16px; font-weight: 600; color: #374151; margin: 0 0 16px;">DewButton 按钮</h2>
 
         <!-- 类型 -->
         <div style="background: linear-gradient(135deg, #dbeafe 0%, #e0e7ff 30%, #fce7f3 60%, #d1fae5 100%); border-radius: 16px; padding: 28px 24px;">
           <div style="font-size: 13px; color: #6b7280; margin-bottom: 14px;">类型变体</div>
           <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
-            <BmeButton>默认玻璃</BmeButton>
-            <BmeButton type="danger">危险按钮</BmeButton>
-            <BmeButton type="ghost">幽灵按钮</BmeButton>
+            <DewButton>默认玻璃</DewButton>
+            <DewButton type="danger">危险按钮</DewButton>
+            <DewButton type="ghost">幽灵按钮</DewButton>
           </div>
 
           <div style="font-size: 13px; color: #9ca3af; margin: 20px 0 14px;">点亮状态（可交互）</div>
           <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
-            <BmeButton :active="lit1" @click="lit1 = !lit1">{{ lit1 ? '已点亮' : '点击点亮' }}</BmeButton>
-            <BmeButton :active="lit2" @click="lit2 = !lit2">{{ lit2 ? '已点亮' : '点击点亮' }}</BmeButton>
-            <BmeButton type="danger" :active="lit3" @click="lit3 = !lit3">{{ lit3 ? '已点亮' : '点击点亮' }}</BmeButton>
+            <DewButton :active="lit1" @click="lit1 = !lit1">{{ lit1 ? '已点亮' : '点击点亮' }}</DewButton>
+            <DewButton :active="lit2" @click="lit2 = !lit2">{{ lit2 ? '已点亮' : '点击点亮' }}</DewButton>
+            <DewButton type="danger" :active="lit3" @click="lit3 = !lit3">{{ lit3 ? '已点亮' : '点击点亮' }}</DewButton>
           </div>
 
           <div style="font-size: 13px; color: #9ca3af; margin: 20px 0 14px;">尺寸</div>
           <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
-            <BmeButton size="sm">小号</BmeButton>
-            <BmeButton size="md">中号</BmeButton>
-            <BmeButton size="lg">大号</BmeButton>
+            <DewButton size="sm">小号</DewButton>
+            <DewButton size="md">中号</DewButton>
+            <DewButton size="lg">大号</DewButton>
           </div>
 
           <div style="font-size: 13px; color: #9ca3af; margin: 20px 0 14px;">禁用</div>
           <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
-            <BmeButton :disabled="true">禁用默认</BmeButton>
-            <BmeButton type="active" :disabled="true">禁用点亮</BmeButton>
-            <BmeButton type="danger" :disabled="true">禁用危险</BmeButton>
+            <DewButton :disabled="true">禁用默认</DewButton>
+            <DewButton type="active" :disabled="true">禁用点亮</DewButton>
+            <DewButton type="danger" :disabled="true">禁用危险</DewButton>
           </div>
 
           <div style="font-size: 13px; color: #9ca3af; margin: 20px 0 14px;">块级按钮</div>
           <div style="max-width: 320px;">
-            <BmeButton :block="true">撑满宽度</BmeButton>
+            <DewButton :block="true">撑满宽度</DewButton>
           </div>
         </div>
       </div>
 
       <!-- ━━━━ ButtonBar ━━━━ -->
       <div style="margin-bottom: 40px;">
-        <h2 style="font-size: 16px; font-weight: 600; color: #374151; margin: 0 0 16px;">BmeButtonBar 按钮栏</h2>
+        <h2 style="font-size: 16px; font-weight: 600; color: #374151; margin: 0 0 16px;">DewButtonBar 按钮栏</h2>
         <div style="background: linear-gradient(135deg, #dbeafe 0%, #e0e7ff 30%, #fce7f3 60%, #d1fae5 100%); border-radius: 16px; padding: 28px 24px;">
           <div style="font-size: 13px; color: #6b7280; margin-bottom: 14px;">基础用法（v-model 双向绑定）</div>
           <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center;">
-            <BmeButtonBar :items="barItems1" v-model="barValue1" />
-            <BmeButtonBar :items="barItems2" v-model="barValue2" size="sm" />
+            <DewButtonBar :items="barItems1" v-model="barValue1" />
+            <DewButtonBar :items="barItems2" v-model="barValue2" size="sm" />
           </div>
           <div style="font-size: 13px; color: #9ca3af; margin-top: 16px;">
             当前选中：{{ barValue1 }}
@@ -74,122 +74,122 @@
 
       <!-- ━━━━ Card 基础变体 ━━━━ -->
       <div style="margin-bottom: 40px;">
-        <h2 style="font-size: 16px; font-weight: 600; color: #374151; margin: 0 0 16px;">BmeCard 卡片 · 基础变体</h2>
+        <h2 style="font-size: 16px; font-weight: 600; color: #374151; margin: 0 0 16px;">DewCard 卡片 · 基础变体</h2>
         <div style="background: linear-gradient(135deg, #dbeafe 0%, #e0e7ff 30%, #fce7f3 60%, #d1fae5 100%); border-radius: 16px; padding: 24px;">
           <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
             <!-- default -->
-            <BmeCard variant="default">
+            <DewCard variant="default">
               <template #header>Default 默认</template>
               <p style="font-size: 13px; color: #6b7280; margin: 0; line-height: 1.6;">
                 标准卡片样式，柔和阴影 + 圆角。鼠标悬停时轻微上浮，折射光跟随光标移动。
               </p>
-            </BmeCard>
+            </DewCard>
 
             <!-- elevated -->
-            <BmeCard variant="elevated">
+            <DewCard variant="elevated">
               <template #header>Elevated 浮起</template>
               <p style="font-size: 13px; color: #6b7280; margin: 0; line-height: 1.6;">
                 更高层次的卡片，更强的阴影和悬停上浮距离，适合对话框、弹层等场景。
               </p>
-            </BmeCard>
+            </DewCard>
 
             <!-- inset -->
-            <BmeCard variant="inset">
+            <DewCard variant="inset">
               <template #header>Inset 凹陷</template>
               <p style="font-size: 13px; color: #6b7280; margin: 0; line-height: 1.6;">
                 内凹效果，悬停时不会上浮。适合嵌入在已有容器内的内容区域。
               </p>
-            </BmeCard>
+            </DewCard>
 
             <!-- glass -->
-            <BmeCard :glass="true">
+            <DewCard :glass="true">
               <template #header>Glass 毛玻璃</template>
               <p style="font-size: 13px; color: #6b7280; margin: 0; line-height: 1.6;">
                 更强的毛玻璃效果，更高的模糊强度和透明度，在渐变或图片背景上效果出众。
               </p>
-            </BmeCard>
+            </DewCard>
           </div>
         </div>
       </div>
 
       <!-- ━━━━ Card 尺寸 ━━━━ -->
       <div style="margin-bottom: 40px;">
-        <h2 style="font-size: 16px; font-weight: 600; color: #374151; margin: 0 0 16px;">BmeCard 卡片 · 尺寸</h2>
+        <h2 style="font-size: 16px; font-weight: 600; color: #374151; margin: 0 0 16px;">DewCard 卡片 · 尺寸</h2>
         <div style="background: linear-gradient(135deg, #dbeafe 0%, #e0e7ff 30%, #fce7f3 60%, #d1fae5 100%); border-radius: 16px; padding: 24px;">
           <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
-            <BmeCard size="sm">
+            <DewCard size="sm">
               <template #header>Small</template>
               <p style="font-size: 12px; color: #6b7280; margin: 0;">紧凑内边距，适合标签组、小面板。</p>
-            </BmeCard>
-            <BmeCard size="md">
+            </DewCard>
+            <DewCard size="md">
               <template #header>Medium</template>
               <p style="font-size: 13px; color: #6b7280; margin: 0;">默认尺寸，平衡可读性和紧凑度。</p>
-            </BmeCard>
-            <BmeCard size="lg">
+            </DewCard>
+            <DewCard size="lg">
               <template #header>Large</template>
               <p style="font-size: 14px; color: #6b7280; margin: 0;">宽松内边距，适合大段文本或表单。</p>
-            </BmeCard>
+            </DewCard>
           </div>
         </div>
       </div>
 
       <!-- ━━━━ Card 色彩底色 ━━━━ -->
       <div style="margin-bottom: 40px;">
-        <h2 style="font-size: 16px; font-weight: 600; color: #374151; margin: 0 0 16px;">BmeCard 卡片 · 色彩底色</h2>
+        <h2 style="font-size: 16px; font-weight: 600; color: #374151; margin: 0 0 16px;">DewCard 卡片 · 色彩底色</h2>
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
-          <BmeCard :tinted="true" accent="primary" :glass="true">
+          <DewCard :tinted="true" accent="primary" :glass="true">
             <div style="text-align: center; padding: 8px 0;">
               <div style="font-size: 28px; font-weight: 700; color: #3b82f6; line-height: 1;">128</div>
               <div style="font-size: 13px; color: #6b7280; margin-top: 6px;">课程总数</div>
             </div>
-          </BmeCard>
+          </DewCard>
 
-          <BmeCard :tinted="true" accent="success" :glass="true">
+          <DewCard :tinted="true" accent="success" :glass="true">
             <div style="text-align: center; padding: 8px 0;">
               <div style="font-size: 28px; font-weight: 700; color: #22c55e; line-height: 1;">96</div>
               <div style="font-size: 13px; color: #6b7280; margin-top: 6px;">已完成</div>
             </div>
-          </BmeCard>
+          </DewCard>
 
-          <BmeCard :tinted="true" accent="danger" :glass="true">
+          <DewCard :tinted="true" accent="danger" :glass="true">
             <div style="text-align: center; padding: 8px 0;">
               <div style="font-size: 28px; font-weight: 700; color: #ef4444; line-height: 1;">5</div>
               <div style="font-size: 13px; color: #6b7280; margin-top: 6px;">待处理</div>
             </div>
-          </BmeCard>
+          </DewCard>
 
-          <BmeCard :tinted="true" accent="warning" :glass="true">
+          <DewCard :tinted="true" accent="warning" :glass="true">
             <div style="text-align: center; padding: 8px 0;">
               <div style="font-size: 28px; font-weight: 700; color: #f59e0b; line-height: 1;">12</div>
               <div style="font-size: 13px; color: #6b7280; margin-top: 6px;">即将截止</div>
             </div>
-          </BmeCard>
+          </DewCard>
 
-          <BmeCard :tinted="true" accent="info" :glass="true">
+          <DewCard :tinted="true" accent="info" :glass="true">
             <div style="text-align: center; padding: 8px 0;">
               <div style="font-size: 28px; font-weight: 700; color: #06b6d4; line-height: 1;">3</div>
               <div style="font-size: 13px; color: #6b7280; margin-top: 6px;">新通知</div>
             </div>
-          </BmeCard>
+          </DewCard>
 
           <!-- 无 accent 的 tinted -->
-          <BmeCard :tinted="true" :glass="true">
+          <DewCard :tinted="true" :glass="true">
             <div style="text-align: center; padding: 8px 0;">
               <div style="font-size: 28px; font-weight: 700; color: #8b5cf6; line-height: 1;">A+</div>
               <div style="font-size: 13px; color: #6b7280; margin-top: 6px;">平均绩点</div>
             </div>
-          </BmeCard>
+          </DewCard>
         </div>
       </div>
 
       <!-- ━━━━ Card 可交互 ━━━━ -->
       <div style="margin-bottom: 40px;">
-        <h2 style="font-size: 16px; font-weight: 600; color: #374151; margin: 0 0 16px;">BmeCard 卡片 · 可交互</h2>
+        <h2 style="font-size: 16px; font-weight: 600; color: #374151; margin: 0 0 16px;">DewCard 卡片 · 可交互</h2>
         <div style="font-size: 13px; color: #9ca3af; margin-bottom: 12px;">
           设置 <code style="background: rgba(0,0,0,0.06); padding: 2px 6px; border-radius: 4px; font-size: 12px;">interactive</code> 后卡片可点击，带 pointer 光标和按下反馈
         </div>
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
-          <BmeCard :interactive="true" @click="cardClicked('课程')">
+          <DewCard :interactive="true" @click="cardClicked('课程')">
             <div style="display: flex; align-items: center; gap: 12px;">
               <div style="width: 40px; height: 40px; border-radius: 12px; background: rgba(59,130,246,0.12); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
                 <Document style="width: 20px; height: 20px; color: #3b82f6;" />
@@ -199,9 +199,9 @@
                 <div style="font-size: 12px; color: #9ca3af;">本学期 6 门课程</div>
               </div>
             </div>
-          </BmeCard>
+          </DewCard>
 
-          <BmeCard :interactive="true" @click="cardClicked('作业')">
+          <DewCard :interactive="true" @click="cardClicked('作业')">
             <div style="display: flex; align-items: center; gap: 12px;">
               <div style="width: 40px; height: 40px; border-radius: 12px; background: rgba(245,158,11,0.12); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
                 <Bell style="width: 20px; height: 20px; color: #f59e0b;" />
@@ -211,9 +211,9 @@
                 <div style="font-size: 12px; color: #9ca3af;">3 份作业待提交</div>
               </div>
             </div>
-          </BmeCard>
+          </DewCard>
 
-          <BmeCard :interactive="true" :tinted="true" accent="success" :glass="true" @click="cardClicked('成绩')">
+          <DewCard :interactive="true" :tinted="true" accent="success" :glass="true" @click="cardClicked('成绩')">
             <div style="display: flex; align-items: center; gap: 12px;">
               <div style="width: 40px; height: 40px; border-radius: 12px; background: rgba(34,197,94,0.15); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
                 <Check style="width: 20px; height: 20px; color: #22c55e;" />
@@ -223,7 +223,7 @@
                 <div style="font-size: 12px; color: #9ca3af;">查看本学期成绩</div>
               </div>
             </div>
-          </BmeCard>
+          </DewCard>
         </div>
         <div v-if="clickedCard" style="margin-top: 12px; font-size: 13px; color: #6b7280;">
           点击了：<strong style="color: #3b82f6;">{{ clickedCard }}</strong>
@@ -232,63 +232,89 @@
 
       <!-- ━━━━ Card 完整结构 ━━━━ -->
       <div style="margin-bottom: 40px;">
-        <h2 style="font-size: 16px; font-weight: 600; color: #374151; margin: 0 0 16px;">BmeCard 卡片 · 完整结构</h2>
-        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
-          <!-- header + body + footer -->
-          <BmeCard>
-            <template #header>
-              <div style="display: flex; align-items: center; justify-content: space-between;">
-                <span>Header / Body / Footer</span>
-                <BmeBadge :value="3" type="danger" />
-              </div>
-            </template>
-            <p style="font-size: 13px; color: #6b7280; margin: 0; line-height: 1.6;">
-              卡片支持 header、default（body）、footer 三个插槽，结构清晰。
-            </p>
-            <template #footer>
-              <div style="display: flex; gap: 8px;">
-                <BmeButton size="sm">确认</BmeButton>
-                <BmeButton type="ghost" size="sm">取消</BmeButton>
-              </div>
-            </template>
-          </BmeCard>
+        <h2 style="font-size: 16px; font-weight: 600; color: #374151; margin: 0 0 16px;">DewCard 卡片 · 完整结构</h2>
+        <div style="background: linear-gradient(135deg, #dbeafe 0%, #e0e7ff 30%, #fce7f3 60%, #d1fae5 100%); border-radius: 16px; padding: 24px;">
+          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
+            <!-- 无分割线 -->
+            <DewCard>
+              <template #header>
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                  <span>无分割线（默认）</span>
+                  <DewBadge :value="3" type="danger" />
+                </div>
+              </template>
+              <p style="font-size: 13px; color: #6b7280; margin: 0; line-height: 1.6;">
+                Header 下方没有分割线，更通透清爽。
+              </p>
+              <template #footer>
+                <DewButton size="sm">确认</DewButton>
+                <DewButton type="ghost" size="sm">取消</DewButton>
+              </template>
+            </DewCard>
 
-          <!-- glass + header + footer -->
-          <BmeCard :glass="true">
-            <template #header>毛玻璃 + 底部操作</template>
-            <p style="font-size: 13px; color: #6b7280; margin: 0; line-height: 1.6;">
-              毛玻璃模式可以和任何其他特性自由组合。
-            </p>
-            <template #footer>
-              <div style="display: flex; gap: 8px; justify-content: flex-end;">
-                <BmeButton type="danger" size="sm">删除</BmeButton>
-              </div>
-            </template>
-          </BmeCard>
+            <!-- 带分割线 -->
+            <DewCard :divided="true">
+              <template #header>
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                  <span>带分割线（divided）</span>
+                  <DewBadge :value="3" type="danger" />
+                </div>
+              </template>
+              <p style="font-size: 13px; color: #6b7280; margin: 0; line-height: 1.6;">
+                设置 divided 后 Header 底部显示淡色分割线，层次更分明。
+              </p>
+              <template #footer>
+                <DewButton size="sm">确认</DewButton>
+                <DewButton type="ghost" size="sm">取消</DewButton>
+              </template>
+            </DewCard>
+
+            <!-- 毛玻璃 + 无分割线 + footer -->
+            <DewCard :glass="true">
+              <template #header>毛玻璃 · 无分割线</template>
+              <p style="font-size: 13px; color: #6b7280; margin: 0; line-height: 1.6;">
+                毛玻璃模式 + 无分割线，内容浑然一体。
+              </p>
+              <template #footer>
+                <DewButton type="danger" size="sm">删除</DewButton>
+              </template>
+            </DewCard>
+
+            <!-- 毛玻璃 + 分割线 + footer -->
+            <DewCard :glass="true" :divided="true">
+              <template #header>毛玻璃 · 带分割线</template>
+              <p style="font-size: 13px; color: #6b7280; margin: 0; line-height: 1.6;">
+                毛玻璃 + 分割线，适合内容层级较多的场景。
+              </p>
+              <template #footer>
+                <DewButton type="danger" size="sm">删除</DewButton>
+              </template>
+            </DewCard>
+          </div>
         </div>
       </div>
 
       <!-- ━━━━ Badge ━━━━ -->
       <div style="margin-bottom: 40px;">
-        <h2 style="font-size: 16px; font-weight: 600; color: #374151; margin: 0 0 16px;">BmeBadge 徽标</h2>
+        <h2 style="font-size: 16px; font-weight: 600; color: #374151; margin: 0 0 16px;">DewBadge 徽标</h2>
         <div style="background: linear-gradient(135deg, #dbeafe 0%, #e0e7ff 30%, #fce7f3 60%, #d1fae5 100%); border-radius: 16px; padding: 28px 24px;">
           <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center;">
-            <BmeBadge :value="3" type="primary" />
-            <BmeBadge :value="12" type="success" />
-            <BmeBadge :value="99" type="warning" />
-            <BmeBadge :value="5" type="danger" />
-            <BmeBadge :value="new" type="info" />
-            <BmeBadge type="neutral">已读</BmeBadge>
+            <DewBadge :value="3" type="primary" />
+            <DewBadge :value="12" type="success" />
+            <DewBadge :value="99" type="warning" />
+            <DewBadge :value="5" type="danger" />
+            <DewBadge :value="new" type="info" />
+            <DewBadge type="neutral">已读</DewBadge>
           </div>
           <div style="font-size: 13px; color: #9ca3af; margin-top: 16px;">搭配卡片使用</div>
           <div style="display: flex; gap: 10px; margin-top: 10px; align-items: center;">
             <div style="position: relative; display: inline-flex;">
               <span style="font-size: 14px; color: #374151;">消息</span>
-              <BmeBadge :value="6" type="danger" style="position: absolute; top: -8px; right: -20px;" />
+              <DewBadge :value="6" type="danger" style="position: absolute; top: -8px; right: -20px;" />
             </div>
             <div style="position: relative; display: inline-flex;">
               <span style="font-size: 14px; color: #374151;">通知</span>
-              <BmeBadge :value="23" type="warning" style="position: absolute; top: -8px; right: -24px;" />
+              <DewBadge :value="23" type="warning" style="position: absolute; top: -8px; right: -24px;" />
             </div>
           </div>
         </div>
@@ -296,33 +322,33 @@
 
       <!-- ━━━━ Tag ━━━━ -->
       <div style="margin-bottom: 40px;">
-        <h2 style="font-size: 16px; font-weight: 600; color: #374151; margin: 0 0 16px;">BmeTag 标签</h2>
+        <h2 style="font-size: 16px; font-weight: 600; color: #374151; margin: 0 0 16px;">DewTag 标签</h2>
         <div style="background: linear-gradient(135deg, #dbeafe 0%, #e0e7ff 30%, #fce7f3 60%, #d1fae5 100%); border-radius: 16px; padding: 28px 24px;">
           <div style="font-size: 13px; color: #9ca3af; margin-bottom: 14px;">类型</div>
           <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
-            <BmeTag type="primary">任务</BmeTag>
-            <BmeTag type="success">已完成</BmeTag>
-            <BmeTag type="warning">待审核</BmeTag>
-            <BmeTag type="danger">紧急</BmeTag>
-            <BmeTag type="info">信息</BmeTag>
-            <BmeTag type="neutral">草稿</BmeTag>
+            <DewTag type="primary">任务</DewTag>
+            <DewTag type="success">已完成</DewTag>
+            <DewTag type="warning">待审核</DewTag>
+            <DewTag type="danger">紧急</DewTag>
+            <DewTag type="info">信息</DewTag>
+            <DewTag type="neutral">草稿</DewTag>
           </div>
 
           <div style="font-size: 13px; color: #9ca3af; margin: 20px 0 14px;">圆角标签</div>
           <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
-            <BmeTag type="primary" :round="true">任务</BmeTag>
-            <BmeTag type="success" :round="true">已完成</BmeTag>
-            <BmeTag type="warning" :round="true">待审核</BmeTag>
-            <BmeTag type="danger" :round="true">紧急</BmeTag>
-            <BmeTag type="info" :round="true">信息</BmeTag>
+            <DewTag type="primary" :round="true">任务</DewTag>
+            <DewTag type="success" :round="true">已完成</DewTag>
+            <DewTag type="warning" :round="true">待审核</DewTag>
+            <DewTag type="danger" :round="true">紧急</DewTag>
+            <DewTag type="info" :round="true">信息</DewTag>
           </div>
 
           <div style="font-size: 13px; color: #9ca3af; margin: 20px 0 14px;">尺寸</div>
           <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
-            <BmeTag type="primary" size="sm">小号</BmeTag>
-            <BmeTag type="primary" size="md">中号</BmeTag>
-            <BmeTag type="success" size="sm" :round="true">小圆</BmeTag>
-            <BmeTag type="success" size="md" :round="true">中圆</BmeTag>
+            <DewTag type="primary" size="sm">小号</DewTag>
+            <DewTag type="primary" size="md">中号</DewTag>
+            <DewTag type="success" size="sm" :round="true">小圆</DewTag>
+            <DewTag type="success" size="md" :round="true">中圆</DewTag>
           </div>
         </div>
       </div>
@@ -330,11 +356,11 @@
       <!-- ━━━━ 组合示例 ━━━━ -->
       <div style="margin-bottom: 40px;">
         <h2 style="font-size: 16px; font-weight: 600; color: #374151; margin: 0 0 16px;">组合示例</h2>
-        <BmeCard>
+        <DewCard>
           <template #header>
             <div style="display: flex; align-items: center; justify-content: space-between;">
               <span>课程通知</span>
-              <BmeBadge :value="5" type="danger" />
+              <DewBadge :value="5" type="danger" />
             </div>
           </template>
           <div style="display: flex; flex-direction: column; gap: 12px;">
@@ -345,11 +371,11 @@
               <div style="flex: 1;">
                 <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 2px;">
                   <span style="font-size: 14px; font-weight: 600; color: #1f2937;">新作业发布</span>
-                  <BmeTag type="primary" size="sm">作业</BmeTag>
+                  <DewTag type="primary" size="sm">作业</DewTag>
                 </div>
                 <span style="font-size: 13px; color: #9ca3af;">生物材料学 · 2 小时前</span>
               </div>
-              <BmeButton type="ghost" size="sm">查看</BmeButton>
+              <DewButton type="ghost" size="sm">查看</DewButton>
             </div>
             <div style="display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--color-bg-soft); border-radius: var(--radius-sm);">
               <div style="width: 36px; height: 36px; border-radius: 10px; background: var(--color-success-light); display: flex; align-items: center; justify-content: center;">
@@ -358,14 +384,14 @@
               <div style="flex: 1;">
                 <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 2px;">
                   <span style="font-size: 14px; font-weight: 600; color: #1f2937;">作业已批改</span>
-                  <BmeTag type="success" size="sm">已批改</BmeTag>
+                  <DewTag type="success" size="sm">已批改</DewTag>
                 </div>
                 <span style="font-size: 13px; color: #9ca3af;">医学影像原理 · 昨天</span>
               </div>
-              <BmeButton type="ghost" size="sm">查看</BmeButton>
+              <DewButton type="ghost" size="sm">查看</DewButton>
             </div>
           </div>
-        </BmeCard>
+        </DewCard>
       </div>
 
     </div>
@@ -375,11 +401,11 @@
 <script setup>
 import { ref } from 'vue'
 import MenuComponent from '../components/MenuComponent.vue'
-import BmeButton from '../components/ui/BmeButton.vue'
-import BmeButtonBar from '../components/ui/BmeButtonBar.vue'
-import BmeCard from '../components/ui/BmeCard.vue'
-import BmeBadge from '../components/ui/BmeBadge.vue'
-import BmeTag from '../components/ui/BmeTag.vue'
+import DewButton from '../components/ui/DewButton.vue'
+import DewButtonBar from '../components/ui/DewButtonBar.vue'
+import DewCard from '../components/ui/DewCard.vue'
+import DewBadge from '../components/ui/DewBadge.vue'
+import DewTag from '../components/ui/DewTag.vue'
 import { Document, Check, Bell, User, Setting } from '@element-plus/icons-vue'
 
 const lit1 = ref(false)

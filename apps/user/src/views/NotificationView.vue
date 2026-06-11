@@ -9,13 +9,13 @@
         <div style="display: flex; align-items: center; gap: 10px;">
           <span style="display: inline-block; width: 4px; height: 20px; border-radius: 2px; background: linear-gradient(180deg, #3b82f6, #8b5cf6);"></span>
           <h1 style="font-size: 18px; font-weight: 600; color: #1f2937; margin: 0;">消息中心</h1>
-          <BmeBadge v-if="totalUnread > 0" :value="totalUnread" type="danger" />
+          <DewBadge v-if="totalUnread > 0" :value="totalUnread" type="danger" />
         </div>
 
-        <BmeButton v-if="totalUnread > 0" size="sm" @click="markAllAsRead">
+        <DewButton v-if="totalUnread > 0" size="sm" @click="markAllAsRead">
           <Check style="width: 14px; height: 14px;" />
           全部已读
-        </BmeButton>
+        </DewButton>
       </div>
 
       <!-- 根据用户身份加载对应的组件 -->
@@ -46,7 +46,7 @@ import api from '../api'
 import MenuComponent from '../components/MenuComponent.vue'
 import TeacherNotificationComponent from '../components/Notification/TeacherNotificationComponent.vue'
 import StudentNotificationComponent from '../components/Notification/StudentNotificationComponent.vue'
-import { BmeButton, BmeBadge } from '../components/ui'
+import { DewButton, DewBadge } from '../components/ui'
 import { mockNotifications, calculateUnreadCount } from '../mock/notificationData.js'
 
 const router = useRouter()

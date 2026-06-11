@@ -1,15 +1,17 @@
 <template>
   <div
     ref="cardRef"
-    class="bme-card"
+    class="dew-card"
     :class="[
-      `bme-card--${variant}`,
-      `bme-card--${size}`,
+      `dew-card--${variant}`,
+      `dew-card--${size}`,
       {
-        'bme-card--glass': glass,
-        'bme-card--interactive': interactive,
-        'bme-card--tinted': tinted,
-        [`bme-card--accent-${accent}`]: accent,
+        'dew-card--glass': glass,
+        'dew-card--interactive': interactive,
+        'dew-card--no-hover': noHover,
+        'dew-card--divided': divided,
+        'dew-card--tinted': tinted,
+        [`dew-card--accent-${accent}`]: accent,
       }
     ]"
     @mouseenter="onEnter"
@@ -18,25 +20,25 @@
     @click="interactive && $emit('click', $event)"
   >
     <!-- 折射层 -->
-    <span class="bme-card__refraction" :style="refractionStyle"></span>
+    <span class="dew-card__refraction" :style="refractionStyle"></span>
     <!-- 色散层 -->
-    <span class="bme-card__chromatic" :style="chromaticStyle"></span>
+    <span class="dew-card__chromatic" :style="chromaticStyle"></span>
     <!-- 顶部高光线 -->
-    <span class="bme-card__highlight"></span>
+    <span class="dew-card__highlight"></span>
     <!-- 色彩底色层（tinted 模式） -->
-    <span v-if="tinted" class="bme-card__tint"></span>
+    <span v-if="tinted" class="dew-card__tint"></span>
     <!-- 内容 -->
-    <div v-if="$slots.header" class="bme-card__header">
+    <div v-if="$slots.header" class="dew-card__header">
       <slot name="header" />
     </div>
-    <div class="bme-card__body">
+    <div class="dew-card__body">
       <slot />
     </div>
-    <div v-if="$slots.footer" class="bme-card__footer">
+    <div v-if="$slots.footer" class="dew-card__footer">
       <slot name="footer" />
     </div>
     <!-- 可交互指示器 -->
-    <span v-if="interactive" class="bme-card__ripple"></span>
+    <span v-if="interactive" class="dew-card__ripple"></span>
   </div>
 </template>
 
@@ -52,10 +54,14 @@ const props = defineProps({
   glass: { type: Boolean, default: false },
   /** 可交互卡片：显示点击反馈，带 cursor: pointer */
   interactive: { type: Boolean, default: false },
+  /** 禁用悬停上浮效果 */
+  noHover: { type: Boolean, default: false },
   /** 色彩底色模式：在毛玻璃下方叠加淡色渐变 */
   tinted: { type: Boolean, default: false },
   /** 强调色：primary | success | warning | danger | info */
   accent: { type: String, default: null },
+  /** 显示 header 底部分割线 */
+  divided: { type: Boolean, default: false },
 })
 
 defineEmits(['click'])
@@ -95,7 +101,7 @@ const chromaticStyle = computed(() => {
 </script>
 
 <style scoped>
-.bme-card {
+.dew-card {
   position: relative;
   isolation: isolate;
   backdrop-filter: blur(20px) saturate(1.4);
@@ -115,7 +121,7 @@ const chromaticStyle = computed(() => {
     border-color 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.bme-card:hover {
+.dew-card:hover {
   background: rgba(255, 255, 255, 0.5);
   box-shadow:
     0 8px 32px rgba(0, 0, 0, 0.07),
@@ -127,14 +133,14 @@ const chromaticStyle = computed(() => {
 /* ━━━━ 变体 ━━━━ */
 
 /* ── elevated：更高层级的卡片 ── */
-.bme-card--elevated {
+.dew-card--elevated {
   background: rgba(255, 255, 255, 0.5);
   box-shadow:
     0 4px 20px rgba(0, 0, 0, 0.06),
     inset 0 0 0 0.5px rgba(255, 255, 255, 0.3),
     inset 0 1px 0 rgba(255, 255, 255, 0.35);
 }
-.bme-card--elevated:hover {
+.dew-card--elevated:hover {
   background: rgba(255, 255, 255, 0.6);
   box-shadow:
     0 12px 40px rgba(0, 0, 0, 0.09),
@@ -144,14 +150,14 @@ const chromaticStyle = computed(() => {
 }
 
 /* ── inset：凹陷/嵌入效果 ── */
-.bme-card--inset {
+.dew-card--inset {
   background: rgba(255, 255, 255, 0.2);
   border-color: rgba(255, 255, 255, 0.2);
   box-shadow:
     inset 0 1px 3px rgba(0, 0, 0, 0.04),
     inset 0 0 0 0.5px rgba(255, 255, 255, 0.15);
 }
-.bme-card--inset:hover {
+.dew-card--inset:hover {
   background: rgba(255, 255, 255, 0.38);
   border-color: rgba(255, 255, 255, 0.32);
   box-shadow:
@@ -161,7 +167,7 @@ const chromaticStyle = computed(() => {
 }
 
 /* ━━━━ 毛玻璃模式 ━━━━ */
-.bme-card--glass {
+.dew-card--glass {
   backdrop-filter: blur(28px) saturate(1.6);
   -webkit-backdrop-filter: blur(28px) saturate(1.6);
   background: rgba(255, 255, 255, 0.15);
@@ -171,7 +177,7 @@ const chromaticStyle = computed(() => {
     inset 0 0 0 0.5px rgba(255, 255, 255, 0.2),
     inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
-.bme-card--glass:hover {
+.dew-card--glass:hover {
   background: rgba(255, 255, 255, 0.25);
   box-shadow:
     0 10px 36px rgba(0, 0, 0, 0.08),
@@ -180,16 +186,21 @@ const chromaticStyle = computed(() => {
 }
 
 /* ━━━━ 可交互 ━━━━ */
-.bme-card--interactive {
+.dew-card--interactive {
   cursor: pointer;
   user-select: none;
 }
-.bme-card--interactive:active {
+.dew-card--interactive:active {
   transform: translateY(0) scale(0.985) !important;
 }
 
+/* ━━━━ 禁用悬停（放在变体之后，靠源码顺序覆盖所有 hover transform） ━━━━ */
+.dew-card--no-hover:hover {
+  transform: none;
+}
+
 /* 点击涟漪层 */
-.bme-card__ripple {
+.dew-card__ripple {
   position: absolute;
   inset: 0;
   z-index: 4;
@@ -201,13 +212,13 @@ const chromaticStyle = computed(() => {
   opacity: 0;
   transition: opacity 0.4s ease;
 }
-.bme-card--interactive:active .bme-card__ripple {
+.dew-card--interactive:active .dew-card__ripple {
   opacity: 1;
   transition: opacity 0s;
 }
 
 /* ━━━━ 色彩底色 ━━━━ */
-.bme-card__tint {
+.dew-card__tint {
   position: absolute;
   inset: 0;
   z-index: 0;
@@ -218,51 +229,51 @@ const chromaticStyle = computed(() => {
 }
 
 /* ── accent 色彩变体 ── */
-.bme-card--accent-primary .bme-card__tint {
+.dew-card--accent-primary .dew-card__tint {
   --tint-from: rgba(59,130,246,0.3);
   --tint-to: rgba(99,102,241,0.2);
 }
-.bme-card--accent-success .bme-card__tint {
+.dew-card--accent-success .dew-card__tint {
   --tint-from: rgba(34,197,94,0.3);
   --tint-to: rgba(16,185,129,0.2);
 }
-.bme-card--accent-warning .bme-card__tint {
+.dew-card--accent-warning .dew-card__tint {
   --tint-from: rgba(245,158,11,0.3);
   --tint-to: rgba(251,146,60,0.2);
 }
-.bme-card--accent-danger .bme-card__tint {
+.dew-card--accent-danger .dew-card__tint {
   --tint-from: rgba(239,68,68,0.3);
   --tint-to: rgba(244,63,94,0.2);
 }
-.bme-card--accent-info .bme-card__tint {
+.dew-card--accent-info .dew-card__tint {
   --tint-from: rgba(6,182,212,0.3);
   --tint-to: rgba(59,130,246,0.2);
 }
 
 /* ━━━━ 尺寸（内边距） ━━━━ */
-.bme-card--sm .bme-card__header,
-.bme-card--sm .bme-card__body,
-.bme-card--sm .bme-card__footer { padding-left: 16px; padding-right: 16px; }
-.bme-card--sm .bme-card__body { padding-top: 14px; padding-bottom: 14px; }
-.bme-card--sm .bme-card__header { padding-top: 14px; }
-.bme-card--sm .bme-card__footer { padding-bottom: 14px; }
+.dew-card--sm .dew-card__header,
+.dew-card--sm .dew-card__body,
+.dew-card--sm .dew-card__footer { padding-left: 14px; padding-right: 14px; }
+.dew-card--sm .dew-card__body { padding-top: 10px; padding-bottom: 10px; }
+.dew-card--sm .dew-card__header { padding-top: 12px; }
+.dew-card--sm .dew-card__footer { padding-bottom: 12px; }
 
-.bme-card--md .bme-card__header,
-.bme-card--md .bme-card__body,
-.bme-card--md .bme-card__footer { padding-left: 20px; padding-right: 20px; }
-.bme-card--md .bme-card__body { padding-top: 18px; padding-bottom: 18px; }
-.bme-card--md .bme-card__header { padding-top: 18px; }
-.bme-card--md .bme-card__footer { padding-bottom: 18px; }
+.dew-card--md .dew-card__header,
+.dew-card--md .dew-card__body,
+.dew-card--md .dew-card__footer { padding-left: 16px; padding-right: 16px; }
+.dew-card--md .dew-card__body { padding-top: 12px; padding-bottom: 12px; }
+.dew-card--md .dew-card__header { padding-top: 14px; }
+.dew-card--md .dew-card__footer { padding-bottom: 14px; }
 
-.bme-card--lg .bme-card__header,
-.bme-card--lg .bme-card__body,
-.bme-card--lg .bme-card__footer { padding-left: 24px; padding-right: 24px; }
-.bme-card--lg .bme-card__body { padding-top: 22px; padding-bottom: 22px; }
-.bme-card--lg .bme-card__header { padding-top: 22px; }
-.bme-card--lg .bme-card__footer { padding-bottom: 22px; }
+.dew-card--lg .dew-card__header,
+.dew-card--lg .dew-card__body,
+.dew-card--lg .dew-card__footer { padding-left: 20px; padding-right: 20px; }
+.dew-card--lg .dew-card__body { padding-top: 14px; padding-bottom: 14px; }
+.dew-card--lg .dew-card__header { padding-top: 16px; }
+.dew-card--lg .dew-card__footer { padding-bottom: 16px; }
 
 /* ━━━━ 折射层 ━━━━ */
-.bme-card__refraction {
+.dew-card__refraction {
   position: absolute;
   inset: 0;
   z-index: 1;
@@ -272,7 +283,7 @@ const chromaticStyle = computed(() => {
 }
 
 /* ━━━━ 色散层 ━━━━ */
-.bme-card__chromatic {
+.dew-card__chromatic {
   position: absolute;
   inset: 0;
   z-index: 1;
@@ -283,7 +294,7 @@ const chromaticStyle = computed(() => {
 }
 
 /* ━━━━ 顶部高光线 ━━━━ */
-.bme-card__highlight {
+.dew-card__highlight {
   position: absolute;
   top: 0;
   left: 15%;
@@ -295,23 +306,29 @@ const chromaticStyle = computed(() => {
 }
 
 /* ━━━━ 结构层 ━━━━ */
-.bme-card__header {
+.dew-card__header {
   position: relative;
   z-index: 3;
   font-weight: 600;
   font-size: 14px;
   color: var(--color-text);
+}
+
+/* ━━━━ 分割线（divided 模式下 header 底部显示） ━━━━ */
+.dew-card--divided .dew-card__header {
   border-bottom: 1px solid rgba(0, 0, 0, 0.04);
 }
 
-.bme-card__body {
+.dew-card__body {
   position: relative;
   z-index: 3;
 }
 
-.bme-card__footer {
+.dew-card__footer {
   position: relative;
   z-index: 3;
-  border-top: 1px solid rgba(0, 0, 0, 0.04);
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 </style>

@@ -1,27 +1,27 @@
 <template>
   <div
     ref="barRef"
-    class="bme-bar"
-    :class="[`bme-bar--${size}`]"
+    class="dew-bar"
+    :class="[`dew-bar--${size}`]"
     @mouseenter="onEnter"
     @mousemove="onMove"
     @mouseleave="onLeave"
   >
     <!-- 折射层 -->
-    <span class="bme-bar__refraction" :style="refractionStyle"></span>
+    <span class="dew-bar__refraction" :style="refractionStyle"></span>
     <!-- 滑动指示器 -->
-    <span class="bme-bar__indicator" :style="indicatorStyle"></span>
+    <span class="dew-bar__indicator" :style="indicatorStyle"></span>
     <!-- 选项 -->
     <button
       v-for="item in items"
       :key="item.value"
-      class="bme-bar__item"
-      :class="{ 'bme-bar__item--active': modelValue === item.value }"
+      class="dew-bar__item"
+      :class="{ 'dew-bar__item--active': modelValue === item.value }"
       @click="$emit('update:modelValue', item.value)"
     >
-      <component v-if="item.icon" :is="item.icon" class="bme-bar__icon" />
-      <span class="bme-bar__label">{{ item.label }}</span>
-      <span v-if="item.badge && item.badge > 0" class="bme-bar__badge">{{ item.badge }}</span>
+      <component v-if="item.icon" :is="item.icon" class="dew-bar__icon" />
+      <span class="dew-bar__label">{{ item.label }}</span>
+      <span v-if="item.badge && item.badge > 0" class="dew-bar__badge">{{ item.badge }}</span>
     </button>
   </div>
 </template>
@@ -50,7 +50,7 @@ function measureIndicator() {
   if (!barRef.value) return
   const idx = props.items.findIndex(i => i.value === props.modelValue)
   if (idx < 0) return
-  const btn = barRef.value.querySelectorAll('.bme-bar__item')[idx]
+  const btn = barRef.value.querySelectorAll('.dew-bar__item')[idx]
   if (!btn) return
   indicator.left = btn.offsetLeft
   indicator.width = btn.offsetWidth
@@ -87,7 +87,7 @@ const refractionStyle = computed(() => {
 </script>
 
 <style scoped>
-.bme-bar {
+.dew-bar {
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -106,11 +106,11 @@ const refractionStyle = computed(() => {
 }
 
 /* ── 尺寸 ── */
-.bme-bar--sm { gap: 2px; }
-.bme-bar--md { gap: 3px; }
+.dew-bar--sm { gap: 2px; }
+.dew-bar--md { gap: 3px; }
 
 /* ── 折射层 ── */
-.bme-bar__refraction {
+.dew-bar__refraction {
   position: absolute;
   inset: -2px;
   z-index: 1;
@@ -120,7 +120,7 @@ const refractionStyle = computed(() => {
 }
 
 /* ── 滑动指示器（点亮背景） ── */
-.bme-bar__indicator {
+.dew-bar__indicator {
   position: absolute;
   top: 3px;
   bottom: 3px;
@@ -140,7 +140,7 @@ const refractionStyle = computed(() => {
 }
 
 /* ── 选项按钮 ── */
-.bme-bar__item {
+.dew-bar__item {
   position: relative;
   z-index: 3;
   display: inline-flex;
@@ -159,28 +159,28 @@ const refractionStyle = computed(() => {
   transition: color 0.25s ease;
 }
 
-.bme-bar--sm .bme-bar__item {
+.dew-bar--sm .dew-bar__item {
   height: 28px;
   padding: 0 12px;
   font-size: 12px;
 }
-.bme-bar--md .bme-bar__item {
+.dew-bar--md .dew-bar__item {
   height: 34px;
   padding: 0 16px;
   font-size: 13px;
 }
 
-.bme-bar__icon {
+.dew-bar__icon {
   width: 14px;
   height: 14px;
 }
 
-.bme-bar__label {
+.dew-bar__label {
   line-height: 1;
 }
 
 /* ── 未读 badge ── */
-.bme-bar__badge {
+.dew-bar__badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -196,14 +196,14 @@ const refractionStyle = computed(() => {
 }
 
 /* ── 选中态 ── */
-.bme-bar__item--active {
+.dew-bar__item--active {
   color: #1f2937;
   font-weight: 600;
   text-shadow: 0 0 6px rgba(255, 255, 255, 0.3);
 }
 
 /* ── hover（非选中项） ── */
-.bme-bar__item:not(.bme-bar__item--active):hover {
+.dew-bar__item:not(.dew-bar__item--active):hover {
   color: rgba(55, 65, 81, 0.85);
 }
 </style>
