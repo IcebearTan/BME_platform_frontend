@@ -39,13 +39,15 @@
       ref="inputRef"
       class="dew-input__inner"
       :type="showPassword ? 'text' : nativeType"
-      :value="modelValue"
+      :value="composing ? undefined : modelValue"
       :placeholder="placeholder"
       :disabled="disabled"
       @input="onInput"
       @focus="onFocus"
       @blur="onBlur"
       @keyup.enter="$emit('enter', $event)"
+      @compositionstart="composing = true"
+      @compositionend="onCompositionEnd"
     />
 
     <!-- 后缀图标 -->
@@ -134,12 +136,22 @@ const expandStyle = computed(() => {
   }
 })
 
+const composing = ref(false)
+
 function onInput(e) {
   // 中文输入法组合期间不更新 modelValue，避免打断拼音输入
   if (e.isComposing) return
   emit('update:modelValue', e.target.value)
   emit('input', e.target.value)
   // 转发事件到根元素，让 el-form-item 能监听到
+  wrapRef.value?.dispatchEvent(new Event('input', { bubbles: true }))
+}
+
+function onCompositionEnd(e) {
+  composing.value = false
+  // 组合结束后同步最终值
+  emit('update:modelValue', e.target.value)
+  emit('input', e.target.value)
   wrapRef.value?.dispatchEvent(new Event('input', { bubbles: true }))
 }
 
