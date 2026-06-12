@@ -186,14 +186,14 @@ const chromaticStyle = computed(() => {
 
 /* ━━━━ Glass（默认） ━━━━ */
 .dew-btn--glass {
-  background: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  color: #374151;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.04), inset 0 0 0 0.5px rgba(255,255,255,0.3), inset 0 1px 0 rgba(255,255,255,0.35);
+  background: var(--dew-btn-bg);
+  border: 1px solid var(--dew-btn-border);
+  color: var(--dew-text);
+  box-shadow: var(--dew-btn-shadow);
 }
 .dew-btn--glass:hover {
-  background: rgba(255, 255, 255, 0.25);
-  box-shadow: 0 6px 24px rgba(0,0,0,0.07), inset 0 0 0 0.5px rgba(255,255,255,0.35), inset 0 1px 0 rgba(255,255,255,0.4);
+  background: var(--dew-btn-bg-hover);
+  box-shadow: var(--dew-btn-shadow-hover);
   transform: translateY(-1px);
 }
 
@@ -215,14 +215,14 @@ const chromaticStyle = computed(() => {
 .dew-btn--ghost {
   background: transparent;
   border: 1px solid transparent;
-  color: #6b7280;
+  color: var(--dew-text-muted);
   box-shadow: none;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
 .dew-btn--ghost .dew-btn__refraction,
 .dew-btn--ghost .dew-btn__chromatic { display: none; }
-.dew-btn--ghost:hover { background: rgba(0,0,0,0.04); color: #374151; }
+.dew-btn--ghost:hover { background: var(--dew-ghost-hover-bg); color: var(--dew-ghost-hover-text); }
 
 /* ━━━━ 点亮状态（可叠加在任意 type 上） ━━━━ */
 .dew-btn--lit {

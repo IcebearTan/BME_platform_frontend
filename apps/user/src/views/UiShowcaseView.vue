@@ -1,5 +1,5 @@
 <template>
-  <div style="min-height: 100vh; background: linear-gradient(135deg, #dbeafe 0%, #e0e7ff 25%, #fce7f3 55%, #d1fae5 100%);">
+  <div :class="['dew-showcase', isDark ? 'dew-showcase--dark' : 'dew-showcase--light']" style="min-height: 100vh;">
     <!-- 顶部菜单占位 -->
     <div style="height: 60px;"></div>
     <MenuComponent />
@@ -7,18 +7,24 @@
     <div style="max-width: 960px; margin: 0 auto; padding: 32px 20px;">
       <!-- 页面标题 -->
       <div style="margin-bottom: 36px;">
-        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-          <span style="display: inline-block; width: 5px; height: 26px; border-radius: 3px; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); background: rgba(255,255,255,0.35); border: 0.5px solid rgba(255,255,255,0.5); box-shadow: inset 0 1px 0 rgba(255,255,255,0.5), inset -1px 0 0 rgba(255,255,255,0.15), 0 0 6px rgba(255,255,255,0.2);"></span>
-          <h1 style="font-size: 24px; font-weight: 700; color: #1f2937; margin: 0;">Dew UI 组件库</h1>
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="display: inline-block; width: 5px; height: 26px; border-radius: 3px; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); background: rgba(255,255,255,0.35); border: 0.5px solid rgba(255,255,255,0.5); box-shadow: inset 0 1px 0 rgba(255,255,255,0.5), inset -1px 0 0 rgba(255,255,255,0.15), 0 0 6px rgba(255,255,255,0.2);"></span>
+            <h1 class="dew-showcase__title">Dew UI 组件库</h1>
+          </div>
+          <!-- 明暗切换 -->
+          <DewButton :active="isDark" @click="isDark = !isDark" size="sm">
+            {{ isDark ? 'Light' : 'Dark' }}
+          </DewButton>
         </div>
-        <p style="font-size: 14px; color: #6b7280; margin: 0; padding-left: 14px;">
+        <p class="dew-showcase__subtitle" style="padding-left: 14px;">
           露珠 · 毛玻璃 · 柔和阴影 · 水滴弹性
         </p>
       </div>
 
       <!-- ━━━━ Button ━━━━ -->
       <section style="margin-bottom: 36px;">
-        <h2 style="font-size: 15px; font-weight: 600; color: #374151; margin: 0 0 14px;">DewButton 按钮</h2>
+        <h2 class="dew-showcase__heading" style="font-size: 15px; font-weight: 600; margin: 0 0 14px;">DewButton 按钮</h2>
         <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 16px;">
           <DewButton>默认玻璃</DewButton>
           <DewButton type="danger">危险按钮</DewButton>
@@ -46,11 +52,11 @@
         </div>
       </section>
 
-      <hr style="border: none; height: 1px; background: rgba(0,0,0,0.06); margin: 0 0 36px;" />
+      <hr style="border: none; height: 1px; margin: 0 0 36px;" />
 
       <!-- ━━━━ ButtonBar ━━━━ -->
       <section style="margin-bottom: 36px;">
-        <h2 style="font-size: 15px; font-weight: 600; color: #374151; margin: 0 0 14px;">DewButtonBar 按钮栏</h2>
+        <h2 class="dew-showcase__heading" style="font-size: 15px; font-weight: 600; margin: 0 0 14px;">DewButtonBar 按钮栏</h2>
         <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center; margin-bottom: 12px;">
           <DewButtonBar :items="barItems1" v-model="barValue1" />
           <DewButtonBar :items="barItems2" v-model="barValue2" size="sm" />
@@ -60,11 +66,11 @@
         </div>
       </section>
 
-      <hr style="border: none; height: 1px; background: rgba(0,0,0,0.06); margin: 0 0 36px;" />
+      <hr style="border: none; height: 1px; margin: 0 0 36px;" />
 
       <!-- ━━━━ Card 基础变体 ━━━━ -->
       <section style="margin-bottom: 36px;">
-        <h2 style="font-size: 15px; font-weight: 600; color: #374151; margin: 0 0 14px;">DewCard 卡片 · 基础变体</h2>
+        <h2 class="dew-showcase__heading" style="font-size: 15px; font-weight: 600; margin: 0 0 14px;">DewCard 卡片 · 基础变体</h2>
         <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
           <DewCard variant="default">
             <template #header>Default 默认</template>
@@ -93,11 +99,11 @@
         </div>
       </section>
 
-      <hr style="border: none; height: 1px; background: rgba(0,0,0,0.06); margin: 0 0 36px;" />
+      <hr style="border: none; height: 1px; margin: 0 0 36px;" />
 
       <!-- ━━━━ Card 尺寸 ━━━━ -->
       <section style="margin-bottom: 36px;">
-        <h2 style="font-size: 15px; font-weight: 600; color: #374151; margin: 0 0 14px;">DewCard 卡片 · 尺寸</h2>
+        <h2 class="dew-showcase__heading" style="font-size: 15px; font-weight: 600; margin: 0 0 14px;">DewCard 卡片 · 尺寸</h2>
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
           <DewCard size="sm">
             <template #header>Small</template>
@@ -114,11 +120,11 @@
         </div>
       </section>
 
-      <hr style="border: none; height: 1px; background: rgba(0,0,0,0.06); margin: 0 0 36px;" />
+      <hr style="border: none; height: 1px; margin: 0 0 36px;" />
 
       <!-- ━━━━ Card 色彩底色 ━━━━ -->
       <section style="margin-bottom: 36px;">
-        <h2 style="font-size: 15px; font-weight: 600; color: #374151; margin: 0 0 14px;">DewCard 卡片 · 色彩底色</h2>
+        <h2 class="dew-showcase__heading" style="font-size: 15px; font-weight: 600; margin: 0 0 14px;">DewCard 卡片 · 色彩底色</h2>
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
           <DewCard :tinted="true" accent="primary" :glass="true">
             <div style="text-align: center; padding: 8px 0;">
@@ -159,11 +165,11 @@
         </div>
       </section>
 
-      <hr style="border: none; height: 1px; background: rgba(0,0,0,0.06); margin: 0 0 36px;" />
+      <hr style="border: none; height: 1px; margin: 0 0 36px;" />
 
       <!-- ━━━━ Card 可交互 ━━━━ -->
       <section style="margin-bottom: 36px;">
-        <h2 style="font-size: 15px; font-weight: 600; color: #374151; margin: 0 0 14px;">DewCard 卡片 · 可交互</h2>
+        <h2 class="dew-showcase__heading" style="font-size: 15px; font-weight: 600; margin: 0 0 14px;">DewCard 卡片 · 可交互</h2>
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
           <DewCard :interactive="true" @click="cardClicked('课程')">
             <div style="display: flex; align-items: center; gap: 12px;">
@@ -204,11 +210,11 @@
         </div>
       </section>
 
-      <hr style="border: none; height: 1px; background: rgba(0,0,0,0.06); margin: 0 0 36px;" />
+      <hr style="border: none; height: 1px; margin: 0 0 36px;" />
 
       <!-- ━━━━ Card 完整结构 ━━━━ -->
       <section style="margin-bottom: 36px;">
-        <h2 style="font-size: 15px; font-weight: 600; color: #374151; margin: 0 0 14px;">DewCard 卡片 · 完整结构</h2>
+        <h2 class="dew-showcase__heading" style="font-size: 15px; font-weight: 600; margin: 0 0 14px;">DewCard 卡片 · 完整结构</h2>
         <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
           <DewCard>
             <template #header>
@@ -261,11 +267,11 @@
         </div>
       </section>
 
-      <hr style="border: none; height: 1px; background: rgba(0,0,0,0.06); margin: 0 0 36px;" />
+      <hr style="border: none; height: 1px; margin: 0 0 36px;" />
 
       <!-- ━━━━ Badge ━━━━ -->
       <section style="margin-bottom: 36px;">
-        <h2 style="font-size: 15px; font-weight: 600; color: #374151; margin: 0 0 14px;">DewBadge 徽标</h2>
+        <h2 class="dew-showcase__heading" style="font-size: 15px; font-weight: 600; margin: 0 0 14px;">DewBadge 徽标</h2>
         <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 16px;">
           <DewBadge :value="3" type="primary" />
           <DewBadge :value="12" type="success" />
@@ -286,11 +292,11 @@
         </div>
       </section>
 
-      <hr style="border: none; height: 1px; background: rgba(0,0,0,0.06); margin: 0 0 36px;" />
+      <hr style="border: none; height: 1px; margin: 0 0 36px;" />
 
       <!-- ━━━━ Tag ━━━━ -->
       <section style="margin-bottom: 36px;">
-        <h2 style="font-size: 15px; font-weight: 600; color: #374151; margin: 0 0 14px;">DewTag 标签</h2>
+        <h2 class="dew-showcase__heading" style="font-size: 15px; font-weight: 600; margin: 0 0 14px;">DewTag 标签</h2>
         <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 16px;">
           <DewTag type="primary">任务</DewTag>
           <DewTag type="success">已完成</DewTag>
@@ -316,11 +322,11 @@
         </div>
       </section>
 
-      <hr style="border: none; height: 1px; background: rgba(0,0,0,0.06); margin: 0 0 36px;" />
+      <hr style="border: none; height: 1px; margin: 0 0 36px;" />
 
       <!-- ━━━━ 组合示例 ━━━━ -->
       <section style="margin-bottom: 36px;">
-        <h2 style="font-size: 15px; font-weight: 600; color: #374151; margin: 0 0 14px;">组合示例</h2>
+        <h2 class="dew-showcase__heading" style="font-size: 15px; font-weight: 600; margin: 0 0 14px;">组合示例</h2>
         <DewCard>
           <template #header>
             <div style="display: flex; align-items: center; justify-content: space-between;">
@@ -363,6 +369,27 @@
   </div>
 </template>
 
+<style>
+.dew-wallpaper {
+  background:
+    /* 顶层柔光 */
+    radial-gradient(ellipse 120% 60% at 10% 90%, rgba(251,146,60,0.18) 0%, transparent 60%),
+    radial-gradient(ellipse 80% 80% at 90% 20%, rgba(56,189,248,0.15) 0%, transparent 50%),
+    /* 高饱和流光色块 */
+    radial-gradient(ellipse 70% 50% at 20% 20%, rgba(99,102,241,0.55) 0%, rgba(99,102,241,0) 70%),
+    radial-gradient(ellipse 60% 70% at 75% 65%, rgba(236,72,153,0.45) 0%, rgba(236,72,153,0) 65%),
+    radial-gradient(ellipse 80% 40% at 50% 85%, rgba(245,158,11,0.4) 0%, rgba(245,158,11,0) 55%),
+    radial-gradient(ellipse 50% 60% at 85% 10%, rgba(14,165,233,0.5) 0%, rgba(14,165,233,0) 60%),
+    radial-gradient(ellipse 90% 50% at 5% 50%, rgba(168,85,247,0.4) 0%, rgba(168,85,247,0) 55%),
+    /* 底层大色域 */
+    radial-gradient(ellipse 140% 100% at 30% 100%, rgba(251,113,133,0.3) 0%, transparent 60%),
+    radial-gradient(ellipse 120% 100% at 80% 0%, rgba(56,189,248,0.25) 0%, transparent 50%),
+    /* 基底 */
+    linear-gradient(160deg, #1e1b4b 0%, #0f172a 40%, #0c0a1d 100%);
+  background-attachment: fixed;
+}
+</style>
+
 <script setup>
 import { ref } from 'vue'
 import MenuComponent from '../components/MenuComponent.vue'
@@ -372,6 +399,8 @@ import DewCard from '../components/ui/DewCard.vue'
 import DewBadge from '../components/ui/DewBadge.vue'
 import DewTag from '../components/ui/DewTag.vue'
 import { Document, Check, Bell, User, Setting } from '@element-plus/icons-vue'
+
+const isDark = ref(false)
 
 const lit1 = ref(false)
 const lit2 = ref(true)
@@ -398,3 +427,25 @@ function cardClicked(name) {
   clickedCard.value = name
 }
 </script>
+
+<style>
+/* ━━━━ 亮色模式 ━━━━ */
+.dew-showcase--light {
+  background: linear-gradient(135deg, #f0f4ff 0%, #fdf2f8 50%, #f0fdf4 100%);
+}
+.dew-showcase--light .dew-showcase__title {
+  color: #1f2937;
+}
+.dew-showcase--light .dew-showcase__subtitle { color: #6b7280; }
+.dew-showcase--light .dew-showcase__heading { color: #374151; }
+.dew-showcase--light hr { background: rgba(0,0,0,0.06); }
+
+/* ━━━━ 暗色模式 ━━━━ */
+.dew-showcase--dark {
+  background: linear-gradient(135deg, #1e1b4b 0%, #0f172a 50%, #1a1a2e 100%);
+}
+.dew-showcase--dark .dew-showcase__title { color: rgba(255,255,255,0.9); }
+.dew-showcase--dark .dew-showcase__subtitle { color: rgba(255,255,255,0.45); }
+.dew-showcase--dark .dew-showcase__heading { color: rgba(255,255,255,0.75); }
+.dew-showcase--dark hr { background: rgba(255,255,255,0.08); }
+</style>

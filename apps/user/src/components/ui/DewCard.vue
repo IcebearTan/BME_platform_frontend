@@ -106,13 +106,10 @@ const chromaticStyle = computed(() => {
   isolation: isolate;
   backdrop-filter: blur(20px) saturate(1.4);
   -webkit-backdrop-filter: blur(20px) saturate(1.4);
-  background: rgba(255, 255, 255, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: var(--dew-card-bg);
+  border: 1px solid var(--dew-card-border);
   border-radius: var(--radius-lg);
-  box-shadow:
-    0 2px 12px rgba(0, 0, 0, 0.04),
-    inset 0 0 0 0.5px rgba(255, 255, 255, 0.25),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  box-shadow: var(--dew-card-shadow);
   overflow: hidden;
   transition:
     transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
@@ -122,47 +119,34 @@ const chromaticStyle = computed(() => {
 }
 
 .dew-card:hover {
-  background: rgba(255, 255, 255, 0.5);
-  box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.07),
-    inset 0 0 0 0.5px rgba(255, 255, 255, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  background: var(--dew-card-bg-hover);
+  box-shadow: var(--dew-card-shadow-hover);
   transform: translateY(-2px);
 }
 
 /* ━━━━ 变体 ━━━━ */
 
-/* ── elevated：更高层级的卡片 ── */
+/* ── elevated ── */
 .dew-card--elevated {
-  background: rgba(255, 255, 255, 0.5);
-  box-shadow:
-    0 4px 20px rgba(0, 0, 0, 0.06),
-    inset 0 0 0 0.5px rgba(255, 255, 255, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  background: var(--dew-card-elevated-bg);
+  box-shadow: var(--dew-card-elevated-shadow);
 }
 .dew-card--elevated:hover {
-  background: rgba(255, 255, 255, 0.6);
-  box-shadow:
-    0 12px 40px rgba(0, 0, 0, 0.09),
-    inset 0 0 0 0.5px rgba(255, 255, 255, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  background: var(--dew-card-elevated-bg-hover);
+  box-shadow: var(--dew-card-elevated-shadow-hover);
   transform: translateY(-3px);
 }
 
-/* ── inset：凹陷/嵌入效果 ── */
+/* ── inset ── */
 .dew-card--inset {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.2);
-  box-shadow:
-    inset 0 1px 3px rgba(0, 0, 0, 0.04),
-    inset 0 0 0 0.5px rgba(255, 255, 255, 0.15);
+  background: var(--dew-card-inset-bg);
+  border-color: var(--dew-card-inset-border);
+  box-shadow: var(--dew-card-inset-shadow);
 }
 .dew-card--inset:hover {
-  background: rgba(255, 255, 255, 0.38);
-  border-color: rgba(255, 255, 255, 0.32);
-  box-shadow:
-    inset 0 1px 6px rgba(0, 0, 0, 0.06),
-    inset 0 0 0 0.5px rgba(255, 255, 255, 0.3);
+  background: var(--dew-card-inset-bg-hover);
+  border-color: var(--dew-card-inset-border-hover);
+  box-shadow: var(--dew-card-inset-shadow-hover);
   transform: none;
 }
 
@@ -170,19 +154,13 @@ const chromaticStyle = computed(() => {
 .dew-card--glass {
   backdrop-filter: blur(28px) saturate(1.6);
   -webkit-backdrop-filter: blur(28px) saturate(1.6);
-  background: rgba(255, 255, 255, 0.15);
-  border-color: rgba(255, 255, 255, 0.25);
-  box-shadow:
-    0 4px 24px rgba(0, 0, 0, 0.05),
-    inset 0 0 0 0.5px rgba(255, 255, 255, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  background: var(--dew-card-glass-bg);
+  border-color: var(--dew-card-glass-border);
+  box-shadow: var(--dew-card-glass-shadow);
 }
 .dew-card--glass:hover {
-  background: rgba(255, 255, 255, 0.25);
-  box-shadow:
-    0 10px 36px rgba(0, 0, 0, 0.08),
-    inset 0 0 0 0.5px rgba(255, 255, 255, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  background: var(--dew-card-glass-bg-hover);
+  box-shadow: var(--dew-card-glass-shadow-hover);
 }
 
 /* ━━━━ 可交互 ━━━━ */
@@ -316,7 +294,7 @@ const chromaticStyle = computed(() => {
 
 /* ━━━━ 分割线（divided 模式下 header 底部显示） ━━━━ */
 .dew-card--divided .dew-card__header {
-  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+  border-bottom: 1px solid var(--dew-card-divider);
 }
 
 .dew-card__body {

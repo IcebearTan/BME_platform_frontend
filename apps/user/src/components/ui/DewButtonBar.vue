@@ -96,12 +96,9 @@ const refractionStyle = computed(() => {
   isolation: isolate;
   backdrop-filter: blur(20px) saturate(1.5);
   -webkit-backdrop-filter: blur(20px) saturate(1.5);
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow:
-    0 2px 12px rgba(0, 0, 0, 0.04),
-    inset 0 0 0 0.5px rgba(255, 255, 255, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  background: var(--dew-bar-bg);
+  border: 1px solid var(--dew-bar-border);
+  box-shadow: var(--dew-bar-shadow);
   padding: 3px;
 }
 
@@ -155,7 +152,7 @@ const refractionStyle = computed(() => {
   white-space: nowrap;
   font-family: inherit;
   font-weight: 500;
-  color: rgba(55, 65, 81, 0.6);
+  color: var(--dew-bar-text);
   transition: color 0.25s ease;
 }
 
@@ -197,13 +194,13 @@ const refractionStyle = computed(() => {
 
 /* ── 选中态 ── */
 .dew-bar__item--active {
-  color: #1f2937;
+  color: var(--dew-bar-text-active);
   font-weight: 600;
   text-shadow: 0 0 6px rgba(255, 255, 255, 0.3);
 }
 
 /* ── hover（非选中项） ── */
 .dew-bar__item:not(.dew-bar__item--active):hover {
-  color: rgba(55, 65, 81, 0.85);
+  color: var(--dew-bar-text-hover);
 }
 </style>
