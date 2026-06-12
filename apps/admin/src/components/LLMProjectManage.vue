@@ -19,7 +19,7 @@
 
     <!-- 服务接入信息 -->
     <div class="section-card" v-loading="serviceLoading">
-      <div class="section-header" @click="infoExpanded = !infoExpanded" style="cursor:pointer;user-select:none;">
+      <div class="section-header" @click="infoExpanded = !infoExpanded" style="cursor:pointer;">
         <div class="section-title-row">
           <span class="section-icon section-icon-blue">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
@@ -57,7 +57,7 @@
 
         <!-- 可用模型 -->
         <div class="models-section">
-          <div class="models-header" @click="modelsExpanded = !modelsExpanded" style="cursor:pointer;user-select:none;">
+          <div class="models-header" @click="modelsExpanded = !modelsExpanded" style="cursor:pointer;">
             <span class="models-title">
               <svg style="width:13px;height:13px;vertical-align:-2px;margin-right:4px;color:#6366f1;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 22 22 7 12 2"/></svg>
               可用模型
@@ -93,6 +93,13 @@
               </el-table-column>
             </el-table>
           </div>
+        </div>
+        <div class="guide-link-box">
+          <span class="guide-link-icon">
+            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8s3.58 8 8 8 8-3.58 8-8-3.58-8-8-8zm1.12 11.8H6.88V7.68h2.24v4.12zm0-5.48H6.88V4.2h2.24v2.12z"/></svg>
+          </span>
+          使用 Claude Code 终端编程助手接入本服务？请参考
+          <a href="https://docs.qq.com/doc/DZUxKSUd2SUNLV1ZZ" target="_blank" rel="noopener" class="inline-link">Claude Code 接入说明文档 →</a>
         </div>
       </div>
     </div>
@@ -331,15 +338,9 @@ const fetchServiceInfo = async () => {
 
 const modelCompat = (id) => {
   const lower = (id || '').toLowerCase();
-  if (lower.includes('deepseek')) {
-    return lower.includes('anthropic')
-      ? { openai: false, claude: true }
-      : { openai: true,  claude: false };
-  }
-  if (lower.startsWith('qwen')) {
-    return { openai: true, claude: false };
-  }
-  return { openai: true, claude: true };
+  if (lower.endsWith('-anthropic')) return { openai: false, claude: true };
+  if (lower.startsWith('qwen')) return { openai: true, claude: false };
+  return { openai: true, claude: false };
 };
 
 const copyText = async (text, successMsg = '已复制') => {
@@ -778,6 +779,39 @@ onMounted(() => {
   color: #3b82f6;
 }
 .compat-tags { display: flex; gap: 5px; align-items: center; flex-wrap: nowrap; }
+
+.guide-link-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 14px;
+  padding: 10px 14px;
+  background: #f5f3ff;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #475569;
+  border: 1px solid #ede9fe;
+}
+.guide-link-icon svg {
+  width: 14px;
+  height: 14px;
+  color: #6366f1;
+  flex-shrink: 0;
+}
+.inline-link {
+  color: #6366f1;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  transition: color 0.2s;
+}
+.inline-link:hover {
+  color: #4f46e5;
+  text-decoration: underline;
+}
 .compat-tag {
   font-size: 10px;
   font-weight: 600;
