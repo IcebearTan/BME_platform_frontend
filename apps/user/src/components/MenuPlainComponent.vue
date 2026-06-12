@@ -61,7 +61,7 @@ const onClickOutside = () => {
     <el-menu :default-active="activeIndex" class="el-menu-demo" mode="horizontal" :ellipsis="false"
         @select="handleSelect" router>
         <el-menu-item index="/" style="margin: 0;">
-            <img style="width: 50px" src="../assets/Logo_NewYear.png" />
+            <img style="width: 50px" src="../assets/New_Logo1.png" />
         </el-menu-item>
         <el-menu-item index="/study">
             学习

@@ -2,6 +2,7 @@
 import { ref, onMounted, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useStore } from 'vuex'
+import { ArrowDown } from '@element-plus/icons-vue'
 import api from '../../api';
 import LearningPathComponent from './LearningPathComponent.vue'
 
@@ -104,6 +105,21 @@ const groupedCourses = computed(() => {
         .map(year => ({ year, courses: groups[year] }))
 })
 
+const expandedYears = reactive(new Set())
+
+const toggleYear = (year) => {
+    if (expandedYears.has(year)) {
+        expandedYears.delete(year)
+    } else {
+        expandedYears.add(year)
+    }
+}
+
+const getDisplayCourses = (group) => {
+    if (expandedYears.has(group.year)) return group.courses
+    return group.courses.slice(0, 6)
+}
+
 const hoverCourse = ref(null)
 const hoverPosition = ref({ x: 0, y: 0 })
 
@@ -157,11 +173,7 @@ onMounted(() => {
 
 <template>
     <div class="headContainer" :class="themeClass">
-        <!-- 这里强制设置了缩放 -->
-        <div style="min-width: 1500px;">
             <LearningPathComponent />
-        </div>
-
     </div>
     <div class="mainContainer" :class="themeClass">
         <div style="width: 1300px;">
@@ -186,7 +198,7 @@ onMounted(() => {
                         <span class="year-count">{{ group.courses.length }} 门课程</span>
                     </div>
                     <div class="course-grid">
-                        <div class="course-card" :class="themeClass" v-for="course in group.courses" :key="course.Course_Id"
+                        <div class="course-card" :class="themeClass" v-for="course in getDisplayCourses(group)" :key="course.Course_Id"
                             @click="handleCourseClick(course.Course_Id)"
                             @mouseenter="handleMouseEnter(course, $event)"
                             @mouseleave="handleMouseLeave">
@@ -203,6 +215,15 @@ onMounted(() => {
                                 <div class="course-stats">共 {{ course.Course_Chapters }} 章 · {{ formatClassHour(course.Course_Class_Hour) }}</div>
                             </div>
                         </div>
+                    </div>
+                    <div v-if="group.courses.length > 6" class="load-more-container">
+                        <el-button
+                            type="text"
+                            class="load-more-btn"
+                            @click="toggleYear(group.year)">
+                            {{ expandedYears.has(group.year) ? '收起课程' : '更多课程' }}
+                            <el-icon :class="{ 'is-expanded': expandedYears.has(group.year) }"><ArrowDown /></el-icon>
+                        </el-button>
                     </div>
                 </div>
 
@@ -227,75 +248,7 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.course-tooltip {
-    position: fixed;
-    z-index: 9999;
-    min-width: 220px;
-    max-width: 300px;
-    padding: 18px 22px;
-    border-radius: 16px;
-    backdrop-filter: blur(10px);
-    pointer-events: none;
-    transition: all 0.2s ease;
-    font-size: 15px;
-    word-break: break-all;
-}
 
-/* 主题适配 - 课程悬浮提示（毛玻璃效果） */
-.theme-light .course-tooltip {
-    background: rgba(255, 255, 255, 0.85);
-    border: 1px solid rgba(230, 230, 230, 0.6);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
-    color: #333;
-}
-
-.theme-dark .course-tooltip {
-    background: rgba(45, 45, 45, 0.85);
-    border: 1px solid rgba(64, 64, 64, 0.6);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-    color: #e6e6e6;
-}
-
-.tooltip-title {
-    font-size: 18px;
-    font-weight: bold;
-    margin-bottom: 8px;
-}
-
-/* 主题适配 - 提示框标题 */
-.theme-light .tooltip-title {
-    color: #2d3748;
-}
-
-.theme-dark .tooltip-title {
-    color: #e6e6e6;
-}
-
-.tooltip-intro {
-    font-size: 14px;
-    margin-bottom: 10px;
-}
-
-.tooltip-footer {
-    font-size: 13px;
-}
-
-/* 主题适配 - 提示框文本颜色 */
-.theme-light .tooltip-intro {
-    color: #666;
-}
-
-.theme-light .tooltip-footer {
-    color: #888;
-}
-
-.theme-dark .tooltip-intro {
-    color: #bbb;
-}
-
-.theme-dark .tooltip-footer {
-    color: #999;
-}
 .fade-tooltip-enter-active, .fade-tooltip-leave-active {
   transition: opacity 0.25s;
 }
@@ -326,22 +279,62 @@ onMounted(() => {
     align-items: center;
     width: 100%;
     height: 300px;
-    transition: all 0.3s ease-in-out;
+    position: relative;
+    overflow: hidden;
+}
+
+.headContainer::before,
+.headContainer::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background-size: 28px 28px;
+    animation: dotBreathe 6s ease-in-out infinite;
+}
+
+.headContainer > * {
+    position: relative;
+    z-index: 1;
+}
+
+.headContainer::before {
+    background-position: 14px 14px;
+    animation-delay: 2s;
+}
+
+.headContainer::after {
+    background-position: 14px 0;
+    animation-delay: 4s;
+}
+
+@keyframes dotBreathe {
+    0%, 100% { opacity: 0; }
+    40%, 60% { opacity: 1; }
 }
 
 /* 主题适配 - 头部容器 */
 .theme-light .headContainer {
     background-color: #f5f4f2;
-    background-image: repeating-radial-gradient(circle, rgb(255, 255, 255) 1px, transparent 3px, transparent 18px);
+    background-image: radial-gradient(circle, rgba(0, 0, 0, 0.055) 1.5px, transparent 1.5px);
+    background-size: 28px 28px;
+}
+
+.theme-light .headContainer::before,
+.theme-light .headContainer::after {
+    background-image: radial-gradient(circle, rgba(0, 0, 0, 0.055) 1.5px, transparent 1.5px);
 }
 
 .theme-dark .headContainer {
     background-color: #2a2a2a;
-    background-image: repeating-radial-gradient(circle, rgb(70, 70, 70) 1px, transparent 3px, transparent 18px);
+    background-image: radial-gradient(circle, rgba(255, 255, 255, 0.055) 1.5px, transparent 1.5px);
+    background-size: 28px 28px;
 }
 
-.headContainer:hover{
-    background-size: 180px 180px;
+.theme-dark .headContainer::before,
+.theme-dark .headContainer::after {
+    background-image: radial-gradient(circle, rgba(255, 255, 255, 0.055) 1.5px, transparent 1.5px);
 }
 
 .headGraph {
@@ -422,6 +415,38 @@ onMounted(() => {
 
 .theme-dark .year-count {
     color: #777;
+}
+
+.load-more-container {
+    width: 100%;
+    text-align: center;
+    padding: 10px 0 20px 0;
+}
+
+.load-more-btn {
+    font-size: 14px;
+    color: #909090;
+    padding: 8px 20px;
+    border-radius: 20px;
+}
+
+.load-more-btn:hover {
+    color: #409eff;
+    background-color: transparent !important;
+}
+
+.load-more-btn:active {
+    color: #337ecc;
+    background-color: transparent !important;
+}
+
+.load-more-btn .el-icon {
+    transition: transform 0.3s;
+    margin-left: 4px;
+}
+
+.load-more-btn .el-icon.is-expanded {
+    transform: rotate(180deg);
 }
 
 .course-grid {
@@ -732,5 +757,77 @@ onMounted(() => {
 .theme-dark .el-button--text:hover {
     background-color: #404040;
     color: #e6e6e6;
+}
+</style>
+
+<style>
+.course-tooltip {
+    position: fixed;
+    z-index: 9999;
+    min-width: 260px;
+    max-width: 340px;
+    padding: 20px 24px;
+    border-radius: 16px;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    pointer-events: none;
+    transition: all 0.25s ease;
+    font-size: 15px;
+    word-break: break-word;
+    line-height: 1.6;
+    box-sizing: border-box;
+}
+
+.course-tooltip.theme-light {
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(220, 220, 220, 0.8);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.06);
+    color: #333;
+}
+
+.course-tooltip.theme-dark {
+    background: rgba(40, 40, 40, 0.92);
+    border: 1px solid rgba(70, 70, 70, 0.8);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.3);
+    color: #e6e6e6;
+}
+
+.course-tooltip .tooltip-title {
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 8px;
+}
+
+.course-tooltip.theme-light .tooltip-title {
+    color: #2d3748;
+}
+
+.course-tooltip.theme-dark .tooltip-title {
+    color: #e6e6e6;
+}
+
+.course-tooltip .tooltip-intro {
+    font-size: 14px;
+    margin-bottom: 10px;
+}
+
+.course-tooltip .tooltip-footer {
+    font-size: 13px;
+}
+
+.course-tooltip.theme-light .tooltip-intro {
+    color: #666;
+}
+
+.course-tooltip.theme-light .tooltip-footer {
+    color: #888;
+}
+
+.course-tooltip.theme-dark .tooltip-intro {
+    color: #bbb;
+}
+
+.course-tooltip.theme-dark .tooltip-footer {
+    color: #999;
 }
 </style>
