@@ -38,7 +38,7 @@
       <slot name="footer" />
     </div>
     <!-- 可交互指示器 -->
-    <span v-if="interactive" class="dew-card__ripple"></span>
+    <span v-if="interactive" class="dew-card__ripple" :style="rippleStyle"></span>
   </div>
 </template>
 
@@ -98,6 +98,11 @@ const chromaticStyle = computed(() => {
     background: `radial-gradient(ellipse at ${cx}% ${cy}%, rgba(255,150,150,0.05) 0%, rgba(150,255,150,0.04) 30%, rgba(150,150,255,0.06) 60%, transparent 100%)`,
   }
 })
+
+const rippleStyle = computed(() => ({
+  '--ripple-x': `${(state.x * 100).toFixed(1)}%`,
+  '--ripple-y': `${(state.y * 100).toFixed(1)}%`,
+}))
 </script>
 
 <style scoped>

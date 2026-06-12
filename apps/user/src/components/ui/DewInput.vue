@@ -54,14 +54,14 @@
     </span>
 
     <!-- 清除按钮 -->
-    <span v-if="clearable && modelValue && !disabled" class="dew-input__clear" @click="onClear">
+    <span v-if="clearable && modelValue && !disabled" class="dew-input__clear" @mousedown.prevent @click="onClear">
       <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
         <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
       </svg>
     </span>
 
     <!-- 密码切换 -->
-    <span v-if="type === 'password' && !disabled" class="dew-input__toggle" @click="showPassword = !showPassword">
+    <span v-if="type === 'password' && !disabled" class="dew-input__toggle" @mousedown.prevent @click="showPassword = !showPassword">
       <svg v-if="showPassword" viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
         <path d="M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z"/>
         <path d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8zm8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"/>
@@ -122,6 +122,7 @@ onBeforeUnmount(() => observer?.disconnect())
 
 const nativeType = computed(() => {
   if (props.type === 'email') return 'email'
+  if (props.type === 'password') return 'password'
   return 'text'
 })
 
@@ -134,6 +135,8 @@ const expandStyle = computed(() => {
 })
 
 function onInput(e) {
+  // 中文输入法组合期间不更新 modelValue，避免打断拼音输入
+  if (e.isComposing) return
   emit('update:modelValue', e.target.value)
   emit('input', e.target.value)
   // 转发事件到根元素，让 el-form-item 能监听到

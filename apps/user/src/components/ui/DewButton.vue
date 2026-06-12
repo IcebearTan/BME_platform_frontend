@@ -1,6 +1,7 @@
 <template>
   <button
     ref="btnRef"
+    type="button"
     class="dew-btn"
     :class="[
       `dew-btn--${type}`,
