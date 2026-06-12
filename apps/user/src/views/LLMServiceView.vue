@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
+import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useStore } from 'vuex';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -200,6 +200,127 @@ const modelCompat = (id) => {
   }
   return { openai: true, claude: true };
 };
+
+// ==================== 用量趋势 ====================
+
+const actLoading = ref(false);
+const actMetadata = ref(null);
+const actResults = ref([]);
+const actChartType = ref('spend');
+const actInitialized = ref(false);
+
+const _now = new Date();
+const _30dAgo = new Date(_now); _30dAgo.setDate(_now.getDate() - 29);
+const _fmtD = (d) => d.toISOString().slice(0, 10);
+const actDateRange = ref([_fmtD(_30dAgo), _fmtD(_now)]);
+
+const actDateShortcuts = [
+  { text: '最近7天',  value: () => { const e = new Date(); const s = new Date(); s.setDate(e.getDate()-6); return [s, e]; } },
+  { text: '最近30天', value: () => { const e = new Date(); const s = new Date(); s.setDate(e.getDate()-29); return [s, e]; } },
+  { text: '最近90天', value: () => { const e = new Date(); const s = new Date(); s.setDate(e.getDate()-89); return [s, e]; } },
+];
+
+const fmtActNum = (v, dec = 2) => (v === null || v === undefined ? '—' : Number(v).toFixed(dec));
+const fmtActTokens = (v) => {
+  if (v === null || v === undefined) return '—';
+  const n = Number(v);
+  if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+  return String(n);
+};
+
+const actDailyData = computed(() =>
+  (actResults.value || []).slice().sort((a, b) => a.date > b.date ? 1 : -1)
+);
+
+const actSuccessRate = computed(() => {
+  const m = actMetadata.value;
+  if (!m || !m.total_api_requests) return '—';
+  return Math.round((m.total_successful_requests / m.total_api_requests) * 100) + '%';
+});
+const _actSuccessRatio = computed(() => {
+  const m = actMetadata.value;
+  if (!m || !m.total_api_requests) return null;
+  return m.total_successful_requests / m.total_api_requests;
+});
+const actSuccessIconClass = computed(() => {
+  const r = _actSuccessRatio.value;
+  if (r === null) return 'act-icon-slate';
+  return r >= 0.95 ? 'act-icon-emerald' : r >= 0.8 ? 'act-icon-amber' : 'act-icon-red';
+});
+const actSuccessValClass = computed(() => {
+  const r = _actSuccessRatio.value;
+  if (r === null) return 'act-slate';
+  return r >= 0.95 ? 'act-emerald' : r >= 0.8 ? 'act-amber' : 'act-red';
+});
+
+const actCacheHitRate = computed(() => {
+  const m = actMetadata.value;
+  if (!m) return '—';
+  const cacheRead = m.total_cache_read_input_tokens || 0;
+  const prompt = m.total_prompt_tokens || 0;
+  const total = cacheRead + prompt;
+  if (!total) return '—';
+  return Math.round(cacheRead / total * 100) + '%';
+});
+
+const _buildActChart = (values, W = 600, H = 100) => {
+  if (!values || values.length === 0) return { line: '', area: '', pts: [] };
+  const n = values.length;
+  const maxV = Math.max(...values, 0.0001);
+  const pad = H * 0.1;
+  const pts = values.map((v, i) => ({
+    x: n === 1 ? W / 2 : Math.round((i / (n - 1)) * W),
+    y: Math.round(H - pad - (v / maxV) * (H - 2 * pad))
+  }));
+  const line = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ');
+  const area = `${line} L${pts[pts.length - 1].x},${H} L${pts[0].x},${H}Z`;
+  return { line, area, pts };
+};
+
+const actChartStroke = computed(() => ({ spend: '#3b82f6', requests: '#8b5cf6', tokens: '#10b981' }[actChartType.value]));
+const actChartFill = computed(() => ({ spend: '#3b82f618', requests: '#8b5cf618', tokens: '#10b98118' }[actChartType.value]));
+
+const actChart = computed(() => {
+  const key = { spend: 'spend', requests: 'api_requests', tokens: 'total_tokens' }[actChartType.value];
+  return _buildActChart(actDailyData.value.map(d => Number(d.metrics?.[key] || 0)));
+});
+
+const actModelBreakdown = computed(() => {
+  const map = {};
+  for (const day of actResults.value || []) {
+    for (const [model, stats] of Object.entries(day.breakdown?.models || {})) {
+      if (!map[model]) map[model] = { model, spend: 0, total_tokens: 0, api_requests: 0, successful_requests: 0 };
+      map[model].spend += Number(stats.spend || 0);
+      map[model].total_tokens += Number(stats.total_tokens || 0);
+      map[model].api_requests += Number(stats.api_requests || 0);
+      map[model].successful_requests += Number(stats.successful_requests || 0);
+    }
+  }
+  return Object.values(map).sort((a, b) => b.spend - a.spend);
+});
+
+const fetchMyActivity = async () => {
+  actLoading.value = true;
+  actMetadata.value = null;
+  actResults.value = [];
+  try {
+    const [start, end] = actDateRange.value || [];
+    const res = await api.get('/llm/my-activity', { params: { start_date: start, end_date: end } });
+    const data = res.data.data || {};
+    actMetadata.value = data.metadata || null;
+    actResults.value = data.results || [];
+  } catch (e) { /* ignore */ } finally {
+    actLoading.value = false;
+  }
+};
+
+watch(activeTab, (tab) => {
+  if (tab === 'activity' && !actInitialized.value) {
+    actInitialized.value = true;
+    fetchMyActivity();
+  }
+});
 
 const refreshAll = () => {
   fetchUsage();
@@ -402,6 +523,148 @@ const refreshAll = () => {
                 </el-table>
               </div>
               <el-empty v-if="requests.length === 0" description="暂无申请记录" class="empty-state" />
+            </el-tab-pane>
+
+            <!-- 用量趋势 -->
+            <el-tab-pane label="用量趋势" name="activity">
+              <div class="activity-wrap">
+
+                <!-- 工具栏 -->
+                <div class="act-toolbar">
+                  <el-date-picker
+                    v-model="actDateRange"
+                    type="daterange"
+                    range-separator="→"
+                    start-placeholder="开始"
+                    end-placeholder="结束"
+                    value-format="YYYY-MM-DD"
+                    :shortcuts="actDateShortcuts"
+                    size="small"
+                  />
+                  <el-button size="small" type="primary" :loading="actLoading" @click="fetchMyActivity">查询</el-button>
+                </div>
+
+                <div v-if="actLoading"><el-skeleton :rows="5" animated /></div>
+
+                <template v-else-if="actMetadata">
+                  <!-- 汇总指标 -->
+                  <div class="act-cards">
+                    <div class="act-card">
+                      <div class="act-card-icon act-icon-blue">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                      </div>
+                      <div>
+                        <div class="act-card-label">总消耗</div>
+                        <div class="act-card-val act-blue">${{ fmtActNum(actMetadata.total_spend, 4) }}</div>
+                      </div>
+                    </div>
+                    <div class="act-card">
+                      <div class="act-card-icon act-icon-violet">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                      </div>
+                      <div>
+                        <div class="act-card-label">总请求数</div>
+                        <div class="act-card-val act-violet">{{ actMetadata.total_api_requests ?? '—' }}</div>
+                      </div>
+                    </div>
+                    <div class="act-card">
+                      <div class="act-card-icon" :class="actSuccessIconClass">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                      </div>
+                      <div>
+                        <div class="act-card-label">成功率</div>
+                        <div class="act-card-val" :class="actSuccessValClass">{{ actSuccessRate }}</div>
+                      </div>
+                    </div>
+                    <div class="act-card">
+                      <div class="act-card-icon act-icon-emerald">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                      </div>
+                      <div>
+                        <div class="act-card-label">总 Token</div>
+                        <div class="act-card-val act-emerald">{{ fmtActTokens(actMetadata.total_tokens) }}</div>
+                      </div>
+                    </div>
+                    <div class="act-card">
+                      <div class="act-card-icon act-icon-amber">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+                      </div>
+                      <div>
+                        <div class="act-card-label">缓存命中 Token</div>
+                        <div class="act-card-val act-amber">{{ fmtActTokens(actMetadata.total_cache_read_input_tokens) }}</div>
+                      </div>
+                    </div>
+                    <div class="act-card">
+                      <div class="act-card-icon" :class="actCacheHitRate === '—' ? 'act-icon-slate' : 'act-icon-emerald'">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                      </div>
+                      <div>
+                        <div class="act-card-label">缓存命中率</div>
+                        <div class="act-card-val" :class="actCacheHitRate === '—' ? 'act-slate' : 'act-emerald'">{{ actCacheHitRate }}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- 趋势图 -->
+                  <div class="act-section-card">
+                    <div class="act-section-head">
+                      <span class="act-section-title">每日趋势</span>
+                      <div class="act-chart-tabs">
+                        <button :class="['act-tab', actChartType === 'spend' && 'act-tab-on']" @click="actChartType = 'spend'">消耗($)</button>
+                        <button :class="['act-tab', actChartType === 'requests' && 'act-tab-on']" @click="actChartType = 'requests'">请求数</button>
+                        <button :class="['act-tab', actChartType === 'tokens' && 'act-tab-on']" @click="actChartType = 'tokens'">Token</button>
+                      </div>
+                    </div>
+                    <div v-if="actDailyData.length > 0" class="act-chart-box">
+                      <svg viewBox="0 0 600 110" class="act-svg" preserveAspectRatio="none">
+                        <path :d="actChart.area" :fill="actChartFill" />
+                        <path :d="actChart.line" fill="none" :stroke="actChartStroke" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+                        <circle v-for="(pt, i) in actChart.pts" :key="i" :cx="pt.x" :cy="pt.y" r="3" :fill="actChartStroke" />
+                      </svg>
+                      <div class="act-x-labels">
+                        <span>{{ actDailyData[0]?.date }}</span>
+                        <span>{{ actDailyData[Math.floor(actDailyData.length/2)]?.date }}</span>
+                        <span>{{ actDailyData[actDailyData.length-1]?.date }}</span>
+                      </div>
+                    </div>
+                    <el-empty v-else description="该时间段暂无数据" :image-size="60" />
+                  </div>
+
+                  <!-- 模型分布 -->
+                  <div class="act-section-card" v-if="actModelBreakdown.length > 0">
+                    <div class="act-section-head">
+                      <span class="act-section-title">按模型分布</span>
+                      <span class="act-section-sub">{{ actModelBreakdown.length }} 个模型</span>
+                    </div>
+                    <div class="table-card" style="margin-top: 0;">
+                      <el-table :data="actModelBreakdown" style="width:100%">
+                        <el-table-column label="模型" min-width="200">
+                          <template #default="{ row }"><code class="model-id">{{ row.model }}</code></template>
+                        </el-table-column>
+                        <el-table-column label="消耗($)" width="110" align="right">
+                          <template #default="{ row }"><span class="amount-cell">${{ fmtActNum(row.spend, 4) }}</span></template>
+                        </el-table-column>
+                        <el-table-column label="Token" width="100" align="right">
+                          <template #default="{ row }">{{ fmtActTokens(row.total_tokens) }}</template>
+                        </el-table-column>
+                        <el-table-column label="请求数" width="90" align="right">
+                          <template #default="{ row }">{{ row.api_requests }}</template>
+                        </el-table-column>
+                        <el-table-column label="成功率" width="90" align="right">
+                          <template #default="{ row }">
+                            <el-tag v-if="row.api_requests" :type="row.successful_requests/row.api_requests >= 0.95 ? 'success' : 'warning'" size="small" effect="light">
+                              {{ Math.round(row.successful_requests / row.api_requests * 100) }}%
+                            </el-tag>
+                            <span v-else class="muted">—</span>
+                          </template>
+                        </el-table-column>
+                      </el-table>
+                    </div>
+                  </div>
+                </template>
+
+                <el-empty v-else-if="!actLoading" description="暂无活动数据，尝试调整时间范围" />
+              </div>
             </el-tab-pane>
 
             <!-- 接入说明 -->
@@ -1101,6 +1364,104 @@ message <span class="syn-op">=</span> client.messages.create(
 .syn-fn  { color: #61afef; }
 .syn-num { color: #d19a66; }
 .syn-op  { color: #56b6c2; }
+
+/* ===== Activity Tab ===== */
+.activity-wrap { display: flex; flex-direction: column; gap: 20px; }
+.act-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+.act-cards {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+}
+.act-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  box-shadow: var(--shadow-sm);
+}
+.act-card-icon {
+  width: 34px; height: 34px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.act-card-icon svg { width: 16px; height: 16px; }
+.act-icon-blue   { background: #dbeafe; color: #2563eb; }
+.act-icon-violet { background: #ede9fe; color: #7c3aed; }
+.act-icon-emerald{ background: #d1fae5; color: #059669; }
+.act-icon-amber  { background: #fef3c7; color: #d97706; }
+.act-icon-red    { background: #fee2e2; color: #dc2626; }
+.act-icon-slate  { background: #f1f5f9; color: #475569; }
+.theme-dark .act-icon-blue   { background: rgba(59,130,246,.15);  color: #60a5fa; }
+.theme-dark .act-icon-violet { background: rgba(139,92,246,.15);  color: #a78bfa; }
+.theme-dark .act-icon-emerald{ background: rgba(16,185,129,.15);  color: #34d399; }
+.theme-dark .act-icon-amber  { background: rgba(251,191,36,.15);  color: #fbbf24; }
+.theme-dark .act-icon-slate  { background: rgba(148,163,184,.1);  color: #94a3b8; }
+.act-card-label { font-size: 11px; color: var(--text-secondary); margin-bottom: 3px; }
+.act-card-val { font-size: 18px; font-weight: 700; }
+.act-blue   { color: #2563eb; }
+.act-violet { color: #7c3aed; }
+.act-emerald{ color: #059669; }
+.act-amber  { color: #d97706; }
+.act-red    { color: #dc2626; }
+.act-slate  { color: #475569; }
+.theme-dark .act-blue   { color: #60a5fa; }
+.theme-dark .act-violet { color: #a78bfa; }
+.theme-dark .act-emerald{ color: #34d399; }
+.theme-dark .act-amber  { color: #fbbf24; }
+
+.act-section-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 20px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.act-section-head { display: flex; align-items: center; justify-content: space-between; }
+.act-section-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.act-section-sub { font-size: 12px; color: var(--text-muted); }
+
+.act-chart-tabs { display: flex; gap: 4px; }
+.act-tab {
+  padding: 4px 10px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  background: transparent;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.act-tab-on { background: #3b82f6; color: #fff; border-color: #3b82f6; }
+
+.act-chart-box {
+  background: var(--bg-page);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 12px 4px;
+}
+.act-svg { width: 100%; height: 110px; display: block; }
+.act-x-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-muted); padding: 2px 0 0; }
+
+@media (max-width: 1024px) {
+  .act-cards { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 768px) {
+  .act-cards { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 480px) {
+  .act-cards { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .act-card { padding: 10px 12px; }
+  .act-card-val { font-size: 15px; }
+}
 
 /* ===== Mobile ===== */
 .mobile-header {
