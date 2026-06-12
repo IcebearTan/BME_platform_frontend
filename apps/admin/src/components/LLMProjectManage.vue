@@ -264,7 +264,7 @@
               <span class="act-section-sub">{{ projModelBreakdown.length }} 个模型</span>
             </div>
             <table class="model-table">
-              <thead><tr><th>模型</th><th class="num-col">消耗($)</th><th class="num-col">Token</th><th class="num-col">请求数</th><th class="num-col">成功率</th></tr></thead>
+              <thead><tr><th>模型</th><th class="num-col">消耗($)</th><th class="num-col">Token</th><th class="num-col">请求数</th><th class="num-col">成功率</th><th class="num-col">缓存命中率</th></tr></thead>
               <tbody>
                 <tr v-for="m in projModelBreakdown" :key="m.model">
                   <td><code class="model-name">{{ m.model }}</code></td>
@@ -274,6 +274,11 @@
                   <td class="num-col">
                     <span :class="['rate-badge', m.api_requests ? (m.successful_requests/m.api_requests >= 0.95 ? 'rate-good' : 'rate-warn') : 'rate-na']">
                       {{ m.api_requests ? Math.round(m.successful_requests / m.api_requests * 100) + '%' : '—' }}
+                    </span>
+                  </td>
+                  <td class="num-col">
+                    <span :class="['rate-badge', (m.cache_read_tokens + m.prompt_tokens) ? 'rate-good' : 'rate-na']">
+                      {{ (m.cache_read_tokens + m.prompt_tokens) ? Math.round(m.cache_read_tokens / (m.cache_read_tokens + m.prompt_tokens) * 100) + '%' : '—' }}
                     </span>
                   </td>
                 </tr>
@@ -524,12 +529,15 @@ const projCacheHitRate = computed(() => {
 const projModelBreakdown = computed(() => {
   const map = {};
   for (const day of projActivityResults.value || []) {
-    for (const [model, stats] of Object.entries(day.breakdown?.models || {})) {
-      if (!map[model]) map[model] = { model, spend: 0, total_tokens: 0, api_requests: 0, successful_requests: 0 };
-      map[model].spend += Number(stats.spend || 0);
-      map[model].total_tokens += Number(stats.total_tokens || 0);
-      map[model].api_requests += Number(stats.api_requests || 0);
-      map[model].successful_requests += Number(stats.successful_requests || 0);
+    for (const [model, entry] of Object.entries(day.breakdown?.models || {})) {
+      const m = entry?.metrics ?? entry;
+      if (!map[model]) map[model] = { model, spend: 0, total_tokens: 0, api_requests: 0, successful_requests: 0, cache_read_tokens: 0, prompt_tokens: 0 };
+      map[model].spend += Number(m?.spend || 0);
+      map[model].total_tokens += Number(m?.total_tokens || 0);
+      map[model].api_requests += Number(m?.api_requests || 0);
+      map[model].successful_requests += Number(m?.successful_requests || 0);
+      map[model].cache_read_tokens += Number(m?.cache_read_input_tokens || 0);
+      map[model].prompt_tokens += Number(m?.prompt_tokens || 0);
     }
   }
   return Object.values(map).sort((a, b) => b.spend - a.spend);
