@@ -21,6 +21,9 @@ import MedalManage from './components/MedalManage.vue';
 import MedalGrant from './components/MedalGrant.vue';
 import CourseManage from './components/CourseManage.vue';
 import CourseCreate from './components/CourseCreate.vue';
+import LLMProjectManage from './components/LLMProjectManage.vue';
+import LLMUserMonitor from './components/LLMUserMonitor.vue';
+import LLMQuotaRequests from './components/LLMQuotaRequests.vue';
 
 const router = createRouter({
     history: createWebHistory("/admin/"),
@@ -99,6 +102,21 @@ const router = createRouter({
                     path: '/course/edit/:id',
                     name: 'course_edit',
                     component: CourseCreate
+                },
+                {
+                    path: '/llm/projects',
+                    name: 'llm_projects',
+                    component: LLMProjectManage
+                },
+                {
+                    path: '/llm/users',
+                    name: 'llm_users',
+                    component: LLMUserMonitor
+                },
+                {
+                    path: '/llm/quota-requests',
+                    name: 'llm_quota_requests',
+                    component: LLMQuotaRequests
                 }
             ]
         },
