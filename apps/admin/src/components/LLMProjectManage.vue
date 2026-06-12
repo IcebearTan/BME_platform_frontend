@@ -140,9 +140,10 @@
             <span class="muted-text">{{ row.created_at }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="280" fixed="right">
+        <el-table-column label="操作" width="310" fixed="right">
           <template #default="{ row }">
             <div class="action-btns">
+              <button class="abtn abtn-activity" @click="openProjectActivity(row)">趋势</button>
               <button class="abtn abtn-default" @click="viewUsage(row)">用量</button>
               <button class="abtn abtn-default" :disabled="copyingProjectId === row.id" @click="copyProjectKey(row)">复制 Key</button>
               <button class="abtn abtn-warning" @click="regenerateKey(row)">重置 Key</button>
@@ -186,6 +187,104 @@
       </template>
     </el-dialog>
 
+    <!-- 项目活动趋势 Drawer -->
+    <el-drawer v-model="projActivityVisible" :title="`活动趋势 · ${projActivityProject.name || ''}`" size="720px" direction="rtl" destroy-on-close>
+      <div class="activity-drawer">
+        <div class="activity-toolbar">
+          <el-date-picker
+            v-model="projActivityDateRange"
+            type="daterange"
+            range-separator="→"
+            start-placeholder="开始日期"
+            end-placeholder="结束日期"
+            value-format="YYYY-MM-DD"
+            :shortcuts="dateShortcuts"
+            size="small"
+          />
+          <el-button size="small" type="primary" :loading="projActivityLoading" @click="fetchProjectActivity">查询</el-button>
+        </div>
+
+        <div v-if="projActivityLoading"><el-skeleton :rows="6" animated /></div>
+
+        <template v-else-if="projActivityMetadata">
+          <div class="act-stat-row">
+            <div class="act-stat-card">
+              <div class="act-stat-label">总消耗</div>
+              <div class="act-stat-val act-blue">${{ fmtNum(projActivityMetadata.total_spend, 4) }}</div>
+            </div>
+            <div class="act-stat-card">
+              <div class="act-stat-label">总请求数</div>
+              <div class="act-stat-val act-violet">{{ projActivityMetadata.total_api_requests ?? '—' }}</div>
+            </div>
+            <div class="act-stat-card">
+              <div class="act-stat-label">成功率</div>
+              <div class="act-stat-val" :class="projSuccessRateClass">{{ projSuccessRateText }}</div>
+            </div>
+            <div class="act-stat-card">
+              <div class="act-stat-label">总 Token</div>
+              <div class="act-stat-val act-emerald">{{ fmtTokens(projActivityMetadata.total_tokens) }}</div>
+            </div>
+            <div class="act-stat-card">
+              <div class="act-stat-label">缓存命中 Token</div>
+              <div class="act-stat-val act-slate">{{ fmtTokens(projActivityMetadata.total_cache_read_input_tokens) }}</div>
+            </div>
+            <div class="act-stat-card">
+              <div class="act-stat-label">缓存命中率</div>
+              <div class="act-stat-val" :class="projCacheHitRate === '—' ? 'act-slate' : 'act-emerald'">{{ projCacheHitRate }}</div>
+            </div>
+          </div>
+
+          <div class="act-section">
+            <div class="act-section-header">
+              <span class="act-section-title">每日趋势</span>
+              <div class="chart-type-tabs">
+                <button :class="['chart-tab', projChartMetric === 'spend' && 'active']" @click="projChartMetric = 'spend'">消耗($)</button>
+                <button :class="['chart-tab', projChartMetric === 'requests' && 'active']" @click="projChartMetric = 'requests'">请求数</button>
+                <button :class="['chart-tab', projChartMetric === 'tokens' && 'active']" @click="projChartMetric = 'tokens'">Token</button>
+              </div>
+            </div>
+            <div class="chart-wrap" v-if="projDailyData.length > 0">
+              <svg viewBox="0 0 600 110" class="trend-svg" preserveAspectRatio="none">
+                <path :d="projCurrentChart.area" fill="#8b5cf618" />
+                <path :d="projCurrentChart.line" fill="none" :stroke="projChartColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+                <circle v-for="(pt, i) in projCurrentChart.pts" :key="i" :cx="pt.x" :cy="pt.y" r="3" :fill="projChartColor" />
+              </svg>
+              <div class="chart-x-labels">
+                <span>{{ projDailyData[0]?.date }}</span>
+                <span>{{ projDailyData[Math.floor(projDailyData.length/2)]?.date }}</span>
+                <span>{{ projDailyData[projDailyData.length-1]?.date }}</span>
+              </div>
+            </div>
+            <el-empty v-else description="暂无趋势数据" :image-size="60" />
+          </div>
+
+          <div class="act-section" v-if="projModelBreakdown.length > 0">
+            <div class="act-section-header">
+              <span class="act-section-title">按模型分布</span>
+              <span class="act-section-sub">{{ projModelBreakdown.length }} 个模型</span>
+            </div>
+            <table class="model-table">
+              <thead><tr><th>模型</th><th class="num-col">消耗($)</th><th class="num-col">Token</th><th class="num-col">请求数</th><th class="num-col">成功率</th></tr></thead>
+              <tbody>
+                <tr v-for="m in projModelBreakdown" :key="m.model">
+                  <td><code class="model-name">{{ m.model }}</code></td>
+                  <td class="num-col spend-col">${{ fmtNum(m.spend, 4) }}</td>
+                  <td class="num-col">{{ fmtTokens(m.total_tokens) }}</td>
+                  <td class="num-col">{{ m.api_requests }}</td>
+                  <td class="num-col">
+                    <span :class="['rate-badge', m.api_requests ? (m.successful_requests/m.api_requests >= 0.95 ? 'rate-good' : 'rate-warn') : 'rate-na']">
+                      {{ m.api_requests ? Math.round(m.successful_requests / m.api_requests * 100) + '%' : '—' }}
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </template>
+        <el-empty v-else-if="!projActivityLoading" description="暂无活动数据" />
+      </div>
+    </el-drawer>
+
     <!-- 用量详情 -->
     <el-dialog v-model="usageVisible" title="项目用量详情" width="660" class="admin-dialog">
       <pre class="usage-json">{{ usageDetail }}</pre>
@@ -198,7 +297,7 @@
 
 <script setup>
 import api from '../api';
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 
 const projects = ref([]);
@@ -343,6 +442,125 @@ const copyProjectKey = async (row) => {
     ElMessage.warning('复制失败，请重试');
   } finally {
     copyingProjectId.value = null;
+  }
+};
+
+// ==================== 项目活动趋势 ====================
+
+const projActivityVisible = ref(false);
+const projActivityProject = reactive({ id: null, name: '' });
+const projActivityLoading = ref(false);
+const projActivityMetadata = ref(null);
+const projActivityResults = ref([]);
+const projChartMetric = ref('spend');
+
+const _today = new Date();
+const _30ago = new Date(_today); _30ago.setDate(_today.getDate() - 29);
+const _fmt = (d) => d.toISOString().slice(0, 10);
+const projActivityDateRange = ref([_fmt(_30ago), _fmt(_today)]);
+
+const dateShortcuts = [
+  { text: '最近7天',  value: () => { const e = new Date(); const s = new Date(); s.setDate(e.getDate()-6); return [s, e]; } },
+  { text: '最近30天', value: () => { const e = new Date(); const s = new Date(); s.setDate(e.getDate()-29); return [s, e]; } },
+  { text: '最近90天', value: () => { const e = new Date(); const s = new Date(); s.setDate(e.getDate()-89); return [s, e]; } },
+];
+
+const fmtNum = (v, dec = 2) => (v === null || v === undefined ? '—' : Number(v).toFixed(dec));
+const fmtTokens = (v) => {
+  if (v === null || v === undefined) return '—';
+  const n = Number(v);
+  if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+  return String(n);
+};
+
+const buildChart = (values, W = 600, H = 100) => {
+  if (!values || values.length === 0) return { line: '', area: '', pts: [] };
+  const n = values.length;
+  const maxV = Math.max(...values, 0.0001);
+  const pad = H * 0.1;
+  const pts = values.map((v, i) => ({
+    x: n === 1 ? W / 2 : Math.round((i / (n - 1)) * W),
+    y: Math.round(H - pad - (v / maxV) * (H - 2 * pad))
+  }));
+  const line = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ');
+  const area = `${line} L${pts[pts.length - 1].x},${H} L${pts[0].x},${H}Z`;
+  return { line, area, pts };
+};
+
+const projDailyData = computed(() =>
+  (projActivityResults.value || []).slice().sort((a, b) => a.date > b.date ? 1 : -1)
+);
+
+const projChartColor = computed(() => ({ spend: '#8b5cf6', requests: '#3b82f6', tokens: '#10b981' }[projChartMetric.value]));
+
+const projCurrentChart = computed(() => {
+  const key = { spend: 'spend', requests: 'api_requests', tokens: 'total_tokens' }[projChartMetric.value];
+  return buildChart(projDailyData.value.map(d => Number(d.metrics?.[key] || 0)));
+});
+
+const projSuccessRateText = computed(() => {
+  const m = projActivityMetadata.value;
+  if (!m || !m.total_api_requests) return '—';
+  return Math.round((m.total_successful_requests / m.total_api_requests) * 100) + '%';
+});
+const projSuccessRateClass = computed(() => {
+  const m = projActivityMetadata.value;
+  if (!m || !m.total_api_requests) return 'act-slate';
+  const r = m.total_successful_requests / m.total_api_requests;
+  return r >= 0.95 ? 'act-emerald' : r >= 0.8 ? 'act-amber' : 'act-red';
+});
+
+const projCacheHitRate = computed(() => {
+  const m = projActivityMetadata.value;
+  if (!m) return '—';
+  const cacheRead = m.total_cache_read_input_tokens || 0;
+  const prompt = m.total_prompt_tokens || 0;
+  const total = cacheRead + prompt;
+  if (!total) return '—';
+  return Math.round(cacheRead / total * 100) + '%';
+});
+
+const projModelBreakdown = computed(() => {
+  const map = {};
+  for (const day of projActivityResults.value || []) {
+    for (const [model, stats] of Object.entries(day.breakdown?.models || {})) {
+      if (!map[model]) map[model] = { model, spend: 0, total_tokens: 0, api_requests: 0, successful_requests: 0 };
+      map[model].spend += Number(stats.spend || 0);
+      map[model].total_tokens += Number(stats.total_tokens || 0);
+      map[model].api_requests += Number(stats.api_requests || 0);
+      map[model].successful_requests += Number(stats.successful_requests || 0);
+    }
+  }
+  return Object.values(map).sort((a, b) => b.spend - a.spend);
+});
+
+const openProjectActivity = (row) => {
+  projActivityProject.id = row.id;
+  projActivityProject.name = row.name;
+  projActivityMetadata.value = null;
+  projActivityResults.value = [];
+  projActivityVisible.value = true;
+  fetchProjectActivity();
+};
+
+const fetchProjectActivity = async () => {
+  if (!projActivityProject.id) return;
+  projActivityLoading.value = true;
+  projActivityMetadata.value = null;
+  projActivityResults.value = [];
+  try {
+    const [start, end] = projActivityDateRange.value || [];
+    const res = await api.get(`/llm/admin/projects/${projActivityProject.id}/activity`, {
+      params: { start_date: start, end_date: end }
+    });
+    const data = res.data.data || {};
+    projActivityMetadata.value = data.metadata || null;
+    projActivityResults.value = data.results || [];
+  } catch (e) {
+    ElMessage.error('获取项目活动数据失败');
+  } finally {
+    projActivityLoading.value = false;
   }
 };
 
@@ -612,6 +830,43 @@ onMounted(() => {
 .abtn-warning:hover { background: #fffbeb; }
 .abtn-danger  { border: 1px solid #ef4444; background: #fff;    color: #dc2626; }
 .abtn-danger:hover  { background: #fef2f2; }
+.abtn-activity { border: 1px solid #8b5cf6; background: #fff; color: #7c3aed; }
+.abtn-activity:hover { background: #f5f3ff; }
+
+/* ===== Activity Drawer ===== */
+.activity-drawer { display: flex; flex-direction: column; gap: 20px; padding: 4px 0; }
+.activity-toolbar { display: flex; align-items: center; gap: 10px; }
+.act-stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.act-stat-card { background: #f8faff; border: 1px solid #e4e7ef; border-radius: 8px; padding: 12px 14px; }
+.act-stat-label { font-size: 11px; color: #64748b; margin-bottom: 4px; }
+.act-stat-val { font-size: 18px; font-weight: 700; }
+.act-blue   { color: #2563eb; }
+.act-violet { color: #7c3aed; }
+.act-emerald{ color: #059669; }
+.act-amber  { color: #d97706; }
+.act-red    { color: #dc2626; }
+.act-slate  { color: #475569; }
+.act-section { display: flex; flex-direction: column; gap: 12px; }
+.act-section-header { display: flex; align-items: center; justify-content: space-between; }
+.act-section-title { font-size: 14px; font-weight: 600; color: #0f172a; }
+.act-section-sub { font-size: 12px; color: #94a3b8; }
+.chart-type-tabs { display: flex; gap: 4px; }
+.chart-tab { padding: 4px 10px; border-radius: 5px; border: 1px solid #e4e7ef; background: #fff; font-size: 12px; color: #64748b; cursor: pointer; transition: all 0.15s; }
+.chart-tab.active { background: #8b5cf6; color: #fff; border-color: #8b5cf6; }
+.chart-wrap { background: #f8faff; border: 1px solid #e4e7ef; border-radius: 8px; padding: 12px 12px 4px; }
+.trend-svg { width: 100%; height: 110px; display: block; }
+.chart-x-labels { display: flex; justify-content: space-between; font-size: 10px; color: #94a3b8; padding: 2px 0 0; }
+.model-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.model-table th { text-align: left; font-size: 11px; font-weight: 600; color: #64748b; padding: 6px 8px; border-bottom: 1px solid #e4e7ef; background: #f8faff; }
+.model-table td { padding: 8px; border-bottom: 1px solid #f0f2f7; color: #0f172a; vertical-align: middle; }
+.model-table tr:last-child td { border-bottom: none; }
+.num-col { text-align: right; }
+.model-name { font-family: monospace; font-size: 12px; color: #8b5cf6; }
+.spend-col { color: #d97706; font-weight: 600; }
+.rate-badge { display: inline-block; padding: 2px 7px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+.rate-good { background: #d1fae5; color: #059669; }
+.rate-warn { background: #fef3c7; color: #d97706; }
+.rate-na   { background: #f1f5f9; color: #94a3b8; }
 
 /* ===== Form ===== */
 .form-hint {
