@@ -1,11 +1,11 @@
 <script>
 import { useStore } from 'vuex'
 import { User, Close, Sunny, Moon } from '@element-plus/icons-vue'
-import NotificationComponent from './Notification/NotificationComponent.vue'
+import NotificationBell from './Notification/NotificationBell.vue'
 
 export default {
     components: {
-        NotificationComponent
+        NotificationBell
     },
     data() {
         return {
@@ -33,7 +33,7 @@ import { ClickOutside as vClickOutside } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import api from '../api'
-import NotificationComponent from './Notification/NotificationComponent.vue'
+import NotificationBell from './Notification/NotificationBell.vue'
 
 // 定义props
 const props = defineProps({

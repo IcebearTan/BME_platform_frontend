@@ -15,6 +15,7 @@
     <button
       v-for="item in items"
       :key="item.value"
+      type="button"
       class="dew-bar__item"
       :class="{ 'dew-bar__item--active': modelValue === item.value }"
       @click="$emit('update:modelValue', item.value)"
