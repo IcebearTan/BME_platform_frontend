@@ -25,6 +25,7 @@ import LLMProjectManage from './components/LLMProjectManage.vue';
 import LLMUserMonitor from './components/LLMUserMonitor.vue';
 import LLMQuotaRequests from './components/LLMQuotaRequests.vue';
 import AuditLogManage from './components/AuditLogManage.vue';
+import NotificationManage from './components/NotificationManage.vue';
 
 const router = createRouter({
     history: createWebHistory("/admin/"),
@@ -124,6 +125,11 @@ const router = createRouter({
                     name: 'audit_logs',
                     component: AuditLogManage
                 },
+                {
+                    path: '/notification/manage',
+                    name: 'notification_manage',
+                    component: NotificationManage
+                }
             ]
         },
         {

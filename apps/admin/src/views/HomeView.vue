@@ -40,7 +40,8 @@ export default {
         '/learningprgress/manage': '学习进度',
         '/medal/manage': '勋章管理',
         '/medal/grant': '勋章查询',
-        '/audit/logs': '审计日志'
+        '/audit/logs': '审计日志',
+        '/notification/manage': '通知管理'
       };
       return routeMap[this.$route.path] || '系统管理';
     }
@@ -142,7 +143,7 @@ const handleClose = (key, keyPath) => {
       </div>
       
       <div class="navbar-right">
-        <el-button :icon="Bell" text size="large" class="notification-btn">
+        <el-button :icon="Bell" text size="large" class="notification-btn" @click="router.push('/notification/manage')">
           <el-badge :value="3" class="notification-badge" />
         </el-button>
         
@@ -361,6 +362,22 @@ const handleClose = (key, keyPath) => {
             >
               <el-icon><Key /></el-icon>
               <span>增额申请审批</span>
+            </el-menu-item>
+          </el-sub-menu>
+
+          <!-- 通知管理 -->
+          <el-sub-menu index="9">
+            <template #title>
+              <el-icon class="menu-icon"><Bell /></el-icon>
+              <span class="menu-text">通知管理</span>
+            </template>
+            <el-menu-item
+              index="/notification/manage"
+              @click="router.push('/notification/manage')"
+              class="submenu-item"
+            >
+              <el-icon><Bell /></el-icon>
+              <span>系统通知</span>
             </el-menu-item>
           </el-sub-menu>
         </el-menu>
