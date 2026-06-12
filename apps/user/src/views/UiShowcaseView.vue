@@ -68,6 +68,64 @@
 
       <hr style="border: none; height: 1px; margin: 0 0 36px;" />
 
+      <!-- ━━━━ Input ━━━━ -->
+      <section style="margin-bottom: 36px;">
+        <h2 class="dew-showcase__heading" style="font-size: 15px; font-weight: 600; margin: 0 0 14px;">DewInput 输入框</h2>
+        <div style="font-size: 12px; color: var(--dew-text-faint); margin-bottom: 8px;">基础</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 16px;">
+          <div style="width: 220px;">
+            <DewInput v-model="inputVal1" placeholder="请输入内容..." />
+          </div>
+          <div style="width: 220px;">
+            <DewInput v-model="inputVal2" placeholder="带前缀图标" :prefix-icon="Search" />
+          </div>
+        </div>
+        <div style="font-size: 12px; color: var(--dew-text-faint); margin-bottom: 8px;">尺寸</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 16px;">
+          <div style="width: 180px;">
+            <DewInput v-model="inputVal3" placeholder="小号" size="sm" />
+          </div>
+          <div style="width: 180px;">
+            <DewInput v-model="inputVal3" placeholder="中号" size="md" />
+          </div>
+          <div style="width: 180px;">
+            <DewInput v-model="inputVal3" placeholder="大号" size="lg" />
+          </div>
+        </div>
+        <div style="font-size: 12px; color: var(--dew-text-faint); margin-bottom: 8px;">可清除 / 密码 / 错误态</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 16px;">
+          <div style="width: 220px;">
+            <DewInput v-model="inputVal4" placeholder="输入后可清除" clearable />
+          </div>
+          <div style="width: 220px;">
+            <DewInput v-model="inputVal5" placeholder="请输入密码" type="password" :prefix-icon="Lock" />
+          </div>
+          <div style="width: 220px;">
+            <DewInput model-value="错误的内容" placeholder="错误态" error />
+          </div>
+        </div>
+        <div style="font-size: 12px; color: var(--dew-text-faint); margin-bottom: 8px;">禁用</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 16px;">
+          <div style="width: 220px;">
+            <DewInput model-value="不可编辑" disabled />
+          </div>
+        </div>
+        <div style="font-size: 12px; color: var(--dew-text-faint); margin-bottom: 8px;">后缀图标 / 全圆角 / 聚焦展开</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center;">
+          <div style="width: 220px;">
+            <DewInput v-model="inputVal1" placeholder="后缀图标" :suffix-icon="Search" />
+          </div>
+          <div style="width: 220px;">
+            <DewInput v-model="inputVal2" placeholder="全圆角搜索..." :prefix-icon="Search" clearable round />
+          </div>
+          <div>
+            <DewInput v-model="inputVal1" placeholder="点击展开..." :prefix-icon="Search" expand-on-focus />
+          </div>
+        </div>
+      </section>
+
+      <hr style="border: none; height: 1px; margin: 0 0 36px;" />
+
       <!-- ━━━━ Card 基础变体 ━━━━ -->
       <section style="margin-bottom: 36px;">
         <h2 class="dew-showcase__heading" style="font-size: 15px; font-weight: 600; margin: 0 0 14px;">DewCard 卡片 · 基础变体</h2>
@@ -398,7 +456,8 @@ import DewButtonBar from '../components/ui/DewButtonBar.vue'
 import DewCard from '../components/ui/DewCard.vue'
 import DewBadge from '../components/ui/DewBadge.vue'
 import DewTag from '../components/ui/DewTag.vue'
-import { Document, Check, Bell, User, Setting } from '@element-plus/icons-vue'
+import DewInput from '../components/ui/DewInput.vue'
+import { Document, Check, Bell, User, Setting, Search, Lock } from '@element-plus/icons-vue'
 
 const isDark = ref(false)
 
@@ -426,6 +485,13 @@ const clickedCard = ref(null)
 function cardClicked(name) {
   clickedCard.value = name
 }
+
+// Input 数据
+const inputVal1 = ref('')
+const inputVal2 = ref('')
+const inputVal3 = ref('')
+const inputVal4 = ref('')
+const inputVal5 = ref('')
 </script>
 
 <style>

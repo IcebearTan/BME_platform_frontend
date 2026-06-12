@@ -118,6 +118,25 @@
   --dew-btn-danger-lit-shadow-hover: 0 0 32px rgba(239,68,68,0.4), 0 0 64px rgba(239,68,68,0.18), inset 0 0 16px rgba(255,120,120,0.3), inset 0 1px 0 rgba(255,255,255,0.4);
   --dew-btn-danger-lit-text-shadow: 0 0 10px rgba(239,68,68,0.5);
 
+  /* 输入框 */
+  --dew-input-bg:            rgba(255, 255, 255, 0.15);
+  --dew-input-bg-hover:      rgba(255, 255, 255, 0.22);
+  --dew-input-bg-focus:      rgba(255, 255, 255, 0.3);
+  --dew-input-border:        rgba(255, 255, 255, 0.25);
+  --dew-input-border-hover:  rgba(255, 255, 255, 0.35);
+  --dew-input-border-focus:  rgba(255, 255, 255, 0.5);
+  --dew-input-shadow:        0 2px 8px rgba(0,0,0,0.04), inset 0 0 0 0.5px rgba(255,255,255,0.25), inset 0 1px 0 rgba(255,255,255,0.3);
+  --dew-input-shadow-focus:  0 0 16px rgba(255,255,255,0.15), 0 0 32px rgba(255,255,255,0.06), 0 2px 12px rgba(0,0,0,0.06), inset 0 0 0 0.5px rgba(255,255,255,0.4), inset 0 1px 0 rgba(255,255,255,0.45);
+  --dew-input-text:          #374151;
+  --dew-input-placeholder:   #9ca3af;
+  --dew-input-error-border:  rgba(239, 68, 68, 0.5);
+  --dew-input-error-shadow:  0 0 16px rgba(239,68,68,0.12), 0 0 32px rgba(239,68,68,0.05), inset 0 0 0 0.5px rgba(239,68,68,0.3), inset 0 1px 0 rgba(255,255,255,0.2);
+  --dew-input-glow-color:    rgba(255, 255, 255, 0.08);
+  --dew-input-glow-error:    rgba(239, 68, 68, 0.08);
+  --dew-input-clear-hover-bg: rgba(0, 0, 0, 0.06);
+  --dew-input-expand-width:  160px;
+  --dew-input-expand-width-focus: 280px;
+
   /* 光效层（折射/高光/涟漪） */
   --dew-glow-indicator-bg:     rgba(255, 255, 255, 0.45);
   --dew-glow-indicator-shadow: 0 0 16px rgba(255,255,255,0.15), 0 0 32px rgba(255,255,255,0.06), inset 0 0 8px rgba(255,255,255,0.2), inset 0 1px 0 rgba(255,255,255,0.4);
@@ -226,6 +245,25 @@
   --dew-btn-danger-lit-shadow:      0 0 28px rgba(239,68,68,0.4), 0 0 56px rgba(239,68,68,0.18), inset 0 0 14px rgba(255,120,120,0.2), inset 0 1px 0 rgba(255,255,255,0.2);
   --dew-btn-danger-lit-shadow-hover: 0 0 36px rgba(239,68,68,0.5), 0 0 72px rgba(239,68,68,0.22), inset 0 0 18px rgba(255,120,120,0.25), inset 0 1px 0 rgba(255,255,255,0.25);
   --dew-btn-danger-lit-text-shadow: 0 0 12px rgba(239,68,68,0.6);
+
+  /* 输入框 */
+  --dew-input-bg:            rgba(255, 255, 255, 0.08);
+  --dew-input-bg-hover:      rgba(255, 255, 255, 0.12);
+  --dew-input-bg-focus:      rgba(255, 255, 255, 0.16);
+  --dew-input-border:        rgba(255, 255, 255, 0.12);
+  --dew-input-border-hover:  rgba(255, 255, 255, 0.18);
+  --dew-input-border-focus:  rgba(255, 255, 255, 0.3);
+  --dew-input-shadow:        0 2px 8px rgba(0,0,0,0.15), inset 0 0 0 0.5px rgba(255,255,255,0.06), inset 0 1px 0 rgba(255,255,255,0.08);
+  --dew-input-shadow-focus:  0 0 20px rgba(255,255,255,0.1), 0 0 40px rgba(255,255,255,0.04), 0 2px 12px rgba(0,0,0,0.2), inset 0 0 0 0.5px rgba(255,255,255,0.15), inset 0 1px 0 rgba(255,255,255,0.18);
+  --dew-input-text:          rgba(255, 255, 255, 0.88);
+  --dew-input-placeholder:   rgba(255, 255, 255, 0.3);
+  --dew-input-error-border:  rgba(248, 113, 113, 0.5);
+  --dew-input-error-shadow:  0 0 16px rgba(248,113,113,0.15), 0 0 32px rgba(248,113,113,0.06), inset 0 0 0 0.5px rgba(248,113,113,0.2), inset 0 1px 0 rgba(255,255,255,0.08);
+  --dew-input-glow-color:    rgba(255, 255, 255, 0.06);
+  --dew-input-glow-error:    rgba(248, 113, 113, 0.1);
+  --dew-input-clear-hover-bg: rgba(255, 255, 255, 0.08);
+  --dew-input-expand-width:  160px;
+  --dew-input-expand-width-focus: 280px;
 
   /* 光效层 */
   --dew-glow-indicator-bg:     rgba(255, 255, 255, 0.1);

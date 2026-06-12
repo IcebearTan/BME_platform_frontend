@@ -1,1 +1,8 @@
 @import "tailwindcss" preflight(false);
+
+/* 禁止浏览器对原生 input 的 :invalid 校验样式（红色虚线/阴影） */
+input:invalid,
+input:-moz-ui-invalid {
+  box-shadow: none !important;
+  outline: none !important;
+}
