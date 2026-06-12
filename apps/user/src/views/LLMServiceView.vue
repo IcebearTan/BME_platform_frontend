@@ -289,12 +289,15 @@ const actChart = computed(() => {
 const actModelBreakdown = computed(() => {
   const map = {};
   for (const day of actResults.value || []) {
-    for (const [model, stats] of Object.entries(day.breakdown?.models || {})) {
-      if (!map[model]) map[model] = { model, spend: 0, total_tokens: 0, api_requests: 0, successful_requests: 0 };
-      map[model].spend += Number(stats.spend || 0);
-      map[model].total_tokens += Number(stats.total_tokens || 0);
-      map[model].api_requests += Number(stats.api_requests || 0);
-      map[model].successful_requests += Number(stats.successful_requests || 0);
+    for (const [model, entry] of Object.entries(day.breakdown?.models || {})) {
+      const m = entry?.metrics ?? entry;
+      if (!map[model]) map[model] = { model, spend: 0, total_tokens: 0, api_requests: 0, successful_requests: 0, cache_read_tokens: 0, prompt_tokens: 0 };
+      map[model].spend += Number(m?.spend || 0);
+      map[model].total_tokens += Number(m?.total_tokens || 0);
+      map[model].api_requests += Number(m?.api_requests || 0);
+      map[model].successful_requests += Number(m?.successful_requests || 0);
+      map[model].cache_read_tokens += Number(m?.cache_read_input_tokens || 0);
+      map[model].prompt_tokens += Number(m?.prompt_tokens || 0);
     }
   }
   return Object.values(map).sort((a, b) => b.spend - a.spend);
@@ -654,6 +657,14 @@ const refreshAll = () => {
                           <template #default="{ row }">
                             <el-tag v-if="row.api_requests" :type="row.successful_requests/row.api_requests >= 0.95 ? 'success' : 'warning'" size="small" effect="light">
                               {{ Math.round(row.successful_requests / row.api_requests * 100) }}%
+                            </el-tag>
+                            <span v-else class="muted">—</span>
+                          </template>
+                        </el-table-column>
+                        <el-table-column label="缓存命中率" width="100" align="right">
+                          <template #default="{ row }">
+                            <el-tag v-if="row.cache_read_tokens + row.prompt_tokens" type="success" size="small" effect="light">
+                              {{ Math.round(row.cache_read_tokens / (row.cache_read_tokens + row.prompt_tokens) * 100) }}%
                             </el-tag>
                             <span v-else class="muted">—</span>
                           </template>
