@@ -342,10 +342,22 @@ const modelCompat = (id) => {
   return { openai: true, claude: true };
 };
 
-const copyText = async (text) => {
+const copyText = async (text, successMsg = '已复制') => {
   try {
-    await navigator.clipboard.writeText(text);
-    ElMessage.success('已复制');
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      const el = document.createElement('textarea');
+      el.value = text;
+      el.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0';
+      document.body.appendChild(el);
+      el.focus();
+      el.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(el);
+      if (!ok) throw new Error('execCommand failed');
+    }
+    ElMessage.success(successMsg);
   } catch {
     ElMessage.warning('复制失败，请手动复制');
   }
@@ -427,22 +439,14 @@ const viewUsage = async (row) => {
   }
 };
 
-const copyKey = async () => {
-  try {
-    await navigator.clipboard.writeText(plainKey.value);
-    ElMessage.success('已复制');
-  } catch {
-    ElMessage.warning('复制失败，请手动复制');
-  }
-};
+const copyKey = () => copyText(plainKey.value);
 
 const copyingProjectId = ref(null);
 const copyProjectKey = async (row) => {
   copyingProjectId.value = row.id;
   try {
     const res = await api.get(`/llm/admin/projects/${row.id}/reveal-key`);
-    await navigator.clipboard.writeText(res.data.data.litellm_key);
-    ElMessage.success('Key 已复制');
+    await copyText(res.data.data.litellm_key, 'Key 已复制');
   } catch {
     ElMessage.warning('复制失败，请重试');
   } finally {
