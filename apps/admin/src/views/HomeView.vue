@@ -5,7 +5,7 @@ import { useRouter } from 'vue-router'
 import {
   Document, User, ChatLineRound, Trophy, Setting, Location,
   Grid, Fold, Bell, ArrowDown, Clock, EditPen, TrendCharts,
-  HomeFilled, Picture, Search, List, Plus, Cpu, DataLine, Key
+  HomeFilled, Picture, Search, List, Plus, Cpu, DataLine, Key, Tickets
 } from '@element-plus/icons-vue';
 
 export default {
@@ -39,7 +39,8 @@ export default {
         '/course/edit/:id': '编辑课程',
         '/learningprgress/manage': '学习进度',
         '/medal/manage': '勋章管理',
-        '/medal/grant': '勋章查询'
+        '/medal/grant': '勋章查询',
+        '/audit/logs': '审计日志'
       };
       return routeMap[this.$route.path] || '系统管理';
     }
@@ -367,6 +368,10 @@ const handleClose = (key, keyPath) => {
 
       <!-- 底部系统设置 -->
       <div class="sidebar-footer">
+<div class="settings-item" @click="router.push('/audit/logs')">
+          <el-icon class="menu-icon"><Tickets /></el-icon>
+          <span class="menu-text" v-show="!sidebarCollapsed">审计日志</span>
+        </div>
         <div class="settings-item" @click="handleSettingsClick">
           <el-icon class="menu-icon"><Setting /></el-icon>
           <span class="menu-text" v-show="!sidebarCollapsed">系统设置</span>

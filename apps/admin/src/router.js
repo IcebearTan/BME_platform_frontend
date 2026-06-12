@@ -24,6 +24,7 @@ import CourseCreate from './components/CourseCreate.vue';
 import LLMProjectManage from './components/LLMProjectManage.vue';
 import LLMUserMonitor from './components/LLMUserMonitor.vue';
 import LLMQuotaRequests from './components/LLMQuotaRequests.vue';
+import AuditLogManage from './components/AuditLogManage.vue';
 
 const router = createRouter({
     history: createWebHistory("/admin/"),
@@ -117,7 +118,12 @@ const router = createRouter({
                     path: '/llm/quota-requests',
                     name: 'llm_quota_requests',
                     component: LLMQuotaRequests
-                }
+                },
+                {
+                    path: '/audit/logs',
+                    name: 'audit_logs',
+                    component: AuditLogManage
+                },
             ]
         },
         {
