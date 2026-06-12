@@ -194,15 +194,9 @@ const submitRequest = async () => {
 
 const modelCompat = (id) => {
   const lower = (id || '').toLowerCase();
-  if (lower.includes('deepseek')) {
-    return lower.includes('anthropic')
-      ? { openai: false, claude: true }
-      : { openai: true,  claude: false };
-  }
-  if (lower.startsWith('qwen')) {
-    return { openai: true, claude: false };
-  }
-  return { openai: true, claude: true };
+  if (lower.endsWith('-anthropic')) return { openai: false, claude: true };
+  if (lower.startsWith('qwen')) return { openai: true, claude: false };
+  return { openai: true, claude: false };
 };
 
 // ==================== 用量趋势 ====================
@@ -761,6 +755,41 @@ const refreshAll = () => {
                 <div class="guide-block">
                   <div class="guide-label">
                     <span class="guide-label-icon">
+                      <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8s3.58 8 8 8 8-3.58 8-8-3.58-8-8-8zm1.12 11.8H6.88V7.68h2.24v4.12zm0-5.48H6.88V4.2h2.24v2.12z"/></svg>
+                    </span>
+                    Claude Code 接入
+                  </div>
+                  <div class="examples-grid">
+                    <div style="grid-column: 1 / -1;">
+                      <div class="example-label">
+                        <span class="example-badge example-badge-claude">Claude Code</span>
+                        <span class="example-badge-tip">在终端中使用 AI 编程助手</span>
+                      </div>
+                      <div class="code-block">
+                        <div class="code-header">
+                          <div class="code-dots">
+                            <span class="dot dot-r"></span><span class="dot dot-y"></span><span class="dot dot-g"></span>
+                          </div>
+                          <span class="code-filename">~/.claude/settings.json</span>
+                        </div>
+                        <pre class="guide-pre">{
+  <span class="syn-str">"env"</span>: {
+    <span class="syn-str">"ANTHROPIC_BASE_URL"</span>: <span class="syn-str">"http://172.25.56.83:4000"</span>,
+    <span class="syn-str">"ANTHROPIC_API_KEY"</span>: <span class="syn-str">"你的 API Key"</span>
+  }
+}</pre>
+                      </div>
+                      <p class="models-note" style="margin-top: 12px;">
+                        完整接入步骤请参考：
+                        <a href="https://docs.qq.com/doc/DZUxKSUd2SUNLV1ZZ" target="_blank" rel="noopener" class="guide-link">Claude Code 接入说明文档 →</a>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="guide-block">
+                  <div class="guide-label">
+                    <span class="guide-label-icon">
                       <svg viewBox="0 0 16 16" fill="currentColor"><path d="M5.854 4.854a.5.5 0 1 0-.708-.708l-3.5 3.5a.5.5 0 0 0 0 .708l3.5 3.5a.5.5 0 0 0 .708-.708L2.707 8l3.147-3.146zm4.292 0a.5.5 0 0 1 .708-.708l3.5 3.5a.5.5 0 0 1 0 .708l-3.5 3.5a.5.5 0 0 1-.708-.708L13.293 8l-3.147-3.146z"/></svg>
                     </span>
                     调用示例
@@ -1308,6 +1337,20 @@ message <span class="syn-op">=</span> client.messages.create(
   margin: 10px 0 0;
   padding: 0 4px;
   line-height: 1.6;
+}
+
+.guide-link {
+  color: #6366f1;
+  font-weight: 500;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  transition: color 0.2s;
+}
+.guide-link:hover {
+  color: #4f46e5;
+  text-decoration: underline;
 }
 
 /* Examples grid */
