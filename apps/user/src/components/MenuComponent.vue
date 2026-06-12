@@ -248,7 +248,12 @@ const handleUserInfo = () => {
                     @blur="isSearchInputExpand()"
                     :class="searchInputClass"
                 />
-        
+
+        <!-- 通知铃铛（仅登录后显示） -->
+        <el-menu-item v-if="isLogin" class="custom-menu-item notification-menu-item" :class="{ 'theme-dark': isDarkMode, 'theme-light': !isDarkMode }">
+            <NotificationBell />
+        </el-menu-item>
+
         <!-- 主题切换按钮 -->
         <el-menu-item class="custom-menu-item theme-menu-item" :class="{ 'theme-dark': isDarkMode, 'theme-light': !isDarkMode }">
             <div 

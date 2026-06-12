@@ -29,7 +29,7 @@
             @click="goToNotifications"
           >
             <span class="preview-title">{{ item.title }}</span>
-            <span class="preview-time">{{ formatTime(item.create_time) }}</span>
+            <span class="preview-time">{{ formatRelativeTime(item.created_at) }}</span>
           </div>
         </div>
         <div v-else class="preview-empty">暂无通知</div>
@@ -47,52 +47,23 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { Bell } from '@element-plus/icons-vue'
-import api from '../../api'
-import { mockNotifications, mockNotificationApiResponses, calculateUnreadCount } from '../../mock/notificationData'
-import { mockApiRequest } from '../../mock/config'
+import { useNotifications, formatRelativeTime } from '../../composables/useNotifications'
 
 const router = useRouter()
 
-const notifications = ref([])
+// 共享状态（与 NotificationListComponent 共用同一份数据）
+const { notificationList, unreadCount, startPolling, stopPolling } = useNotifications()
+
 const isHovering = ref(false)
-
-const unreadCount = computed(() => notifications.value.filter(n => !n.is_read).length)
-const recentNotifications = computed(() => notifications.value.slice(0, 5))
-
-const formatTime = (timeStr) => {
-  const diff = Date.now() - new Date(timeStr).getTime()
-  const d = Math.floor(diff / 86400000)
-  const h = Math.floor(diff / 3600000)
-  const m = Math.floor(diff / 60000)
-  return d > 0 ? `${d}天前` : h > 0 ? `${h}小时前` : m > 0 ? `${m}分钟前` : '刚刚'
-}
+const recentNotifications = computed(() => notificationList.value.slice(0, 5))
 
 const goToNotifications = () => {
   isHovering.value = false
   router.push('/notifications')
 }
 
-const fetchNotifications = async () => {
-  try {
-    const r = await mockApiRequest(
-      async () => { const res = await api.get('/information/reminder/query'); return res.data },
-      () => mockNotificationApiResponses.getAllNotifications(),
-    )
-    if (r.code === 200) {
-      notifications.value = r.data.notifications
-    }
-  } catch (e) {
-    console.error('获取通知失败:', e)
-    notifications.value = [...mockNotifications]
-  }
-}
-
-let refreshTimer = null
-onMounted(() => {
-  fetchNotifications()
-  refreshTimer = setInterval(fetchNotifications, 30000)
-})
-onBeforeUnmount(() => { if (refreshTimer) clearInterval(refreshTimer) })
+onMounted(() => startPolling(30000))
+onBeforeUnmount(() => stopPolling())
 </script>
 
 <style scoped>

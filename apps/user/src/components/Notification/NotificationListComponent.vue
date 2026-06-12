@@ -13,15 +13,20 @@
           <span style="font-weight: 600;">{{ unreadCount }}</span> 条未读
         </div>
       </div>
-      <DewButton v-if="unreadCount > 0" type="ghost" size="sm" @click="markAllAsRead">
+      <DewButton v-if="unreadCount > 0" type="ghost" size="sm" @click="handleMarkAllAsRead">
         全部已读
       </DewButton>
     </div>
 
     <!-- 通知列表 -->
     <DewCard style="margin-top: 12px;" size="lg" :no-hover="true">
+      <!-- 加载中 -->
+      <div v-if="loading" class="empty-state">
+        <span style="font-size: 14px;">加载中...</span>
+      </div>
+
       <!-- 空状态 -->
-      <div v-if="pagedList.length === 0" class="empty-state">
+      <div v-else-if="pagedList.length === 0" class="empty-state">
         <svg style="width: 40px; height: 40px; margin-bottom: 10px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
         </svg>
@@ -58,7 +63,7 @@
               </div>
               <p class="notification-content">{{ item.content }}</p>
               <div style="display: flex; align-items: center; justify-content: space-between;">
-                <span style="font-size: 12px; color: var(--dew-text-faint);">{{ formatTime(item.create_time) }}</span>
+                <span style="font-size: 12px; color: var(--dew-text-faint);">{{ formatRelativeTime(item.created_at) }}</span>
                 <DewButton v-if="!item.is_read" type="ghost" size="sm" @click.stop="markAsRead(item.id)">
                   标记已读
                 </DewButton>
@@ -72,7 +77,7 @@
       </div>
 
       <!-- 分页 -->
-      <div v-if="pagedList.length > pageSize" class="pagination">
+      <div v-if="pagedList.length > 0 && total > pageSize" class="pagination">
         <DewButton size="sm" :disabled="currentPage === 1" @click="currentPage--">上一页</DewButton>
         <span style="font-size: 13px; color: var(--dew-text-faint);">{{ currentPage }} / {{ totalPages }}</span>
         <DewButton size="sm" :disabled="currentPage === totalPages" @click="currentPage++">下一页</DewButton>
@@ -82,23 +87,29 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { Bell } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { DewButton, DewButtonBar, DewCard, DewTag } from '../ui'
-import { mockNotifications } from '../../mock/notificationData'
+import { useNotifications, formatRelativeTime } from '../../composables/useNotifications'
 
-const emit = defineEmits(['markAsRead', 'markAllAsRead'])
+// 共享状态（与 NotificationBell 共用同一份数据）
+const {
+  notificationList,
+  unreadCount,
+  totalCount,
+  loading,
+  fetchNotifications,
+  markAsRead,
+  markAllAsRead,
+} = useNotifications()
 
-// 数据 — 前端开发阶段直接用 mock，后端接口定稿后再对接
-const notificationList = ref([...mockNotifications])
 const activeFilter = ref('all')
 const currentPage = ref(1)
 const pageSize = 20
 
 // 统计
-const total = computed(() => notificationList.value.length)
-const unreadCount = computed(() => notificationList.value.filter(n => !n.is_read).length)
+const total = computed(() => filteredList.value.length)
 
 // 筛选栏选项
 const filterItems = computed(() => [
@@ -108,8 +119,10 @@ const filterItems = computed(() => [
 
 // 筛选 + 分页
 const filteredList = computed(() => {
-  const list = notificationList.value
-  if (activeFilter.value === 'unread') return list.filter(n => !n.is_read)
+  let list = notificationList.value
+  if (activeFilter.value === 'unread') {
+    list = list.filter(n => !n.is_read)
+  }
   return list
 })
 const totalPages = computed(() => Math.max(1, Math.ceil(filteredList.value.length / pageSize)))
@@ -122,29 +135,16 @@ watch(activeFilter, () => { currentPage.value = 1 })
 // 交互
 function handleClick(item) {
   if (!item.is_read) markAsRead(item.id)
+  // TODO: 后端就绪后，根据 source_type + source_id + group_id 跳转到原始页面
 }
 
-function markAsRead(id) {
-  const target = notificationList.value.find(n => n.id === id)
-  if (target) target.is_read = true
-  emit('markAsRead', id)
-}
-
-function markAllAsRead() {
-  notificationList.value.forEach(n => { n.is_read = true })
-  emit('markAllAsRead')
+function handleMarkAllAsRead() {
+  markAllAsRead()
   ElMessage.success('已全部标记为已读')
 }
 
-// 时间格式化
-function formatTime(timeStr) {
-  const diff = Date.now() - new Date(timeStr).getTime()
-  const d = Math.floor(diff / 86400000)
-  const h = Math.floor(diff / 3600000)
-  const m = Math.floor(diff / 60000)
-  return d > 0 ? `${d}天前` : h > 0 ? `${h}小时前` : m > 0 ? `${m}分钟前` : '刚刚'
-}
-
+// 初始化：拉取数据
+onMounted(() => fetchNotifications())
 </script>
 
 <style scoped>
