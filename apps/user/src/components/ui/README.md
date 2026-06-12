@@ -164,15 +164,45 @@ import { DewCard, DewButton } from '@/components/ui'
 
 ## 设计 Token
 
-所有组件共享 `src/components/ui/tokens.css` 中定义的设计变量：
+所有组件共享 `src/components/ui/tokens.css` 中定义的设计变量，通过 CSS 自定义属性实现完全组件化：
+
+### 基础 Token
 
 | 类别 | 变量示例 | 用途 |
 |------|---------|------|
+| 字体 | `--dew-font` | 统一字体栈（苹方/微软雅黑回退） |
 | 品牌色 | `--color-primary` `--color-primary-light` | 主色调及浅底 |
 | 语义色 | `--color-success` `--color-danger` `--color-warning` | 状态颜色 |
 | 圆角 | `--radius-sm` `--radius-md` `--radius-lg` `--radius-full` | 8px / 12px / 16px / 全圆 |
 | 阴影 | `--shadow-sm` `--shadow-md` `--shadow-lg` | 柔和多层阴影 |
 | 毛玻璃 | `--glass-bg` `--glass-blur` `--glass-border` | 半透明 + 模糊参数 |
+
+### 组件级 Token（`--dew-` 前缀）
+
+| 类别 | 变量组 | 覆盖范围 |
+|------|--------|---------|
+| 文字 | `--dew-text` / `--dew-text-heading` / `--dew-text-muted` / `--dew-text-faint` | 4 级文字色 |
+| 动画曲线 | `--dew-bounce` | 水滴弹性曲线，所有组件共享 |
+| 按钮 glass | `--dew-btn-bg` / `--dew-btn-border` / `--dew-btn-shadow` | glass 默认态 + hover |
+| 按钮 danger | `--dew-btn-danger-*` | danger 全态（bg/border/color/shadow/text-shadow） |
+| 按钮 lit | `--dew-btn-lit-*` | 白光点亮全态 |
+| 按钮 danger lit | `--dew-btn-danger-lit-*` | 红色光焰全态 |
+| 按钮 ghost | `--dew-ghost-hover-*` | 幽灵按钮 hover |
+| 光效层 | `--dew-glow-*` | indicator/highlight/ripple/text-active |
+| 按钮栏 | `--dew-bar-*` | 容器 + 文字 + badge |
+| 卡片 | `--dew-card-*` | 4 种变体（default/elevated/inset/glass）全态 |
+| 卡片底色 | `--dew-tint-*-from` / `--dew-tint-*-to` | 6 种 accent 色彩渐变 |
+
+### 暗色模式
+
+所有 `--dew-*` 变量在 `.theme-dark` 下自动覆盖为暗色值。切换主题只需在父元素上挂载 `theme-dark` / `theme-light` class：
+
+```vue
+<div :class="isDark ? 'theme-dark' : 'theme-light'">
+  <DewButton>按钮</DewButton>
+  <DewCard>卡片</DewCard>
+</div>
+```
 
 自定义主题只需修改 `tokens.css` 中的变量值即可全局生效。
 
@@ -180,4 +210,4 @@ import { DewCard, DewButton } from '@/components/ui'
 
 ## 组件展示页面
 
-开发环境中访问 `/ui-showcase` 可查看所有组件的实时效果和交互演示。
+开发环境中访问 `/ui-showcase` 可查看所有组件的实时效果和交互演示，含亮/暗模式切换。

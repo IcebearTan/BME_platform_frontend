@@ -104,6 +104,7 @@ const chromaticStyle = computed(() => {
 .dew-card {
   position: relative;
   isolation: isolate;
+  font-family: var(--dew-font, inherit);
   backdrop-filter: blur(20px) saturate(1.4);
   -webkit-backdrop-filter: blur(20px) saturate(1.4);
   background: var(--dew-card-bg);
@@ -112,10 +113,10 @@ const chromaticStyle = computed(() => {
   box-shadow: var(--dew-card-shadow);
   overflow: hidden;
   transition:
-    transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
-    box-shadow 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
-    background 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
-    border-color 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transform 0.35s var(--dew-bounce),
+    box-shadow 0.35s var(--dew-bounce),
+    background 0.35s var(--dew-bounce),
+    border-color 0.35s var(--dew-bounce);
 }
 
 .dew-card:hover {
@@ -185,7 +186,7 @@ const chromaticStyle = computed(() => {
   border-radius: inherit;
   pointer-events: none;
   background: radial-gradient(circle at var(--ripple-x, 50%) var(--ripple-y, 50%),
-    rgba(255, 255, 255, 0.25) 0%,
+    var(--dew-glow-ripple) 0%,
     transparent 60%);
   opacity: 0;
   transition: opacity 0.4s ease;
@@ -203,29 +204,24 @@ const chromaticStyle = computed(() => {
   border-radius: inherit;
   pointer-events: none;
   opacity: 0.35;
-  background: linear-gradient(135deg, var(--tint-from, rgba(59,130,246,0.3)), var(--tint-to, rgba(139,92,246,0.2)));
+  background: linear-gradient(135deg, var(--dew-tint-default-from), var(--dew-tint-default-to));
 }
 
 /* ── accent 色彩变体 ── */
 .dew-card--accent-primary .dew-card__tint {
-  --tint-from: rgba(59,130,246,0.3);
-  --tint-to: rgba(99,102,241,0.2);
+  background: linear-gradient(135deg, var(--dew-tint-primary-from), var(--dew-tint-primary-to));
 }
 .dew-card--accent-success .dew-card__tint {
-  --tint-from: rgba(34,197,94,0.3);
-  --tint-to: rgba(16,185,129,0.2);
+  background: linear-gradient(135deg, var(--dew-tint-success-from), var(--dew-tint-success-to));
 }
 .dew-card--accent-warning .dew-card__tint {
-  --tint-from: rgba(245,158,11,0.3);
-  --tint-to: rgba(251,146,60,0.2);
+  background: linear-gradient(135deg, var(--dew-tint-warning-from), var(--dew-tint-warning-to));
 }
 .dew-card--accent-danger .dew-card__tint {
-  --tint-from: rgba(239,68,68,0.3);
-  --tint-to: rgba(244,63,94,0.2);
+  background: linear-gradient(135deg, var(--dew-tint-danger-from), var(--dew-tint-danger-to));
 }
 .dew-card--accent-info .dew-card__tint {
-  --tint-from: rgba(6,182,212,0.3);
-  --tint-to: rgba(59,130,246,0.2);
+  background: linear-gradient(135deg, var(--dew-tint-info-from), var(--dew-tint-info-to));
 }
 
 /* ━━━━ 尺寸（内边距） ━━━━ */
@@ -279,7 +275,7 @@ const chromaticStyle = computed(() => {
   right: 15%;
   height: 1px;
   z-index: 2;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+  background: linear-gradient(90deg, transparent, var(--dew-glow-highlight), transparent);
   pointer-events: none;
 }
 
@@ -289,7 +285,8 @@ const chromaticStyle = computed(() => {
   z-index: 3;
   font-weight: 600;
   font-size: 14px;
-  color: var(--color-text);
+  color: var(--dew-text-heading);
+  transition: color 0.35s ease;
 }
 
 /* ━━━━ 分割线（divided 模式下 header 底部显示） ━━━━ */

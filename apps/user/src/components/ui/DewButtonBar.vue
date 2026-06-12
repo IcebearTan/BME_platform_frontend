@@ -92,6 +92,7 @@ const refractionStyle = computed(() => {
   display: inline-flex;
   align-items: center;
   border-radius: 9999px;
+  font-family: var(--dew-font, inherit);
   overflow: hidden;
   isolation: isolate;
   backdrop-filter: blur(20px) saturate(1.5);
@@ -123,16 +124,12 @@ const refractionStyle = computed(() => {
   bottom: 3px;
   z-index: 2;
   border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.45);
-  box-shadow:
-    0 0 16px rgba(255, 255, 255, 0.15),
-    0 0 32px rgba(255, 255, 255, 0.06),
-    inset 0 0 8px rgba(255, 255, 255, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  background: var(--dew-glow-indicator-bg);
+  box-shadow: var(--dew-glow-indicator-shadow);
   /* 水滴弹性滑动 */
   transition:
-    left 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
-    width 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    left 0.4s var(--dew-bounce),
+    width 0.4s var(--dew-bounce);
   pointer-events: none;
 }
 
@@ -153,7 +150,7 @@ const refractionStyle = computed(() => {
   font-family: inherit;
   font-weight: 500;
   color: var(--dew-bar-text);
-  transition: color 0.25s ease;
+  transition: color 0.35s ease;
 }
 
 .dew-bar--sm .dew-bar__item {
@@ -188,15 +185,15 @@ const refractionStyle = computed(() => {
   font-size: 10px;
   font-weight: 600;
   line-height: 1;
-  background: rgba(239, 68, 68, 0.15);
-  color: #ef4444;
+  background: var(--dew-bar-badge-bg);
+  color: var(--dew-bar-badge-color);
 }
 
 /* ── 选中态 ── */
 .dew-bar__item--active {
   color: var(--dew-bar-text-active);
   font-weight: 600;
-  text-shadow: 0 0 6px rgba(255, 255, 255, 0.3);
+  text-shadow: var(--dew-glow-text-active);
 }
 
 /* ── hover（非选中项） ── */

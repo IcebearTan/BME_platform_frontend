@@ -1,5 +1,5 @@
 <template>
-  <div :class="['dew-showcase', isDark ? 'dew-showcase--dark' : 'dew-showcase--light']" style="min-height: 100vh;">
+  <div :class="['dew-showcase', isDark ? 'dew-showcase--dark' : 'dew-showcase--light', isDark ? 'theme-dark' : 'theme-light']" style="min-height: 100vh;">
     <!-- 顶部菜单占位 -->
     <div style="height: 60px;"></div>
     <MenuComponent />
@@ -14,7 +14,7 @@
           </div>
           <!-- 明暗切换 -->
           <DewButton :active="isDark" @click="isDark = !isDark" size="sm">
-            {{ isDark ? 'Light' : 'Dark' }}
+            {{ isDark ? 'Dark' : 'Light' }}
           </DewButton>
         </div>
         <p class="dew-showcase__subtitle" style="padding-left: 14px;">
@@ -30,19 +30,19 @@
           <DewButton type="danger">危险按钮</DewButton>
           <DewButton type="ghost">幽灵按钮</DewButton>
         </div>
-        <div style="font-size: 12px; color: #9ca3af; margin-bottom: 8px;">点亮状态</div>
+        <div style="font-size: 12px; color: var(--dew-text-faint); margin-bottom: 8px;">点亮状态</div>
         <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 16px;">
           <DewButton :active="lit1" @click="lit1 = !lit1">{{ lit1 ? '已点亮' : '点击点亮' }}</DewButton>
           <DewButton :active="lit2" @click="lit2 = !lit2">{{ lit2 ? '已点亮' : '点击点亮' }}</DewButton>
           <DewButton type="danger" :active="lit3" @click="lit3 = !lit3">{{ lit3 ? '已点亮' : '点击点亮' }}</DewButton>
         </div>
-        <div style="font-size: 12px; color: #9ca3af; margin-bottom: 8px;">尺寸</div>
+        <div style="font-size: 12px; color: var(--dew-text-faint); margin-bottom: 8px;">尺寸</div>
         <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 16px;">
           <DewButton size="sm">小号</DewButton>
           <DewButton size="md">中号</DewButton>
           <DewButton size="lg">大号</DewButton>
         </div>
-        <div style="font-size: 12px; color: #9ca3af; margin-bottom: 8px;">禁用 / 块级</div>
+        <div style="font-size: 12px; color: var(--dew-text-faint); margin-bottom: 8px;">禁用 / 块级</div>
         <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
           <DewButton :disabled="true">禁用</DewButton>
           <DewButton type="danger" :disabled="true">禁用危险</DewButton>
@@ -61,7 +61,7 @@
           <DewButtonBar :items="barItems1" v-model="barValue1" />
           <DewButtonBar :items="barItems2" v-model="barValue2" size="sm" />
         </div>
-        <div style="font-size: 12px; color: #9ca3af;">
+        <div style="font-size: 12px; color: var(--dew-text-faint);">
           当前选中：{{ barValue1 }}
         </div>
       </section>
@@ -74,25 +74,25 @@
         <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
           <DewCard variant="default">
             <template #header>Default 默认</template>
-            <p style="font-size: 13px; color: #6b7280; margin: 0; line-height: 1.6;">
+            <p style="font-size: 13px; color: var(--dew-text-muted); margin: 0; line-height: 1.6;">
               标准卡片，柔和阴影 + 圆角。悬停轻微上浮，折射光跟随光标。
             </p>
           </DewCard>
           <DewCard variant="elevated">
             <template #header>Elevated 浮起</template>
-            <p style="font-size: 13px; color: #6b7280; margin: 0; line-height: 1.6;">
+            <p style="font-size: 13px; color: var(--dew-text-muted); margin: 0; line-height: 1.6;">
               更强阴影和上浮距离，适合对话框、弹层等场景。
             </p>
           </DewCard>
           <DewCard variant="inset">
             <template #header>Inset 凹陷</template>
-            <p style="font-size: 13px; color: #6b7280; margin: 0; line-height: 1.6;">
+            <p style="font-size: 13px; color: var(--dew-text-muted); margin: 0; line-height: 1.6;">
               内凹效果，悬停不上浮。适合嵌入在已有容器内的内容区域。
             </p>
           </DewCard>
           <DewCard :glass="true">
             <template #header>Glass 毛玻璃</template>
-            <p style="font-size: 13px; color: #6b7280; margin: 0; line-height: 1.6;">
+            <p style="font-size: 13px; color: var(--dew-text-muted); margin: 0; line-height: 1.6;">
               更强模糊 + 透明度，在渐变或图片背景上效果出众。
             </p>
           </DewCard>
@@ -107,15 +107,15 @@
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
           <DewCard size="sm">
             <template #header>Small</template>
-            <p style="font-size: 12px; color: #6b7280; margin: 0;">紧凑内边距，适合标签组、小面板。</p>
+            <p style="font-size: 12px; color: var(--dew-text-muted); margin: 0;">紧凑内边距，适合标签组、小面板。</p>
           </DewCard>
           <DewCard size="md">
             <template #header>Medium</template>
-            <p style="font-size: 13px; color: #6b7280; margin: 0;">默认尺寸，平衡可读性和紧凑度。</p>
+            <p style="font-size: 13px; color: var(--dew-text-muted); margin: 0;">默认尺寸，平衡可读性和紧凑度。</p>
           </DewCard>
           <DewCard size="lg">
             <template #header>Large</template>
-            <p style="font-size: 14px; color: #6b7280; margin: 0;">宽松内边距，适合大段文本或表单。</p>
+            <p style="font-size: 14px; color: var(--dew-text-muted); margin: 0;">宽松内边距，适合大段文本或表单。</p>
           </DewCard>
         </div>
       </section>
@@ -129,37 +129,37 @@
           <DewCard :tinted="true" accent="primary" :glass="true">
             <div style="text-align: center; padding: 8px 0;">
               <div style="font-size: 28px; font-weight: 700; color: #3b82f6; line-height: 1;">128</div>
-              <div style="font-size: 13px; color: #6b7280; margin-top: 6px;">课程总数</div>
+              <div style="font-size: 13px; color: var(--dew-text-muted); margin-top: 6px;">课程总数</div>
             </div>
           </DewCard>
           <DewCard :tinted="true" accent="success" :glass="true">
             <div style="text-align: center; padding: 8px 0;">
               <div style="font-size: 28px; font-weight: 700; color: #22c55e; line-height: 1;">96</div>
-              <div style="font-size: 13px; color: #6b7280; margin-top: 6px;">已完成</div>
+              <div style="font-size: 13px; color: var(--dew-text-muted); margin-top: 6px;">已完成</div>
             </div>
           </DewCard>
           <DewCard :tinted="true" accent="danger" :glass="true">
             <div style="text-align: center; padding: 8px 0;">
               <div style="font-size: 28px; font-weight: 700; color: #ef4444; line-height: 1;">5</div>
-              <div style="font-size: 13px; color: #6b7280; margin-top: 6px;">待处理</div>
+              <div style="font-size: 13px; color: var(--dew-text-muted); margin-top: 6px;">待处理</div>
             </div>
           </DewCard>
           <DewCard :tinted="true" accent="warning" :glass="true">
             <div style="text-align: center; padding: 8px 0;">
               <div style="font-size: 28px; font-weight: 700; color: #f59e0b; line-height: 1;">12</div>
-              <div style="font-size: 13px; color: #6b7280; margin-top: 6px;">即将截止</div>
+              <div style="font-size: 13px; color: var(--dew-text-muted); margin-top: 6px;">即将截止</div>
             </div>
           </DewCard>
           <DewCard :tinted="true" accent="info" :glass="true">
             <div style="text-align: center; padding: 8px 0;">
               <div style="font-size: 28px; font-weight: 700; color: #06b6d4; line-height: 1;">3</div>
-              <div style="font-size: 13px; color: #6b7280; margin-top: 6px;">新通知</div>
+              <div style="font-size: 13px; color: var(--dew-text-muted); margin-top: 6px;">新通知</div>
             </div>
           </DewCard>
           <DewCard :tinted="true" :glass="true">
             <div style="text-align: center; padding: 8px 0;">
               <div style="font-size: 28px; font-weight: 700; color: #8b5cf6; line-height: 1;">A+</div>
-              <div style="font-size: 13px; color: #6b7280; margin-top: 6px;">平均绩点</div>
+              <div style="font-size: 13px; color: var(--dew-text-muted); margin-top: 6px;">平均绩点</div>
             </div>
           </DewCard>
         </div>
@@ -177,8 +177,8 @@
                 <Document style="width: 20px; height: 20px; color: #3b82f6;" />
               </div>
               <div>
-                <div style="font-size: 14px; font-weight: 600; color: #1f2937;">我的课程</div>
-                <div style="font-size: 12px; color: #9ca3af;">本学期 6 门课程</div>
+                <div style="font-size: 14px; font-weight: 600; color: var(--dew-text-heading);">我的课程</div>
+                <div style="font-size: 12px; color: var(--dew-text-faint);">本学期 6 门课程</div>
               </div>
             </div>
           </DewCard>
@@ -188,8 +188,8 @@
                 <Bell style="width: 20px; height: 20px; color: #f59e0b;" />
               </div>
               <div>
-                <div style="font-size: 14px; font-weight: 600; color: #1f2937;">待交作业</div>
-                <div style="font-size: 12px; color: #9ca3af;">3 份作业待提交</div>
+                <div style="font-size: 14px; font-weight: 600; color: var(--dew-text-heading);">待交作业</div>
+                <div style="font-size: 12px; color: var(--dew-text-faint);">3 份作业待提交</div>
               </div>
             </div>
           </DewCard>
@@ -199,13 +199,13 @@
                 <Check style="width: 20px; height: 20px; color: #22c55e;" />
               </div>
               <div>
-                <div style="font-size: 14px; font-weight: 600; color: #1f2937;">成绩查询</div>
-                <div style="font-size: 12px; color: #9ca3af;">查看本学期成绩</div>
+                <div style="font-size: 14px; font-weight: 600; color: var(--dew-text-heading);">成绩查询</div>
+                <div style="font-size: 12px; color: var(--dew-text-faint);">查看本学期成绩</div>
               </div>
             </div>
           </DewCard>
         </div>
-        <div v-if="clickedCard" style="margin-top: 12px; font-size: 13px; color: #6b7280;">
+        <div v-if="clickedCard" style="margin-top: 12px; font-size: 13px; color: var(--dew-text-muted);">
           点击了：<strong style="color: #3b82f6;">{{ clickedCard }}</strong>
         </div>
       </section>
@@ -223,7 +223,7 @@
                 <DewBadge :value="3" type="danger" />
               </div>
             </template>
-            <p style="font-size: 13px; color: #6b7280; margin: 0; line-height: 1.6;">
+            <p style="font-size: 13px; color: var(--dew-text-muted); margin: 0; line-height: 1.6;">
               Header 下方没有分割线，更通透清爽。
             </p>
             <template #footer>
@@ -238,7 +238,7 @@
                 <DewBadge :value="3" type="danger" />
               </div>
             </template>
-            <p style="font-size: 13px; color: #6b7280; margin: 0; line-height: 1.6;">
+            <p style="font-size: 13px; color: var(--dew-text-muted); margin: 0; line-height: 1.6;">
               设置 divided 后 Header 底部显示淡色分割线，层次更分明。
             </p>
             <template #footer>
@@ -248,7 +248,7 @@
           </DewCard>
           <DewCard :glass="true">
             <template #header>毛玻璃 · 无分割线</template>
-            <p style="font-size: 13px; color: #6b7280; margin: 0; line-height: 1.6;">
+            <p style="font-size: 13px; color: var(--dew-text-muted); margin: 0; line-height: 1.6;">
               毛玻璃模式 + 无分割线，内容浑然一体。
             </p>
             <template #footer>
@@ -257,7 +257,7 @@
           </DewCard>
           <DewCard :glass="true" :divided="true">
             <template #header>毛玻璃 · 带分割线</template>
-            <p style="font-size: 13px; color: #6b7280; margin: 0; line-height: 1.6;">
+            <p style="font-size: 13px; color: var(--dew-text-muted); margin: 0; line-height: 1.6;">
               毛玻璃 + 分割线，适合内容层级较多的场景。
             </p>
             <template #footer>
@@ -282,11 +282,11 @@
         </div>
         <div style="display: flex; gap: 16px; align-items: center;">
           <div style="position: relative; display: inline-flex;">
-            <span style="font-size: 14px; color: #374151;">消息</span>
+            <span style="font-size: 14px; color: var(--dew-text-heading);">消息</span>
             <DewBadge :value="6" type="danger" style="position: absolute; top: -8px; right: -20px;" />
           </div>
           <div style="position: relative; display: inline-flex;">
-            <span style="font-size: 14px; color: #374151;">通知</span>
+            <span style="font-size: 14px; color: var(--dew-text-heading);">通知</span>
             <DewBadge :value="23" type="warning" style="position: absolute; top: -8px; right: -24px;" />
           </div>
         </div>
@@ -305,7 +305,7 @@
           <DewTag type="info">信息</DewTag>
           <DewTag type="neutral">草稿</DewTag>
         </div>
-        <div style="font-size: 12px; color: #9ca3af; margin-bottom: 8px;">圆角</div>
+        <div style="font-size: 12px; color: var(--dew-text-faint); margin-bottom: 8px;">圆角</div>
         <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 16px;">
           <DewTag type="primary" :round="true">任务</DewTag>
           <DewTag type="success" :round="true">已完成</DewTag>
@@ -313,7 +313,7 @@
           <DewTag type="danger" :round="true">紧急</DewTag>
           <DewTag type="info" :round="true">信息</DewTag>
         </div>
-        <div style="font-size: 12px; color: #9ca3af; margin-bottom: 8px;">尺寸</div>
+        <div style="font-size: 12px; color: var(--dew-text-faint); margin-bottom: 8px;">尺寸</div>
         <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
           <DewTag type="primary" size="sm">小号</DewTag>
           <DewTag type="primary" size="md">中号</DewTag>
@@ -341,10 +341,10 @@
               </div>
               <div style="flex: 1;">
                 <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 2px;">
-                  <span style="font-size: 14px; font-weight: 600; color: #1f2937;">新作业发布</span>
+                  <span style="font-size: 14px; font-weight: 600; color: var(--dew-text-heading);">新作业发布</span>
                   <DewTag type="primary" size="sm">作业</DewTag>
                 </div>
-                <span style="font-size: 13px; color: #9ca3af;">生物材料学 · 2 小时前</span>
+                <span style="font-size: 13px; color: var(--dew-text-faint);">生物材料学 · 2 小时前</span>
               </div>
               <DewButton type="ghost" size="sm">查看</DewButton>
             </div>
@@ -354,10 +354,10 @@
               </div>
               <div style="flex: 1;">
                 <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 2px;">
-                  <span style="font-size: 14px; font-weight: 600; color: #1f2937;">作业已批改</span>
+                  <span style="font-size: 14px; font-weight: 600; color: var(--dew-text-heading);">作业已批改</span>
                   <DewTag type="success" size="sm">已批改</DewTag>
                 </div>
-                <span style="font-size: 13px; color: #9ca3af;">医学影像原理 · 昨天</span>
+                <span style="font-size: 13px; color: var(--dew-text-faint);">医学影像原理 · 昨天</span>
               </div>
               <DewButton type="ghost" size="sm">查看</DewButton>
             </div>
@@ -434,15 +434,15 @@ function cardClicked(name) {
   background: linear-gradient(135deg, #f0f4ff 0%, #fdf2f8 50%, #f0fdf4 100%);
 }
 .dew-showcase--light .dew-showcase__title {
-  color: #1f2937;
+  color: var(--dew-text-heading);
 }
-.dew-showcase--light .dew-showcase__subtitle { color: #6b7280; }
-.dew-showcase--light .dew-showcase__heading { color: #374151; }
+.dew-showcase--light .dew-showcase__subtitle { color: var(--dew-text-muted); }
+.dew-showcase--light .dew-showcase__heading { color: var(--dew-text-heading); }
 .dew-showcase--light hr { background: rgba(0,0,0,0.06); }
 
 /* ━━━━ 暗色模式 ━━━━ */
 .dew-showcase--dark {
-  background: linear-gradient(135deg, #1e1b4b 0%, #0f172a 50%, #1a1a2e 100%);
+  background: linear-gradient(135deg, #1c1c1e 0%, #111111 50%, #18181b 100%);
 }
 .dew-showcase--dark .dew-showcase__title { color: rgba(255,255,255,0.9); }
 .dew-showcase--dark .dew-showcase__subtitle { color: rgba(255,255,255,0.45); }

@@ -27,6 +27,7 @@ const badgeStyle = computed(() => {
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
+    fontFamily: 'var(--dew-font, inherit)',
     minWidth: props.value !== null ? '20px' : 'auto',
     height: '20px',
     padding: '0 6px',

@@ -111,13 +111,16 @@ const chromaticStyle = computed(() => {
   isolation: isolate;
   backdrop-filter: blur(20px) saturate(1.5);
   -webkit-backdrop-filter: blur(20px) saturate(1.5);
-  /* 水滴弹性过渡：所有属性统一使用带回弹的曲线 */
+  /* 水滴弹性过渡 */
   transition:
-    width 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
-    transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
-    box-shadow 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
-    background 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
-    border-color 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    width 0.4s var(--dew-bounce),
+    transform 0.35s var(--dew-bounce),
+    box-shadow 0.35s var(--dew-bounce),
+    background 0.35s var(--dew-bounce),
+    border-color 0.35s var(--dew-bounce),
+    color 0.35s ease;
+  color: var(--dew-text);
+  font-family: var(--dew-font, inherit);
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -199,17 +202,17 @@ const chromaticStyle = computed(() => {
 
 /* ━━━━ Danger ━━━━ */
 .dew-btn--danger {
-  background: rgba(239, 68, 68, 0.16);
-  border: 1px solid rgba(239, 68, 68, 0.22);
-  color: #ef4444;
-  box-shadow: 0 2px 8px rgba(239,68,68,0.1), inset 0 0 0 0.5px rgba(255,255,255,0.15), inset 0 1px 0 rgba(255,255,255,0.2);
+  background: var(--dew-btn-danger-bg);
+  border: 1px solid var(--dew-btn-danger-border);
+  color: var(--dew-btn-danger-color);
+  box-shadow: var(--dew-btn-danger-shadow);
 }
 .dew-btn--danger:hover {
-  background: rgba(239, 68, 68, 0.25);
-  box-shadow: 0 6px 24px rgba(239,68,68,0.18), inset 0 0 0 0.5px rgba(255,255,255,0.2), inset 0 1px 0 rgba(255,255,255,0.3);
+  background: var(--dew-btn-danger-bg-hover);
+  box-shadow: var(--dew-btn-danger-shadow-hover);
   transform: translateY(-1px);
 }
-.dew-btn--danger:hover .dew-btn__content { text-shadow: 0 0 12px rgba(239,68,68,0.3); }
+.dew-btn--danger:hover .dew-btn__content { text-shadow: var(--dew-btn-danger-text-shadow); }
 
 /* ━━━━ Ghost ━━━━ */
 .dew-btn--ghost {
@@ -226,50 +229,34 @@ const chromaticStyle = computed(() => {
 
 /* ━━━━ 点亮状态（可叠加在任意 type 上） ━━━━ */
 .dew-btn--lit {
-  background: rgba(255, 255, 255, 0.5) !important;
-  border-color: rgba(255, 255, 255, 0.55) !important;
-  color: #1f2937 !important;
-  box-shadow:
-    0 0 20px rgba(255, 255, 255, 0.2),
-    0 0 40px rgba(255, 255, 255, 0.08),
-    inset 0 0 10px rgba(255, 255, 255, 0.25),
-    inset 0 1px 0 rgba(255, 255, 255, 0.5) !important;
+  background: var(--dew-btn-lit-bg) !important;
+  border-color: var(--dew-btn-lit-border) !important;
+  color: var(--dew-btn-lit-color) !important;
+  box-shadow: var(--dew-btn-lit-shadow) !important;
 }
 .dew-btn--lit:hover {
-  background: rgba(255, 255, 255, 0.6) !important;
-  box-shadow:
-    0 0 28px rgba(255, 255, 255, 0.3),
-    0 0 56px rgba(255, 255, 255, 0.12),
-    inset 0 0 14px rgba(255, 255, 255, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
+  background: var(--dew-btn-lit-bg-hover) !important;
+  box-shadow: var(--dew-btn-lit-shadow-hover) !important;
   transform: translateY(-1px);
 }
 .dew-btn--lit .dew-btn__content {
-  text-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
+  text-shadow: var(--dew-btn-lit-text-shadow);
 }
 
 /* ━━━━ Danger 点亮态 — 红色光焰 ━━━━ */
 .dew-btn--danger.dew-btn--lit {
-  background: rgba(239, 68, 68, 0.55) !important;
-  border-color: rgba(239, 68, 68, 0.6) !important;
-  color: #fff !important;
-  box-shadow:
-    0 0 24px rgba(239, 68, 68, 0.35),
-    0 0 48px rgba(239, 68, 68, 0.15),
-    inset 0 0 12px rgba(255, 120, 120, 0.25),
-    inset 0 1px 0 rgba(255, 255, 255, 0.35) !important;
+  background: var(--dew-btn-danger-lit-bg) !important;
+  border-color: var(--dew-btn-danger-lit-border) !important;
+  color: var(--dew-btn-danger-lit-color) !important;
+  box-shadow: var(--dew-btn-danger-lit-shadow) !important;
 }
 .dew-btn--danger.dew-btn--lit:hover {
-  background: rgba(239, 68, 68, 0.65) !important;
-  box-shadow:
-    0 0 32px rgba(239, 68, 68, 0.4),
-    0 0 64px rgba(239, 68, 68, 0.18),
-    inset 0 0 16px rgba(255, 120, 120, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
+  background: var(--dew-btn-danger-lit-bg-hover) !important;
+  box-shadow: var(--dew-btn-danger-lit-shadow-hover) !important;
   transform: translateY(-1px);
 }
 .dew-btn--danger.dew-btn--lit .dew-btn__content {
-  text-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+  text-shadow: var(--dew-btn-danger-lit-text-shadow);
 }
 
 /* ── active 按下 ── */

@@ -4,6 +4,9 @@
  */
 
 :root {
+  /* ── 字体 ── */
+  --dew-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+
   /* ── 品牌色 ── */
   --color-primary: #3b82f6;
   --color-primary-hover: #2563eb;
@@ -66,10 +69,14 @@
   --transition-fast: 0.15s ease;
   --transition-base: 0.2s ease;
 
+  /* ── 动画曲线 ── */
+  --dew-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+
   /* ━━━━ Dew 组件级变量（亮色默认值） ━━━━ */
 
   /* 文字 */
   --dew-text:       #374151;
+  --dew-text-heading: #1f2937;
   --dew-text-muted: #6b7280;
   --dew-text-faint: #9ca3af;
 
@@ -83,6 +90,58 @@
   /* 按钮 ghost */
   --dew-ghost-hover-bg:   rgba(0, 0, 0, 0.04);
   --dew-ghost-hover-text: #374151;
+
+  /* 按钮 danger */
+  --dew-btn-danger-bg:          rgba(239, 68, 68, 0.16);
+  --dew-btn-danger-bg-hover:    rgba(239, 68, 68, 0.25);
+  --dew-btn-danger-border:      rgba(239, 68, 68, 0.22);
+  --dew-btn-danger-color:       #ef4444;
+  --dew-btn-danger-shadow:      0 2px 8px rgba(239,68,68,0.1), inset 0 0 0 0.5px rgba(255,255,255,0.15), inset 0 1px 0 rgba(255,255,255,0.2);
+  --dew-btn-danger-shadow-hover: 0 6px 24px rgba(239,68,68,0.18), inset 0 0 0 0.5px rgba(255,255,255,0.2), inset 0 1px 0 rgba(255,255,255,0.3);
+  --dew-btn-danger-text-shadow: 0 0 12px rgba(239,68,68,0.3);
+
+  /* 按钮 lit（白光点亮） */
+  --dew-btn-lit-bg:          rgba(255, 255, 255, 0.5);
+  --dew-btn-lit-bg-hover:    rgba(255, 255, 255, 0.6);
+  --dew-btn-lit-border:      rgba(255, 255, 255, 0.55);
+  --dew-btn-lit-color:       #1f2937;
+  --dew-btn-lit-shadow:      0 0 20px rgba(255,255,255,0.2), 0 0 40px rgba(255,255,255,0.08), inset 0 0 10px rgba(255,255,255,0.25), inset 0 1px 0 rgba(255,255,255,0.5);
+  --dew-btn-lit-shadow-hover: 0 0 28px rgba(255,255,255,0.3), 0 0 56px rgba(255,255,255,0.12), inset 0 0 14px rgba(255,255,255,0.35), inset 0 1px 0 rgba(255,255,255,0.6);
+  --dew-btn-lit-text-shadow: 0 0 8px rgba(255,255,255,0.4);
+
+  /* 按钮 danger lit（红色光焰） */
+  --dew-btn-danger-lit-bg:          rgba(239, 68, 68, 0.55);
+  --dew-btn-danger-lit-bg-hover:    rgba(239, 68, 68, 0.65);
+  --dew-btn-danger-lit-border:      rgba(239, 68, 68, 0.6);
+  --dew-btn-danger-lit-color:       #fff;
+  --dew-btn-danger-lit-shadow:      0 0 24px rgba(239,68,68,0.35), 0 0 48px rgba(239,68,68,0.15), inset 0 0 12px rgba(255,120,120,0.25), inset 0 1px 0 rgba(255,255,255,0.35);
+  --dew-btn-danger-lit-shadow-hover: 0 0 32px rgba(239,68,68,0.4), 0 0 64px rgba(239,68,68,0.18), inset 0 0 16px rgba(255,120,120,0.3), inset 0 1px 0 rgba(255,255,255,0.4);
+  --dew-btn-danger-lit-text-shadow: 0 0 10px rgba(239,68,68,0.5);
+
+  /* 光效层（折射/高光/涟漪） */
+  --dew-glow-indicator-bg:     rgba(255, 255, 255, 0.45);
+  --dew-glow-indicator-shadow: 0 0 16px rgba(255,255,255,0.15), 0 0 32px rgba(255,255,255,0.06), inset 0 0 8px rgba(255,255,255,0.2), inset 0 1px 0 rgba(255,255,255,0.4);
+  --dew-glow-highlight:        rgba(255, 255, 255, 0.5);
+  --dew-glow-ripple:           rgba(255, 255, 255, 0.25);
+  --dew-glow-text-active:      0 0 6px rgba(255, 255, 255, 0.3);
+
+  /* 按钮栏 badge */
+  --dew-bar-badge-bg:    rgba(239, 68, 68, 0.15);
+  --dew-bar-badge-color: #ef4444;
+
+  /* 卡片 tint 色彩底色 */
+  --dew-tint-primary-from: rgba(59,130,246,0.3);
+  --dew-tint-primary-to:   rgba(99,102,241,0.2);
+  --dew-tint-success-from: rgba(34,197,94,0.3);
+  --dew-tint-success-to:   rgba(16,185,129,0.2);
+  --dew-tint-warning-from: rgba(245,158,11,0.3);
+  --dew-tint-warning-to:   rgba(251,146,60,0.2);
+  --dew-tint-danger-from:  rgba(239,68,68,0.3);
+  --dew-tint-danger-to:    rgba(244,63,94,0.2);
+  --dew-tint-info-from:    rgba(6,182,212,0.3);
+  --dew-tint-info-to:      rgba(59,130,246,0.2);
+  --dew-tint-default-from: rgba(59,130,246,0.3);
+  --dew-tint-default-to:   rgba(139,92,246,0.2);
 
   /* 卡片 */
   --dew-card-bg:           rgba(255, 255, 255, 0.4);
@@ -125,9 +184,10 @@
 /* ━━━━ 暗色模式覆盖 ━━━━ */
 .theme-dark {
   /* 文字 */
-  --dew-text:       rgba(255, 255, 255, 0.88);
-  --dew-text-muted: rgba(255, 255, 255, 0.55);
-  --dew-text-faint: rgba(255, 255, 255, 0.35);
+  --dew-text:         rgba(255, 255, 255, 0.88);
+  --dew-text-heading: rgba(255, 255, 255, 0.92);
+  --dew-text-muted:   rgba(255, 255, 255, 0.55);
+  --dew-text-faint:   rgba(255, 255, 255, 0.35);
 
   /* 按钮 glass */
   --dew-btn-bg:       rgba(255, 255, 255, 0.08);
@@ -139,6 +199,44 @@
   /* 按钮 ghost */
   --dew-ghost-hover-bg:   rgba(255, 255, 255, 0.06);
   --dew-ghost-hover-text: rgba(255, 255, 255, 0.88);
+
+  /* 按钮 danger */
+  --dew-btn-danger-bg:          rgba(239, 68, 68, 0.2);
+  --dew-btn-danger-bg-hover:    rgba(239, 68, 68, 0.32);
+  --dew-btn-danger-border:      rgba(239, 68, 68, 0.3);
+  --dew-btn-danger-color:       #f87171;
+  --dew-btn-danger-shadow:      0 2px 8px rgba(239,68,68,0.2), inset 0 0 0 0.5px rgba(255,255,255,0.08), inset 0 1px 0 rgba(255,255,255,0.1);
+  --dew-btn-danger-shadow-hover: 0 6px 24px rgba(239,68,68,0.3), inset 0 0 0 0.5px rgba(255,255,255,0.12), inset 0 1px 0 rgba(255,255,255,0.15);
+  --dew-btn-danger-text-shadow: 0 0 12px rgba(239,68,68,0.4);
+
+  /* 按钮 lit（白光点亮 → 暗色下偏冷光） */
+  --dew-btn-lit-bg:          rgba(255, 255, 255, 0.28);
+  --dew-btn-lit-bg-hover:    rgba(255, 255, 255, 0.36);
+  --dew-btn-lit-border:      rgba(255, 255, 255, 0.35);
+  --dew-btn-lit-color:       rgba(255, 255, 255, 0.95);
+  --dew-btn-lit-shadow:      0 0 24px rgba(255,255,255,0.15), 0 0 48px rgba(255,255,255,0.06), inset 0 0 12px rgba(255,255,255,0.12), inset 0 1px 0 rgba(255,255,255,0.25);
+  --dew-btn-lit-shadow-hover: 0 0 32px rgba(255,255,255,0.22), 0 0 64px rgba(255,255,255,0.1), inset 0 0 16px rgba(255,255,255,0.18), inset 0 1px 0 rgba(255,255,255,0.3);
+  --dew-btn-lit-text-shadow: 0 0 10px rgba(255,255,255,0.35);
+
+  /* 按钮 danger lit（红色光焰 → 暗色下更炽热） */
+  --dew-btn-danger-lit-bg:          rgba(239, 68, 68, 0.5);
+  --dew-btn-danger-lit-bg-hover:    rgba(239, 68, 68, 0.6);
+  --dew-btn-danger-lit-border:      rgba(239, 68, 68, 0.55);
+  --dew-btn-danger-lit-color:       #fff;
+  --dew-btn-danger-lit-shadow:      0 0 28px rgba(239,68,68,0.4), 0 0 56px rgba(239,68,68,0.18), inset 0 0 14px rgba(255,120,120,0.2), inset 0 1px 0 rgba(255,255,255,0.2);
+  --dew-btn-danger-lit-shadow-hover: 0 0 36px rgba(239,68,68,0.5), 0 0 72px rgba(239,68,68,0.22), inset 0 0 18px rgba(255,120,120,0.25), inset 0 1px 0 rgba(255,255,255,0.25);
+  --dew-btn-danger-lit-text-shadow: 0 0 12px rgba(239,68,68,0.6);
+
+  /* 光效层 */
+  --dew-glow-indicator-bg:     rgba(255, 255, 255, 0.1);
+  --dew-glow-indicator-shadow: 0 0 12px rgba(255,255,255,0.08), 0 0 24px rgba(255,255,255,0.03), inset 0 0 6px rgba(255,255,255,0.08), inset 0 1px 0 rgba(255,255,255,0.15);
+  --dew-glow-highlight:        rgba(255, 255, 255, 0.15);
+  --dew-glow-ripple:           rgba(255, 255, 255, 0.1);
+  --dew-glow-text-active:      0 0 6px rgba(255, 255, 255, 0.2);
+
+  /* 按钮栏 badge */
+  --dew-bar-badge-bg:    rgba(239, 68, 68, 0.2);
+  --dew-bar-badge-color: #f87171;
 
   /* 卡片 */
   --dew-card-bg:           rgba(255, 255, 255, 0.06);
@@ -185,4 +283,18 @@
   --color-info-light:    rgba(99, 102, 241, 0.15);
   --color-bg-muted:      rgba(255, 255, 255, 0.06);
   --color-text-secondary: rgba(255, 255, 255, 0.55);
+
+  /* 卡片 tint 色彩底色（暗色下稍降透明度） */
+  --dew-tint-primary-from: rgba(59,130,246,0.25);
+  --dew-tint-primary-to:   rgba(99,102,241,0.15);
+  --dew-tint-success-from: rgba(34,197,94,0.25);
+  --dew-tint-success-to:   rgba(16,185,129,0.15);
+  --dew-tint-warning-from: rgba(245,158,11,0.25);
+  --dew-tint-warning-to:   rgba(251,146,60,0.15);
+  --dew-tint-danger-from:  rgba(239,68,68,0.25);
+  --dew-tint-danger-to:    rgba(244,63,94,0.15);
+  --dew-tint-info-from:    rgba(6,182,212,0.25);
+  --dew-tint-info-to:      rgba(59,130,246,0.15);
+  --dew-tint-default-from: rgba(59,130,246,0.25);
+  --dew-tint-default-to:   rgba(139,92,246,0.15);
 }

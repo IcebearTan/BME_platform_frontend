@@ -34,6 +34,7 @@ const tagStyle = computed(() => {
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
+    fontFamily: 'var(--dew-font, inherit)',
     height: s.height,
     padding: `0 ${s.paddingH}`,
     borderRadius: props.round ? 'var(--radius-full)' : 'var(--radius-sm)',
