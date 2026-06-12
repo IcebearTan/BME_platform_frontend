@@ -5,7 +5,7 @@ import { useRouter } from 'vue-router';
 import MenuComponent from "../components/MenuComponent.vue";
 import PageFooterComponent from "../components/PageFooterComponent.vue";
 import MobileMenuComponent from "../components/MobileMenuComponent.vue";
-import { Menu as Expand, Printer, Calendar, Monitor, ArrowRight, Service } from '@element-plus/icons-vue';
+import { Menu as Expand, Printer, Calendar, Monitor, ArrowRight, Service, MagicStick } from '@element-plus/icons-vue';
 
 const store = useStore();
 const router = useRouter();
@@ -37,6 +37,10 @@ const toggleMobileMenu = () => {
 
 const handle3DPrintClick = () => {
   router.push('/service/3d-print');
+};
+
+const handleAIServiceClick = () => {
+  router.push('/ai-service');
 };
 
 </script>
@@ -115,6 +119,21 @@ const handle3DPrintClick = () => {
                     <div class="text-content">
                       <h3>3D打印服务</h3>
                       <p>模型上传、打印预约与进度查询</p>
+                    </div>
+                  </div>
+                  <div class="card-action">
+                    <el-icon><ArrowRight /></el-icon>
+                  </div>
+                </div>
+
+                <div class="service-card hover-effect" @click="handleAIServiceClick">
+                  <div class="card-content">
+                    <div class="icon-box primary">
+                      <el-icon><MagicStick /></el-icon>
+                    </div>
+                    <div class="text-content">
+                      <h3>AI 大模型服务</h3>
+                      <p>创建 API Key、查看用量与申请额度</p>
                     </div>
                   </div>
                   <div class="card-action">

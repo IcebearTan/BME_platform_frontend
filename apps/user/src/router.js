@@ -26,6 +26,7 @@ import ExerciseSolveView from './views/ExerciseSolveView.vue';
 import CourseChapterView from './views/CourseChapterView.vue';
 import QuestionBankView from './views/QuestionBankView.vue';
 import ServiceHallView from './views/ServiceHallView.vue';
+import LLMServiceView from './views/LLMServiceView.vue';
 import ThreeDPrintView from './views/ThreeDPrintView.vue';
 import CommunityView from './views/CommunityView.vue';
 import UiShowcaseView from './views/UiShowcaseView.vue';
@@ -107,6 +108,12 @@ const router = createRouter({
             path: '/article',
             name: 'article',
             component: ArticleView,
+            meta: { requiresAuth: true }
+        },
+        {
+            path: '/ai-service',
+            name: 'ai-service',
+            component: LLMServiceView,
             meta: { requiresAuth: true }
         },
         {
