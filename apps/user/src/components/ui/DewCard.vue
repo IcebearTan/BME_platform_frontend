@@ -234,21 +234,21 @@ const rippleStyle = computed(() => ({
 .dew-card--sm .dew-card__body,
 .dew-card--sm .dew-card__footer { padding-left: 14px; padding-right: 14px; }
 .dew-card--sm .dew-card__body { padding-top: 10px; padding-bottom: 10px; }
-.dew-card--sm .dew-card__header { padding-top: 12px; }
+.dew-card--sm .dew-card__header { padding-top: 12px; padding-bottom: 10px; }
 .dew-card--sm .dew-card__footer { padding-bottom: 12px; }
 
 .dew-card--md .dew-card__header,
 .dew-card--md .dew-card__body,
 .dew-card--md .dew-card__footer { padding-left: 16px; padding-right: 16px; }
 .dew-card--md .dew-card__body { padding-top: 12px; padding-bottom: 12px; }
-.dew-card--md .dew-card__header { padding-top: 14px; }
+.dew-card--md .dew-card__header { padding-top: 14px; padding-bottom: 12px; }
 .dew-card--md .dew-card__footer { padding-bottom: 14px; }
 
 .dew-card--lg .dew-card__header,
 .dew-card--lg .dew-card__body,
 .dew-card--lg .dew-card__footer { padding-left: 20px; padding-right: 20px; }
 .dew-card--lg .dew-card__body { padding-top: 14px; padding-bottom: 14px; }
-.dew-card--lg .dew-card__header { padding-top: 16px; }
+.dew-card--lg .dew-card__header { padding-top: 16px; padding-bottom: 14px; }
 .dew-card--lg .dew-card__footer { padding-bottom: 16px; }
 
 /* ━━━━ 折射层 ━━━━ */

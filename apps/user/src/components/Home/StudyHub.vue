@@ -2,10 +2,10 @@
   <div :class="['study-hub-container', { 'theme-dark': isDarkMode, 'theme-light': !isDarkMode }]">
     <!-- 轮播Banner区域 -->
     <div class="banner-section">
-      <el-carousel 
-        :interval="4000" 
-        type="card" 
-        height="200px"
+      <el-carousel
+        :interval="4000"
+        type="card"
+        height="160px"
         indicator-position="outside"
         arrow="hover"
       >
