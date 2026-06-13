@@ -1,65 +1,56 @@
 <template>
   <div class="live-panel" :class="isDarkMode ? 'theme-dark' : 'theme-light'">
-    <!-- 问候区 -->
-    <div class="live-panel__header">
+    <!-- 顶部一行：问候/日期（左对齐）+ 岛组（居中） -->
+    <div class="live-panel__top">
       <div class="live-panel__greeting">
         <h2 class="greeting-text">{{ greetingText }}，{{ userName }}</h2>
         <p class="greeting-date">{{ todayDate }}</p>
       </div>
-    </div>
 
-    <!-- 打卡状态（居中大按钮；未来作为「岛栏」容器，可挂多个岛） -->
-    <div class="live-panel__status">
-      <DewButton
-        v-if="checkinInfo.checkedIn && !checkinInfo.checkedOut"
-        :active="true"
-        size="lg"
-      >
-        <span class="status-dot status-dot--active"></span>
-        {{ checkinInfo.isOvertime ? '超时学习中' : '学习中' }}
-        <span class="status-timer">{{ currentStudyDuration }}</span>
-      </DewButton>
-      <DewButton
-        v-else-if="checkinInfo.checkedOut"
-        size="lg"
-      >
-        ✦ 今日已完成 · {{ todayTotalDuration }}
-      </DewButton>
-      <DewButton
-        v-else
-        type="ghost"
-        size="lg"
-      >
-        未打卡
-      </DewButton>
-    </div>
+      <DewIslandGroup :items="islandItems" class="live-panel__islands">
+        <template #main-trigger>
+          <DewButton
+            v-if="checkinInfo.checkedIn && !checkinInfo.checkedOut"
+            :active="true"
+            size="lg"
+          >
+            <span class="status-dot status-dot--active"></span>
+            {{ checkinInfo.isOvertime ? '超时学习中' : '学习中' }}
+            <span class="status-timer">{{ currentStudyDuration }}</span>
+          </DewButton>
+          <DewButton
+            v-else-if="checkinInfo.checkedOut"
+            size="lg"
+          >
+            今日已完成 · {{ todayTotalDuration }}
+          </DewButton>
+          <DewButton
+            v-else
+            type="ghost"
+            size="lg"
+          >
+            未打卡
+          </DewButton>
+        </template>
 
-    <!-- 统计卡片 -->
-    <div class="live-panel__stats">
-      <DewCard :tinted="true" accent="primary" :glass="true">
-        <div class="stat-card">
-          <div class="stat-value">{{ monthlyStats.totalDays || 0 }}</div>
-          <div class="stat-label">本月学习天数</div>
-        </div>
-      </DewCard>
-      <DewCard :tinted="true" accent="success" :glass="true">
-        <div class="stat-card">
-          <div class="stat-value">{{ monthlyStats.totalHours || 0 }}<span class="stat-unit">h</span></div>
-          <div class="stat-label">本月学习时长</div>
-        </div>
-      </DewCard>
-      <DewCard :tinted="true" accent="warning" :glass="true">
-        <div class="stat-card">
-          <div class="stat-value">{{ monthlyStats.rank || '--' }}</div>
-          <div class="stat-label">月度排名</div>
-        </div>
-      </DewCard>
-      <DewCard :tinted="true" :glass="true">
-        <div class="stat-card">
-          <div class="stat-value study-duration-value">{{ todayTotalDuration }}</div>
-          <div class="stat-label">今日累计</div>
-        </div>
-      </DewCard>
+        <template #main-content>
+          <div class="today-panel">
+            <div class="today-panel__label">今日累计</div>
+            <div class="today-panel__value">{{ todayTotalDuration }}</div>
+            <div class="today-panel__bar">
+              <div class="today-panel__fill" :style="{ width: todayProgress + '%' }"></div>
+            </div>
+            <div class="today-panel__hint">目标 4h · 已完成 {{ todayProgress }}%</div>
+          </div>
+        </template>
+
+        <template #detail="{ item }">
+          <div class="sat-detail">
+            <div class="sat-detail__title">{{ item.detailTitle }}</div>
+            <div class="sat-detail__text">{{ item.detail }}</div>
+          </div>
+        </template>
+      </DewIslandGroup>
     </div>
   </div>
 </template>
@@ -68,8 +59,8 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useStore } from 'vuex'
 import api from '../../api'
-import DewCard from '../ui/DewCard.vue'
 import DewButton from '../ui/DewButton.vue'
+import DewIslandGroup from '../ui/DewIslandGroup.vue'
 
 const store = useStore()
 
@@ -134,6 +125,39 @@ const todayTotalDuration = ref('3h 20m')
 let studyTimer = null
 let timeTimer = null
 const nowTime = ref(new Date())
+
+// ── 岛组数据：3 个卫星岛（月天数/月时长/月排行） ──
+const islandItems = computed(() => [
+  {
+    value: monthlyStats.value.totalDays || 0,
+    unit: 'd',
+    color: '#3b82f6',
+    detailTitle: '本月学习天数',
+    detail: `本月已学习 ${monthlyStats.value.totalDays || 0} 天，继续保持！`,
+  },
+  {
+    value: monthlyStats.value.totalHours || 0,
+    unit: 'h',
+    color: '#22c55e',
+    detailTitle: '本月学习时长',
+    detail: `本月累计 ${monthlyStats.value.totalHours || 0} 小时。`,
+  },
+  {
+    value: `#${monthlyStats.value.rank || '--'}`,
+    color: '#f59e0b',
+    detailTitle: '月度排名',
+    detail: `当前月度排名第 ${monthlyStats.value.rank || '--'} 位。`,
+  },
+])
+
+// 今日累计 → 进度（目标 4h）
+const todayHoursNum = computed(() => {
+  const s = todayTotalDuration.value || ''
+  const h = parseInt(s.match(/(\d+)\s*h/)?.[1]) || 0
+  const m = parseInt(s.match(/(\d+)\s*m/)?.[1]) || 0
+  return h + m / 60
+})
+const todayProgress = computed(() => Math.min(100, Math.round((todayHoursNum.value / 4) * 100)))
 
 // 登录检查
 const checkLogin = () => !!localStorage.getItem('token')
@@ -291,12 +315,22 @@ onUnmounted(() => {
   box-sizing: border-box;
 }
 
-/* ── 问候区 ── */
-.live-panel__header {
-  display: flex;
+/* ── 顶部一行：问候/日期（左对齐）+ 岛组（居中） ──
+   三列网格 1fr / auto / 1fr：左右两列等宽平衡，让中间岛组真正水平居中 */
+.live-panel__top {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
+  gap: 16px;
+}
+
+.live-panel__greeting {
+  grid-column: 1;
+  min-width: 0;
+}
+
+.live-panel__islands {
+  grid-column: 2;
 }
 
 .greeting-text {
@@ -314,13 +348,7 @@ onUnmounted(() => {
   font-family: var(--dew-font, inherit);
 }
 
-/* ── 打卡状态（居中大按钮） ── */
-.live-panel__status {
-  /* DewButton 是 inline-flex，用 text-align 居中最稳，不受内联 width 影响 */
-  text-align: center;
-  margin-bottom: 24px;
-}
-
+/* 打卡胶囊内 */
 .status-dot {
   display: inline-block;
   width: 8px;
@@ -341,39 +369,53 @@ onUnmounted(() => {
   50% { opacity: 0.4; }
 }
 
-/* ── 统计卡片行 ── */
-.live-panel__stats {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
+/* ── 主岛展开：今日累计 ── */
+.today-panel {
+  padding: 16px;
 }
-
-/* ── 统计卡片内容 ── */
-.stat-card {
-  text-align: center;
-  padding: 12px 0;
-}
-
-.stat-value {
-  font-size: 28px;
-  font-weight: 700;
-  line-height: 1;
-  margin-bottom: 6px;
-}
-
-.stat-unit {
-  font-size: 16px;
-  font-weight: 500;
-  opacity: 0.7;
-}
-
-.stat-label {
+.today-panel__label {
   font-size: 13px;
   color: var(--dew-text-muted);
+  margin-bottom: 4px;
+}
+.today-panel__value {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--dew-text-heading);
+  font-variant-numeric: tabular-nums;
+}
+.today-panel__bar {
+  margin-top: 12px;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(127, 127, 127, 0.16);
+  overflow: hidden;
+}
+.today-panel__fill {
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #3b82f6, #22c55e);
+  transition: width 0.4s var(--dew-bounce);
+}
+.today-panel__hint {
+  font-size: 11px;
+  color: var(--dew-text-faint);
+  margin-top: 5px;
 }
 
-.study-duration-value {
-  font-size: 22px;
+/* ── 卫星岛展开：详情 ── */
+.sat-detail {
+  padding: 14px 16px;
+}
+.sat-detail__title {
+  font-size: 13px;
+  color: var(--dew-text-muted);
+  margin-bottom: 6px;
+}
+.sat-detail__text {
+  font-size: 14px;
+  color: var(--dew-text-heading);
+  line-height: 1.6;
 }
 
 /* ── 响应式 ── */
@@ -382,26 +424,19 @@ onUnmounted(() => {
     padding: 16px;
   }
 
-  .live-panel__header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
+  /* 窄屏堆叠：问候在上，岛组在下（左对齐，岛组自动换行） */
+  .live-panel__top {
+    grid-template-columns: 1fr;
+    justify-items: start;
+    gap: 16px;
+  }
+
+  .live-panel__greeting,
+  .live-panel__islands {
+    grid-column: 1;
   }
 
   .greeting-text {
-    font-size: 18px;
-  }
-
-  .live-panel__stats {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-  }
-
-  .stat-value {
-    font-size: 22px;
-  }
-
-  .study-duration-value {
     font-size: 18px;
   }
 }
@@ -413,18 +448,6 @@ onUnmounted(() => {
 
   .greeting-text {
     font-size: 16px;
-  }
-
-  .stat-value {
-    font-size: 20px;
-  }
-
-  .study-duration-value {
-    font-size: 16px;
-  }
-
-  .stat-label {
-    font-size: 12px;
   }
 }
 </style>

@@ -430,7 +430,7 @@
           主岛（可展开，点开看详情）+ 卫星岛（彩色只读胶囊）。卫星岛带颜色，像彩色玻璃卡片。
         </p>
         <div style="display: flex; justify-content: center; padding: 40px 16px; background: rgba(127,127,127,0.06); border-radius: 16px;">
-          <IslandGroup :items="islandItems">
+          <DewIslandGroup :items="islandItems">
             <template #main-trigger>
               <DewButton :active="true" size="lg">
                 <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10b981;animation:dew-island-pulse 2s infinite;"></span>
@@ -453,7 +453,7 @@
                 <div style="font-size:14px;color:var(--dew-text-heading);line-height:1.6;">{{ item.detail }}</div>
               </div>
             </template>
-          </IslandGroup>
+          </DewIslandGroup>
         </div>
       </section>
 
@@ -594,7 +594,7 @@ import DewSwitch from '../components/ui/DewSwitch.vue'
 import DewPopover from '../components/ui/DewPopover.vue'
 import DewDropdown from '../components/ui/DewDropdown.vue'
 import DewIsland from '../components/ui/DewIsland.vue'
-import IslandGroup from '../components/ui/IslandGroup.vue'
+import DewIslandGroup from '../components/ui/DewIslandGroup.vue'
 import { Document, Check, Bell, User, Setting, Search, Lock, MoreFilled, EditPen, Delete } from '@element-plus/icons-vue'
 
 const isDark = ref(false)
