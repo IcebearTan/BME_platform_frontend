@@ -423,6 +423,42 @@
 
       <hr v-if="activeTab === 'island'" style="border: none; height: 1px; margin: 0 0 36px;" />
 
+      <!-- ━━━━ IslandGroup ━━━━ -->
+      <section v-if="activeTab === 'islandgroup'" style="margin-bottom: 36px;">
+        <h2 class="dew-showcase__heading" style="font-size: 15px; font-weight: 600; margin: 0 0 6px;">IslandGroup 岛组</h2>
+        <p style="font-size: 12px; color: var(--dew-text-faint); margin: 0 0 18px;">
+          主岛（可展开，点开看详情）+ 卫星岛（彩色只读胶囊）。卫星岛带颜色，像彩色玻璃卡片。
+        </p>
+        <div style="display: flex; justify-content: center; padding: 40px 16px; background: rgba(127,127,127,0.06); border-radius: 16px;">
+          <IslandGroup :items="islandItems">
+            <template #main-trigger>
+              <DewButton :active="true" size="lg">
+                <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10b981;animation:dew-island-pulse 2s infinite;"></span>
+                学习中 02:15:33
+              </DewButton>
+            </template>
+            <template #main-content>
+              <div style="padding: 16px;">
+                <div style="font-size:13px;color:var(--dew-text-muted);margin-bottom:4px;">今日累计</div>
+                <div style="font-size:22px;font-weight:800;color:var(--dew-text-heading);font-variant-numeric:tabular-nums;">3h 20m</div>
+                <div style="margin-top:12px;height:6px;border-radius:3px;background:rgba(127,127,127,0.16);overflow:hidden;">
+                  <div style="height:100%;width:83%;border-radius:3px;background:linear-gradient(90deg,#3b82f6,#22c55e);"></div>
+                </div>
+                <div style="font-size:11px;color:var(--dew-text-faint);margin-top:5px;">目标 4h · 已完成 83%</div>
+              </div>
+            </template>
+            <template #detail="{ item }">
+              <div style="padding: 14px 16px;">
+                <div style="font-size:13px;color:var(--dew-text-muted);margin-bottom:6px;">{{ item.detailTitle }}</div>
+                <div style="font-size:14px;color:var(--dew-text-heading);line-height:1.6;">{{ item.detail }}</div>
+              </div>
+            </template>
+          </IslandGroup>
+        </div>
+      </section>
+
+      <hr v-if="activeTab === 'islandgroup'" style="border: none; height: 1px; margin: 0 0 36px;" />
+
       <!-- ━━━━ Badge ━━━━ -->
       <section v-if="activeTab === 'badge'" style="margin-bottom: 36px;">
         <h2 class="dew-showcase__heading" style="font-size: 15px; font-weight: 600; margin: 0 0 14px;">DewBadge 徽标</h2>
@@ -558,6 +594,7 @@ import DewSwitch from '../components/ui/DewSwitch.vue'
 import DewPopover from '../components/ui/DewPopover.vue'
 import DewDropdown from '../components/ui/DewDropdown.vue'
 import DewIsland from '../components/ui/DewIsland.vue'
+import IslandGroup from '../components/ui/IslandGroup.vue'
 import { Document, Check, Bell, User, Setting, Search, Lock, MoreFilled, EditPen, Delete } from '@element-plus/icons-vue'
 
 const isDark = ref(false)
@@ -573,6 +610,7 @@ const navItems = [
   { value: 'popover', label: 'Popover' },
   { value: 'dropdown', label: 'Dropdown' },
   { value: 'island', label: 'Island' },
+  { value: 'islandgroup', label: 'IslandGroup' },
   { value: 'badge', label: 'Badge' },
   { value: 'tag', label: 'Tag' },
   { value: 'combo', label: '组合' },
@@ -624,6 +662,13 @@ const dropdownSelected = ref('')
 // Island 数据
 const islandOpen = ref(false)
 const islandOpen2 = ref(false)
+
+// IslandGroup 数据
+const islandItems = [
+  { value: 18, unit: 'd', color: '#3b82f6', detailTitle: '本月学习天数', detail: '本月已学习 18 天，连续打卡 12 天。坚持就是胜利！' },
+  { value: 47, unit: 'h', color: '#22c55e', detailTitle: '本月学习时长', detail: '本月累计 47 小时，日均约 2.6 小时。' },
+  { value: '#12', color: '#f59e0b', detailTitle: '月度排名', detail: '当前排名第 12 位，距上一名还差 3 小时。' },
+]
 const dropdownItems1 = [
   { label: '编辑', icon: EditPen, command: 'edit' },
   { label: '复制', icon: Document, command: 'copy' },
