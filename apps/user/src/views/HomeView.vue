@@ -276,7 +276,7 @@ const handleEntryClick = (entry) => {
   box-sizing: border-box;
   /*padding 不会撑大容器宽度*/
   overflow-x: hidden; /* 防止横向滚动条 */
-  max-width: 100vw; /* 确保不超出视口宽度 */
+  max-width: 100%; /* 100vw 包含滚动条宽度会吃掉右侧 padding */
   transition: all 0.3s ease;
 }
 
