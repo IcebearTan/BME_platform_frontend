@@ -204,6 +204,14 @@
   --dew-switch-thumb-shadow-active: 0 1px 4px rgba(59,130,246,0.25), 0 1px 2px rgba(0,0,0,0.1);
   --dew-switch-thumb-transform: translateY(-0.5px) scale(1.05);
 
+  /* 浮层（iOS 风格，纯色无 glass） */
+  --dew-popover-bg:          #ffffff;
+  --dew-popover-border:      transparent;
+  --dew-popover-radius:      14px;
+  --dew-popover-shadow:      0 2px 12px rgba(0,0,0,0.08);
+  --dew-popover-text:        #1f2937;
+  --dew-popover-item-hover:  rgba(0, 0, 0, 0.04);
+
   /* 按钮栏 */
   --dew-bar-bg:       rgba(255, 255, 255, 0.12);
   --dew-bar-border:   rgba(255, 255, 255, 0.2);
@@ -330,6 +338,14 @@
   --dew-switch-thumb-shadow-hover: 0 2px 8px rgba(0,0,0,0.35), 0 1px 3px rgba(0,0,0,0.25);
   --dew-switch-thumb-shadow-active: 0 1px 6px rgba(59,130,246,0.3), 0 1px 2px rgba(0,0,0,0.2);
   --dew-switch-thumb-transform: translateY(-0.5px) scale(1.05);
+
+  /* 浮层（iOS 风格） */
+  --dew-popover-bg:          #1c1c1e;
+  --dew-popover-border:      transparent;
+  --dew-popover-radius:      14px;
+  --dew-popover-shadow:      0 2px 12px rgba(0,0,0,0.3);
+  --dew-popover-text:        rgba(255, 255, 255, 0.88);
+  --dew-popover-item-hover:  rgba(255, 255, 255, 0.08);
 
   /* 按钮栏 */
   --dew-bar-bg:       rgba(255, 255, 255, 0.06);

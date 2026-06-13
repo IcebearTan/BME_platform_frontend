@@ -333,6 +333,54 @@
         </div>
       </section>
 
+      <!-- ━━━━ Popover ━━━━ -->
+      <section v-if="activeTab === 'popover'" style="margin-bottom: 36px;">
+        <h2 class="dew-showcase__heading" style="font-size: 15px; font-weight: 600; margin: 0 0 14px;">DewPopover 浮层</h2>
+        <div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: center;">
+          <DewPopover v-model="popoverVisible" placement="bottom">
+            <template #trigger>
+              <DewButton>点击弹出 Popover</DewButton>
+            </template>
+            <div style="padding: 16px; min-width: 200px;">
+              <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px;">用户信息</div>
+              <div style="font-size: 13px; color: var(--dew-text-muted); line-height: 1.6;">
+                这是一个纯色 iOS 风格的浮层面板，支持箭头、点击外部关闭和视口翻转。
+              </div>
+            </div>
+          </DewPopover>
+        </div>
+      </section>
+
+      <hr v-if="activeTab === 'popover' || activeTab === 'dropdown'" style="border: none; height: 1px; margin: 0 0 36px;" />
+
+      <!-- ━━━━ Dropdown ━━━━ -->
+      <section v-if="activeTab === 'dropdown'" style="margin-bottom: 36px;">
+        <h2 class="dew-showcase__heading" style="font-size: 15px; font-weight: 600; margin: 0 0 14px;">DewDropdown 下拉菜单</h2>
+        <div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: center; margin-bottom: 16px;">
+          <DewDropdown v-model="dropdownVisible1" :items="dropdownItems1" @select="dropdownSelected = $event">
+            <template #trigger>
+              <DewButton type="ghost" size="sm">
+                <el-icon style="margin-right: 4px;"><MoreFilled /></el-icon>
+                操作菜单
+              </DewButton>
+            </template>
+          </DewDropdown>
+          <DewDropdown v-model="dropdownVisible2" :items="dropdownItems2" @select="dropdownSelected = $event">
+            <template #trigger>
+              <DewButton type="ghost" size="sm">
+                <el-icon style="margin-right: 4px;"><User /></el-icon>
+                用户菜单
+              </DewButton>
+            </template>
+          </DewDropdown>
+        </div>
+        <div style="font-size: 12px; color: var(--dew-text-faint);">
+          选中操作：{{ dropdownSelected || '无' }}
+        </div>
+      </section>
+
+      <hr v-if="activeTab === 'dropdown'" style="border: none; height: 1px; margin: 0 0 36px;" />
+
       <!-- ━━━━ Badge ━━━━ -->
       <section v-if="activeTab === 'badge'" style="margin-bottom: 36px;">
         <h2 class="dew-showcase__heading" style="font-size: 15px; font-weight: 600; margin: 0 0 14px;">DewBadge 徽标</h2>
@@ -460,7 +508,9 @@ import DewBadge from '../components/ui/DewBadge.vue'
 import DewTag from '../components/ui/DewTag.vue'
 import DewInput from '../components/ui/DewInput.vue'
 import DewSwitch from '../components/ui/DewSwitch.vue'
-import { Document, Check, Bell, User, Setting, Search, Lock } from '@element-plus/icons-vue'
+import DewPopover from '../components/ui/DewPopover.vue'
+import DewDropdown from '../components/ui/DewDropdown.vue'
+import { Document, Check, Bell, User, Setting, Search, Lock, MoreFilled, EditPen, Delete } from '@element-plus/icons-vue'
 
 const isDark = ref(false)
 
@@ -472,6 +522,8 @@ const navItems = [
   { value: 'switch', label: 'Switch' },
   { value: 'input', label: 'Input' },
   { value: 'card', label: 'Card' },
+  { value: 'popover', label: 'Popover' },
+  { value: 'dropdown', label: 'Dropdown' },
   { value: 'badge', label: 'Badge' },
   { value: 'tag', label: 'Tag' },
   { value: 'combo', label: '组合' },
@@ -513,6 +565,22 @@ const inputVal5 = ref('')
 const switchVal1 = ref(false)
 const switchVal2 = ref(true)
 const switchVal3 = ref(false)
+
+// Popover / Dropdown 数据
+const popoverVisible = ref(false)
+const dropdownVisible1 = ref(false)
+const dropdownVisible2 = ref(false)
+const dropdownSelected = ref('')
+const dropdownItems1 = [
+  { label: '编辑', icon: EditPen, command: 'edit' },
+  { label: '复制', icon: Document, command: 'copy' },
+  { label: '删除', icon: Delete, command: 'delete', danger: true },
+]
+const dropdownItems2 = [
+  { label: '个人资料', command: 'profile' },
+  { label: '系统设置', command: 'settings' },
+  { label: '退出登录', command: 'logout', danger: true },
+]
 </script>
 
 <style>
