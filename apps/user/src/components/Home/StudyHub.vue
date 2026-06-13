@@ -21,51 +21,106 @@
       </el-carousel>
     </div>
 
-    <!-- 学习功能入口区域 -->
-    <div class="study-entries">
-      <div class="section-header">
-        <h3 class="section-title">
-          <span class="title-icon">🎓</span>
-          <span>学习入口</span>
-        </h3>
-      </div>
-      
+    <!-- 内容切换：学习入口 / 社区广场 / 座位图 -->
+    <div class="content-switcher">
+      <DewButtonBar v-model="activeTab" :items="hubTabs" size="md" />
+    </div>
+
+    <!-- 学习入口 -->
+    <div v-if="activeTab === 'entries'" class="study-entries">
       <div class="entries-grid">
-        <div 
-          v-for="entry in studyEntries" 
+        <DewCard
+          v-for="entry in studyEntries"
           :key="entry.id"
-          :class="['entry-card', { 'disabled': entry.disabled }]"
+          size="sm"
+          :interactive="!entry.disabled"
+          :no-hover="entry.disabled"
+          :class="['entry-card', { 'entry-card--disabled': entry.disabled }]"
           @click="handleEntryClick(entry)"
         >
-          <div class="entry-icon-wrapper">
-            <div class="entry-icon">{{ entry.icon }}</div>
-          </div>
-          <div class="entry-content">
+          <div class="entry-inner">
+            <div class="entry-icon-wrapper" :style="{ background: entry.color + '1a' }">
+              <el-icon class="entry-icon" :style="{ color: entry.color }">
+                <component :is="entryIcons[entry.id]" />
+              </el-icon>
+            </div>
             <h4 class="entry-title">{{ entry.title }}</h4>
             <p class="entry-description">{{ entry.description }}</p>
           </div>
-          <div class="entry-arrow">
-            <el-icon><ArrowRight /></el-icon>
+        </DewCard>
+      </div>
+    </div>
+
+    <!-- 社区广场：推送最新帖子 -->
+    <div v-else-if="activeTab === 'community'" class="community-feed">
+      <div v-if="communityPosts.length" class="post-list">
+        <div
+          v-for="post in communityPosts"
+          :key="post.id"
+          class="post-card"
+          @click="goCommunity"
+        >
+          <el-avatar :size="36" :src="post.author_avatar" />
+          <div class="post-body">
+            <div class="post-meta">
+              <span class="post-author">{{ post.author }}</span>
+              <span class="post-time">{{ post.publishTime }}</span>
+            </div>
+            <div class="post-title">{{ post.title }}</div>
+            <div class="post-summary">{{ post.summary }}</div>
+            <div class="post-stats">
+              <span class="post-stat"><el-icon><ChatDotRound /></el-icon>{{ post.reply_count }}</span>
+              <span class="post-stat"><el-icon><Star /></el-icon>{{ post.like_count }}</span>
+            </div>
           </div>
         </div>
       </div>
+      <div v-else class="post-empty">社区还没有内容，快来发布第一条吧</div>
+    </div>
+
+    <!-- 座位图 -->
+    <div v-else-if="activeTab === 'seatmap'" class="seatmap-section">
+      <SeatMap current-room-id="106" :octagon-size="120" :is-dark-mode="isDarkMode" />
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
 import { ElCarousel, ElCarouselItem, ElIcon } from 'element-plus'
-import { ArrowRight } from '@element-plus/icons-vue'
+import {
+  Reading, EditPen, UserFilled, Select, Files, ChatDotRound, Star,
+} from '@element-plus/icons-vue'
 import bgImage from '../../assets/back_groud.jpg'
+import DewButtonBar from '../ui/DewButtonBar.vue'
+import DewCard from '../ui/DewCard.vue'
+import SeatMap from './SeatMap.vue'
+import api from '../../api'
 
 const store = useStore()
 const router = useRouter()
 
 // 获取主题状态
 const isDarkMode = computed(() => store.getters.isDarkMode)
+
+// 内容切换 tab
+const activeTab = ref('entries')
+const hubTabs = [
+  { value: 'entries', label: '学习入口' },
+  { value: 'community', label: '社区广场' },
+  { value: 'seatmap', label: '座位图' },
+]
+
+// 学习入口图标映射（Element Plus 图标，替代原 emoji）
+const entryIcons = {
+  courses: Reading,
+  'question-bank': EditPen,
+  groups: UserFilled,
+  exams: Select,
+  resources: Files,
+}
 
 // 轮播Banner数据
 const banners = ref([
@@ -94,50 +149,81 @@ const banners = ref([
 
 // 学习功能入口数据
 const studyEntries = ref([
-  {
-    id: 'courses',
-    title: '课程',
-    description: '系统化的课程学习',
-    icon: '📚',
-    route: '/study',
-    color: '#409EFF'
-  },
-  {
-    id: 'question-bank',
-    title: '题库',
-    description: '练习巩固知识点',
-    icon: '📝',
-    route: '/question-bank',
-    color: '#67C23A',
-    disabled: true
-  },
-  {
-    id: 'groups',
-    title: '学习小组',
-    description: '协作学习与交流',
-    icon: '👥',
-    route: '/group',
-    color: '#E6A23C'
-  },
-  {
-    id: 'exams',
-    title: '考核评估',
-    description: '检验学习效果',
-    icon: '✅',
-    route: '/exam',
-    color: '#F56C6C',
-    disabled: true
-  },
-  {
-    id: 'resources',
-    title: '学习资源',
-    description: '丰富的学习材料',
-    icon: '📖',
-    route: '/resources',
-    color: '#909399',
-    disabled: true
-  }
+  { id: 'courses', title: '课程', description: '系统化的课程学习', route: '/study', color: '#409EFF' },
+  { id: 'question-bank', title: '题库', description: '练习巩固知识点', route: '/question-bank', color: '#67C23A', disabled: true },
+  { id: 'groups', title: '学习小组', description: '协作学习与交流', route: '/group', color: '#E6A23C' },
+  { id: 'exams', title: '考核评估', description: '检验学习效果', route: '/exam', color: '#F56C6C', disabled: true },
+  { id: 'resources', title: '学习资源', description: '丰富的学习材料', route: '/resources', color: '#909399', disabled: true },
 ])
+
+// ── 社区广场：推送最新帖子（真实 API + mock 兜底） ──
+const DEFAULT_AVATAR = 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png'
+
+const mockPosts = [
+  { id: 1, author: '陈思远', author_avatar: DEFAULT_AVATAR, publishTime: '12分钟前', title: '生物材料期末复习重点整理', summary: '把这几章的核心考点和易错题梳理了一遍，附学姐笔记，需要的同学自取～', reply_count: 23, like_count: 86 },
+  { id: 2, author: '林晓彤', author_avatar: DEFAULT_AVATAR, publishTime: '1小时前', title: '组织工程实验报告模板分享', summary: '按老师要求做了一份模板，含数据分析部分，大家可以参考。', reply_count: 15, like_count: 54 },
+  { id: 3, author: '王浩然', author_avatar: DEFAULT_AVATAR, publishTime: '3小时前', title: '求助：高分子降解速率怎么测？', summary: '课上没太听懂这部分，有同学能讲讲体外降解实验的操作要点吗？', reply_count: 41, like_count: 28 },
+  { id: 4, author: '张雨琪', author_avatar: DEFAULT_AVATAR, publishTime: '昨天', title: '考研复试经验帖 | 生物医学工程方向', summary: '刚结束复试，把准备过程和面试常见问题记录下来，希望对学弟学妹有帮助。', reply_count: 67, like_count: 192 },
+]
+
+const communityPosts = ref(mockPosts)
+const avatarCache = {}
+
+function formatTimeAgo(iso) {
+  if (!iso) return ''
+  const diff = Date.now() - new Date(iso).getTime()
+  const m = Math.floor(diff / 60000)
+  if (m < 1) return '刚刚'
+  if (m < 60) return `${m}分钟前`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `${h}小时前`
+  const d = Math.floor(h / 24)
+  if (d < 30) return `${d}天前`
+  return new Date(iso).toLocaleDateString()
+}
+
+async function fetchAvatar(userId) {
+  if (!userId || avatarCache[userId]) return avatarCache[userId] || DEFAULT_AVATAR
+  try {
+    const res = await api({ url: '/user/user_avatars_id', method: 'get', params: { User_Id: userId } })
+    const av = res.data?.User_Avatar ? `data:image/jpeg;base64,${res.data.User_Avatar}` : DEFAULT_AVATAR
+    avatarCache[userId] = av
+    return av
+  } catch {
+    return DEFAULT_AVATAR
+  }
+}
+
+async function fetchCommunityPosts() {
+  try {
+    const res = await api.get('/discussions/threads', { params: { page: 1, per_page: 5, sort: 'latest' } })
+    const threads = res.data?.data || []
+    if (Array.isArray(threads) && threads.length) {
+      communityPosts.value = threads.map(t => ({
+        id: t.id,
+        author: t.author_name || '匿名',
+        authorId: t.author_id,
+        author_avatar: DEFAULT_AVATAR,
+        publishTime: formatTimeAgo(t.created_at),
+        title: t.title,
+        summary: (t.content || '').replace(/\s+/g, ' ').slice(0, 80),
+        reply_count: t.reply_count || 0,
+        like_count: t.like_count || 0,
+      }))
+      // 异步补头像
+      communityPosts.value.forEach(async (p) => {
+        if (p.authorId) p.author_avatar = await fetchAvatar(p.authorId)
+      })
+    }
+    // 后端无数据则保留 mock
+  } catch (e) {
+    // 保留 mock
+  }
+}
+
+function goCommunity() {
+  router.push('/community')
+}
 
 // 事件处理
 const emit = defineEmits(['banner-click', 'entry-click'])
@@ -150,12 +236,7 @@ const handleBannerClick = (banner) => {
 }
 
 const handleEntryClick = (entry) => {
-  if (entry.disabled) {
-    // 可以显示提示信息
-    console.log('功能即将上线')
-    return
-  }
-  
+  if (entry.disabled) return
   if (entry.route) {
     router.push(entry.route)
   }
@@ -163,7 +244,7 @@ const handleEntryClick = (entry) => {
 }
 
 onMounted(() => {
-  // 组件挂载时的初始化逻辑
+  fetchCommunityPosts()
 })
 </script>
 
@@ -240,177 +321,177 @@ onMounted(() => {
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
+/* 内容切换器 */
+.content-switcher {
+  width: 100%;
+  display: flex;
+}
+
 /* 学习入口区域样式 */
 .study-entries {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.section-header {
-  margin-bottom: 16px;
-}
-
-.section-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 20px;
-  font-weight: 600;
-  margin: 0;
-  transition: color 0.3s ease;
-}
-
-.theme-light .section-title {
-  color: #1a1a1a;
-}
-
-.theme-dark .section-title {
-  color: #ffffff;
-}
-
-.title-icon {
-  font-size: 22px;
 }
 
 .entries-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr); /* 一行两个 */
+  grid-template-columns: repeat(4, 1fr); /* 一行四个 */
   gap: 12px;
 }
 
-.entry-card {
+.entry-card--disabled {
+  opacity: 0.55;
+}
+
+.entry-inner {
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 12px;
-  padding: 16px 12px;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  position: relative;
-  overflow: hidden;
-  min-height: 120px; /* 保证卡片高度一致 */
-}
-
-.theme-light .entry-card {
-  background: #ffffff;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-}
-
-.theme-dark .entry-card {
-  background: #2c2c2c;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-}
-
-.entry-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-}
-
-.theme-dark .entry-card:hover {
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
-}
-
-.entry-card.disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.entry-card.disabled:hover {
-  transform: none;
+  gap: 5px;
+  padding: 4px 0 2px;
 }
 
 .entry-icon-wrapper {
-  width: 56px;
-  height: 56px;
-  border-radius: 14px;
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: all 0.3s ease;
-  margin-bottom: 4px;
-}
-
-.theme-light .entry-icon-wrapper {
-  background: rgba(64, 158, 255, 0.1);
-}
-
-.theme-dark .entry-icon-wrapper {
-  background: rgba(64, 158, 255, 0.2);
+  margin-bottom: 2px;
 }
 
 .entry-icon {
-  font-size: 28px;
-}
-
-.entry-content {
-  flex: 1;
-  min-width: 0;
-  width: 100%;
+  font-size: 20px;
 }
 
 .entry-title {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
-  margin: 0 0 6px 0;
-  transition: color 0.3s ease;
+  margin: 0;
   line-height: 1.2;
-}
-
-.theme-light .entry-title {
-  color: #1a1a1a;
-}
-
-.theme-dark .entry-title {
-  color: #ffffff;
+  color: var(--dew-text-heading);
 }
 
 .entry-description {
-  font-size: 12px;
+  font-size: 11px;
   margin: 0;
   line-height: 1.3;
-  transition: color 0.3s ease;
-  opacity: 0.8;
+  color: var(--dew-text-muted);
 }
 
-.theme-light .entry-description {
-  color: #666666;
+/* ── 社区广场：帖子流 ── */
+.community-feed {
+  width: 100%;
 }
 
-.theme-dark .entry-description {
-  color: #cccccc;
-}
-
-.entry-arrow {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  width: 20px;
-  height: 20px;
+.post-list {
   display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.post-card {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.25s ease, transform 0.25s ease;
+}
+
+.theme-light .post-card {
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.theme-dark .post-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.post-card:hover {
+  transform: translateY(-1px);
+  background: var(--dew-popover-item-hover);
+}
+
+.post-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.post-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.post-author {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--dew-text-heading);
+}
+
+.post-time {
+  font-size: 11px;
+  color: var(--dew-text-faint);
+}
+
+.post-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--dew-text-heading);
+  line-height: 1.4;
+  margin-bottom: 3px;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.post-summary {
+  font-size: 12px;
+  color: var(--dew-text-muted);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.post-stats {
+  display: flex;
+  gap: 14px;
+  margin-top: 6px;
+}
+
+.post-stat {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  transition: all 0.3s ease;
-  opacity: 0.6;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--dew-text-faint);
 }
 
-.theme-light .entry-arrow {
-  color: #409EFF;
+.post-stat .el-icon {
+  font-size: 12px;
 }
 
-.theme-dark .entry-arrow {
-  color: #409EFF;
+.post-empty {
+  text-align: center;
+  padding: 32px 0;
+  font-size: 13px;
+  color: var(--dew-text-muted);
 }
 
-.entry-card:hover .entry-arrow {
-  opacity: 1;
-  transform: translate(2px, -2px);
+/* 座位图 */
+.seatmap-section {
+  width: 100%;
+  height: 400px;
 }
 
 /* 轮播组件样式修复 - 允许悬停时放大效果溢出显示 */
@@ -460,31 +541,9 @@ onMounted(() => {
   .banner-title {
     font-size: 20px;
   }
-  
+
   .banner-description {
     font-size: 14px;
-  }
-  
-  .entry-card {
-    padding: 14px 10px;
-    min-height: 110px;
-  }
-  
-  .entry-icon-wrapper {
-    width: 52px;
-    height: 52px;
-  }
-  
-  .entry-icon {
-    font-size: 26px;
-  }
-  
-  .entry-title {
-    font-size: 14px;
-  }
-  
-  .entry-description {
-    font-size: 11px;
   }
 }
 
@@ -492,48 +551,22 @@ onMounted(() => {
   .study-hub-container {
     gap: 20px;
   }
-  
+
   .banner-section :deep(.el-carousel) {
     height: 160px;
   }
-  
+
   .banner-title {
     font-size: 18px;
   }
-  
+
   .banner-description {
     font-size: 13px;
   }
-  
-  .section-title {
-    font-size: 18px;
-  }
-  
+
   .entries-grid {
-    grid-template-columns: repeat(2, 1fr); /* 保持2列 */
+    grid-template-columns: repeat(2, 1fr);
     gap: 10px;
-  }
-  
-  .entry-card {
-    padding: 12px 8px;
-    min-height: 100px;
-  }
-  
-  .entry-icon-wrapper {
-    width: 48px;
-    height: 48px;
-  }
-  
-  .entry-icon {
-    font-size: 24px;
-  }
-  
-  .entry-title {
-    font-size: 13px;
-  }
-  
-  .entry-description {
-    font-size: 10px;
   }
 }
 
@@ -541,58 +574,26 @@ onMounted(() => {
   .study-hub-container {
     gap: 16px;
   }
-  
+
   .banner-section :deep(.el-carousel) {
     height: 140px;
   }
-  
+
   .banner-overlay {
     padding: 16px;
   }
-  
+
   .banner-title {
     font-size: 16px;
   }
-  
+
   .banner-description {
     font-size: 12px;
   }
-  
+
   .entries-grid {
-    grid-template-columns: repeat(2, 1fr); /* 小屏也保持2列 */
+    grid-template-columns: repeat(2, 1fr);
     gap: 8px;
-  }
-  
-  .entry-card {
-    padding: 10px 6px;
-    border-radius: 8px;
-    min-height: 90px;
-  }
-  
-  .entry-icon-wrapper {
-    width: 42px;
-    height: 42px;
-    border-radius: 10px;
-  }
-  
-  .entry-icon {
-    font-size: 22px;
-  }
-  
-  .entry-title {
-    font-size: 12px;
-    margin-bottom: 4px;
-  }
-  
-  .entry-description {
-    font-size: 9px;
-  }
-  
-  .entry-arrow {
-    width: 16px;
-    height: 16px;
-    top: 8px;
-    right: 8px;
   }
 }
 
