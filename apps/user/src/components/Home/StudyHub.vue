@@ -91,7 +91,7 @@ import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
 import { ElCarousel, ElCarouselItem, ElIcon } from 'element-plus'
 import {
-  Reading, EditPen, UserFilled, Select, Files, ChatDotRound, Star,
+  Reading, EditPen, UserFilled, Select, Files, ChatDotRound, Star, Box, MagicStick,
 } from '@element-plus/icons-vue'
 import bgImage from '../../assets/back_groud.jpg'
 import DewButtonBar from '../ui/DewButtonBar.vue'
@@ -120,6 +120,8 @@ const entryIcons = {
   groups: UserFilled,
   exams: Select,
   resources: Files,
+  '3d-print': Box,
+  'llm': MagicStick,
 }
 
 // 轮播Banner数据
@@ -154,6 +156,8 @@ const studyEntries = ref([
   { id: 'groups', title: '学习小组', description: '协作学习与交流', route: '/group', color: '#E6A23C' },
   { id: 'exams', title: '考核评估', description: '检验学习效果', route: '/exam', color: '#F56C6C', disabled: true },
   { id: 'resources', title: '学习资源', description: '丰富的学习材料', route: '/resources', color: '#909399', disabled: true },
+  { id: '3d-print', title: '3D打印', description: '3D 模型打印预约', route: '/3d-print', color: '#06b6d4' },
+  { id: 'llm', title: '大模型', description: '大模型 API 接口平台', route: '/llm', color: '#ec4899' },
 ])
 
 // ── 社区广场：推送最新帖子（真实 API + mock 兜底） ──
