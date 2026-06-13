@@ -381,6 +381,48 @@
 
       <hr v-if="activeTab === 'dropdown'" style="border: none; height: 1px; margin: 0 0 36px;" />
 
+      <!-- ━━━━ Island ━━━━ -->
+      <section v-if="activeTab === 'island'" style="margin-bottom: 36px;">
+        <h2 class="dew-showcase__heading" style="font-size: 15px; font-weight: 600; margin: 0 0 6px;">DewIsland 浮岛</h2>
+        <p style="font-size: 12px; color: var(--dew-text-faint); margin: 0 0 18px;">
+          点击胶囊展开液态玻璃浮岛，水滴弹性向下绽放；点击空白处收起。
+        </p>
+
+        <div style="font-size: 12px; color: var(--dew-text-faint); margin-bottom: 10px;">点亮胶囊触发器（学习中态）</div>
+        <div style="text-align: center; padding: 36px 0; margin-bottom: 24px; background: rgba(127,127,127,0.06); border-radius: 14px;">
+          <DewIsland v-model="islandOpen" :panel-width="320">
+            <template #trigger>
+              <DewButton :active="true" size="lg">
+                <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10b981;animation:dew-island-pulse 2s infinite;"></span>
+                学习中 02:15:33
+              </DewButton>
+            </template>
+            <div style="padding: 16px;">
+              <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px; color: var(--dew-text-heading);">106 自习室实况</div>
+              <div style="font-size: 13px; color: var(--dew-text-muted); line-height: 1.6;">
+                展开态内容。浮岛居中于触发器、向下绽放。点击面板内不会收起，点击外部空白才会收起。
+              </div>
+            </div>
+          </DewIsland>
+        </div>
+
+        <div style="font-size: 12px; color: var(--dew-text-faint); margin-bottom: 10px;">幽灵胶囊触发器 + 自定义宽度</div>
+        <div style="text-align: center; padding: 36px 0; background: rgba(127,127,127,0.06); border-radius: 14px;">
+          <DewIsland v-model="islandOpen2" :panel-width="'min(280px, calc(100vw - 48px))'">
+            <template #trigger>
+              <DewButton type="ghost" size="lg">未打卡</DewButton>
+            </template>
+            <div style="padding: 16px;">
+              <div style="font-size: 13px; color: var(--dew-text-muted); line-height: 1.6;">
+                这里可以放任意内容：通知详情、统计图表、快捷操作等。面板宽度支持数字（px）或字符串（响应式）。
+              </div>
+            </div>
+          </DewIsland>
+        </div>
+      </section>
+
+      <hr v-if="activeTab === 'island'" style="border: none; height: 1px; margin: 0 0 36px;" />
+
       <!-- ━━━━ Badge ━━━━ -->
       <section v-if="activeTab === 'badge'" style="margin-bottom: 36px;">
         <h2 class="dew-showcase__heading" style="font-size: 15px; font-weight: 600; margin: 0 0 14px;">DewBadge 徽标</h2>
@@ -478,6 +520,11 @@
 </template>
 
 <style>
+@keyframes dew-island-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
 .dew-wallpaper {
   background:
     /* 顶层柔光 */
@@ -510,6 +557,7 @@ import DewInput from '../components/ui/DewInput.vue'
 import DewSwitch from '../components/ui/DewSwitch.vue'
 import DewPopover from '../components/ui/DewPopover.vue'
 import DewDropdown from '../components/ui/DewDropdown.vue'
+import DewIsland from '../components/ui/DewIsland.vue'
 import { Document, Check, Bell, User, Setting, Search, Lock, MoreFilled, EditPen, Delete } from '@element-plus/icons-vue'
 
 const isDark = ref(false)
@@ -524,6 +572,7 @@ const navItems = [
   { value: 'card', label: 'Card' },
   { value: 'popover', label: 'Popover' },
   { value: 'dropdown', label: 'Dropdown' },
+  { value: 'island', label: 'Island' },
   { value: 'badge', label: 'Badge' },
   { value: 'tag', label: 'Tag' },
   { value: 'combo', label: '组合' },
@@ -571,6 +620,10 @@ const popoverVisible = ref(false)
 const dropdownVisible1 = ref(false)
 const dropdownVisible2 = ref(false)
 const dropdownSelected = ref('')
+
+// Island 数据
+const islandOpen = ref(false)
+const islandOpen2 = ref(false)
 const dropdownItems1 = [
   { label: '编辑', icon: EditPen, command: 'edit' },
   { label: '复制', icon: Document, command: 'copy' },

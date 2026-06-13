@@ -8,30 +8,53 @@
       </div>
     </div>
 
-    <!-- 打卡状态（居中大按钮） -->
+    <!-- 打卡状态（居中胶囊，点击展开座位浮岛） -->
     <div class="live-panel__status">
-      <DewButton
-        v-if="checkinInfo.checkedIn && !checkinInfo.checkedOut"
-        :active="true"
-        size="lg"
-      >
-        <span class="status-dot status-dot--active"></span>
-        {{ checkinInfo.isOvertime ? '超时学习中' : '学习中' }}
-        <span class="status-timer">{{ currentStudyDuration }}</span>
-      </DewButton>
-      <DewButton
-        v-else-if="checkinInfo.checkedOut"
-        size="lg"
-      >
-        ✦ 今日已完成 · {{ todayTotalDuration }}
-      </DewButton>
-      <DewButton
-        v-else
-        type="ghost"
-        size="lg"
-      >
-        未打卡
-      </DewButton>
+      <DewIsland v-model="isIslandOpen" :panel-width="'min(360px, calc(100vw - 24px))'">
+        <template #trigger>
+          <DewButton
+            v-if="checkinInfo.checkedIn && !checkinInfo.checkedOut"
+            :active="true"
+            size="lg"
+          >
+            <span class="status-dot status-dot--active"></span>
+            {{ checkinInfo.isOvertime ? '超时学习中' : '学习中' }}
+            <span class="status-timer">{{ currentStudyDuration }}</span>
+          </DewButton>
+          <DewButton
+            v-else-if="checkinInfo.checkedOut"
+            size="lg"
+          >
+            ✦ 今日已完成 · {{ todayTotalDuration }}
+          </DewButton>
+          <DewButton
+            v-else
+            type="ghost"
+            size="lg"
+          >
+            未打卡
+          </DewButton>
+        </template>
+
+        <!-- 浮岛内容：106 自习室实况 -->
+        <div class="island-content">
+          <div class="room-header">
+            <div class="online-stats">
+              <span class="stats-label">在线</span>
+              <span class="stats-value">{{ onlineCount }}/{{ totalSeats }}</span>
+            </div>
+            <h2 class="room-title">106 自习室实况</h2>
+          </div>
+          <div class="seat-map-wrap">
+            <SeatMap
+              current-room-id="106"
+              :octagon-size="seatMapConfig.octagonSize"
+              :is-dark-mode="isDarkMode"
+              ref="seatMapRef"
+            />
+          </div>
+        </div>
+      </DewIsland>
     </div>
 
     <!-- 统计卡片 -->
@@ -65,11 +88,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useStore } from 'vuex'
 import api from '../../api'
 import DewCard from '../ui/DewCard.vue'
 import DewButton from '../ui/DewButton.vue'
+import DewIsland from '../ui/DewIsland.vue'
+import SeatMap from './SeatMap.vue'
 
 const store = useStore()
 
@@ -134,6 +159,32 @@ const todayTotalDuration = ref('3h 20m')
 let studyTimer = null
 let timeTimer = null
 const nowTime = ref(new Date())
+
+// ── 浮岛（座位实况） ──
+const isIslandOpen = ref(false)
+const seatMapRef = ref(null)
+const onlineCount = ref(0)
+const totalSeats = ref(0)
+const seatMapConfig = ref({ octagonSize: 140 })
+
+// SeatMap 通过 defineExpose 暴露 onlineCount/totalSeats（computed ref）
+watch(() => seatMapRef.value?.onlineCount, (n) => {
+  if (typeof n === 'number') onlineCount.value = n
+})
+watch(() => seatMapRef.value?.totalSeats, (t) => {
+  if (typeof t === 'number') totalSeats.value = t
+})
+// SeatMap 懒挂载在 v-if 面板内，首次展开时同步一次计数
+watch(isIslandOpen, async (open) => {
+  if (open) {
+    await nextTick()
+    const stats = seatMapRef.value?.getOnlineStats?.()
+    if (stats) {
+      onlineCount.value = stats.onlineCount
+      totalSeats.value = stats.totalSeats
+    }
+  }
+})
 
 // 登录检查
 const checkLogin = () => !!localStorage.getItem('token')
@@ -339,6 +390,50 @@ onUnmounted(() => {
 @keyframes pulse-dot {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }
+}
+
+/* ── 浮岛内容（座位实况） ── */
+.island-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 14px 4px;
+}
+
+.room-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.online-stats {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  font-size: 13px;
+  color: var(--dew-text-muted);
+}
+
+.online-stats .stats-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--dew-text-heading);
+  font-variant-numeric: tabular-nums;
+}
+
+.room-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--dew-text-heading);
+  font-family: var(--dew-font, inherit);
+}
+
+/* SeatMap 根是 height:100%/width:100%，必须给显式尺寸的父盒子 */
+.seat-map-wrap {
+  height: 300px;
+  width: 100%;
 }
 
 /* ── 统计卡片行 ── */

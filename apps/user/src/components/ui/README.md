@@ -135,6 +135,54 @@ import { DewCard, DewButton } from '@/components/ui'
 
 ---
 
+## DewIsland 浮岛
+
+液态玻璃「灵动岛」容器：收起态展示触发器（如胶囊），点击展开成居中浮层面板，常用于实时状态浓缩 → 展开详情（如打卡时长 → 自习室实况）。
+
+### Props
+
+| 属性 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `modelValue` | `boolean` | `false` | 展开/收起（v-model） |
+| `disabled` | `boolean` | `false` | 禁用点击展开 |
+| `panelWidth` | `string / number` | `360` | 面板宽度（number → px；string 原样使用，如 `'min(360px, calc(100vw - 24px))'`） |
+| `margin` | `number` | `12` | 视口边缘留白（px），用于定位钳制 |
+
+### Events
+
+| 事件 | 参数 | 说明 |
+|------|------|------|
+| `update:modelValue` | `boolean` | v-model 同步 |
+
+### Slots
+
+| 插槽 | 说明 |
+|------|------|
+| `trigger` | 触发器（收起态展示，点击切换） |
+| default | 展开态面板内容 |
+
+### 使用示例
+
+```vue
+<template>
+  <DewIsland v-model="open" :panel-width="360">
+    <template #trigger>
+      <DewButton size="lg">学习中 02:15:33</DewButton>
+    </template>
+    <div style="height: 300px;">面板内容</div>
+  </DewIsland>
+</template>
+```
+
+### 视觉特性
+
+- **液态玻璃浮岛**：`backdrop-filter` 模糊 + 玻璃 bg/border/shadow token（`--dew-island-*`）
+- **水滴绽放动画**：`--dew-bounce` 弹性曲线，`transform-origin: top center`，从触发器顶部向下绽放
+- **点击外部收起**：document capture 监听，无遮罩、不阻断背景交互
+- **跟随触发器定位**：水平居中于触发器，滚动/resize 自动重定位
+
+---
+
 ## DewBadge 徽标
 
 数字或文字徽标，用于状态标记和未读计数。
@@ -192,6 +240,7 @@ import { DewCard, DewButton } from '@/components/ui'
 | 按钮栏 | `--dew-bar-*` | 容器 + 文字 + badge |
 | 卡片 | `--dew-card-*` | 4 种变体（default/elevated/inset/glass）全态 |
 | 卡片底色 | `--dew-tint-*-from` / `--dew-tint-*-to` | 6 种 accent 色彩渐变 |
+| 浮岛 | `--dew-island-bg` / `--dew-island-border` / `--dew-island-radius` / `--dew-island-shadow` | 液态玻璃浮层，亮/暗自动覆盖 |
 
 ### 暗色模式
 
