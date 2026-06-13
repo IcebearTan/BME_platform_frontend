@@ -281,7 +281,8 @@ const handleEntryClick = (entry) => {
 }
 
 .theme-light .homeMainContainer {
-  background-color: #f8f9fa;
+  /* 淡渐变背景，与 Dew UI 展示页一致（淡蓝→淡粉→淡绿） */
+  background: linear-gradient(135deg, #f0f4ff 0%, #fdf2f8 50%, #f0fdf4 100%);
 }
 
 .theme-dark .homeMainContainer {
