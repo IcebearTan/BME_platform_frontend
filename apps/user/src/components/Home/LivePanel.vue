@@ -88,11 +88,11 @@ const todayDate = computed(() => {
   return `${month}月${day}日 星期${weekDay}`
 })
 
-// ── 月度统计（API 数据） ──
+// ── 月度统计（API 数据，初始 0 待 fetchMonthlyStats 填充） ──
 const monthlyStats = ref({
-  totalDays: 18,
-  totalHours: 47,
-  rank: 12,
+  totalDays: 0,
+  totalHours: 0,
+  rank: null,
 })
 
 async function fetchMonthlyStats() {
@@ -111,17 +111,17 @@ async function fetchMonthlyStats() {
   }
 }
 
-// ── 打卡状态（只读展示，不含签到/签退操作） ──
+// ── 打卡状态（只读展示，由 getLatestCheckStatus 填充） ──
 const checkinInfo = ref({
-  checkedIn: true,
+  checkedIn: false,
   checkedOut: false,
-  checkinTime: '14:30',
-  checkinTimestamp: Date.now() - 2 * 3600 * 1000 - 15 * 60 * 1000, // 2h15m 前
+  checkinTime: null,
+  checkinTimestamp: null,
   isOvertime: false,
 })
 
-const currentStudyDuration = ref('02:15:33')
-const todayTotalDuration = ref('3h 20m')
+const currentStudyDuration = ref('00:00:00')
+const todayTotalDuration = ref('0m')
 let studyTimer = null
 let timeTimer = null
 const nowTime = ref(new Date())
@@ -284,20 +284,11 @@ function parseDurationString(str) {
 onMounted(async () => {
   timeTimer = setInterval(() => { nowTime.value = new Date() }, 1000)
 
-  // TODO: 取消注释以接入真实 API
-  // if (checkLogin()) {
-  //   await getLatestCheckStatus()
-  //   await fetchMonthlyStats()
-  //   await calculateTodayTotalDuration()
-  // }
-
-  // Mock: 启动计时器让时长跳动
-  if (checkinInfo.value.checkedIn) {
-    studyTimer = setInterval(() => {
-      updateStudyDuration()
-      checkOvertime()
-    }, 1000)
-    updateStudyDuration()
+  // 接入真实 API（后端 /lateset_checktime、/records/my_stats 等已就绪）
+  if (checkLogin()) {
+    await getLatestCheckStatus()
+    await fetchMonthlyStats()
+    await calculateTodayTotalDuration()
   }
 })
 

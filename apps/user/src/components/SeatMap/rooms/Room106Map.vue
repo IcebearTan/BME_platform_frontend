@@ -1,79 +1,68 @@
 <template>
   <div class="room-106" :class="{ dark: isDarkMode }">
-    <!-- 在线人数：占用座位数 / 总座位数（5 八角形 × 8 三角形 = 40） -->
+    <!-- 在线人数（真实数据） -->
     <div class="room-106__head">
       <span class="room-106__dot"></span>
       <span class="room-106__count">
-        在线 <strong>{{ onlineCount }}</strong><span class="room-106__sep">/</span>{{ totalSeats }}
+        在线 <strong>{{ online }}</strong><span class="room-106__sep">/</span>{{ total }}
       </span>
     </div>
 
-    <div class="room-106__layout">
-      <!-- 左侧 2 个八角形 -->
+    <div v-if="loading" class="room-106__status">加载中…</div>
+    <div v-else-if="error" class="room-106__status room-106__status--err">{{ error }}</div>
+
+    <div v-else class="room-106__layout">
+      <!-- 左侧八角形：A、B -->
       <div class="room-106__col">
-        <DewPopover
-          v-for="oct in leftOctagons"
-          :key="oct.id"
-          trigger="hover"
-          placement="top"
-          :show-arrow="true"
-        >
-          <template #trigger>
-            <div class="seat-item">
-              <OctagonShape
-                :size="octagonSize"
-                :radius="octagonRadius"
-                :corner-radius="octagonCornerRadius"
-                :count="8"
-                :colors="octColors(oct)"
-                :gap="octagonGap"
-                :uniform-color="octagonUniformColor || undefined"
-                @triangle-hover="onTriHover(oct, $event.index)"
-              />
-            </div>
-          </template>
-          <SeatTip :seat="curSeat(oct)" :zone="oct.id" />
-        </DewPopover>
+        <div v-for="oct in leftOctagons" :key="oct.letter" class="seat-item">
+          <OctagonShape
+            :size="octagonSize"
+            :radius="octagonRadius"
+            :corner-radius="octagonCornerRadius"
+            :count="8"
+            :colors="octColors(oct.seats)"
+            :gap="octagonGap"
+            :uniform-color="octagonUniformColor || undefined"
+            @triangle-hover="onTriHover(oct.letter, $event)"
+            @triangle-leave="onTriLeave"
+          />
+        </div>
       </div>
 
-      <!-- 右侧 3 个八角形 -->
+      <!-- 右侧八角形：C、D、E -->
       <div class="room-106__col room-106__col--right">
-        <DewPopover
-          v-for="oct in rightOctagons"
-          :key="oct.id"
-          trigger="hover"
-          placement="top"
-          :show-arrow="true"
-        >
-          <template #trigger>
-            <div class="seat-item">
-              <OctagonShape
-                :size="octagonSize"
-                :radius="octagonRadius"
-                :corner-radius="octagonCornerRadius"
-                :count="8"
-                :colors="octColors(oct)"
-                :gap="octagonGap"
-                :uniform-color="octagonUniformColor || undefined"
-                @triangle-hover="onTriHover(oct, $event.index)"
-              />
-            </div>
-          </template>
-          <SeatTip :seat="curSeat(oct)" :zone="oct.id" />
-        </DewPopover>
+        <div v-for="oct in rightOctagons" :key="oct.letter" class="seat-item">
+          <OctagonShape
+            :size="octagonSize"
+            :radius="octagonRadius"
+            :corner-radius="octagonCornerRadius"
+            :count="8"
+            :colors="octColors(oct.seats)"
+            :gap="octagonGap"
+            :uniform-color="octagonUniformColor || undefined"
+            @triangle-hover="onTriHover(oct.letter, $event)"
+            @triangle-leave="onTriLeave"
+          />
+        </div>
       </div>
     </div>
+
+    <!-- 悬停三角形：跟随光标的提示（Teleport 到 body，定位到光标/三角形位置） -->
+    <Teleport to="body">
+      <div v-if="tip.visible" class="seat-tip-pop" :style="tipStyle">
+        <SeatTip :seat="tip.seat" />
+      </div>
+    </Teleport>
   </div>
 </template>
 
 <script setup>
-import { reactive, computed, h } from 'vue'
+import { reactive, ref, computed, h, onMounted } from 'vue'
 import OctagonShape from '../OctagonShape.vue'
-import DewPopover from '../../ui/DewPopover.vue'
+import api from '../../../api'
 
 const props = defineProps({
   isDarkMode: { type: Boolean, default: false },
-  // 八角形：size=SVG 画布，radius=外接圆半径（直径≈2×radius）；缩小调 radius，size 需 ≥ 2×radius
   octagonSize: { type: Number, default: 120 },
   octagonRadius: { type: Number, default: 56 },
   octagonCornerRadius: { type: Number, default: 8 },
@@ -81,77 +70,110 @@ const props = defineProps({
   octagonUniformColor: { type: String, default: '' },
 })
 
-// 姓名池（mock）
-const NAMES = ['张三','李四','王五','赵六','陈七','周八','吴九','郑十','孙杰','钱一','林冲','武松','宋江','鲁智深','燕青','史进','柴进','戴宗','李逵','时迁','刘备','关羽','张飞','马超','黄忠','魏延','赵云','孔明']
-let nameIdx = 0
-const nextName = () => NAMES[nameIdx++ % NAMES.length]
+const ROOM_NAME = '106'
+const online = ref(0)
+const total = ref(0)
+const loading = ref(true)
+const error = ref('')
+const octagonMap = reactive({})  // { A: [seat×8], ... }
 
-// 生成一个八角形的 8 个三角形座位（mock，~70% 占用）
-function makeOctagon(id) {
-  return {
-    id,
-    hoveredIndex: -1,
-    seats: Array.from({ length: 8 }, (_, i) => {
-      const occupied = Math.random() < 0.7
-      return {
-        id: `${id}${i + 1}`,
-        label: `${id}${i + 1}`,
-        status: occupied ? 'occupied' : 'available',
-        occupant: occupied ? nextName() : null,
-      }
-    }),
+// 悬停提示状态（跟随光标）
+const tip = reactive({ visible: false, x: 0, y: 0, seat: null })
+
+async function fetchSeats() {
+  loading.value = true
+  error.value = ''
+  try {
+    const res = await api.get(`/seat/rooms/${ROOM_NAME}/seats`)
+    const data = res.data
+    if (data.code !== 200) throw new Error(data.message || '获取座位失败')
+    online.value = data.Online || 0
+    total.value = data.Total_Seats || 0
+
+    const groups = {}
+    for (const s of (data.seats || [])) {
+      const letter = s.Seat_Label[0]
+      const idx = parseInt(s.Seat_Label.slice(1)) - 1
+      if (!groups[letter]) groups[letter] = new Array(8).fill(null)
+      groups[letter][idx] = s
+    }
+    for (const k of Object.keys(octagonMap)) delete octagonMap[k]
+    Object.assign(octagonMap, groups)
+  } catch (e) {
+    error.value = (e && e.message) ? e.message : '加载失败'
+  } finally {
+    loading.value = false
   }
 }
 
-const leftOctagons = reactive([makeOctagon('A'), makeOctagon('B')])
-const rightOctagons = reactive([makeOctagon('C'), makeOctagon('D'), makeOctagon('E')])
-
-const allOctagons = computed(() => [...leftOctagons, ...rightOctagons])
-const totalSeats = computed(() => allOctagons.value.reduce((n, o) => n + o.seats.length, 0))
-const onlineCount = computed(() =>
-  allOctagons.value.reduce((n, o) => n + o.seats.filter(s => s.status === 'occupied').length, 0)
+const LEFT = ['A', 'B']
+const RIGHT = ['C', 'D', 'E']
+const leftOctagons = computed(() =>
+  LEFT.map(l => ({ letter: l, seats: octagonMap[l] || [] })).filter(o => o.seats.length)
+)
+const rightOctagons = computed(() =>
+  RIGHT.map(l => ({ letter: l, seats: octagonMap[l] || [] })).filter(o => o.seats.length)
 )
 
-// 每个三角形（座位）的状态色 → OctagonShape 的 colors 数组（一三角形一色）
-function seatColor(status) {
-  if (status === 'disabled') return props.isDarkMode ? '#6b7280' : '#9ca3af'
-  if (status === 'occupied') return props.isDarkMode ? '#ffffff' : '#6fdaa3'
-  return props.isDarkMode ? '#4a5568' : '#e5e7eb' // available
+function octColors(seats) {
+  const occupied = props.isDarkMode ? '#ffffff' : '#6fdaa3'
+  const free = props.isDarkMode ? '#4a5568' : '#e5e7eb'
+  const empty = props.isDarkMode ? '#2d3748' : '#f3f4f6'
+  return seats.map(s => s ? (s.Occupied ? occupied : free) : empty)
 }
-const octColors = (oct) => oct.seats.map(s => seatColor(s.status))
 
-// 悬停到某个三角形
-function onTriHover(oct, index) {
-  oct.hoveredIndex = index
+// 悬停某个三角形：定位到光标位置，显示该座位信息
+function onTriHover(letter, payload) {
+  const seats = octagonMap[letter] || []
+  const seat = payload.index >= 0 ? seats[payload.index] : null
+  tip.visible = true
+  tip.x = payload.clientX
+  tip.y = payload.clientY
+  tip.seat = seat
 }
-const curSeat = (oct) => (oct.hoveredIndex >= 0 ? oct.seats[oct.hoveredIndex] : null)
+function onTriLeave() {
+  tip.visible = false
+}
 
-// 悬停提示（轻量函数式组件，左右两列共用）
-// 注意：DewPopover 内容 Teleport 到 body，函数式组件 h() 渲染的节点不带 scoped 属性，
-// 所以用内联样式 + var() 主题色（teleport 后仍能从 body 的 theme class 解析）
-const PAD = 'padding:8px 12px;min-width:96px;'
-const LABEL_ST = 'font-size:13px;font-weight:700;color:var(--dew-popover-text);margin-bottom:2px;'
-const SeatTip = ({ seat, zone }) => {
+// 提示框样式：定位到光标、浮在上方，DewPopover 风格底（var() 在 body 上解析）
+const tipStyle = computed(() => ({
+  left: tip.x + 'px',
+  top: tip.y + 'px',
+  position: 'fixed',
+  zIndex: 2000,
+  transform: 'translate(-50%, calc(-100% - 12px))',
+  background: 'var(--dew-popover-bg)',
+  border: '1px solid var(--dew-popover-border)',
+  borderRadius: 'var(--dew-popover-radius)',
+  boxShadow: 'var(--dew-popover-shadow)',
+  pointerEvents: 'none',
+  whiteSpace: 'nowrap',
+}))
+
+// 提示内容（函数式组件 + 内联 var() 样式，Teleport 后也能正确解析）
+const SeatTip = ({ seat }) => {
+  const PAD = 'padding:8px 12px;min-width:96px;'
+  const LABEL = 'font-size:13px;font-weight:700;color:var(--dew-popover-text);margin-bottom:2px;'
   if (!seat) {
-    return h('div', { style: PAD }, [
-      h('div', { style: LABEL_ST }, `${zone} 区`),
-      h('div', { style: 'font-size:12px;color:var(--dew-text-muted);' }, '悬停查看座位'),
-    ])
+    return h('div', { style: PAD + 'font-size:12px;color:var(--dew-text-muted);' }, '悬停查看座位')
   }
-  const text = seat.status === 'occupied' ? (seat.occupant ? `${seat.occupant} 正在学习` : '占用中')
-    : seat.status === 'disabled' ? '不可用' : '空闲'
-  const sc = seat.status === 'occupied' ? '#10b981'
-    : seat.status === 'disabled' ? '#9ca3af' : 'var(--dew-text-muted)'
+  if (seat.Bound_User_Name) {
+    const line = seat.Occupied
+      ? h('div', { style: 'font-size:12px;color:#10b981;' }, `${seat.Bound_User_Name} 正在学习`)
+      : h('div', { style: 'font-size:12px;color:var(--dew-text-muted);' }, `${seat.Bound_User_Name}（未打卡）`)
+    return h('div', { style: PAD }, [h('div', { style: LABEL }, `${seat.Seat_Label} 座位`), line])
+  }
   return h('div', { style: PAD }, [
-    h('div', { style: LABEL_ST }, `${seat.label} 座位`),
-    h('div', { style: `font-size:12px;color:${sc};` }, text),
+    h('div', { style: LABEL }, `${seat.Seat_Label} 座位`),
+    h('div', { style: 'font-size:12px;color:var(--dew-text-faint);' }, '未分配'),
   ])
 }
 
+onMounted(fetchSeats)
+
 defineExpose({
-  getOnlineStats: () => ({ onlineCount: onlineCount.value, totalSeats: totalSeats.value }),
-  onlineCount,
-  totalSeats,
+  refresh: fetchSeats,
+  getOnlineStats: () => ({ onlineCount: online.value, totalSeats: total.value }),
 })
 </script>
 
@@ -187,9 +209,7 @@ defineExpose({
   font-size: 14px;
   color: var(--dew-text-muted, #6b7280);
 }
-.room-106.dark .room-106__head {
-  color: rgba(255, 255, 255, 0.7);
-}
+.room-106.dark .room-106__head { color: rgba(255, 255, 255, 0.7); }
 .room-106__dot {
   width: 8px;
   height: 8px;
@@ -204,17 +224,22 @@ defineExpose({
   color: var(--dew-text-heading, #1f2937);
   font-variant-numeric: tabular-nums;
 }
-.room-106.dark .room-106__count strong {
-  color: #fff;
-}
-.room-106__sep {
-  margin: 0 1px;
-  opacity: 0.5;
-}
+.room-106.dark .room-106__count strong { color: #fff; }
+.room-106__sep { margin: 0 1px; opacity: 0.5; }
 @keyframes room-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }
 }
+
+.room-106__status {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: var(--dew-text-muted, #6b7280);
+}
+.room-106__status--err { color: #ef4444; }
 
 .room-106__layout {
   display: flex;
@@ -232,15 +257,12 @@ defineExpose({
   align-items: center;
   justify-content: center;
 }
-.room-106__col--right {
-  gap: 12px;
-}
+.room-106__col--right { gap: 12px; }
 
 .seat-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  /* 八角形整体悬停不上浮（按需求移除 translateY 交互） */
 }
 
 @media (max-width: 768px) {

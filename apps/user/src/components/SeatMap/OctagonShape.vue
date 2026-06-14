@@ -1,5 +1,5 @@
 <template>
-  <svg :width="size" :height="size" :viewBox="`0 0 ${size} ${size}`" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="八边形三角形分割">
+  <svg :width="size" :height="size" :viewBox="`0 0 ${size} ${size}`" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="八边形三角形分割" @mouseleave="$emit('triangle-leave')">
     <g :transform="`translate(${cx},${cy})`" class="octagon-group">
       <path
         v-for="(t, i) in triangles"
@@ -14,7 +14,7 @@
         }"
         class="oct-triangle"
         @click="$emit('triangle-click', { index: i, triangle: t })"
-        @mouseenter="$emit('triangle-hover', { index: i })"
+        @mouseenter="$emit('triangle-hover', { index: i, clientX: $event.clientX, clientY: $event.clientY })"
       />
     </g>
   </svg>
@@ -40,7 +40,7 @@ const props = defineProps({
   , uniformColor: { type: String, default: '' }  // 若设置，优先使用此颜色填充所有三角形
 })
 
-const emit = defineEmits(['triangle-click', 'triangle-hover'])
+const emit = defineEmits(['triangle-click', 'triangle-hover', 'triangle-leave'])
 
 const { size, radius, cornerRadius, count, colors, innerGap } = toRefs(props)
 
