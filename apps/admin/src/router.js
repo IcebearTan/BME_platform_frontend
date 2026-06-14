@@ -26,6 +26,7 @@ import LLMUserMonitor from './components/LLMUserMonitor.vue';
 import LLMQuotaRequests from './components/LLMQuotaRequests.vue';
 import AuditLogManage from './components/AuditLogManage.vue';
 import NotificationManage from './components/NotificationManage.vue';
+import SeatManage from './components/SeatManage.vue';
 
 const router = createRouter({
     history: createWebHistory("/admin/"),
@@ -129,6 +130,11 @@ const router = createRouter({
                     path: '/notification/manage',
                     name: 'notification_manage',
                     component: NotificationManage
+                },
+                {
+                    path: '/seat/manage',
+                    name: 'seat_manage',
+                    component: SeatManage
                 }
             ]
         },

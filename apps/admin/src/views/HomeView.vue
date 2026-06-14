@@ -41,7 +41,8 @@ export default {
         '/medal/manage': '勋章管理',
         '/medal/grant': '勋章查询',
         '/audit/logs': '审计日志',
-        '/notification/manage': '通知管理'
+        '/notification/manage': '通知管理',
+        '/seat/manage': '座位管理'
       };
       return routeMap[this.$route.path] || '系统管理';
     }
@@ -378,6 +379,22 @@ const handleClose = (key, keyPath) => {
             >
               <el-icon><Bell /></el-icon>
               <span>系统通知</span>
+            </el-menu-item>
+          </el-sub-menu>
+
+          <!-- 座位管理 -->
+          <el-sub-menu index="10">
+            <template #title>
+              <el-icon class="menu-icon"><Location /></el-icon>
+              <span class="menu-text">座位管理</span>
+            </template>
+            <el-menu-item
+              index="/seat/manage"
+              @click="router.push('/seat/manage')"
+              class="submenu-item"
+            >
+              <el-icon><Location /></el-icon>
+              <span>座位绑定</span>
             </el-menu-item>
           </el-sub-menu>
         </el-menu>
