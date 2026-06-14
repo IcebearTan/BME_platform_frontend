@@ -498,25 +498,28 @@ onMounted(() => {
   height: 400px;
 }
 
-/* 轮播组件样式修复 - 允许悬停时放大效果溢出显示 */
-:deep(.el-carousel) {
-  overflow: visible !important;
-}
-
+/* 轮播组件样式修复 - 允许悬停放大溢出 + 去掉自带灰底 */
+:deep(.el-carousel),
 :deep(.el-carousel__container) {
   overflow: visible !important;
+  background: transparent !important;
 }
 
-:deep(.el-carousel__item--card) {
+:deep(.el-carousel__item),
+:deep(.el-carousel__item--card),
+:deep(.el-carousel__item--card.is-in-stage),
+:deep(.el-carousel__item--card.is-active) {
   overflow: visible !important;
+  background: transparent !important;
 }
 
 :deep(.el-carousel__item--card.is-active) {
   z-index: 2;
 }
 
-:deep(.el-carousel__item) {
-  overflow: visible;
+/* card 轮播侧卡的灰色遮罩（侧卡变灰的元凶；激活卡无此遮罩）→ 透明 */
+:deep(.el-carousel__mask) {
+  background: transparent !important;
 }
 
 /* 轮播组件主题适配 */
