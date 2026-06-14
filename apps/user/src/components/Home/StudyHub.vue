@@ -65,9 +65,9 @@
       <div v-else class="post-empty">社区还没有内容，快来发布第一条吧</div>
     </div>
 
-    <!-- 座位图 -->
+    <!-- 在线看板 -->
     <div v-else-if="activeTab === 'seatmap'" class="seatmap-section">
-      <SeatMap current-room-id="106" :octagon-size="120" :is-dark-mode="isDarkMode" />
+      <SeatBoard />
     </div>
   </div>
 </template>
@@ -84,7 +84,7 @@ import bgImage from '../../assets/back_groud.jpg'
 import DewButtonBar from '../ui/DewButtonBar.vue'
 import DewCard from '../ui/DewCard.vue'
 import DewPostCard from '../ui/DewPostCard.vue'
-import SeatMap from './SeatMap.vue'
+import SeatBoard from '../SeatMap/SeatBoard.vue'
 import api from '../../api'
 
 const store = useStore()
@@ -98,7 +98,7 @@ const activeTab = ref('entries')
 const hubTabs = [
   { value: 'entries', label: '学习入口' },
   { value: 'community', label: '社区广场' },
-  { value: 'seatmap', label: '座位图' },
+  { value: 'seatmap', label: '在线看板' },
 ]
 
 // 学习入口图标映射（Element Plus 图标，替代原 emoji）
@@ -392,10 +392,9 @@ onMounted(() => {
   color: var(--dew-text-muted);
 }
 
-/* 座位图 */
+/* 在线看板（房间切换/占位等由 SeatBoard 接管） */
 .seatmap-section {
   width: 100%;
-  height: 400px;
 }
 
 /* 轮播组件样式修复 - 允许悬停放大溢出 + 去掉自带灰底 */

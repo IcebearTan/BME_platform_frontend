@@ -38,8 +38,8 @@
 import { ref, reactive, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 
 const props = defineProps({
-  /** v-model 控制显隐 */
-  modelValue: { type: Boolean, default: false },
+  /** v-model 控制显隐（不绑时走内部状态，支持 hover tooltip 等非受控用法） */
+  modelValue: { type: Boolean, default: undefined },
   /** 触发方式 click | hover */
   trigger: { type: String, default: 'click' },
   /** 弹出位置 bottom | top */
@@ -60,9 +60,14 @@ const wrapperRef = ref(null)
 const triggerRef = ref(null)
 const popoverRef = ref(null)
 
+// 未绑 v-model（modelValue === undefined）时用内部状态，实现非受控（hover tooltip）
+const internalVisible = ref(false)
 const visible = computed({
-  get: () => props.modelValue,
-  set: (val) => emit('update:modelValue', val),
+  get: () => (props.modelValue !== undefined ? props.modelValue : internalVisible.value),
+  set: (val) => {
+    if (props.modelValue !== undefined) emit('update:modelValue', val)
+    else internalVisible.value = val
+  },
 })
 
 // 实际 placement（可能因视口翻转而改变）
