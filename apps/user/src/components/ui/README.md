@@ -210,6 +210,150 @@ import { DewCard, DewButton } from '@/components/ui'
 
 ---
 
+## DewInput 输入框
+
+液态玻璃输入框，支持鼠标追踪折射、聚焦发光、密码切换、清除按钮、IME 中文输入兼容、el-form-item 自动感知错误态。
+
+### Props
+
+| 属性 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `modelValue` | `string` | `''` | 输入值（v-model） |
+| `type` | `string` | `'text'` | `text` / `email` / `password` |
+| `size` | `string` | `'md'` | 尺寸：`sm` / `md` / `lg` |
+| `clearable` | `boolean` | `false` | 显示清除按钮 |
+| `disabled` | `boolean` | `false` | 禁用 |
+| `error` | `boolean` | `false` | 错误态（红色描边） |
+| `round` | `boolean` | `false` | 全圆角（搜索框风格） |
+| `expandOnFocus` | `boolean` | `false` | 聚焦时展开宽度 |
+| `prefixIcon` / `suffixIcon` | `component` | `null` | 前/后缀图标 |
+
+> 与 el-form 配合需加 `novalidate` 禁用浏览器原生验证；:invalid 红色虚线需在 main.css 全局重置。
+
+---
+
+## DewSwitch 开关
+
+液态玻璃开关，水滴弹性滑动 + 胶囊形 thumb（thumb 宽超轨道 50%，胖胶囊风格）。
+
+### Props
+
+| 属性 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `modelValue` | `boolean` | `false` | 开关状态（v-model） |
+| `disabled` | `boolean` | `false` | 禁用 |
+| `size` | `string` | `'md'` | `md`（轨道 44×24）/ `sm`（36×20） |
+| `activeColor` | `string` | `null` | 自定义激活色 |
+
+### Events
+
+| 事件 | 参数 | 说明 |
+|------|------|------|
+| `update:modelValue` | `boolean` | v-model 同步 |
+| `change` | `boolean` | 状态变化 |
+
+> thumb 位移用 `left`（百分比相对父元素）而非 translateX；垂直居中用 `top:50%` + 负 margin。
+
+---
+
+## DewPopover 浮层
+
+iOS 风格纯色浮层（无 glass、无描边、浅阴影），自研定位引擎 + 视口碰撞翻转。
+
+### Props
+
+| 属性 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `modelValue` | `boolean` | `false` | 显隐（v-model） |
+| `trigger` | `string` | `'click'` | `click` / `hover` |
+| `placement` | `string` | `'bottom'` | `bottom` / `top`（自动翻转） |
+| `showArrow` | `boolean` | `true` | 显示小三角箭头 |
+| `width` | `string/number` | `''` | 浮层宽度 |
+| `offset` | `number` | `8` | 与触发器的间距 |
+| `disabled` | `boolean` | `false` | 禁用 |
+
+### Slots
+
+| 插槽 | 说明 |
+|------|------|
+| `trigger` | 触发器 |
+| default | 浮层内容 |
+
+> Teleport to body + 点击外部关闭 + 滚动/resize 更新位置 + hover 延迟关闭。
+
+---
+
+## DewDropdown 下拉菜单
+
+基于 DewPopover 构建的菜单列表，danger 项红色高亮，点击自动关闭。
+
+### Props
+
+| 属性 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `modelValue` | `boolean` | `false` | 显隐（v-model） |
+| `trigger` | `string` | `'click'` | 触发方式 |
+| `placement` | `string` | `'bottom'` | 定位 |
+| `items` | `array` | `[]` | `[{ label, icon?, command, danger?, disabled? }]` |
+| `disabled` | `boolean` | `false` | 禁用 |
+
+### Events
+
+| 事件 | 参数 | 说明 |
+|------|------|------|
+| `update:modelValue` | `boolean` | v-model 同步 |
+| `select` | `command` | 选中某项 |
+
+---
+
+## DewIslandGroup 岛组
+
+灵动岛生态容器：1 个主岛（可展开）+ N 个卫星岛（彩色胶囊，可展开），主岛与卫星岛互斥（同时只开一个）。
+
+### Props
+
+| 属性 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `items` | `array` | `[]` | 卫星岛 `[{ value, unit?, color?(hex), ... }]`，其余字段透传给 #detail |
+| `mainPanelWidth` | `string/number` | `300` | 主岛展开面板宽 |
+| `satPanelWidth` | `string/number` | `240` | 卫星岛展开面板宽 |
+
+### Slots
+
+| 插槽 | 说明 |
+|------|------|
+| `main-trigger` | 主岛触发器（通常一个 DewButton 胶囊） |
+| `main-content` | 主岛展开内容 |
+| `detail` | 作用域 `{ item, index }`，每个卫星岛展开内容 |
+
+> 卫星岛触发器：极简彩色胶囊（仅 value+unit，如 `18d`/`47h`/`#12`），pill 圆角，高 50px 与主岛等高，**无 backdrop-filter**（省性能），底色 = color 渐变淡彩。
+
+---
+
+## DewPostCard 帖子卡
+
+社区帖子卡，双模式：full（社区页，完整可交互）/ compact（首页 feed 预览）。半透明实心卡（无 glass，适合列表多张）。
+
+### Props
+
+| 属性 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `post` | `object` | — | `{ id, author, authorAvatar, publishTime, title?, content, images?, likes, views, comments, liked, bookmarked, badge? }` |
+| `mode` | `string` | `'full'` | `full` / `compact` |
+
+### Events
+
+| 事件 | 参数 | 说明 |
+|------|------|------|
+| `click` | `post` | 点击整卡 |
+| `user-click` | `id` | 点击头像/昵称 |
+| `like` / `comment` / `bookmark` / `more` | `id` | 操作按钮 |
+| `image-click` | `{ id, index, images }` | 点击图片 |
+
+> full：正文 + 1~4 图网格 + 点赞/评论/收藏（点赞用爱心 SVG，已赞玫红、已收藏琥珀）。compact：左(发帖人+正文) / 右(缩略图) + 底部 点赞·观看·评论 / 更多(⋮)。`#话题` `@提及` 自动着色。
+
+---
+
 ## 设计 Token
 
 所有组件共享 `src/components/ui/tokens.css` 中定义的设计变量，通过 CSS 自定义属性实现完全组件化：
