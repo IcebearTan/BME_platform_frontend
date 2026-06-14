@@ -140,6 +140,12 @@
             <DewInput v-model="inputVal1" placeholder="点击展开..." :prefix-icon="Search" expand-on-focus />
           </div>
         </div>
+        <div style="font-size: 12px; color: var(--dew-text-faint); margin-bottom: 8px;">多行输入（textarea）</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center;">
+          <div style="width: 280px;">
+            <DewInput v-model="inputVal3" type="textarea" :rows="4" placeholder="type=textarea，多行输入…" />
+          </div>
+        </div>
       </section>
 
       <!-- ━━━━ Card 基础变体 ━━━━ -->

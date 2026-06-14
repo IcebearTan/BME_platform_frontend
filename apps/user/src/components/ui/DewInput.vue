@@ -15,6 +15,7 @@
         'dew-input--has-suffix': suffixIcon,
         'dew-input--has-clear': clearable && modelValue,
         'dew-input--has-toggle': type === 'password',
+        'dew-input--textarea': type === 'textarea',
       }
     ]"
     :style="expandStyle"
@@ -34,8 +35,24 @@
       <component :is="prefixIcon" class="dew-input__icon" />
     </span>
 
-    <!-- 原生输入框 -->
+    <!-- 多行输入框 -->
+    <textarea
+      v-if="type === 'textarea'"
+      ref="inputRef"
+      class="dew-input__inner dew-input__textarea"
+      :value="composing ? undefined : modelValue"
+      :placeholder="placeholder"
+      :disabled="disabled"
+      :rows="rows"
+      @input="onInput"
+      @focus="onFocus"
+      @blur="onBlur"
+      @compositionstart="composing = true"
+      @compositionend="onCompositionEnd"
+    ></textarea>
+    <!-- 单行输入框 -->
     <input
+      v-else
       ref="inputRef"
       class="dew-input__inner"
       :type="showPassword ? 'text' : nativeType"
@@ -91,6 +108,8 @@ const props = defineProps({
   expandOnFocus: { type: Boolean, default: false },
   prefixIcon: { type: [Object, null], default: null },
   suffixIcon: { type: [Object, null], default: null },
+  /** 多行输入框行数（type='textarea' 时生效） */
+  rows: { type: Number, default: 4 },
 })
 
 const emit = defineEmits(['update:modelValue', 'focus', 'blur', 'input', 'clear', 'enter'])
@@ -471,4 +490,31 @@ defineExpose({ focus })
 .dew-input--disabled .dew-input__refraction,
 .dew-input--disabled .dew-input__chromatic,
 .dew-input--disabled .dew-input__glow { opacity: 0 !important; }
+
+/* ━━━━ textarea 模式 ━━━━ */
+.dew-input--textarea {
+  display: block;
+  height: auto;
+  align-items: stretch;
+}
+.dew-input__textarea {
+  display: block;
+  width: 100%;
+  min-height: 80px;
+  resize: vertical;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: inherit;
+  font-weight: 500;
+  line-height: 1.6;
+  color: var(--dew-input-text);
+  caret-color: var(--dew-text);
+  box-shadow: none !important;
+}
+.dew-input--sm .dew-input__textarea { font-size: 12px; padding: 8px 10px; }
+.dew-input--md .dew-input__textarea { font-size: 14px; padding: 10px 12px; }
+.dew-input--lg .dew-input__textarea { font-size: 15px; padding: 12px 14px; }
+.dew-input__textarea::placeholder { color: var(--dew-input-placeholder); }
+.dew-input__textarea:invalid { box-shadow: none !important; outline: none !important; }
 </style>

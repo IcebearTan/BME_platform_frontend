@@ -1,47 +1,34 @@
 <template>
   <div>
-    <!-- 反馈气泡 -->
-    <div class="feedback-bubble" @click="openFeedbackDialog" @mouseover="handleMouseOver" @mouseleave="handleMouseLeave">
-      {{ bubbleText }}
+    <!-- 反馈气泡（DewButton active 玻璃风格） -->
+    <div class="feedback-float">
+      <DewButton :active="true" size="md" :style="greenLitStyle" @click="openFeedbackDialog" @mouseover="handleMouseOver" @mouseleave="handleMouseLeave">
+        {{ bubbleText }}
+      </DewButton>
     </div>
 
     <!-- 反馈对话框 -->
-    <el-dialog
-      v-model="dialogVisible"
-      title="问题反馈"
-      width="500"
-      :before-close="handleClose"
-      draggable
-      align-center
-      :lock-scroll=false
-    >
+    <DewDialog v-model="dialogVisible" title="问题反馈" :width="500">
       <el-form
         ref="feedbackFormRef"
         :model="feedbackForm"
         :rules="rules"
-        label-width="80px"
         label-position="top"
+        novalidate
       >
         <el-form-item label="问题标题" prop="title">
-          <el-input
-            v-model="feedbackForm.title"
-            placeholder="请输入问题标题"
-            maxlength="100"
-            show-word-limit
-          />
+          <DewInput v-model="feedbackForm.title" placeholder="请输入问题标题" />
         </el-form-item>
-        
+
         <el-form-item label="问题描述" prop="content">
-          <el-input
+          <DewInput
             v-model="feedbackForm.content"
             type="textarea"
             :rows="5"
             placeholder="请详细描述您遇到的问题..."
-            maxlength="1000"
-            show-word-limit
           />
         </el-form-item>
-        
+
         <el-form-item label="相关图片">
           <el-upload
             v-model:file-list="fileList"
@@ -64,30 +51,43 @@
       </el-form>
 
       <template #footer>
-        <div class="dialog-footer">
-          <el-button @click="handleClose">取消</el-button>
-          <el-button type="primary" @click="submitFeedback" :loading="isSubmitting">
-            提交反馈
-          </el-button>
-        </div>
+        <DewButton @click="handleClose">取消</DewButton>
+        <DewButton :active="true" :disabled="isSubmitting" @click="submitFeedback">
+          {{ isSubmitting ? '提交中…' : '提交反馈' }}
+        </DewButton>
       </template>
-    </el-dialog>
+    </DewDialog>
 
     <!-- 图片预览对话框 -->
-    <el-dialog v-model="previewVisible" title="图片预览" width="800px" align-center :lock-scroll=false>
-      <img :src="previewImageUrl" style="width: 100%; height: auto;" />
-    </el-dialog>
+    <DewDialog v-model="previewVisible" title="图片预览" :width="600">
+      <img :src="previewImageUrl" style="width: 100%; height: auto; border-radius: 12px;" />
+    </DewDialog>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive } from 'vue'
-import { ElDialog, ElForm, ElFormItem, ElInput, ElButton, ElUpload, ElIcon, ElMessage, ElMessageBox } from 'element-plus'
+import { ElForm, ElFormItem, ElUpload, ElIcon, ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
+import DewDialog from '../ui/DewDialog.vue'
+import DewButton from '../ui/DewButton.vue'
+import DewInput from '../ui/DewInput.vue'
+import { DewMessageBox } from '../ui/DewMessageBox.js'
 import api from '../../api'
 
 // 响应式数据
 const bubbleText = ref('报个Bug')
+
+// 绿色 lit 覆盖（报个 Bug 胶囊专属：把 DewButton 的白色 lit token 覆盖成绿色）
+const greenLitStyle = {
+  '--dew-btn-lit-bg': 'rgba(34, 197, 94, 0.22)',
+  '--dew-btn-lit-bg-hover': 'rgba(34, 197, 94, 0.32)',
+  '--dew-btn-lit-border': 'rgba(34, 197, 94, 0.45)',
+  '--dew-btn-lit-color': '#16a34a',
+  '--dew-btn-lit-shadow': '0 0 18px rgba(34,197,94,0.4), 0 2px 10px rgba(0,0,0,0.05)',
+  '--dew-btn-lit-shadow-hover': '0 0 28px rgba(34,197,94,0.55), 0 6px 20px rgba(0,0,0,0.08)',
+  '--dew-btn-lit-text-shadow': '0 0 8px rgba(34,197,94,0.4)',
+}
 const dialogVisible = ref(false)
 const isSubmitting = ref(false)
 const feedbackFormRef = ref(null)
@@ -127,21 +127,15 @@ const openFeedbackDialog = () => {
   dialogVisible.value = true
 }
 
-// 关闭对话框
-const handleClose = (done) => {
-  ElMessageBox.confirm('确定要关闭反馈窗口吗？未保存的内容将丢失。', '确认关闭', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    type: 'warning',
-    lockScroll: false
-  }).then(() => {
+// 关闭对话框（DewMessageBox 确认）
+const handleClose = async () => {
+  try {
+    await DewMessageBox.confirm('确定要关闭反馈窗口吗？未保存的内容将丢失。', '确认关闭')
     resetForm()
     dialogVisible.value = false
-    if (typeof done === 'function') done()
-  }).catch(() => {
+  } catch {
     // 用户取消关闭
-    if (typeof done === 'function') done(false)
-  })
+  }
 }
 
 // 重置表单
@@ -197,14 +191,12 @@ const submitFeedback = async () => {
     isSubmitting.value = true
 
     try {
-      // 只取第一张图片
       const imageFile = fileList.value[0]?.raw
       const formData = new FormData()
       formData.append('title', feedbackForm.title)
       formData.append('content', feedbackForm.content)
       if (imageFile) formData.append('image', imageFile)
 
-      // 提交到后端 - 根据实际接口调整
       const response = await api({
         url: '/information/error/add',
         method: 'post',
@@ -230,78 +222,19 @@ const submitFeedback = async () => {
 </script>
 
 <style scoped>
-.feedback-bubble {
+/* 浮动定位容器 */
+.feedback-float {
   position: fixed;
   bottom: 60px;
   right: 60px;
-  width: 110px;
-  height: 48px;
-  border-radius: 24px;
-  background: linear-gradient(135deg, #67C23A, #3EC6E0 40%, #85CE61 70%, #B3E5AB 90%, #4AD9C2 100%);
-  background-size: 400% 400%;
-  box-shadow: 0 0 20px rgba(103, 194, 58, 0.6), 0 0 40px rgba(62, 198, 224, 0.3), 0 0 40px rgba(133, 206, 97, 0.4);
-  animation: gradient-move 6s infinite, pulse 3s infinite;
-  cursor: pointer;
-  transition: box-shadow 0.3s ease, background-size 0.3s ease, transform 0.2s ease;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-size: 16px;
-  font-weight: bold;
-  color: white;
   z-index: 1000;
-  text-align: center;
-  letter-spacing: 1px;
-  padding: 2px 10px;
-}
-
-.feedback-bubble:hover {
-  transform: scale(1.08);
-  box-shadow: 0 0 30px rgba(103, 194, 58, 0.8), 0 0 60px rgba(62, 198, 224, 0.5), 0 0 60px rgba(133, 206, 97, 0.6);
-  animation: gradient-move-faster 3s infinite, pulse 1.5s infinite;
-}
-
-.feedback-bubble:active {
-  transform: scale(0.95);
-  box-shadow: 0 0 15px rgba(103, 194, 58, 0.5), 0 0 30px rgba(62, 198, 224, 0.2), 0 0 30px rgba(133, 206, 97, 0.3);
-}
-
-@keyframes gradient-move {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
-@keyframes gradient-move-faster {
-  0% { background-position: 0% 50%; }
-  25% { background-position: 100% 50%; }
-  50% { background-position: 0% 50%; }
-  75% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
-@keyframes pulse {
-  0% { box-shadow: 0 0 20px rgba(103, 194, 58, 0.6), 0 0 40px rgba(133, 206, 97, 0.4); }
-  50% { box-shadow: 0 0 30px rgba(103, 194, 58, 0.8), 0 0 60px rgba(133, 206, 97, 0.6); }
-  100% { box-shadow: 0 0 20px rgba(103, 194, 58, 0.6), 0 0 40px rgba(133, 206, 97, 0.4); }
-}
-
-.dialog-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
 }
 
 /* 移动端适配 */
 @media (max-width: 768px) {
-  .feedback-bubble {
+  .feedback-float {
     bottom: 30px;
     right: 30px;
-    width: 90px;
-    height: 38px;
-    font-size: 15px;
-    border-radius: 19px;
-    padding: 0 8px;
   }
 }
 
