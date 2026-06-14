@@ -56,7 +56,7 @@
       </section>
 
       <!-- ━━━━ ButtonBar ━━━━ -->
-      <section v-if="activeTab === 'bar'" style="margin-bottom: 36px;">
+      <section v-if="activeTab === 'button'" style="margin-bottom: 36px;">
         <h2 class="dew-showcase__heading" style="font-size: 15px; font-weight: 600; margin: 0 0 14px;">DewButtonBar 按钮栏</h2>
         <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center; margin-bottom: 12px;">
           <DewButtonBar :items="barItems1" v-model="barValue1" />
@@ -424,7 +424,7 @@
       <hr v-if="activeTab === 'island'" style="border: none; height: 1px; margin: 0 0 36px;" />
 
       <!-- ━━━━ IslandGroup ━━━━ -->
-      <section v-if="activeTab === 'islandgroup'" style="margin-bottom: 36px;">
+      <section v-if="activeTab === 'island'" style="margin-bottom: 36px;">
         <h2 class="dew-showcase__heading" style="font-size: 15px; font-weight: 600; margin: 0 0 6px;">IslandGroup 岛组</h2>
         <p style="font-size: 12px; color: var(--dew-text-faint); margin: 0 0 18px;">
           主岛（可展开，点开看详情）+ 卫星岛（彩色只读胶囊）。卫星岛带颜色，像彩色玻璃卡片。
@@ -485,6 +485,43 @@
       </section>
 
       <hr v-if="activeTab === 'post'" style="border: none; height: 1px; margin: 0 0 36px;" />
+
+      <!-- ━━━━ Dialog ━━━━ -->
+      <section v-if="activeTab === 'dialog'" style="margin-bottom: 36px;">
+        <h2 class="dew-showcase__heading" style="font-size: 15px; font-weight: 600; margin: 0 0 6px;">DewDialog 弹窗</h2>
+        <p style="font-size: 12px; color: var(--dew-text-faint); margin: 0 0 18px;">
+          声明式弹窗（v-model），液态玻璃表面，Esc/点遮罩关闭，--dew-bounce 弹性进场。
+        </p>
+        <div style="display: flex; gap: 12px; align-items: center;">
+          <DewButton @click="dialogVisible = true">打开弹窗</DewButton>
+        </div>
+
+        <DewDialog v-model="dialogVisible" title="编辑资料" :width="440">
+          <div style="display: flex; flex-direction: column; gap: 14px;">
+            <div>
+              <div style="font-size: 13px; color: var(--dew-text-muted); margin-bottom: 4px;">昵称</div>
+              <DewInput model-value="Icebear" />
+            </div>
+            <div>
+              <div style="font-size: 13px; color: var(--dew-text-muted); margin-bottom: 4px;">简介</div>
+              <DewInput model-value="生物医学工程 · 前端开发" />
+            </div>
+          </div>
+          <template #footer>
+            <DewButton @click="dialogVisible = false">取消</DewButton>
+            <DewButton :active="true" @click="dialogVisible = false">保存</DewButton>
+          </template>
+        </DewDialog>
+
+        <div style="font-size: 12px; color: var(--dew-text-faint); margin: 24px 0 10px;">命令式 DewMessageBox</div>
+        <div style="display: flex; gap: 12px; align-items: center;">
+          <DewButton @click="tryConfirm">confirm 确认框</DewButton>
+          <DewButton @click="tryAlert">alert 提示框</DewButton>
+          <span style="font-size: 13px; color: var(--dew-text-muted);">{{ mbResult }}</span>
+        </div>
+      </section>
+
+      <hr v-if="activeTab === 'dialog'" style="border: none; height: 1px; margin: 0 0 36px;" />
 
       <!-- ━━━━ Badge ━━━━ -->
       <section v-if="activeTab === 'badge'" style="margin-bottom: 36px;">
@@ -623,6 +660,8 @@ import DewDropdown from '../components/ui/DewDropdown.vue'
 import DewIsland from '../components/ui/DewIsland.vue'
 import DewIslandGroup from '../components/ui/DewIslandGroup.vue'
 import DewPostCard from '../components/ui/DewPostCard.vue'
+import DewDialog from '../components/ui/DewDialog.vue'
+import { DewMessageBox } from '../components/ui/DewMessageBox.js'
 import bgImage from '../assets/back_groud.jpg'
 import { Document, Check, Bell, User, Setting, Search, Lock, MoreFilled, EditPen, Delete } from '@element-plus/icons-vue'
 
@@ -632,15 +671,14 @@ const isDark = ref(false)
 const activeTab = ref('button')
 const navItems = [
   { value: 'button', label: 'Button' },
-  { value: 'bar', label: 'ButtonBar' },
   { value: 'switch', label: 'Switch' },
   { value: 'input', label: 'Input' },
   { value: 'card', label: 'Card' },
   { value: 'popover', label: 'Popover' },
   { value: 'dropdown', label: 'Dropdown' },
   { value: 'island', label: 'Island' },
-  { value: 'islandgroup', label: 'IslandGroup' },
   { value: 'post', label: 'PostCard' },
+  { value: 'dialog', label: 'Dialog' },
   { value: 'badge', label: 'Badge' },
   { value: 'tag', label: 'Tag' },
   { value: 'combo', label: '组合' },
@@ -749,6 +787,24 @@ function togglePostLike(id) {
 function togglePostBookmark(id) {
   const p = fullPost.value
   if (p.id === id) p.bookmarked = !p.bookmarked
+}
+
+// Dialog 数据
+const dialogVisible = ref(false)
+
+// MessageBox 数据
+const mbResult = ref('')
+async function tryConfirm() {
+  try {
+    await DewMessageBox.confirm('确定删除这条记录？此操作不可撤销。', '删除确认')
+    mbResult.value = '已确认'
+  } catch {
+    mbResult.value = '已取消'
+  }
+}
+async function tryAlert() {
+  await DewMessageBox.alert('操作已保存。', '提示')
+  mbResult.value = '已知晓'
 }
 const dropdownItems1 = [
   { label: '编辑', icon: EditPen, command: 'edit' },
