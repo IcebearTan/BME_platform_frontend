@@ -459,6 +459,33 @@
 
       <hr v-if="activeTab === 'islandgroup'" style="border: none; height: 1px; margin: 0 0 36px;" />
 
+      <!-- ━━━━ PostCard ━━━━ -->
+      <section v-if="activeTab === 'post'" style="margin-bottom: 36px;">
+        <h2 class="dew-showcase__heading" style="font-size: 15px; font-weight: 600; margin: 0 0 6px;">DewPostCard 帖子卡</h2>
+        <p style="font-size: 12px; color: var(--dew-text-faint); margin: 0 0 18px;">
+          双模式：full（完整可交互，点赞/评论/收藏）/ compact（预览）。半透明实心卡，无玻璃。
+        </p>
+        <div style="font-size: 12px; color: var(--dew-text-faint); margin-bottom: 10px;">full 模式</div>
+        <div style="max-width: 480px; margin-bottom: 24px;">
+          <DewPostCard
+            :post="fullPost"
+            mode="full"
+            @like="togglePostLike"
+            @bookmark="togglePostBookmark"
+          />
+        </div>
+        <div style="font-size: 12px; color: var(--dew-text-faint); margin-bottom: 10px;">compact 模式 · 带缩略图</div>
+        <div style="margin-bottom: 14px;">
+          <DewPostCard :post="compactPost" mode="compact" />
+        </div>
+        <div style="font-size: 12px; color: var(--dew-text-faint); margin-bottom: 10px;">compact 模式 · 纯文本</div>
+        <div>
+          <DewPostCard :post="compactPost2" mode="compact" />
+        </div>
+      </section>
+
+      <hr v-if="activeTab === 'post'" style="border: none; height: 1px; margin: 0 0 36px;" />
+
       <!-- ━━━━ Badge ━━━━ -->
       <section v-if="activeTab === 'badge'" style="margin-bottom: 36px;">
         <h2 class="dew-showcase__heading" style="font-size: 15px; font-weight: 600; margin: 0 0 14px;">DewBadge 徽标</h2>
@@ -595,6 +622,8 @@ import DewPopover from '../components/ui/DewPopover.vue'
 import DewDropdown from '../components/ui/DewDropdown.vue'
 import DewIsland from '../components/ui/DewIsland.vue'
 import DewIslandGroup from '../components/ui/DewIslandGroup.vue'
+import DewPostCard from '../components/ui/DewPostCard.vue'
+import bgImage from '../assets/back_groud.jpg'
 import { Document, Check, Bell, User, Setting, Search, Lock, MoreFilled, EditPen, Delete } from '@element-plus/icons-vue'
 
 const isDark = ref(false)
@@ -611,6 +640,7 @@ const navItems = [
   { value: 'dropdown', label: 'Dropdown' },
   { value: 'island', label: 'Island' },
   { value: 'islandgroup', label: 'IslandGroup' },
+  { value: 'post', label: 'PostCard' },
   { value: 'badge', label: 'Badge' },
   { value: 'tag', label: 'Tag' },
   { value: 'combo', label: '组合' },
@@ -669,6 +699,57 @@ const islandItems = [
   { value: 47, unit: 'h', color: '#22c55e', detailTitle: '本月学习时长', detail: '本月累计 47 小时，日均约 2.6 小时。' },
   { value: '#12', color: '#f59e0b', detailTitle: '月度排名', detail: '当前排名第 12 位，距上一名还差 3 小时。' },
 ]
+
+// DewPostCard 数据
+const POST_AVATAR = 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png'
+const fullPost = ref({
+  id: 1,
+  author: '陈思远',
+  authorAvatar: POST_AVATAR,
+  publishTime: '2 小时前',
+  badge: '优秀作者',
+  title: '生物材料期末复习重点整理',
+  content: '把这几章的核心考点和易错题梳理了一遍 #生物材料 #期末复习，附学姐笔记，需要的同学自取～ @林晓彤 帮忙看看有没有遗漏。',
+  images: [bgImage, bgImage, bgImage],
+  likes: 86,
+  comments: 23,
+  liked: false,
+  bookmarked: false,
+})
+const compactPost = ref({
+  id: 2,
+  author: '林晓彤',
+  authorAvatar: POST_AVATAR,
+  publishTime: '1 小时前',
+  title: '组织工程实验报告模板分享',
+  content: '按老师要求做了一份模板，含数据分析部分，报告格式和图表规范都在里面了，需要的同学自取。',
+  likes: 54,
+  views: 1280,
+  comments: 15,
+  images: [bgImage],
+})
+const compactPost2 = ref({
+  id: 3,
+  author: '王浩然',
+  authorAvatar: POST_AVATAR,
+  publishTime: '3 小时前',
+  title: '求助：高分子降解速率怎么测？',
+  content: '课上没太听懂这部分，有同学能讲讲体外降解实验的操作要点和注意事项吗？',
+  likes: 28,
+  views: 642,
+  comments: 41,
+})
+function togglePostLike(id) {
+  const p = fullPost.value
+  if (p.id === id) {
+    p.liked = !p.liked
+    p.likes += p.liked ? 1 : -1
+  }
+}
+function togglePostBookmark(id) {
+  const p = fullPost.value
+  if (p.id === id) p.bookmarked = !p.bookmarked
+}
 const dropdownItems1 = [
   { label: '编辑', icon: EditPen, command: 'edit' },
   { label: '复制', icon: Document, command: 'copy' },

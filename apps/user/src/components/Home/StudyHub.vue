@@ -51,29 +51,16 @@
       </div>
     </div>
 
-    <!-- 社区广场：推送最新帖子 -->
+    <!-- 社区广场：推送最新帖子（compact 预览，点击进社区） -->
     <div v-else-if="activeTab === 'community'" class="community-feed">
       <div v-if="communityPosts.length" class="post-list">
-        <div
+        <DewPostCard
           v-for="post in communityPosts"
           :key="post.id"
-          class="post-card"
+          :post="post"
+          mode="compact"
           @click="goCommunity"
-        >
-          <el-avatar :size="36" :src="post.author_avatar" />
-          <div class="post-body">
-            <div class="post-meta">
-              <span class="post-author">{{ post.author }}</span>
-              <span class="post-time">{{ post.publishTime }}</span>
-            </div>
-            <div class="post-title">{{ post.title }}</div>
-            <div class="post-summary">{{ post.summary }}</div>
-            <div class="post-stats">
-              <span class="post-stat"><el-icon><ChatDotRound /></el-icon>{{ post.reply_count }}</span>
-              <span class="post-stat"><el-icon><Star /></el-icon>{{ post.like_count }}</span>
-            </div>
-          </div>
-        </div>
+        />
       </div>
       <div v-else class="post-empty">社区还没有内容，快来发布第一条吧</div>
     </div>
@@ -91,11 +78,12 @@ import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
 import { ElCarousel, ElCarouselItem, ElIcon } from 'element-plus'
 import {
-  Reading, EditPen, UserFilled, Select, Files, ChatDotRound, Star, Box, MagicStick,
+  Reading, EditPen, UserFilled, Select, Files, Box, MagicStick,
 } from '@element-plus/icons-vue'
 import bgImage from '../../assets/back_groud.jpg'
 import DewButtonBar from '../ui/DewButtonBar.vue'
 import DewCard from '../ui/DewCard.vue'
+import DewPostCard from '../ui/DewPostCard.vue'
 import SeatMap from './SeatMap.vue'
 import api from '../../api'
 
@@ -164,10 +152,10 @@ const studyEntries = ref([
 const DEFAULT_AVATAR = 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png'
 
 const mockPosts = [
-  { id: 1, author: '陈思远', author_avatar: DEFAULT_AVATAR, publishTime: '12分钟前', title: '生物材料期末复习重点整理', summary: '把这几章的核心考点和易错题梳理了一遍，附学姐笔记，需要的同学自取～', reply_count: 23, like_count: 86 },
-  { id: 2, author: '林晓彤', author_avatar: DEFAULT_AVATAR, publishTime: '1小时前', title: '组织工程实验报告模板分享', summary: '按老师要求做了一份模板，含数据分析部分，大家可以参考。', reply_count: 15, like_count: 54 },
-  { id: 3, author: '王浩然', author_avatar: DEFAULT_AVATAR, publishTime: '3小时前', title: '求助：高分子降解速率怎么测？', summary: '课上没太听懂这部分，有同学能讲讲体外降解实验的操作要点吗？', reply_count: 41, like_count: 28 },
-  { id: 4, author: '张雨琪', author_avatar: DEFAULT_AVATAR, publishTime: '昨天', title: '考研复试经验帖 | 生物医学工程方向', summary: '刚结束复试，把准备过程和面试常见问题记录下来，希望对学弟学妹有帮助。', reply_count: 67, like_count: 192 },
+  { id: 1, author: '陈思远', authorAvatar: DEFAULT_AVATAR, publishTime: '12分钟前', title: '生物材料期末复习重点整理', content: '把这几章的核心考点和易错题梳理了一遍，附学姐笔记，需要的同学自取～', likes: 86, comments: 23, liked: false },
+  { id: 2, author: '林晓彤', authorAvatar: DEFAULT_AVATAR, publishTime: '1小时前', title: '组织工程实验报告模板分享', content: '按老师要求做了一份模板，含数据分析部分，大家可以参考。', likes: 54, comments: 15, liked: false },
+  { id: 3, author: '王浩然', authorAvatar: DEFAULT_AVATAR, publishTime: '3小时前', title: '求助：高分子降解速率怎么测？', content: '课上没太听懂这部分，有同学能讲讲体外降解实验的操作要点吗？', likes: 28, comments: 41, liked: false },
+  { id: 4, author: '张雨琪', authorAvatar: DEFAULT_AVATAR, publishTime: '昨天', title: '考研复试经验帖 | 生物医学工程方向', content: '刚结束复试，把准备过程和面试常见问题记录下来，希望对学弟学妹有帮助。', likes: 192, comments: 67, liked: false },
 ]
 
 const communityPosts = ref(mockPosts)
@@ -207,16 +195,17 @@ async function fetchCommunityPosts() {
         id: t.id,
         author: t.author_name || '匿名',
         authorId: t.author_id,
-        author_avatar: DEFAULT_AVATAR,
+        authorAvatar: DEFAULT_AVATAR,
         publishTime: formatTimeAgo(t.created_at),
         title: t.title,
-        summary: (t.content || '').replace(/\s+/g, ' ').slice(0, 80),
-        reply_count: t.reply_count || 0,
-        like_count: t.like_count || 0,
+        content: (t.content || '').replace(/\s+/g, ' '),
+        likes: t.like_count || 0,
+        comments: t.reply_count || 0,
+        liked: !!t.liked,
       }))
       // 异步补头像
       communityPosts.value.forEach(async (p) => {
-        if (p.authorId) p.author_avatar = await fetchAvatar(p.authorId)
+        if (p.authorId) p.authorAvatar = await fetchAvatar(p.authorId)
       })
     }
     // 后端无数据则保留 mock
@@ -385,7 +374,7 @@ onMounted(() => {
   color: var(--dew-text-muted);
 }
 
-/* ── 社区广场：帖子流 ── */
+/* ── 社区广场：帖子流（卡片样式由 DewPostCard 接管） ── */
 .community-feed {
   width: 100%;
 }
@@ -394,95 +383,6 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 10px;
-}
-
-.post-card {
-  display: flex;
-  gap: 12px;
-  padding: 12px;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: background 0.25s ease, transform 0.25s ease;
-}
-
-.theme-light .post-card {
-  background: rgba(0, 0, 0, 0.02);
-  border: 1px solid rgba(0, 0, 0, 0.05);
-}
-
-.theme-dark .post-card {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.post-card:hover {
-  transform: translateY(-1px);
-  background: var(--dew-popover-item-hover);
-}
-
-.post-body {
-  flex: 1;
-  min-width: 0;
-}
-
-.post-meta {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  margin-bottom: 4px;
-}
-
-.post-author {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--dew-text-heading);
-}
-
-.post-time {
-  font-size: 11px;
-  color: var(--dew-text-faint);
-}
-
-.post-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--dew-text-heading);
-  line-height: 1.4;
-  margin-bottom: 3px;
-  display: -webkit-box;
-  -webkit-line-clamp: 1;
-  line-clamp: 1;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.post-summary {
-  font-size: 12px;
-  color: var(--dew-text-muted);
-  line-height: 1.5;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.post-stats {
-  display: flex;
-  gap: 14px;
-  margin-top: 6px;
-}
-
-.post-stat {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  color: var(--dew-text-faint);
-}
-
-.post-stat .el-icon {
-  font-size: 12px;
 }
 
 .post-empty {
