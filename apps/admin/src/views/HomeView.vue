@@ -42,7 +42,8 @@ export default {
         '/medal/grant': '勋章查询',
         '/audit/logs': '审计日志',
         '/notification/manage': '通知管理',
-        '/seat/manage': '座位管理'
+        '/seat/manage': '座位管理',
+        '/attendance-report/manage': '出勤报告'
       };
       return routeMap[this.$route.path] || '系统管理';
     }
@@ -395,6 +396,22 @@ const handleClose = (key, keyPath) => {
             >
               <el-icon><Location /></el-icon>
               <span>座位绑定</span>
+            </el-menu-item>
+          </el-sub-menu>
+
+          <!-- 出勤报告 -->
+          <el-sub-menu index="11">
+            <template #title>
+              <el-icon class="menu-icon"><Clock /></el-icon>
+              <span class="menu-text">出勤报告</span>
+            </template>
+            <el-menu-item
+              index="/attendance-report/manage"
+              @click="router.push('/attendance-report/manage')"
+              class="submenu-item"
+            >
+              <el-icon><Clock /></el-icon>
+              <span>收件人与测试发送</span>
             </el-menu-item>
           </el-sub-menu>
         </el-menu>
