@@ -529,6 +529,29 @@
 
       <hr v-if="activeTab === 'dialog'" style="border: none; height: 1px; margin: 0 0 36px;" />
 
+      <!-- ━━━━ Message ━━━━ -->
+      <section v-if="activeTab === 'message'" style="margin-bottom: 36px;">
+        <h2 class="dew-showcase__heading" style="font-size: 15px; font-weight: 600; margin: 0 0 6px;">DewMessage 消息气泡</h2>
+        <p style="font-size: 12px; color: var(--dew-text-faint); margin: 0 0 18px;">
+          命令式 toast，顶部居中堆叠，水滴弹性进场，默认 3 秒自动消失。API 对齐 ElMessage，可逐步替代。
+        </p>
+        <div style="font-size: 12px; color: var(--dew-text-faint); margin-bottom: 8px;">四种类型</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 18px;">
+          <DewButton @click="DewMessage.success('保存成功')">success 成功</DewButton>
+          <DewButton @click="DewMessage.warning('请填写完整信息')">warning 警告</DewButton>
+          <DewButton @click="DewMessage.error('提交失败，请重试')">error 错误</DewButton>
+          <DewButton @click="DewMessage.info('这是一条普通提示')">info 信息</DewButton>
+        </div>
+        <div style="font-size: 12px; color: var(--dew-text-faint); margin-bottom: 8px;">时长控制 / 手动关闭</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center;">
+          <DewButton @click="DewMessage.success('5 秒后消失', 5000)">停留 5 秒</DewButton>
+          <DewButton @click="DewMessage.info('需手动关闭', 0)">不自动关闭</DewButton>
+          <DewButton type="ghost" @click="DewMessage.closeAll()">全部关闭</DewButton>
+        </div>
+      </section>
+
+      <hr v-if="activeTab === 'message'" style="border: none; height: 1px; margin: 0 0 36px;" />
+
       <!-- ━━━━ Badge ━━━━ -->
       <section v-if="activeTab === 'badge'" style="margin-bottom: 36px;">
         <h2 class="dew-showcase__heading" style="font-size: 15px; font-weight: 600; margin: 0 0 14px;">DewBadge 徽标</h2>
@@ -652,7 +675,8 @@
 </style>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
+import { useStore } from 'vuex'
 import MenuComponent from '../components/MenuComponent.vue'
 import DewButton from '../components/ui/DewButton.vue'
 import DewButtonBar from '../components/ui/DewButtonBar.vue'
@@ -668,10 +692,16 @@ import DewIslandGroup from '../components/ui/DewIslandGroup.vue'
 import DewPostCard from '../components/ui/DewPostCard.vue'
 import DewDialog from '../components/ui/DewDialog.vue'
 import { DewMessageBox } from '../components/ui/DewMessageBox.js'
+import DewMessage from '../components/ui/DewMessage.js'
 import bgImage from '../assets/back_groud.jpg'
 import { Document, Check, Bell, User, Setting, Search, Lock, MoreFilled, EditPen, Delete } from '@element-plus/icons-vue'
 
-const isDark = ref(false)
+// 接全局 store：展示页开关与 App.vue / MenuComponent / DewMessage 共用同一份主题
+const store = useStore()
+const isDark = computed({
+  get: () => store.getters.isDarkMode,
+  set: (v) => store.commit('setTheme', v),
+})
 
 // 导航 tab
 const activeTab = ref('button')
@@ -685,6 +715,7 @@ const navItems = [
   { value: 'island', label: 'Island' },
   { value: 'post', label: 'PostCard' },
   { value: 'dialog', label: 'Dialog' },
+  { value: 'message', label: 'Message' },
   { value: 'badge', label: 'Badge' },
   { value: 'tag', label: 'Tag' },
   { value: 'combo', label: '组合' },
