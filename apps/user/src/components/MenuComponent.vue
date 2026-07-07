@@ -9,8 +9,27 @@ export default {
     },
     data() {
         return {
-            activeIndex: "/",
             visible: false,
+        }
+    },
+
+    computed: {
+        // 根据当前路由高亮对应一级菜单；
+        // 服务类子页面（服务大厅 / AI 大模型服务 / 3D 打印）统一高亮「服务大厅」
+        activeIndex() {
+            const path = this.$route.path
+            if (path === '/service-hall' || path.startsWith('/ai-service') || path.startsWith('/service/')) {
+                return '/service-hall'
+            }
+            // 课程相关高亮「课程」：课程列表 / 详情 / 章节页
+            if (path.startsWith('/study') || path.startsWith('/course')) {
+                return '/study'
+            }
+            // 学习中心
+            if (path.startsWith('/home')) {
+                return '/home'
+            }
+            return path
         }
     },
 
@@ -18,10 +37,6 @@ export default {
         handleSelect(key, keyPath) {
             // console.log(key, keyPath);
         }
-    },
-
-    created() {
-        this.activeIndex = this.$route.path
     },
 
 };
