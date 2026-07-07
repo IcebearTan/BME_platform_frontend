@@ -4,7 +4,7 @@
     <div style="height: 60px;"></div>
     <MenuComponent />
 
-    <div style="max-width: 960px; margin: 0 auto; padding: 32px 20px;">
+    <div style="max-width: 1080px; margin: 0 auto; padding: 32px 20px;">
       <!-- 页面标题 -->
       <div style="margin-bottom: 24px;">
         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
@@ -20,10 +20,12 @@
         </p>
       </div>
 
-      <!-- 组件导航 -->
-      <div style="margin-bottom: 28px; display: flex; flex-wrap: wrap; gap: 10px;">
-        <DewButtonBar :items="navItems" v-model="activeTab" size="sm" />
-      </div>
+      <!-- 分类 sidebar + 内容区 -->
+      <div class="dew-showcase__layout">
+        <aside class="dew-showcase__sidebar">
+          <DewSidebar :items="sidebarItems" v-model="activeTab" />
+        </aside>
+        <div class="dew-showcase__content">
 
       <!-- ━━━━ Button ━━━━ -->
       <section v-if="activeTab === 'button'" style="margin-bottom: 36px;">
@@ -603,6 +605,50 @@
         </div>
       </section>
 
+      <!-- ━━━━ Sidebar ━━━━ -->
+      <section v-if="activeTab === 'sidebar'" style="margin-bottom: 36px;">
+        <h2 class="dew-showcase__heading" style="font-size: 15px; font-weight: 600; margin: 0 0 6px;">DewSidebar 侧边导航</h2>
+        <p style="font-size: 12px; color: var(--dew-text-faint); margin: 0 0 18px;">
+          递归树形，支持任意层级折叠、手风琴、图标。两种风格：plain（透明容器 + 玻璃选中）/ glass（液态玻璃容器 + 淡色选中标记）。
+        </p>
+        <div style="font-size: 12px; color: var(--dew-text-faint); margin-bottom: 10px;">plain vs glass</div>
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 24px;">
+          <div>
+            <div style="font-size: 12px; color: var(--dew-text-muted); margin-bottom: 8px;">plain（透明容器）</div>
+            <DewSidebar :items="sidebarDemo" v-model="sidebarActive1" style="max-width: 220px;" />
+          </div>
+          <div>
+            <div style="font-size: 12px; color: var(--dew-text-muted); margin-bottom: 8px;">glass（液态玻璃容器）</div>
+            <DewSidebar :items="sidebarDemo" v-model="sidebarActive2" glass style="max-width: 220px;" />
+          </div>
+        </div>
+        <div style="font-size: 12px; color: var(--dew-text-faint); margin-bottom: 10px;">多级嵌套（3 层）+ 图标 + 手风琴 + glass</div>
+        <div style="padding: 16px; background: rgba(127,127,127,0.06); border-radius: 14px;">
+          <DewSidebar :items="sidebarTree" v-model="sidebarActive3" accordion glass style="max-width: 260px;" />
+        </div>
+        <div style="font-size: 12px; color: var(--dew-text-faint); margin-top: 10px;">
+          当前选中：{{ sidebarActive3 }} · 点分组标题折叠，手风琴下同时只展开一组
+        </div>
+
+        <div style="font-size: 12px; color: var(--dew-text-faint); margin: 20px 0 10px;">尺寸 sm / md / lg</div>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
+          <div>
+            <div style="font-size: 12px; color: var(--dew-text-muted); margin-bottom: 8px;">small</div>
+            <DewSidebar :items="sidebarDemo" v-model="sidebarActive1" size="sm" glass style="max-width: 200px;" />
+          </div>
+          <div>
+            <div style="font-size: 12px; color: var(--dew-text-muted); margin-bottom: 8px;">medium</div>
+            <DewSidebar :items="sidebarDemo" v-model="sidebarActive1" size="md" glass style="max-width: 200px;" />
+          </div>
+          <div>
+            <div style="font-size: 12px; color: var(--dew-text-muted); margin-bottom: 8px;">large</div>
+            <DewSidebar :items="sidebarDemo" v-model="sidebarActive1" size="lg" glass style="max-width: 200px;" />
+          </div>
+        </div>
+      </section>
+
+      <hr v-if="activeTab === 'sidebar'" style="border: none; height: 1px; margin: 0 0 36px;" />
+
       <!-- ━━━━ 组合示例 ━━━━ -->
       <section v-if="activeTab === 'combo'" style="margin-bottom: 36px;">
         <h2 class="dew-showcase__heading" style="font-size: 15px; font-weight: 600; margin: 0 0 14px;">组合示例</h2>
@@ -644,6 +690,8 @@
         </DewCard>
       </section>
 
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -693,8 +741,9 @@ import DewPostCard from '../components/ui/DewPostCard.vue'
 import DewDialog from '../components/ui/DewDialog.vue'
 import { DewMessageBox } from '../components/ui/DewMessageBox.js'
 import DewMessage from '../components/ui/DewMessage.js'
+import DewSidebar from '../components/ui/DewSidebar.vue'
 import bgImage from '../assets/back_groud.jpg'
-import { Document, Check, Bell, User, Setting, Search, Lock, MoreFilled, EditPen, Delete } from '@element-plus/icons-vue'
+import { Document, Check, Bell, User, Setting, Search, Lock, MoreFilled, EditPen, Delete, HomeFilled } from '@element-plus/icons-vue'
 
 // 接全局 store：展示页开关与 App.vue / MenuComponent / DewMessage 共用同一份主题
 const store = useStore()
@@ -703,22 +752,102 @@ const isDark = computed({
   set: (v) => store.commit('setTheme', v),
 })
 
-// 导航 tab
+// 导航 tab + 分类
 const activeTab = ref('button')
-const navItems = [
-  { value: 'button', label: 'Button' },
-  { value: 'switch', label: 'Switch' },
-  { value: 'input', label: 'Input' },
-  { value: 'card', label: 'Card' },
-  { value: 'popover', label: 'Popover' },
-  { value: 'dropdown', label: 'Dropdown' },
-  { value: 'island', label: 'Island' },
-  { value: 'post', label: 'PostCard' },
-  { value: 'dialog', label: 'Dialog' },
-  { value: 'message', label: 'Message' },
-  { value: 'badge', label: 'Badge' },
-  { value: 'tag', label: 'Tag' },
-  { value: 'combo', label: '组合' },
+const navGroups = [
+  {
+    title: '基础',
+    items: [
+      { value: 'button', label: 'Button / ButtonBar' },
+      { value: 'badge', label: 'Badge' },
+      { value: 'tag', label: 'Tag' },
+    ],
+  },
+  {
+    title: '表单输入',
+    items: [
+      { value: 'input', label: 'Input' },
+      { value: 'switch', label: 'Switch' },
+    ],
+  },
+  {
+    title: '容器卡片',
+    items: [
+      { value: 'card', label: 'Card' },
+      { value: 'post', label: 'PostCard' },
+    ],
+  },
+  {
+    title: '浮层反馈',
+    items: [
+      { value: 'popover', label: 'Popover' },
+      { value: 'dropdown', label: 'Dropdown' },
+      { value: 'dialog', label: 'Dialog / MessageBox' },
+      { value: 'message', label: 'Message' },
+    ],
+  },
+  {
+    title: '灵动岛',
+    items: [
+      { value: 'island', label: 'Island / Group' },
+    ],
+  },
+  {
+    title: '导航',
+    items: [
+      { value: 'sidebar', label: 'Sidebar' },
+    ],
+  },
+  {
+    title: '示例',
+    items: [
+      { value: 'combo', label: '组合示例' },
+    ],
+  },
+]
+// DewSidebar 树形数据：把分组平铺成 { label, children }
+const sidebarItems = computed(() =>
+  navGroups.map((g) => ({ label: g.title, children: g.items }))
+)
+
+// DewSidebar demo 数据
+const sidebarActive1 = ref('btn')
+const sidebarActive2 = ref('btn')
+const sidebarActive3 = ref('user-list')
+const sidebarDemo = [
+  {
+    label: '组件',
+    children: [
+      { value: 'btn', label: 'Button' },
+      { value: 'input', label: 'Input' },
+      { value: 'card', label: 'Card' },
+    ],
+  },
+  { value: 'home', label: '首页', icon: HomeFilled },
+]
+const sidebarTree = [
+  {
+    label: '系统',
+    icon: Setting,
+    children: [
+      {
+        label: '用户',
+        children: [
+          { value: 'user-list', label: '用户列表' },
+          { value: 'user-role', label: '角色管理' },
+        ],
+      },
+      { value: 'perm', label: '权限管理' },
+    ],
+  },
+  {
+    label: '内容',
+    icon: Document,
+    children: [
+      { value: 'article', label: '文章' },
+      { value: 'comment', label: '评论' },
+    ],
+  },
 ]
 
 const lit1 = ref(false)
@@ -856,6 +985,27 @@ const dropdownItems2 = [
 </script>
 
 <style>
+/* ━━━━ 导航 sidebar ━━━━ */
+.dew-showcase__layout {
+  display: flex;
+  gap: 28px;
+  align-items: flex-start;
+}
+.dew-showcase__sidebar {
+  width: 184px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 80px;
+}
+.dew-showcase__content {
+  flex: 1;
+  min-width: 0;
+}
+@media (max-width: 768px) {
+  .dew-showcase__layout { flex-direction: column; }
+  .dew-showcase__sidebar { width: 100%; position: static; }
+}
+
 /* ━━━━ 亮色模式 ━━━━ */
 .dew-showcase--light {
   background: linear-gradient(135deg, #f0f4ff 0%, #fdf2f8 50%, #f0fdf4 100%);
