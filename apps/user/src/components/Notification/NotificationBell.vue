@@ -1,52 +1,62 @@
 <template>
-  <div
-    class="notification-container"
-    @mouseenter="isHovering = true"
-    @mouseleave="isHovering = false"
-  >
-    <!-- 铃铛图标 + 未读徽标 -->
-    <div class="notification-trigger">
-      <el-icon :size="20" class="notification-icon">
-        <Bell />
-      </el-icon>
-      <el-badge
-        v-if="unreadCount > 0"
-        :value="unreadCount > 99 ? '99+' : unreadCount"
-        class="notification-badge"
-      />
-    </div>
+  <DewPopover trigger="hover" placement="bottom" :width="300" :offset="4" :show-arrow="true">
+    <template #trigger>
+      <div class="notification-trigger" :class="{ 'has-unread': unreadCount > 0 }">
+        <el-icon :size="20" class="notification-icon">
+          <Bell />
+        </el-icon>
+        <span v-if="unreadCount > 0" class="notification-badge">
+          {{ unreadCount > 99 ? '99+' : unreadCount }}
+        </span>
+      </div>
+    </template>
 
-    <!-- 悬停下拉面板 -->
-    <transition name="slide">
-      <div v-if="isHovering" class="notification-panel">
-        <!-- 最近通知预览 -->
-        <div v-if="recentNotifications.length > 0" class="preview-list">
-          <div
-            v-for="item in recentNotifications"
-            :key="item.id"
-            class="preview-item"
-            :class="{ 'is-unread': !item.is_read }"
-            @click="goToNotifications"
-          >
+    <div class="notification-panel">
+      <!-- 头部 -->
+      <div class="panel-head">
+        <span class="panel-title">通知</span>
+        <span v-if="unreadCount > 0" class="panel-unread">{{ unreadCount }} 条未读</span>
+      </div>
+
+      <!-- 预览列表 -->
+      <div v-if="recentNotifications.length > 0" class="preview-list">
+        <div
+          v-for="item in recentNotifications"
+          :key="item.id"
+          class="preview-item"
+          :class="{ 'is-unread': !item.is_read }"
+          @click="goToNotifications"
+        >
+          <span v-if="!item.is_read" class="preview-dot"></span>
+          <div class="preview-body">
             <span class="preview-title">{{ item.title }}</span>
             <span class="preview-time">{{ formatRelativeTime(item.created_at) }}</span>
           </div>
         </div>
-        <div v-else class="preview-empty">暂无通知</div>
-
-        <!-- 底部跳转 -->
-        <div class="panel-footer" @click="goToNotifications">
-          查看全部通知
-        </div>
       </div>
-    </transition>
-  </div>
+
+      <!-- 空状态 -->
+      <div v-else class="preview-empty">
+        <div class="empty-ring">
+          <el-icon :size="22"><Bell /></el-icon>
+        </div>
+        <span class="empty-text">暂无新通知</span>
+      </div>
+
+      <!-- 底部跳转 -->
+      <div class="panel-footer" @click="goToNotifications">
+        查看全部通知
+        <el-icon :size="13" class="footer-arrow"><ArrowRight /></el-icon>
+      </div>
+    </div>
+  </DewPopover>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
-import { Bell } from '@element-plus/icons-vue'
+import { Bell, ArrowRight } from '@element-plus/icons-vue'
+import DewPopover from '../ui/DewPopover.vue'
 import { useNotifications, formatRelativeTime } from '../../composables/useNotifications'
 
 const router = useRouter()
@@ -54,11 +64,9 @@ const router = useRouter()
 // 共享状态（与 NotificationListComponent 共用同一份数据）
 const { notificationList, unreadCount, startPolling, stopPolling } = useNotifications()
 
-const isHovering = ref(false)
 const recentNotifications = computed(() => notificationList.value.slice(0, 5))
 
 const goToNotifications = () => {
-  isHovering.value = false
   router.push('/notifications')
 }
 
@@ -67,146 +75,172 @@ onBeforeUnmount(() => stopPolling())
 </script>
 
 <style scoped>
-.notification-container {
-  position: relative;
-  display: inline-block;
-}
-
+/* ── 触发器（铃铛） ──
+ * 不自带背景：悬停底色交给外层 .notification-menu-item 提供，
+ * 这里只做图标颜色 / 轻微上浮，避免和菜单项 hover 叠两层底色。
+ */
 .notification-trigger {
   position: relative;
-  cursor: pointer;
-  padding: 8px;
-  border-radius: 8px;
-  transition: all 0.3s ease;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  width: 40px;
   height: 40px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  color: var(--dew-text-muted);
+  transition: color 0.25s var(--dew-bounce), transform 0.25s var(--dew-bounce);
 }
 
 .notification-trigger:hover {
-  background: linear-gradient(135deg, #f0f9ff 0%, #e1f3ff 100%);
+  color: var(--color-primary);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.15);
 }
 
 .notification-icon {
-  color: #606266;
-  transition: all 0.3s ease;
+  transition: transform 0.25s var(--dew-bounce);
 }
-
 .notification-trigger:hover .notification-icon {
-  color: #409EFF;
-  transform: scale(1.1);
+  transform: scale(1.12);
 }
 
+/* 未读徽标 */
 .notification-badge {
   position: absolute;
-  top: -2px;
-  right: -2px;
-  transform: scale(0.8);
-  z-index: 10;
+  top: 5px;
+  right: 5px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: var(--radius-full);
+  background: var(--color-danger);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
 }
 
-/* ── 下拉面板 ── */
+/* ── 面板内容（浮层本体由 DewPopover 提供：bg / 圆角 / 阴影 / 箭头） ── */
 .notification-panel {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  width: 280px;
-  background: white;
-  border: 1px solid #e4e7ed;
-  border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
-  z-index: 2000;
-  overflow: hidden;
-  margin-top: 6px;
+  font-family: var(--dew-font, inherit);
+  color: var(--dew-popover-text, var(--dew-text));
 }
 
-.notification-panel::before {
-  content: '';
-  position: absolute;
-  top: -6px;
-  left: 0;
-  right: 0;
-  height: 6px;
-  background: transparent;
+/* 头部 */
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px 10px;
+}
+.panel-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--dew-text-heading);
+}
+.panel-unread {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-primary);
+  background: var(--color-primary-light);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
 }
 
-/* 过渡动画 */
-.slide-enter-active { transition: all 0.2s ease-out; }
-.slide-leave-active { transition: all 0.15s ease-in; }
-.slide-enter-from, .slide-leave-to {
-  opacity: 0;
-  transform: translateY(-8px);
-}
-
-/* ── 预览列表 ── */
+/* 预览列表 */
 .preview-list {
-  max-height: 240px;
+  max-height: 280px;
   overflow-y: auto;
+  padding: 0 6px;
 }
-
 .preview-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.preview-item:hover {
+  background: var(--dew-ghost-hover-bg);
+}
+.preview-dot {
+  flex-shrink: 0;
+  margin-top: 6px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-primary);
+}
+.preview-body {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 10px 16px;
-  cursor: pointer;
-  transition: background 0.2s ease;
-  border-bottom: 1px solid #f5f5f5;
+  min-width: 0;
 }
-
-.preview-item:last-child { border-bottom: none; }
-
-.preview-item:hover {
-  background: #f8f9fa;
-}
-
-.preview-item.is-unread .preview-title {
-  font-weight: 600;
-  color: #303133;
-}
-
 .preview-title {
   font-size: 13px;
-  color: #606266;
+  color: var(--dew-text);
+  line-height: 1.4;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
+.preview-item.is-unread .preview-title {
+  font-weight: 600;
+  color: var(--dew-text-heading);
+}
 .preview-time {
   font-size: 11px;
-  color: #c0c4cc;
+  color: var(--dew-text-faint);
 }
 
+/* 空状态 */
 .preview-empty {
-  padding: 24px;
-  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 28px 16px;
+}
+.empty-ring {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  color: var(--dew-text-faint);
+  background: var(--dew-ghost-hover-bg);
+}
+.empty-text {
   font-size: 13px;
-  color: #c0c4cc;
+  color: var(--dew-text-faint);
 }
 
-/* ── 底部 ── */
+/* 底部跳转 */
 .panel-footer {
-  padding: 10px;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 12px 16px;
   font-size: 13px;
-  color: #409EFF;
+  font-weight: 600;
+  color: var(--color-primary);
+  border-top: 1px solid var(--dew-card-divider);
   cursor: pointer;
-  border-top: 1px solid #f0f0f0;
   transition: background 0.2s ease;
 }
-
 .panel-footer:hover {
-  background: #f5f7fa;
+  background: var(--dew-ghost-hover-bg);
 }
-
-/* ── 响应式 ── */
-@media (max-width: 768px) {
-  .notification-panel {
-    width: 240px;
-  }
+.footer-arrow {
+  transition: transform 0.2s var(--dew-bounce);
+}
+.panel-footer:hover .footer-arrow {
+  transform: translateX(2px);
 }
 </style>
