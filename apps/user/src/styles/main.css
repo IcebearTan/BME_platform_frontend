@@ -1,5 +1,26 @@
 @import "tailwindcss" preflight(false);
 
+/* ===== 全局字体统一（DewUI 字体体系） =====
+ * UI 文本统一到 DewUI 系统字体栈；同时桥接 Element Plus 的字体变量，
+ * 使 el-menu / el-button / el-table 等组件（含 menubar）也跟随 DewUI 字体。
+ * --dew-font / --dew-font-mono 定义见 components/ui/tokens.css
+ */
+:root {
+  --el-font-family: var(--dew-font);
+}
+
+body {
+  font-family: var(--dew-font);
+}
+
+/* 等宽：代码 / 键盘 / 预格式文本统一到 DewUI 等宽栈 */
+code,
+kbd,
+pre,
+samp {
+  font-family: var(--dew-font-mono);
+}
+
 /* 禁止浏览器对原生 input 的 :invalid 校验样式（红色虚线/阴影） */
 input:invalid,
 input:-moz-ui-invalid {

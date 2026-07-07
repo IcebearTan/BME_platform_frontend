@@ -909,8 +909,6 @@ message <span class="syn-op">=</span> client.messages.create(
 </template>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Sora:wght@400;600;700&display=swap');
-
 /* ===== CSS Variables ===== */
 .theme-light {
   --bg-page:        #f0f2f7;
@@ -945,7 +943,6 @@ message <span class="syn-op">=</span> client.messages.create(
 .llm-service-container {
   min-height: 100vh;
   background: var(--bg-page);
-  font-family: 'Sora', system-ui, -apple-system, sans-serif;
   transition: background-color 0.3s, color 0.3s;
   color: var(--text-primary);
 }
@@ -1106,7 +1103,7 @@ message <span class="syn-op">=</span> client.messages.create(
 .theme-dark .stat-icon-violet { background: rgba(139,92,246,.15); color: #a78bfa; }
 
 .stat-label { font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
-.stat-value { font-size: 20px; font-weight: 700; font-family: 'Sora', monospace; letter-spacing: -0.02em; }
+.stat-value { font-size: 20px; font-weight: 700; font-family: var(--dew-font); letter-spacing: -0.02em; }
 .stat-val-amber  { color: #d97706; }
 .stat-val-blue   { color: #2563eb; }
 .stat-val-emerald{ color: #059669; }
@@ -1161,7 +1158,7 @@ message <span class="syn-op">=</span> client.messages.create(
 /* ===== Tabs ===== */
 .llm-tabs :deep(.el-tabs__nav-wrap::after) { height: 1px; background: var(--border); }
 .llm-tabs :deep(.el-tabs__item) {
-  font-family: 'Sora', sans-serif;
+  font-family: var(--dew-font);
   font-size: 14px;
   color: var(--text-secondary);
   padding: 0 20px;
@@ -1216,7 +1213,7 @@ message <span class="syn-op">=</span> client.messages.create(
 .table-card :deep(.el-table__body tr:hover td) { background: var(--bg-card-hover) !important; }
 
 .key-masked {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--dew-font-mono);
   font-size: 12px;
   color: var(--text-secondary);
   background: var(--bg-page);
@@ -1225,7 +1222,7 @@ message <span class="syn-op">=</span> client.messages.create(
   border: 1px solid var(--border);
 }
 .model-id {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--dew-font-mono);
   font-size: 12px;
   color: #3b82f6;
 }
@@ -1280,7 +1277,7 @@ message <span class="syn-op">=</span> client.messages.create(
   flex-shrink: 0;
 }
 .url-badge-sub {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--dew-font-mono);
   font-size: 10px;
   color: var(--text-muted);
   white-space: nowrap;
@@ -1298,7 +1295,7 @@ message <span class="syn-op">=</span> client.messages.create(
 .url-badge-openai { background: #10b981; }
 .url-badge-claude { background: #d97706; }
 .url-code {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--dew-font-mono);
   font-size: 12px;
   color: var(--text-primary);
   flex: 1;
@@ -1400,13 +1397,13 @@ message <span class="syn-op">=</span> client.messages.create(
 .dot-y { background: #febc2e; }
 .dot-g { background: #28c840; }
 .code-filename {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--dew-font-mono);
   font-size: 11px;
   color: rgba(255,255,255,0.4);
   margin-left: 4px;
 }
 .guide-pre {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--dew-font-mono);
   font-size: 13px;
   background: var(--bg-code);
   color: #abb2bf;
