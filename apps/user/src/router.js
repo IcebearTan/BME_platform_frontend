@@ -49,17 +49,20 @@ const router = createRouter({
         {
             path: '/login',
             name: 'login',
-            component: LoginView
+            component: LoginView,
+            meta: { authPage: true }
         },
         {
             path: '/register',
             name: 'register',
-            component: RegisterView
+            component: RegisterView,
+            meta: { authPage: true }
         },
         {
             path: '/find_password',
             name: 'find_password',
             component: FindPasswordView,
+            meta: { authPage: true }
         },
         {
             path: '/about',

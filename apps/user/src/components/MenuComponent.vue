@@ -45,100 +45,37 @@ export default {
 <script setup>
 import { onMounted, ref, nextTick, onBeforeMount, computed } from 'vue'
 import { ClickOutside as vClickOutside } from 'element-plus'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import api from '../api'
 import NotificationBell from './Notification/NotificationBell.vue'
-
-// 定义props
-const props = defineProps({
-  hideAuthButtons: {
-    type: Boolean,
-    default: false
-  }
-})
 
 const buttonRef = ref()
 const popoverRef = ref()
 const store = useStore()
 const router = useRouter()
+const route = useRoute()
 
-const User_Avatar = ref('');
+const DEFAULT_AVATAR = 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png'
 
-const token = localStorage.getItem('token')
-const isLogin = ref(false)
+// 登录态：直接读取本地 token（与 api 拦截器 / 路由守卫一致的真相源），同步判定，无闪烁
+const isLogin = !!localStorage.getItem('token')
+// 鉴权类页面（登录 / 注册 / 找回密码）隐藏头像与登录注册入口，由路由 meta 驱动
+const isAuthRoute = computed(() => !!route.meta.authPage)
+// 头像：优先取持久化的 store 头像，同步渲染无闪烁
+const User_Avatar = computed(() => store.state.avatar || DEFAULT_AVATAR)
 
-const fetchUserInfo = async () => {
-  try {
-    const response = await api({
-      url: "/user/user_index",
-      method: "get",
-    });
-    if (response.data.code === 200) {
-      User_Info.value = response.data;
-    } else {
-      // 只做本地清理，不弹窗不跳转
-      localStorage.removeItem('token')
-    }
-  } catch (error) {
-    // 只做本地清理，不弹窗不跳转
-    localStorage.removeItem('token')
-  }
-}
-
-const publicRoutes = ['/', '/home', '/article', '/register', '/login'];
-const checkLogin = () => {
-    api({
-        url: "/user/user_index",
-        method: "get",
-    }).then((res) => {
-        isLogin.value = true
-        fetchUserAvatar() // 改为调用 fetchUserAvatar 从服务器获取最新头像
-    }).catch((error) => {
-        isLogin.value = false
-        store.dispatch('logout')
-        localStorage.removeItem('token')
-        // 不再弹窗和跳转，交给全局拦截器
+// 后台静默刷新头像（写入 store，由 User_Avatar 计算属性自动同步）；失败交给全局 401 拦截器
+const refreshAvatar = () => {
+  api({ url: '/user/user_avatars', method: 'get' })
+    .then((res) => {
+      if (res.data.code === 200 && res.data.User_Avatar) {
+        store.commit('setAvatar', `data:image/png;base64,${res.data.User_Avatar}`)
+      } else {
+        store.commit('setAvatar', DEFAULT_AVATAR)
+      }
     })
-}
-
-const fetchUserAvatar = async () => {
-    api({
-      url: "/user/user_avatars", // 请求头像的URL
-      method: "get",
-    })
-    .then((avatarRes) => {
-        if (avatarRes.data.code === 200) {
-            // 检查服务器返回的头像数据是否存在
-            if (avatarRes.data.User_Avatar && avatarRes.data.User_Avatar !== null) {
-                User_Avatar.value = `data:image/png;base64,${avatarRes.data.User_Avatar}`;
-            } else {
-                // 用户尚未设置头像，使用默认头像
-                User_Avatar.value = 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png';
-            }
-        } else {
-            User_Avatar.value = 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png';
-            // ElMessage.error('用户尚未上传头像'); // 不再弹窗
-        }  
-    })
-    .catch((error) => {
-        if (error.response && error.response.status === 400) {
-            User_Avatar.value = 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png';
-            // ElMessage.error('MenuComponent:用户尚未上传头像或未知的错误'); // 不再弹窗
-        } else if (error.response && error.response.status === 401) {
-            localStorage.removeItem('token')
-            // 不再弹窗和跳转，交给全局拦截器
-        }
-    })
-}
-
-const setUserAvatar = () => {
-    if (store.state.avatar) {
-        User_Avatar.value = `${store.state.avatar}`
-    } else {
-        User_Avatar.value = 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png'
-    }
-    // User_Avatar.value = `data:image/png;base64,${store.state.avatar}`
+    .catch(() => { /* 头像刷新失败静默；401 由全局拦截器处理 */ })
 }
 
 const isExpanded = ref(false)
@@ -187,13 +124,8 @@ onMounted(() => {
     // 初始化主题
     checkTimeTheme()
     
-    if (token) {
-        checkLogin()
-    } else {
-        isLogin.value = false
-        // 未登录时直接展示登录/注册
-        User_Avatar.value = 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png'
-    }
+    // 已登录则后台静默刷新头像（不阻塞渲染，避免闪烁）
+    if (isLogin) refreshAvatar()
     
 
 })
@@ -265,7 +197,7 @@ const handleUserInfo = () => {
                 />
 
         <!-- 通知铃铛（仅登录后显示） -->
-        <el-menu-item v-if="isLogin" class="custom-menu-item notification-menu-item" :class="{ 'theme-dark': isDarkMode, 'theme-light': !isDarkMode }">
+        <el-menu-item v-if="isLogin && !isAuthRoute" class="custom-menu-item notification-menu-item" :class="{ 'theme-dark': isDarkMode, 'theme-light': !isDarkMode }">
             <NotificationBell />
         </el-menu-item>
 
@@ -285,7 +217,7 @@ const handleUserInfo = () => {
             </div>
         </el-menu-item>
 
-        <el-menu-item v-if="isLogin" class="custom-menu-item theme-menu-item" :class="{ 'theme-dark': isDarkMode, 'theme-light': !isDarkMode }">
+        <el-menu-item v-if="isLogin && !isAuthRoute" class="custom-menu-item theme-menu-item" :class="{ 'theme-dark': isDarkMode, 'theme-light': !isDarkMode }">
             <div class="user-avatar" style="cursor: pointer;">
                 <el-popover
                     :showArrow=false
@@ -336,7 +268,7 @@ const handleUserInfo = () => {
             </div>
         </el-menu-item>
         
-        <el-menu-item v-else-if="!props.hideAuthButtons" class="custom-menu-item auth-menu-item">
+        <el-menu-item v-else-if="!isAuthRoute" class="custom-menu-item auth-menu-item">
             <a @click="$router.push('/login')" class="custom-link">登录</a>
             <span class="auth-separator">或</span>
             <a @click="$router.push('/register')" class="custom-link">注册</a>

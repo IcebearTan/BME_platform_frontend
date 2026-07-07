@@ -41,7 +41,7 @@ export default {
     
     <el-container class="common-layout">
       <el-header class="header">
-        <MenuComponent :hideAuthButtons="true" />
+        <MenuComponent />
       </el-header>
       <el-main class="homeMainContainer">
         <div class="auth-content-wrapper">
