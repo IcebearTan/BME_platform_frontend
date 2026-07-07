@@ -117,8 +117,8 @@ onMounted(() => {
   gap: 10px;
 }
 .rank-title {
-  font-size: 22px;
-  font-weight: 500;
+  font-size: 18px;
+  font-weight: 700;
   line-height: 1.2;
   letter-spacing: 0.02em;
   color: var(--dew-text-heading);
