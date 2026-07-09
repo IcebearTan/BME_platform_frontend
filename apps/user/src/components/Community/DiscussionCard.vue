@@ -1,100 +1,97 @@
 <template>
-  <div
-    :class="['discussion-card', { 'theme-dark': isDarkMode, 'theme-light': !isDarkMode }]"
+  <DewCard
+    size="lg"
+    class="discussion-card"
     :data-discussion-id="discussion.id"
   >
     <!-- 分类标签 -->
-    <div class="discussion-category">
-      <el-icon><ChatDotRound /></el-icon>
-      <span>讨论</span>
-      <span class="category-name">· {{ discussion.category }}</span>
+    <div class="dc-tags">
+      <DewTag type="primary" size="sm" round>讨论 · {{ discussion.category }}</DewTag>
+      <DewTag v-if="discussion.isHot" type="warning" size="sm" round>置顶</DewTag>
     </div>
 
     <!-- 标题 -->
-    <h3 class="discussion-title">{{ discussion.title }}</h3>
+    <h3 class="dc-title">{{ discussion.title }}</h3>
 
     <!-- 作者信息 -->
-    <div class="author-section">
+    <div class="dc-author">
       <el-avatar :size="32" :src="discussion.author_avatar" />
-      <div class="author-info">
-        <span class="author-name">{{ discussion.author }}</span>
-        <span class="publish-time">{{ discussion.publishTime }}</span>
+      <div class="dc-author-info">
+        <span class="dc-author-name">{{ discussion.author }}</span>
+        <span class="dc-time">{{ discussion.publishTime }}</span>
       </div>
     </div>
 
     <!-- 完整内容 -->
-    <div class="discussion-content">{{ discussion.content || discussion.summary }}</div>
+    <div class="dc-content">{{ discussion.content || discussion.summary }}</div>
 
     <!-- 操作按钮 -->
-    <div class="discussion-actions">
-      <el-button
-        :type="discussion.liked ? 'primary' : 'default'"
-        text
+    <div class="dc-actions">
+      <button
+        class="dc-action"
+        :class="{ 'is-liked': discussion.liked }"
         @click.stop="handleLike"
       >
         <el-icon><StarFilled v-if="discussion.liked" /><Star v-else /></el-icon>
         <span>{{ discussion.liked ? '已赞' : '点赞' }}</span>
-        <span v-if="discussion.like_count">({{ discussion.like_count }})</span>
-      </el-button>
-      <el-button text @click.stop="handleReply">
+        <span v-if="discussion.like_count" class="dc-count">{{ discussion.like_count }}</span>
+      </button>
+      <button class="dc-action" @click.stop="handleReply">
         <el-icon><ChatDotRound /></el-icon>
         <span>回复</span>
-        <span v-if="discussion.reply_count">({{ discussion.reply_count }})</span>
-      </el-button>
-      <el-button text>
+        <span v-if="discussion.reply_count" class="dc-count">{{ discussion.reply_count }}</span>
+      </button>
+      <button class="dc-action dc-action--view">
         <el-icon><View /></el-icon>
         <span>{{ formatNumber(discussion.views) }} 浏览</span>
-      </el-button>
+      </button>
     </div>
 
     <!-- 回复列表 -->
-    <div v-if="discussion.replies && discussion.replies.length > 0" class="replies-section">
-      <div class="replies-header">全部回复 ({{ discussion.replies.length }})</div>
+    <div v-if="discussion.replies && discussion.replies.length > 0" class="dc-replies">
+      <div class="dc-replies-header">全部回复 ({{ discussion.replies.length }})</div>
       <div
         v-for="reply in discussion.replies"
         :key="reply.id"
-        class="reply-item"
+        class="dc-reply"
       >
         <el-avatar :size="28" :src="reply.author_avatar" />
-        <div class="reply-content">
-          <div class="reply-header">
-            <span class="reply-author">{{ reply.author }}</span>
-            <span class="reply-time">{{ reply.time }}</span>
+        <div class="dc-reply-body">
+          <div class="dc-reply-head">
+            <span class="dc-reply-name">{{ reply.author }}</span>
+            <span class="dc-reply-time">{{ reply.time }}</span>
           </div>
-          <div class="reply-text">{{ reply.content }}</div>
-          <div class="reply-actions">
-            <el-button
-              :type="reply.liked ? 'primary' : 'default'"
-              text
-              size="small"
-              @click.stop="handleReplyLike(reply)"
-            >
-              <el-icon><StarFilled v-if="reply.liked" /><Star v-else /></el-icon>
-              <span>{{ reply.like_count || 0 }}</span>
-            </el-button>
-          </div>
+          <div class="dc-reply-text">{{ reply.content }}</div>
+          <button
+            class="dc-action dc-action--sm"
+            :class="{ 'is-liked': reply.liked }"
+            @click.stop="handleReplyLike(reply)"
+          >
+            <el-icon><StarFilled v-if="reply.liked" /><Star v-else /></el-icon>
+            <span>{{ reply.like_count || 0 }}</span>
+          </button>
         </div>
       </div>
     </div>
 
     <!-- 回复输入框 -->
-    <div class="reply-input-section" v-if="showReplyInput">
-      <el-input
+    <div v-if="showReplyInput" class="dc-reply-input">
+      <DewInput
         v-model="replyContent"
         type="textarea"
         :rows="2"
         placeholder="写下你的回复..."
       />
-      <el-button type="primary" size="small" @click="submitReply">回复</el-button>
+      <DewButton size="sm" :active="true" @click="submitReply">回复</DewButton>
     </div>
-  </div>
+  </DewCard>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { useStore } from 'vuex'
+import { ref, onMounted } from 'vue'
 import { ChatDotRound, View, Star, StarFilled } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import { DewCard, DewTag, DewInput, DewButton } from '../ui'
 import api from '../../api'
 
 const props = defineProps({
@@ -105,9 +102,6 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['like', 'reply'])
-
-const store = useStore()
-const isDarkMode = computed(() => store.getters.isDarkMode)
 
 const showReplyInput = ref(false)
 const replyContent = ref('')
@@ -222,264 +216,210 @@ const submitReply = async () => {
 </script>
 
 <style scoped>
+/* DewCard 负责玻璃表面（四层叠加 + hover 上浮），这里只管内容排版与卡片间距 */
 .discussion-card {
-  padding: 20px;
-  border-radius: 16px;
   margin-bottom: 16px;
-  border: 1px solid transparent;
 }
 
-.theme-light .discussion-card {
-  background: #ffffff;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-  border-color: rgba(0, 0, 0, 0.04);
-}
-
-.theme-dark .discussion-card {
-  background: rgba(40, 40, 40, 0.8);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
-  border-color: rgba(255, 255, 255, 0.06);
-}
-
-/* 分类标签 */
-.discussion-category {
-  display: inline-flex;
+/* 分类标签行 */
+.dc-tags {
+  display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
+  gap: 8px;
   margin-bottom: 12px;
-  padding: 4px 10px;
-  border-radius: 20px;
-  font-weight: 500;
-}
-
-.theme-light .discussion-category {
-  color: #667eea;
-  background: rgba(102, 126, 234, 0.1);
-}
-
-.theme-dark .discussion-category {
-  color: #a5b4fc;
-  background: rgba(102, 126, 234, 0.15);
 }
 
 /* 标题 */
-.discussion-title {
+.dc-title {
   font-size: 18px;
-  font-weight: 600;
-  margin: 0 0 12px 0;
+  font-weight: 700;
   line-height: 1.5;
-}
-
-.theme-light .discussion-title {
-  color: #1a1a1a;
-}
-
-.theme-dark .discussion-title {
-  color: #f5f5f5;
+  margin: 0 0 12px 0;
+  color: var(--dew-text-heading);
+  transition: color 0.35s ease;
 }
 
 /* 作者信息 */
-.author-section {
+.dc-author {
   display: flex;
   align-items: center;
   gap: 10px;
   margin-bottom: 16px;
 }
 
-.author-info {
+.dc-author-info {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
 }
 
-.author-name {
-  font-weight: 500;
+.dc-author-name {
+  font-weight: 600;
   font-size: 14px;
+  color: var(--dew-text-heading);
 }
 
-.theme-light .author-name {
-  color: #374151;
-}
-
-.theme-dark .author-name {
-  color: #d1d5db;
-}
-
-.publish-time {
+.dc-time {
   font-size: 12px;
-}
-
-.theme-light .publish-time {
-  color: #9ca3af;
-}
-
-.theme-dark .publish-time {
-  color: #6b7280;
+  color: var(--dew-text-faint);
 }
 
 /* 内容 */
-.discussion-content {
+.dc-content {
   font-size: 14px;
   line-height: 1.7;
   margin-bottom: 16px;
   white-space: pre-wrap;
+  color: var(--dew-text);
 }
 
-.theme-light .discussion-content {
-  color: #374151;
-}
-
-.theme-dark .discussion-content {
-  color: #d1d5db;
-}
-
-/* 操作按钮 */
-.discussion-actions {
+/* 操作行：复用 DewPostCard 的轻量 action 模式（token 驱动 + dew-bounce） */
+.dc-actions {
   display: flex;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: 4px;
   padding-bottom: 16px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
   margin-bottom: 16px;
+  border-bottom: 1px solid var(--dew-card-divider);
 }
 
-.theme-dark .discussion-actions {
-  border-bottom-color: rgba(255, 255, 255, 0.1);
+.dc-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: transparent;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--dew-text-muted);
+  transition:
+    color 0.25s ease,
+    background 0.25s ease,
+    transform 0.35s var(--dew-bounce);
 }
 
-.theme-dark .discussion-actions .el-button {
-  color: #9ca3af;
+.dc-action .el-icon {
+  font-size: 16px;
 }
 
-.theme-dark .discussion-actions .el-button:hover {
-  color: #60a5fa;
-  background: rgba(96, 165, 250, 0.1);
+.dc-action:hover {
+  color: var(--dew-text-heading);
+  background: var(--dew-ghost-hover-bg);
+}
+
+.dc-action:active {
+  transform: scale(0.94);
+}
+
+.dc-action.is-liked {
+  color: #f43f5e;
+}
+
+.dc-action.is-liked:hover {
+  background: rgba(244, 63, 94, 0.10);
+}
+
+.dc-count {
+  font-weight: 600;
+}
+
+.dc-action--view {
+  margin-left: auto;
+}
+
+.dc-action--sm {
+  padding: 3px 8px;
+  font-size: 12px;
+}
+
+.dc-action--sm .el-icon {
+  font-size: 14px;
 }
 
 /* 回复列表 */
-.replies-section {
-  margin-top: 16px;
+.dc-replies {
+  margin-bottom: 4px;
 }
 
-.replies-header {
-  font-size: 14px;
-  font-weight: 500;
+.dc-replies-header {
+  font-size: 13px;
+  font-weight: 600;
   margin-bottom: 12px;
+  color: var(--dew-text-heading);
 }
 
-.theme-light .replies-header {
-  color: #374151;
-}
-
-.theme-dark .replies-header {
-  color: #d1d5db;
-}
-
-.reply-item {
+.dc-reply {
   display: flex;
   gap: 10px;
-  padding: 12px 0;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  padding: 12px;
+  border-radius: var(--radius-md);
+  margin-bottom: 8px;
+  background: var(--dew-card-inset-bg);
+  border: 1px solid var(--dew-card-inset-border);
+  transition: background 0.3s var(--dew-bounce);
 }
 
-.theme-dark .reply-item {
-  border-bottom-color: rgba(255, 255, 255, 0.1);
+.dc-reply:hover {
+  background: var(--dew-card-inset-bg-hover);
 }
 
-.reply-content {
+.dc-reply-body {
   flex: 1;
   min-width: 0;
 }
 
-.reply-header {
+.dc-reply-head {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-bottom: 4px;
 }
 
-.reply-author {
-  font-weight: 500;
+.dc-reply-name {
+  font-weight: 600;
   font-size: 13px;
+  color: var(--dew-text-heading);
 }
 
-.theme-light .reply-author {
-  color: #374151;
-}
-
-.theme-dark .reply-author {
-  color: #d1d5db;
-}
-
-.reply-time {
+.dc-reply-time {
   font-size: 12px;
+  color: var(--dew-text-faint);
 }
 
-.theme-light .reply-time {
-  color: #9ca3af;
-}
-
-.theme-dark .reply-time {
-  color: #6b7280;
-}
-
-.reply-text {
+.dc-reply-text {
   font-size: 13px;
   line-height: 1.5;
-  margin-bottom: 4px;
-}
-
-.theme-light .reply-text {
-  color: #4b5563;
-}
-
-.theme-dark .reply-text {
-  color: #d1d5db;
-}
-
-.reply-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.theme-dark .reply-actions .el-button {
-  color: #6b7280;
+  margin-bottom: 6px;
+  color: var(--dew-text);
 }
 
 /* 回复输入框 */
-.reply-input-section {
+.dc-reply-input {
   display: flex;
+  flex-direction: column;
   gap: 10px;
   margin-top: 16px;
   align-items: flex-end;
 }
 
-.reply-input-section .el-textarea {
-  flex: 1;
-}
-
-.theme-dark .reply-input-section :deep(.el-textarea__inner) {
-  background: #262626 !important;
-  border-color: rgba(255, 255, 255, 0.15) !important;
-  color: #d1d5db !important;
-}
-
-.theme-dark .reply-input-section :deep(.el-textarea__inner)::placeholder {
-  color: #6b7280 !important;
+.dc-reply-input :deep(.dew-input) {
+  width: 100%;
 }
 
 /* 响应式 */
 @media (max-width: 768px) {
-  .discussion-card {
-    padding: 16px;
-  }
-
-  .discussion-title {
+  .dc-title {
     font-size: 16px;
   }
 
-  .discussion-actions {
-    flex-wrap: wrap;
+  .dc-action--view {
+    margin-left: 0;
   }
 }
 </style>

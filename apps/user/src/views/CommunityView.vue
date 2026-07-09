@@ -79,7 +79,7 @@
 
             <!-- 筛选栏 -->
             <div class="filter-bar">
-              <el-segmented v-model="sortType" :options="sortOptions" size="default" />
+              <DewButtonBar :items="sortOptions" v-model="sortType" />
             </div>
 
             <!-- 信息流 -->
@@ -93,9 +93,9 @@
 
               <!-- 加载更多 -->
               <div v-if="hasMore" class="load-more">
-                <el-button :loading="loading" @click="loadMore">
+                <DewButton :disabled="loading" @click="loadMore">
                   {{ loading ? '加载中...' : '加载更多' }}
-                </el-button>
+                </DewButton>
               </div>
             </div>
           </main>
@@ -103,27 +103,36 @@
           <!-- 右侧栏 - 发布帖子 -->
           <aside class="right-sidebar">
             <!-- 发布帖子卡片 -->
-            <div class="create-post-card">
-              <h3 class="sidebar-title">发布新帖</h3>
-              <el-form :model="newThread" label-position="top" size="default">
-                <el-form-item label="标题">
-                  <el-input v-model="newThread.title" placeholder="请输入帖子标题" maxlength="100" show-word-limit />
-                </el-form-item>
-                <el-form-item label="内容">
-                  <el-input
-                    v-model="newThread.content"
-                    type="textarea"
-                    :rows="4"
-                    placeholder="分享你的想法..."
-                    maxlength="2000"
-                    show-word-limit
-                  />
-                </el-form-item>
-                <el-button type="primary" :loading="createLoading" @click="submitNewThread" class="submit-btn">
-                  发布帖子
-                </el-button>
-              </el-form>
-            </div>
+            <DewCard size="lg" divided class="create-post-card">
+              <template #header>
+                <span class="create-post-title">✍️ 发布新帖</span>
+              </template>
+              <div class="form-field">
+                <label class="form-label">标题</label>
+                <DewInput
+                  v-model="newThread.title"
+                  placeholder="请输入帖子标题"
+                />
+              </div>
+              <div class="form-field">
+                <label class="form-label">内容</label>
+                <DewInput
+                  v-model="newThread.content"
+                  type="textarea"
+                  :rows="4"
+                  placeholder="分享你的想法..."
+                />
+              </div>
+              <DewButton
+                :active="true"
+                block
+                :disabled="createLoading"
+                @click="submitNewThread"
+                class="submit-btn"
+              >
+                发布帖子
+              </DewButton>
+            </DewCard>
           </aside>
         </div>
       </el-main>
@@ -254,6 +263,7 @@ import { useRouter } from 'vue-router'
 import MenuComponent from '../components/MenuComponent.vue'
 import MobileMenuComponent from '../components/MobileMenuComponent.vue'
 import DiscussionCard from '../components/Community/DiscussionCard.vue'
+import { DewButtonBar, DewCard, DewInput, DewButton } from '../components/ui'
 import api from '../api'
 import {
   Grid, Collection, ChatDotRound, User, TrendCharts, ArrowRight
@@ -611,18 +621,30 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* 背景和布局 */
+/* 背景和布局 —— 液态玻璃需要的彩色极光底（亮/暗各一套） */
 .community-view-container {
   min-height: 100vh;
-  transition: background-color 0.3s ease;
+  background-attachment: fixed;
+  transition: background 0.4s ease;
 }
 
-.theme-light .community-view-container {
-  background: #f8fafc;
+.theme-light.community-view-container {
+  background:
+    radial-gradient(ellipse 60% 50% at 12% 18%, rgba(96, 165, 250, 0.26), transparent 60%),
+    radial-gradient(ellipse 55% 60% at 88% 12%, rgba(244, 114, 182, 0.24), transparent 55%),
+    radial-gradient(ellipse 70% 55% at 82% 88%, rgba(52, 211, 153, 0.22), transparent 60%),
+    radial-gradient(ellipse 55% 60% at 8% 92%, rgba(251, 191, 36, 0.20), transparent 55%),
+    radial-gradient(ellipse 50% 50% at 50% 50%, rgba(34, 211, 238, 0.10), transparent 70%),
+    linear-gradient(135deg, #f0f4ff 0%, #fdf2f8 50%, #f0fdf4 100%);
 }
 
-.theme-dark .community-view-container {
-  background: #0f0f0f;
+.theme-dark.community-view-container {
+  background:
+    radial-gradient(ellipse 60% 50% at 12% 18%, rgba(59, 130, 246, 0.18), transparent 60%),
+    radial-gradient(ellipse 55% 60% at 88% 12%, rgba(236, 72, 153, 0.15), transparent 55%),
+    radial-gradient(ellipse 70% 55% at 82% 88%, rgba(16, 185, 129, 0.14), transparent 60%),
+    radial-gradient(ellipse 55% 60% at 8% 92%, rgba(245, 158, 11, 0.12), transparent 55%),
+    linear-gradient(160deg, #16161a 0%, #0f0f12 100%);
 }
 
 .common-layout {
@@ -701,105 +723,35 @@ onUnmounted(() => {
   margin: 0 auto;
 }
 
-.create-post-card {
-  background: #fff;
-  border-radius: 16px;
-  padding: 20px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-}
-
-.theme-dark .create-post-card {
-  background: rgba(40, 40, 40, 0.8);
-}
-
-.sidebar-title {
-  margin: 0 0 16px 0;
+/* 发布新帖卡片：DewCard 负责玻璃表面与内边距，这里只排版表单 */
+.create-post-title {
   font-size: 16px;
+  font-weight: 700;
+}
+
+.form-field {
+  margin-bottom: 14px;
+}
+
+.form-label {
+  display: block;
+  font-size: 13px;
   font-weight: 600;
-}
-
-.theme-light .sidebar-title {
-  color: #1a1a1a;
-}
-
-.theme-dark .sidebar-title {
-  color: #f5f5f5;
-}
-
-.theme-dark .create-post-card :deep(.el-form-item__label) {
-  color: #d1d5db !important;
-}
-
-.theme-dark .create-post-card :deep(.el-input__wrapper) {
-  background: #262626 !important;
-  box-shadow: none !important;
-  border: 1px solid rgba(255, 255, 255, 0.15) !important;
-}
-
-.theme-dark .create-post-card :deep(.el-input__inner) {
-  color: #d1d5db !important;
-  background: transparent !important;
-}
-
-.theme-dark .create-post-card :deep(.el-input__inner)::placeholder {
-  color: #6b7280 !important;
-}
-
-.theme-dark .create-post-card :deep(.el-textarea__inner) {
-  background: #262626 !important;
-  border: 1px solid rgba(255, 255, 255, 0.15) !important;
-  color: #d1d5db !important;
-}
-
-.theme-dark .create-post-card :deep(.el-textarea__inner)::placeholder {
-  color: #6b7280 !important;
-}
-
-.theme-dark .create-post-card :deep(.el-select) {
-  --el-fill-color: #262626;
+  margin-bottom: 6px;
+  color: var(--dew-text-muted);
 }
 
 .submit-btn {
   width: 100%;
-  margin-top: 8px;
+  margin-top: 6px;
 }
 
-/* 筛选栏 */
+/* 筛选栏：DewButtonBar 自带玻璃胶囊，外层只做排版 */
 .filter-bar {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
   margin-bottom: 20px;
-  padding: 16px 20px;
-  border-radius: 16px;
-  transition: all 0.3s ease;
-}
-
-.theme-light .filter-bar {
-  background: #ffffff;
-  border: 1px solid rgba(0, 0, 0, 0.04);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-}
-
-.theme-dark .filter-bar {
-  background: #1a1a1a;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-}
-
-/* el-segmented 暗黑模式 */
-.theme-dark .filter-bar .el-segmented {
-  --el-segmented-bg-color: #262626;
-  --el-segmented-item-selected-bg-color: #3b82f6;
-  --el-segmented-item-selected-color: #ffffff;
-  --el-text-color-regular: #9ca3af;
-  --el-text-color: #d1d5db;
-}
-
-/* filter-bar中的按钮 */
-.theme-dark .filter-bar .el-button--primary {
-  background: #3b82f6;
-  border-color: #3b82f6;
 }
 
 /* 加载状态 */
@@ -1323,26 +1275,6 @@ onUnmounted(() => {
 .theme-dark .banner-action-btn:hover {
   background: rgba(255, 255, 255, 0.15);
   transform: translateX(2px);
-}
-
-/* 筛选栏 */
-.filter-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-  padding: 12px 16px;
-  border-radius: 8px;
-}
-
-.theme-light .filter-bar {
-  background: #ffffff;
-  border: 1px solid #e8e8e8;
-}
-
-.theme-dark .filter-bar {
-  background: #2c2c2c;
-  border: 1px solid #3a3a3a;
 }
 
 /* 信息流 */
