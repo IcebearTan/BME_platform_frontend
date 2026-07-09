@@ -105,7 +105,7 @@
             <!-- 发布帖子卡片 -->
             <DewCard size="lg" divided class="create-post-card">
               <template #header>
-                <span class="create-post-title">✍️ 发布新帖</span>
+                <span class="create-post-title">发布新帖</span>
               </template>
               <div class="form-field">
                 <label class="form-label">标题</label>
