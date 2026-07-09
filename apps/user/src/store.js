@@ -97,7 +97,11 @@ export default new Vuex.Store({
         checkinInfo: (state) => state.checkinInfo,
         isCurrentlyCheckedIn: (state) => state.checkinInfo.checkedIn && !state.checkinInfo.checkedOut,
         // 添加主题状态的 getters
-        isDarkMode: (state) => state.isDarkMode
+        isDarkMode: (state) => state.isDarkMode,
+        // RBAC：role / permissions 随登录响应存于 state.user
+        role: (state) => state.user?.role || 'student',
+        permissions: (state) => state.user?.permissions || [],
+        can: (_state, getters) => (perm) => getters.role === 'super_admin' || getters.permissions.includes(perm),
     },
     plugins: [
         VuexPersist({

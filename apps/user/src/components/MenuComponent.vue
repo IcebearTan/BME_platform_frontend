@@ -25,6 +25,14 @@ export default {
                 return '/home'
             }
             return path
+        },
+        // 角色标签（超管/老师/导生/学生）
+        roleLabel() {
+            const map = { super_admin: '超管', teacher: '老师', mentor: '导生', student: '学生' }
+            return map[this.$store.getters.role] || '同学'
+        },
+        roleIsStaff() {
+            return ['super_admin', 'teacher', 'mentor'].includes(this.$store.getters.role)
         }
     },
 
@@ -228,9 +236,9 @@ const handleUserInfo = () => {
                                 <div class="avatar-pop__name">{{ $store.state.user?.User_Name }}</div>
                                 <div
                                     class="avatar-pop__role"
-                                    :class="$store.state.user?.User_Mode === 'admin' ? 'avatar-pop__role--admin' : 'avatar-pop__role--student'"
+                                    :class="roleIsStaff ? 'avatar-pop__role--admin' : 'avatar-pop__role--student'"
                                 >
-                                    {{ $store.state.user?.User_Mode === 'admin' ? '导师' : '学生' }}
+                                    {{ roleLabel }}
                                 </div>
                             </div>
                         </div>
