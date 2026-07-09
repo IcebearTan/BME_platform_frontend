@@ -32,6 +32,7 @@ import CommunityView from './views/CommunityView.vue';
 import UiShowcaseView from './views/UiShowcaseView.vue';
 import MyFeedbacksComponent from './components/User/MyFeedbacksComponent.vue';
 import CampView from './views/CampView.vue';
+import CampHome from './views/CampHome.vue';
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -47,6 +48,12 @@ const router = createRouter({
         },
 
         // ── 营期（学员端，需登录）──
+        {
+            path: '/camp-home',
+            name: 'camp-home',
+            component: CampHome,
+            meta: { requiresAuth: true }
+        },
         {
             path: '/camp',
             name: 'camp',

@@ -40,6 +40,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useStore } from 'vuex';
+import { useRoute } from 'vue-router';
 import MenuComponent from '../components/MenuComponent.vue';
 import { DewButtonBar, DewCard } from '../components/ui';
 import { campService } from '../services/campService';
@@ -48,11 +49,12 @@ import CampAttendance from '../components/Camp/CampAttendance.vue';
 import LeaveApply from '../components/Camp/LeaveApply.vue';
 
 const store = useStore();
+const route = useRoute();
 const isDarkMode = computed(() => store.getters.isDarkMode);
 
 const sessions = ref([]);
 const sid = ref(null);
-const tab = ref('selection');
+const tab = ref(['selection', 'attendance', 'leave'].includes(route.query.tab) ? route.query.tab : 'selection');
 const loadingSessions = ref(false);
 const tabItems = [
   { value: 'selection', label: '选课' },

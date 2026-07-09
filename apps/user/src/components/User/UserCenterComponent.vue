@@ -6,7 +6,7 @@ import { ElMessage } from 'element-plus'
 import { useRouter, useRoute } from 'vue-router'
 import { useStore } from 'vuex';
 import { el } from 'element-plus/es/locales.mjs';
-import { Message, User } from '@element-plus/icons-vue';
+import { Message, User, Calendar } from '@element-plus/icons-vue';
 
 const User_Info = ref({})
 const User_Avatar = ref('');
@@ -97,6 +97,11 @@ const getActiveMenuIndex = (currentPath) => {
     console.log('匹配到my-feedbacks路由')
     return '/user-center/my-feedbacks'
   }
+
+  // 营期（我的营期，跳 /camp 独立页）
+  if (currentPath.startsWith('/camp')) {
+    return '/camp'
+  }
   
   console.log('未匹配到特定路由，返回原路径')
   // 其他路由直接返回路径
@@ -153,6 +158,12 @@ onMounted(() => {
             <el-menu-item index="/user-center/my-feedbacks" @click="router.push('/user-center/my-feedbacks')">
               <el-icon><Message /></el-icon>
               <span>反馈记录</span>
+            </el-menu-item>
+          </div>
+          <div class="functionSection">
+            <el-menu-item index="/camp" @click="router.push('/camp')">
+              <el-icon><Calendar /></el-icon>
+              <span>我的营期</span>
             </el-menu-item>
           </div>
         </el-menu>
