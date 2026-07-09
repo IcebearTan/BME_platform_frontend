@@ -145,25 +145,14 @@ const getDayCellStyle = (day) => {
   let glowSize, glowOpacity, bgOpacity, lightColor;
 
   if (dark) {
-    // 暗黑模式：时长越长越亮白
-    if (hours <= 3) {
-      glowSize = 4 + hours * 2;
-      glowOpacity = 0.2 + hours * 0.1;
-      bgOpacity = 0.5 + hours * 0.1;
-      lightColor = baseColor;
-    } else if (hours <= 6) {
-      const whiteRatio = (hours - 3) / 3;
-      glowSize = 10 + (hours - 3) * 3;
-      glowOpacity = 0.4 + whiteRatio * 0.3;
-      bgOpacity = 0.6 + whiteRatio * 0.2;
-      lightColor = baseColor;
-    } else {
-      const whiteRatio = (hours - 6) / 2;
-      glowSize = 18 + whiteRatio * 8;
-      glowOpacity = 0.7 + whiteRatio * 0.3;
-      bgOpacity = 0.8 + whiteRatio * 0.2;
-      lightColor = `hsl(${180 + whiteRatio * 20}, 90%, ${70 + whiteRatio * 20}%)`;
-    }
+    // 暗色模式：以青色为基调，时长越长越亮（亮度 30%→82%），辉光同步增强。
+    // 低时长走偏暗的青，避免和亮色模式那块亮青色撞脸——这才是「暗色专属」观感。
+    const t = Math.min(Math.max(hours - 0.5, 0) / 7.5, 1); // 归一化 0..1（0.5h 起算，8h 满档）
+    const lightness = 30 + t * 52;          // 30% -> 82%
+    glowSize = 3 + t * 18;                  // 3 -> 21
+    glowOpacity = 0.15 + t * 0.55;          // 0.15 -> 0.7
+    bgOpacity = 0.5 + t * 0.4;              // 0.5 -> 0.9
+    lightColor = `hsl(180, 80%, ${lightness}%)`;
   } else {
     // 明亮模式：时长越长颜色越深
     if (hours <= 3) {
