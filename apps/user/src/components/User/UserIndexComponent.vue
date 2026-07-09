@@ -8,6 +8,7 @@ import api from '../../api'
 
 import CalendarComponent from './CalendarComponent.vue'
 import MedalShowcase from './MedalShowcase.vue'
+import { DewCard, DewTag } from '../ui'
 
 const User_Info = ref({})
 const router = useRouter()
@@ -21,7 +22,7 @@ const skillTags = computed(() => {
   return tags.split(/[,，;；|｜\s]+/).map(tag => tag.trim()).filter(Boolean)
 })
 
-// 标签类型分配
+// 标签类型分配（DewTag type：primary | success | warning | danger | info | neutral）
 const tagTypes = ['primary', 'success', 'info', 'warning', 'danger']
 const getTagType = index => tagTypes[index % tagTypes.length]
 
@@ -51,236 +52,108 @@ onMounted(async () => {
 
 <template>
   <el-row :class="{ 'theme-dark': isDarkMode }">
+    <!-- 左：个人简介 -->
     <el-col :span="6">
-      <div class="left-side">
-        <div>
-          <div class="profile-title">个人简介</div>
-          <div class="profile-intro">{{ User_Info.Introduction || '暂无简介' }}</div>
-          <div class="profile-info">
-            <div class="profile-info-item">性别：{{ User_Info.User_Sex || '未填写' }}</div>
-            <div class="profile-info-item">学校：{{ User_Info.College || '未填写' }}</div>
-            <div class="profile-info-item">专业：{{ User_Info.Major || '未填写' }}</div>
-            <div class="profile-info-item">入营时间：{{ User_Info.join_time || '未填写' }}</div>
-            <div class="profile-info-item">GithubID：{{ User_Info.Github_Id || '未填写' }}</div>
-            <div class="profile-info-item profile-skill-tags">
-              <div class="profile-skill-title">技能标签：</div>
-              <div class="skill-tags-container">
-                <el-tag 
-                  v-for="(tag, index) in skillTags" 
-                  :key="index"
-                  :type="getTagType(index)"
-                  size="small"
-                  class="skill-tag"
-                >
-                  {{ tag }}
-                </el-tag>
-                <span v-if="skillTags.length === 0" class="no-skill-tag">暂无技能标签</span>
-              </div>
+      <DewCard size="lg" divided class="profile-card">
+        <template #header>个人简介</template>
+        <div class="profile-intro">{{ User_Info.Introduction || '暂无简介' }}</div>
+        <div class="profile-info">
+          <div class="profile-info-item">性别：{{ User_Info.User_Sex || '未填写' }}</div>
+          <div class="profile-info-item">学校：{{ User_Info.College || '未填写' }}</div>
+          <div class="profile-info-item">专业：{{ User_Info.Major || '未填写' }}</div>
+          <div class="profile-info-item">入营时间：{{ User_Info.join_time || '未填写' }}</div>
+          <div class="profile-info-item">GithubID：{{ User_Info.Github_Id || '未填写' }}</div>
+          <div class="profile-info-item profile-skill-tags">
+            <div class="profile-skill-title">技能标签：</div>
+            <div class="skill-tags-container">
+              <DewTag
+                v-for="(tag, index) in skillTags"
+                :key="index"
+                :type="getTagType(index)"
+                size="sm"
+                round
+                class="skill-tag"
+              >
+                {{ tag }}
+              </DewTag>
+              <span v-if="skillTags.length === 0" class="no-skill-tag">暂无技能标签</span>
             </div>
           </div>
         </div>
-      </div>
+      </DewCard>
     </el-col>
 
+    <!-- 右：出勤日历 + 勋章展示 -->
     <el-col :span="18">
-      <div>
-        <calendar-component/>
-        <medal-showcase/>
+      <div class="right-content">
+        <calendar-component />
+        <medal-showcase />
       </div>
     </el-col>
   </el-row>
-  
-
 </template>
 
 <style scoped>
-.right-side{
-  border-radius: 10px;
-  background-color: #fff;
-  box-shadow: #e7edf5 0px 0px 10px 0px;
-  height: 200px;
-  width: 50%;
-  margin: 10px;
-}
-
-.medalDate {
-  font-size: 14px;
-  padding-left: 20px;
-  /* text-align: center; */
-  color: #999;
-
-  margin-top: 5px;
-}
-
-.medalTitle {
-  font-size: 16px;
-  font-weight: bold;
-  padding-left: 20px;
-  /* text-align: center; */
-  color: #444;
-}
-
-.medalInfo {
-  margin-top: 30px;
-}
-
-.medal-card{
-  border-radius: 10px;
-  background-color: #fff;
-  box-shadow: #e7edf5 0px 0px 10px 0px;
-  color: #555;
-  height: 200px;
-  width: 50%;
-  display: flex;
-  margin: 10px;
-  transition: all 0.3s;
-  cursor: pointer;
-}
-.medal-card:hover{
-  transform: translateY(-5px);
-}
-
-.medal-image{
-  width: 135px;
-  height: 135px;
-  margin: 10px;
-  border-radius: 50%;
-  border: solid #729bd4 5px;
-  display: inline-block;
-  transition: all 0.3s ease-in-out;
-}
-.medal-image:hover{
-  box-shadow: #a3dce6 0px 0px 22px 0px;
-}
-
-.left-side{
-  border-radius: 10px;
-  background-color: #fff;
-  box-shadow: #e7edf5 0px 0px 10px 0px;
-  min-height: 400px;
-  width: 90%;
-}
-
-.profile-title {
-  padding-left: 20px;
-  display: flex;
-  align-items: center;
-  font-size: large;
-  font-weight: bold;
-  padding-top: 20px;
+/* 个人简介卡片：DewCard 负责玻璃表面，这里只排版 */
+.profile-card {
+  width: 100%;
 }
 
 .profile-intro {
-  padding-left: 20px;
-  color: #aaa;
-  font-size: 15px;
-  margin-top: 20px;
-
-  padding-right: 20px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--dew-text-muted);
+  margin-bottom: 14px;
 }
 
 .profile-info {
-  color: #555;
-  font-size: 15px;
+  font-size: 14px;
 }
 
 .profile-info-item {
-  padding: 20px;
-  padding-bottom: 0;
+  padding: 10px 0;
+  color: var(--dew-text);
+  border-bottom: 1px solid var(--dew-card-divider);
 }
 
-.profile-skill-tags {
-  padding-bottom: 10px;
+.profile-info-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
 }
 
 .profile-skill-title {
   margin-bottom: 8px;
-  color: #555;
+  color: var(--dew-text);
 }
 
-.no-skill-tag {
-  color: #ccc;
-  font-size: 14px;
-}
-
-.profile-divider {
-  padding-bottom: 20px;
-  border-bottom: solid 1px #eee;
-  height: 0;
-  width: 85%;
-  margin: 0 auto;
-}
-
-/* 技能标签样式 */
 .skill-tags-container {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-top: 4px;
 }
 
+/* DewTag 根元素会接收到 skill-tag 类（父级作用域可命中），加一点 DewUI 弹性悬停 */
 .skill-tag {
-  margin: 0;
-  border-radius: 12px;
-  font-size: 12px;
-  padding: 4px 8px;
-  transition: all 0.3s ease;
+  transition: transform 0.25s var(--dew-bounce);
 }
 
 .skill-tag:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
 }
 
-/* 暗黑模式 */
-.theme-dark .left-side {
-  background: rgba(40, 40, 40, 0.9);
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+.no-skill-tag {
+  font-size: 13px;
+  color: var(--dew-text-faint);
 }
 
-.theme-dark .profile-title {
-  color: #f5f5f5;
+/* 右侧内容容器 */
+.right-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.theme-dark .profile-intro {
-  color: #a0a0a0;
-}
-
-.theme-dark .profile-info-item {
-  color: #a0a0a0;
-}
-
-.theme-dark .profile-skill-title {
-  color: #a0a0a0;
-}
-
-.theme-dark .no-skill-tag {
-  color: #666;
-}
-
-.theme-dark .profile-divider {
-  border-bottom-color: #3a3a3a;
-}
-
-.theme-dark .right-side,
-.theme-dark .medal-card {
-  background: rgba(40, 40, 40, 0.9);
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
-}
-
-.theme-dark .medalTitle {
-  color: #f5f5f5;
-}
-
-.theme-dark .medalDate {
-  color: #888;
-}
-
-.theme-dark .medalInfo {
-  color: #a0a0a0;
-}
-
-/* 响应式设计 */
+/* 响应式 */
 @media (max-width: 1400px) {
   :deep(.el-col-6) {
     width: 25%;
@@ -298,12 +171,7 @@ onMounted(async () => {
   }
 
   .profile-info-item {
-    padding: 12px;
-  }
-
-  .medal-card {
-    width: 100% !important;
-    margin: 10px 0;
+    padding: 8px 0;
   }
 }
 </style>
