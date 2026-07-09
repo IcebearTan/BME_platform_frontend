@@ -46,7 +46,7 @@
           <div style="display: flex; align-items: flex-start; gap: 12px;">
             <!-- 图标 -->
             <div class="notification-icon">
-              <component :is="Bell" style="width: 18px; height: 18px; color: #9ca3af;" />
+              <component :is="Bell" style="width: 18px; height: 18px; color: var(--dew-text-faint);" />
             </div>
 
             <!-- 内容 -->
@@ -194,6 +194,6 @@ onMounted(() => fetchNotifications())
   gap: 12px;
   margin-top: 12px;
   padding-top: 12px;
-  border-top: 1px solid rgba(0, 0, 0, 0.04);
+  border-top: 1px solid var(--dew-card-divider);
 }
 </style>
