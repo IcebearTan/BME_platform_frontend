@@ -3,68 +3,87 @@
     <div style="height: 60px;"></div>
     <MenuComponent />
     <div class="camp-home-wrap">
-      <!-- 空态 -->
+
       <DewCard v-if="!loading && !session" variant="inset" size="lg" :no-hover="true">
         你还没有加入任何进行中的营期。
       </DewCard>
 
       <template v-else-if="session">
-        <!-- ① Hero（活动氛围） -->
+        <!-- ① Hero -->
         <DewCard glass variant="default" size="lg" class="hero-card">
+          <div class="hero-eyebrow">我的营期</div>
           <h1 class="hero-title">{{ session.name }}</h1>
-          <div class="hero-meta">
-            <el-tag size="small" :type="statusType(session.status)">{{ statusLabel(session.status) }}</el-tag>
+          <div class="hero-sub">
+            <span class="status-dot" :class="'dot-status-' + session.status"></span>
+            <span>{{ statusLabel(session.status) }}</span>
+            <span class="sep">·</span>
             <span>{{ session.start_date }} ~ {{ session.end_date }}</span>
           </div>
           <div class="hero-progress">
-            <div class="progress-label">
+            <div class="hero-bar"><div class="hero-bar-fill" :style="{ width: progress.pct + '%' }"></div></div>
+            <div class="progress-meta">
               <span>营期进度</span>
-              <span class="progress-num">{{ progress.elapsed }} / {{ progress.total }} 天</span>
+              <span class="progress-num">{{ progress.elapsed }} / {{ progress.total }} 天 · {{ progress.pct }}%</span>
             </div>
-            <el-progress :percentage="progress.pct" :stroke-width="10" :show-text="false" />
           </div>
         </DewCard>
 
-        <!-- ② 出勤仪表盘（主角） -->
+        <!-- ② 出勤仪表盘 -->
         <DewCard variant="default" size="lg" :no-hover="true" class="dashboard-card">
-          <template #header><h3>我的出勤</h3></template>
-          <div class="dashboard-body">
-            <div class="rate-block">
-              <div class="rate-num">{{ personal ? pct(personal.attendance_rate) : '—' }}</div>
-              <div class="rate-label">达标率</div>
+          <template #header>
+            <div class="card-title-row">
+              <h3>我的出勤</h3>
+              <span class="card-hint">承诺 {{ personal?.planned_days || 0 }} 个出勤日</span>
             </div>
-            <div class="status-badges">
-              <DewBadge type="success">出勤 {{ personal?.present || 0 }}</DewBadge>
-              <DewBadge type="warning">迟到 {{ personal?.late || 0 }}</DewBadge>
-              <DewBadge type="warning">时长不足 {{ personal?.short_hours || 0 }}</DewBadge>
-              <DewBadge type="danger">迟到+不足 {{ personal?.late_and_short || 0 }}</DewBadge>
-              <DewBadge type="neutral">缺勤 {{ personal?.absent || 0 }}</DewBadge>
-              <DewBadge type="primary">请假 {{ personal?.on_leave || 0 }}</DewBadge>
+          </template>
+          <div class="dashboard-body">
+            <div class="ring-wrap">
+              <el-progress type="circle" :percentage="ratePct" :width="132" :stroke-width="9"
+                color="#6366f1" :show-text="false">
+                <template #default>
+                  <div class="ring-center">
+                    <div class="ring-num">{{ ratePct }}<span class="ring-pct">%</span></div>
+                    <div class="ring-label">达标率</div>
+                  </div>
+                </template>
+              </el-progress>
+            </div>
+            <div class="stat-grid">
+              <div class="stat-item" v-for="s in stats" :key="s.key">
+                <span class="stat-dot" :style="{ background: s.color }"></span>
+                <span class="stat-num">{{ s.value }}</span>
+                <span class="stat-label">{{ s.label }}</span>
+              </div>
             </div>
           </div>
         </DewCard>
 
         <!-- ③ 承诺日热力日历 -->
         <DewCard variant="default" size="lg" :no-hover="true" class="heatmap-card">
-          <template #header><h3>承诺出勤日历</h3></template>
-          <div class="legend">
-            <span class="lg cell-present">✓ 出勤</span>
-            <span class="lg cell-on_leave">休 请假</span>
-            <span class="lg cell-late">迟 迟到</span>
-            <span class="lg cell-absent">✗ 缺勤</span>
-          </div>
+          <template #header>
+            <div class="card-title-row">
+              <h3>承诺出勤日历</h3>
+              <span class="card-hint">{{ personal?.present || 0 }} 天出勤 · {{ personal?.absent || 0 }} 天缺勤</span>
+            </div>
+          </template>
           <div class="heatmap">
             <div class="heat-weekrow">
               <span v-for="w in ['一','二','三','四','五','六','日']" :key="w" class="heat-weekday">{{ w }}</span>
             </div>
             <div class="heat-grid">
               <div v-for="(c, i) in calendarCells" :key="i"
-                   :class="['heat-cell', c.empty ? 'heat-empty' : 'cell-' + c.cell.status, { today: c.date === todayStr }]">
+                   :class="['heat-cell', c.empty ? 'heat-empty' : 'heat-' + c.cell.status, { today: c.date === todayStr }]">
                 <template v-if="!c.empty">
                   <span class="heat-day">{{ Number(c.date.slice(8)) }}</span>
-                  <span class="heat-mark">{{ glyph(c.cell.status) }}</span>
+                  <span class="heat-dot"></span>
                 </template>
               </div>
+            </div>
+            <div class="legend">
+              <span><span class="lg-dot lg-present"></span>出勤</span>
+              <span><span class="lg-dot lg-on_leave"></span>请假</span>
+              <span><span class="lg-dot lg-late"></span>迟到/不足</span>
+              <span><span class="lg-dot lg-absent"></span>缺勤</span>
             </div>
           </div>
         </DewCard>
@@ -75,21 +94,24 @@
             <DewCard variant="inset" size="md" :no-hover="true" class="rule-card">
               <template #header><h3>营期规则</h3></template>
               <div class="rule-row"><span>期望到岗</span><b>{{ session.expected_check_in || '—' }}</b></div>
-              <div class="rule-row"><span>每日最低时长</span><b>{{ session.min_daily_hours != null ? session.min_daily_hours + ' 小时' : '—' }}</b></div>
+              <div class="rule-row"><span>每日最低时长</span><b>{{ session.min_daily_hours != null ? session.min_daily_hours + ' h' : '—' }}</b></div>
               <div class="rule-row"><span>出勤日</span><b>{{ session.weekdays_only ? '仅工作日' : '含周末' }}</b></div>
             </DewCard>
           </el-col>
           <el-col :xs="24" :span="14">
             <div class="shortcut-row">
-              <DewCard variant="default" size="md" :interactive="true" accent="primary" class="shortcut" @click="go('selection')">
+              <DewCard variant="default" size="md" :interactive="true" class="shortcut" @click="go('selection')">
+                <div class="sc-icon sc-icon-primary">选</div>
                 <div class="sc-title">选课</div>
                 <div class="sc-desc">营期可选课程</div>
               </DewCard>
-              <DewCard variant="default" size="md" :interactive="true" accent="success" class="shortcut" @click="go('attendance')">
+              <DewCard variant="default" size="md" :interactive="true" class="shortcut" @click="go('attendance')">
+                <div class="sc-icon sc-icon-info">勤</div>
                 <div class="sc-title">完整考勤</div>
                 <div class="sc-desc">每日明细</div>
               </DewCard>
-              <DewCard variant="default" size="md" :interactive="true" accent="warning" class="shortcut" @click="go('leave')">
+              <DewCard variant="default" size="md" :interactive="true" class="shortcut" @click="go('leave')">
+                <div class="sc-icon sc-icon-warning">假</div>
                 <div class="sc-title">请假</div>
                 <div class="sc-desc">申请与记录</div>
               </DewCard>
@@ -106,7 +128,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useStore } from 'vuex';
 import { useRouter } from 'vue-router';
 import MenuComponent from '../components/MenuComponent.vue';
-import { DewCard, DewBadge } from '../components/ui';
+import { DewCard } from '../components/ui';
 import { ElMessage } from 'element-plus';
 import { campService } from '../services/campService';
 
@@ -120,12 +142,18 @@ const personal = ref(null);
 const daily = ref({});
 const dates = ref([]);
 
-const statusLabel = (s) => ({ draft: '草稿', active: '进行中', archived: '已归档' }[s] || s);
-const statusType = (s) => ({ draft: 'info', active: 'success', archived: 'warning' }[s] || 'info');
-const pct = (r) => (r == null ? '—' : (r * 100).toFixed(0) + '%');
+const statusLabel = (s) => ({ draft: '未开始', active: '进行中', archived: '已结束' }[s] || s);
+const ratePct = computed(() => Math.round((personal.value?.attendance_rate || 0) * 100));
 
-const GLYPH = { present: '✓', late: '迟', short_hours: '短', late_and_short: '!', absent: '✗', on_leave: '休' };
-const glyph = (s) => GLYPH[s] || '';
+const STATS_DEF = [
+  { key: 'present', label: '出勤', color: 'var(--color-success)' },
+  { key: 'late', label: '迟到', color: 'var(--color-warning)' },
+  { key: 'short_hours', label: '时长不足', color: 'var(--color-warning)' },
+  { key: 'late_and_short', label: '迟到+不足', color: 'var(--color-danger)' },
+  { key: 'absent', label: '缺勤', color: 'var(--dew-text-faint)' },
+  { key: 'on_leave', label: '请假', color: 'var(--color-info)' },
+];
+const stats = computed(() => STATS_DEF.map((s) => ({ ...s, value: personal.value?.[s.key] || 0 })));
 
 const todayStr = computed(() => {
   const d = new Date();
@@ -152,16 +180,12 @@ const calendarCells = computed(() => {
   const lead = (first.getDay() + 6) % 7;  // 周一 = 0
   const cells = [];
   for (let i = 0; i < lead; i++) cells.push({ empty: true });
-  for (const d of sorted) {
-    cells.push({ date: d, cell: daily.value[d] || { status: 'absent' } });
-  }
+  for (const d of sorted) cells.push({ date: d, cell: daily.value[d] || { status: 'absent' } });
   while (cells.length % 7 !== 0) cells.push({ empty: true });
   return cells;
 });
 
-function go(tab) {
-  router.push({ path: '/camp', query: { tab } });
-}
+function go(tab) { router.push({ path: '/camp', query: { tab } }); }
 
 onMounted(async () => {
   loading.value = true;
@@ -175,11 +199,8 @@ onMounted(async () => {
     personal.value = att.personal || null;
     daily.value = att.daily || {};
     dates.value = att.dates || [];
-  } catch (e) {
-    ElMessage.error('加载营期主页失败');
-  } finally {
-    loading.value = false;
-  }
+  } catch { ElMessage.error('加载营期主页失败'); }
+  finally { loading.value = false; }
 });
 </script>
 
@@ -202,40 +223,77 @@ onMounted(async () => {
     radial-gradient(ellipse 55% 60% at 8% 92%, rgba(245, 158, 11, 0.12), transparent 55%),
     linear-gradient(160deg, #16161a 0%, #0f0f12 100%);
 }
-.camp-home-wrap { max-width: 1080px; margin: 0 auto; padding: 24px 20px; }
+.camp-home-wrap { max-width: 1080px; margin: 0 auto; padding: 24px 20px 40px; }
+
+/* Hero */
 .hero-card { margin-bottom: 16px; }
-.hero-title { font-size: 26px; font-weight: 700; margin: 0 0 8px 0; color: var(--dew-text-heading); }
-.hero-meta { display: flex; align-items: center; gap: 10px; color: var(--dew-text-secondary, #909399); font-size: 14px; }
-.hero-progress { margin-top: 16px; }
-.progress-label { display: flex; justify-content: space-between; font-size: 13px; color: var(--dew-text-secondary, #909399); margin-bottom: 6px; }
-.progress-num { font-weight: 600; }
+.hero-eyebrow { font-size: 12px; letter-spacing: 2px; color: var(--dew-text-faint); margin-bottom: 6px; }
+.hero-title { font-size: 28px; font-weight: 700; margin: 0 0 10px; color: var(--dew-text-heading); letter-spacing: 0.5px; }
+.hero-sub { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--dew-text-muted); }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.dot-status-active { background: var(--color-success); box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.18); }
+.dot-status-draft { background: var(--dew-text-faint); }
+.dot-status-archived { background: var(--color-warning); }
+.hero-sub .sep { color: var(--dew-text-faint); }
+.hero-progress { margin-top: 18px; }
+.hero-bar { height: 6px; background: rgba(0, 0, 0, 0.06); border-radius: var(--radius-full); overflow: hidden; }
+.hero-bar-fill { height: 100%; background: linear-gradient(90deg, #3b82f6, #6366f1); border-radius: var(--radius-full); transition: width 0.6s var(--dew-bounce); }
+.progress-meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--dew-text-muted); margin-top: 8px; }
+.progress-num { font-weight: 600; color: var(--dew-text-heading); }
+
+/* common card title */
 .dashboard-card, .heatmap-card { margin-bottom: 16px; }
-.dashboard-body { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
-.rate-block { text-align: center; min-width: 120px; }
-.rate-num { font-size: 40px; font-weight: 800; color: #3b82f6; line-height: 1; }
-.rate-label { font-size: 13px; color: var(--dew-text-secondary, #909399); margin-top: 4px; }
-.status-badges { display: flex; flex-wrap: wrap; gap: 8px; }
-.legend { display: flex; gap: 14px; margin-bottom: 12px; font-size: 12px; color: var(--dew-text-secondary, #909399); flex-wrap: wrap; }
-.legend .lg { padding: 2px 8px; border-radius: 4px; }
-.heat-weekrow { display: grid; grid-template-columns: repeat(7, 1fr); margin-bottom: 6px; }
-.heat-weekday { text-align: center; font-size: 12px; color: var(--dew-text-secondary, #909399); }
+.card-title-row { display: flex; justify-content: space-between; align-items: baseline; }
+.card-title-row h3 { margin: 0; font-size: 15px; }
+.card-hint { font-size: 12px; color: var(--dew-text-faint); }
+
+/* dashboard */
+.dashboard-body { display: flex; align-items: center; gap: 28px; flex-wrap: wrap; }
+.ring-wrap { flex-shrink: 0; }
+.ring-center { text-align: center; }
+.ring-num { font-size: 28px; font-weight: 700; color: var(--color-info); line-height: 1; }
+.ring-pct { font-size: 14px; font-weight: 600; }
+.ring-label { font-size: 12px; color: var(--dew-text-muted); margin-top: 4px; }
+.stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px 24px; flex: 1; min-width: 240px; }
+.stat-item { display: flex; align-items: center; gap: 8px; }
+.stat-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.stat-num { font-size: 18px; font-weight: 600; color: var(--dew-text-heading); }
+.stat-label { font-size: 12px; color: var(--dew-text-muted); }
+
+/* heatmap */
+.heat-weekrow { display: grid; grid-template-columns: repeat(7, 1fr); margin-bottom: 8px; }
+.heat-weekday { text-align: center; font-size: 11px; color: var(--dew-text-faint); }
 .heat-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
-.heat-cell { aspect-ratio: 1 / 0.85; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.heat-cell { aspect-ratio: 1; border-radius: var(--radius-md); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; transition: transform 0.2s var(--dew-bounce); }
+.heat-cell:hover { transform: scale(1.08); }
 .heat-empty { background: transparent; }
-.heat-day { font-size: 11px; opacity: 0.65; }
-.heat-mark { font-weight: 700; }
-.heat-cell.today { outline: 2px solid #3b82f6; }
+.heat-day { font-size: 12px; font-weight: 500; color: var(--dew-text); }
+.heat-dot { width: 5px; height: 5px; border-radius: 50%; }
+.heat-cell.today { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+.legend { display: flex; gap: 16px; margin-top: 14px; font-size: 12px; color: var(--dew-text-muted); flex-wrap: wrap; }
+.legend span { display: flex; align-items: center; gap: 5px; }
+.lg-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.lg-present { background: var(--color-success); }
+.lg-on_leave { background: var(--color-info); }
+.lg-late { background: var(--color-warning); }
+.lg-absent { background: var(--dew-text-faint); }
+.heat-present { background: rgba(16, 185, 129, 0.12); } .heat-present .heat-dot { background: var(--color-success); }
+.heat-late, .heat-short_hours { background: rgba(245, 158, 11, 0.12); } .heat-late .heat-dot, .heat-short_hours .heat-dot { background: var(--color-warning); }
+.heat-late_and_short { background: rgba(239, 68, 68, 0.12); } .heat-late_and_short .heat-dot { background: var(--color-danger); }
+.heat-absent { background: rgba(156, 163, 175, 0.14); } .heat-absent .heat-dot { background: var(--dew-text-faint); }
+.heat-on_leave { background: rgba(99, 102, 241, 0.12); } .heat-on_leave .heat-dot { background: var(--color-info); }
+
+/* bottom */
 .bottom-row { margin-bottom: 16px; }
-.rule-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 14px; }
-.rule-row span { color: var(--dew-text-secondary, #909399); }
-.shortcut-row { display: flex; gap: 12px; }
+.rule-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 13px; }
+.rule-row span { color: var(--dew-text-muted); }
+.rule-row b { color: var(--dew-text-heading); font-weight: 600; }
+.shortcut-row { display: flex; gap: 12px; height: 100%; }
 .shortcut { flex: 1; min-width: 0; }
-.sc-title { font-weight: 600; margin-bottom: 4px; }
-.sc-desc { font-size: 12px; color: var(--dew-text-secondary, #909399); }
-/* 色块配色（与 CampAttendance 一致） */
-.cell-present { background: rgba(103, 194, 58, .18); color: #67c23a; }
-.cell-late, .cell-short_hours { background: rgba(230, 162, 60, .18); color: #e6a23c; }
-.cell-late_and_short { background: rgba(245, 108, 108, .20); color: #f56c6c; }
-.cell-absent { background: rgba(144, 147, 153, .18); color: #909399; }
-.cell-on_leave { background: rgba(64, 158, 255, .18); color: #409eff; }
+.sc-icon { width: 38px; height: 38px; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 600; font-size: 16px; margin-bottom: 10px; }
+.sc-icon-primary { background: linear-gradient(135deg, #3b82f6, #6366f1); }
+.sc-icon-info { background: linear-gradient(135deg, #6366f1, #8b5cf6); }
+.sc-icon-warning { background: linear-gradient(135deg, #f59e0b, #f97316); }
+.sc-title { font-weight: 600; font-size: 14px; color: var(--dew-text-heading); margin-bottom: 2px; }
+.sc-desc { font-size: 12px; color: var(--dew-text-muted); }
 </style>

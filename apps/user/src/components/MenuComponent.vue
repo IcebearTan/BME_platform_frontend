@@ -193,7 +193,7 @@ const handleUserInfo = () => {
                     服务大厅
                 </el-menu-item>
                 <el-menu-item index="/camp-home">
-                    2026暑期营
+                    2026暑期训练营
                 </el-menu-item>
             </div>
             
