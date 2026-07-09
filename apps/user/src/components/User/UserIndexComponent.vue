@@ -51,11 +51,11 @@ onMounted(async () => {
 </script>
 
 <template>
-  <el-row :class="{ 'theme-dark': isDarkMode }">
+  <div class="profile-layout" :class="{ 'theme-dark': isDarkMode }">
     <!-- 左：个人简介 -->
-    <el-col :span="6">
+    <div class="profile-left">
       <DewCard size="lg" divided class="profile-card">
-        <template #header>个人简介</template>
+        <template #header><span class="profile-title">个人简介</span></template>
         <div class="profile-intro">{{ User_Info.Introduction || '暂无简介' }}</div>
         <div class="profile-info">
           <div class="profile-info-item">性别：{{ User_Info.User_Sex || '未填写' }}</div>
@@ -81,16 +81,16 @@ onMounted(async () => {
           </div>
         </div>
       </DewCard>
-    </el-col>
+    </div>
 
     <!-- 右：出勤日历 + 勋章展示 -->
-    <el-col :span="18">
+    <div class="profile-right">
       <div class="right-content">
         <calendar-component />
         <medal-showcase />
       </div>
-    </el-col>
-  </el-row>
+    </div>
+  </div>
 </template>
 
 <style scoped>
@@ -146,6 +146,20 @@ onMounted(async () => {
   color: var(--dew-text-faint);
 }
 
+/* 两栏布局：左个人简介 / 右日历+勋章，20px 间隔 */
+.profile-layout {
+  display: grid;
+  grid-template-columns: 1fr 3fr;
+  gap: 20px;
+  align-items: start;
+}
+
+/* 区块标题与「出勤日历 / 勋章成就」统一：18px / 700 */
+.profile-title {
+  font-size: 18px;
+  font-weight: 700;
+}
+
 /* 右侧内容容器 */
 .right-content {
   display: flex;
@@ -153,23 +167,14 @@ onMounted(async () => {
   gap: 16px;
 }
 
-/* 响应式 */
-@media (max-width: 1400px) {
-  :deep(.el-col-6) {
-    width: 25%;
-  }
-
-  :deep(.el-col-18) {
-    width: 75%;
+/* 响应式：窄屏堆叠为单列 */
+@media (max-width: 900px) {
+  .profile-layout {
+    grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 768px) {
-  :deep(.el-col-6),
-  :deep(.el-col-18) {
-    width: 100%;
-  }
-
   .profile-info-item {
     padding: 8px 0;
   }
