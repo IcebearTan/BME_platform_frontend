@@ -115,6 +115,7 @@ const total = computed(() => filteredList.value.length)
 const filterItems = computed(() => [
   { value: 'all', label: '全部', icon: Bell },
   { value: 'unread', label: '未读', icon: Bell, badge: unreadCount.value || undefined },
+  { value: 'camp', label: '营期', icon: Bell },
 ])
 
 // 筛选 + 分页
@@ -122,6 +123,8 @@ const filteredList = computed(() => {
   let list = notificationList.value
   if (activeFilter.value === 'unread') {
     list = list.filter(n => !n.is_read)
+  } else if (activeFilter.value === 'camp') {
+    list = list.filter(n => n.category === 'camp')
   }
   return list
 })

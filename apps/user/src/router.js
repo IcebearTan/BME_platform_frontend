@@ -31,6 +31,7 @@ import ThreeDPrintView from './views/ThreeDPrintView.vue';
 import CommunityView from './views/CommunityView.vue';
 import UiShowcaseView from './views/UiShowcaseView.vue';
 import MyFeedbacksComponent from './components/User/MyFeedbacksComponent.vue';
+import CampView from './views/CampView.vue';
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -43,6 +44,14 @@ const router = createRouter({
             path: '/ui-showcase',
             name: 'ui-showcase',
             component: UiShowcaseView
+        },
+
+        // ── 营期（学员端，需登录）──
+        {
+            path: '/camp',
+            name: 'camp',
+            component: CampView,
+            meta: { requiresAuth: true }
         },
 
         // ── 公开路由（无需登录）──

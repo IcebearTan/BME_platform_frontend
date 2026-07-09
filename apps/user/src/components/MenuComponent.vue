@@ -13,6 +13,9 @@ export default {
         // 服务类子页面（服务大厅 / AI 大模型服务 / 3D 打印）统一高亮「服务大厅」
         activeIndex() {
             const path = this.$route.path
+            if (path.startsWith('/camp')) {
+                return '/camp'
+            }
             if (path === '/service-hall' || path.startsWith('/ai-service') || path.startsWith('/service/')) {
                 return '/service-hall'
             }
@@ -188,6 +191,9 @@ const handleUserInfo = () => {
                 </el-menu-item>
                 <el-menu-item index="/order" disabled>
                     资源库
+                </el-menu-item>
+                <el-menu-item index="/camp">
+                    我的营期
                 </el-menu-item>
             </div>
             
