@@ -43,7 +43,10 @@ export default new Vuex.Store({
     },
     getters: {
         isLogin: (state) => !!state.token,
-
+        // RBAC：role / permissions 随登录响应存于 state.user
+        role: (state) => state.user?.role || 'student',
+        permissions: (state) => state.user?.permissions || [],
+        can: (_state, getters) => (perm) => getters.role === 'super_admin' || getters.permissions.includes(perm),
     },
     plugins: [
         VuexPersist({
