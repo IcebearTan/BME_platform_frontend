@@ -1,16 +1,11 @@
 <script>
 import { useStore } from 'vuex'
-import { User, Close, Sunny, Moon } from '@element-plus/icons-vue'
+import { Sunny, Moon } from '@element-plus/icons-vue'
 import NotificationBell from './Notification/NotificationBell.vue'
 
 export default {
     components: {
         NotificationBell
-    },
-    data() {
-        return {
-            visible: false,
-        }
     },
 
     computed: {
@@ -553,121 +548,6 @@ const handleUserInfo = () => {
     justify-content: center;
     width: 100%;
     height: 100%;
-}
-.user-name{
-    position: relative;
-    top: 0;
-    font-size: 18px;
-    margin-left: 0px;
-    width: 100%;
-    font-weight: bold;
-    transition: color 0.3s ease;
-}
-
-/* 主题适配 */
-.theme-light .user-name {
-    color: #000000;
-}
-
-.theme-dark .user-name {
-    color: #ffffff;
-}
-.popli{
-    display: flex;
-    align-items: center;
-
-    font-size: 15px;
-    font-weight: 500;
-    padding: 8px;
-
-    border-radius: 10px;
-    transition: 0.5s;
-}
-
-.popli:hover{
-    cursor: pointer;
-}
-
-/* 主题适配 */
-.theme-light .popli:hover {
-    background-color: transparent;
-}
-
-.theme-dark .popli:hover {
-    background-color: transparent;
-}
-
-.popli-exit{
-    display: flex; 
-    align-items: center;
-
-    font-size: 15px;
-    font-weight: 500;
-    padding: 8px;
-
-    border-radius: 10px;
-    border: solid 1px #ffffff;
-
-    transition: 0.5s;
-}
-
-.popli-exit:hover{
-    cursor: pointer;
-}
-
-/* 主题适配 */
-.theme-light .popli-exit {
-    border-color: #ffffff;
-}
-
-.theme-dark .popli-exit {
-    border-color: #333333;
-}
-
-.theme-light .popli-exit:hover {
-    background-color: transparent;
-    border-color: #ff8888;
-}
-
-.theme-dark .popli-exit:hover {
-    background-color: rgba(255, 136, 136, 0.2);
-    border-color: #ff8888;
-}
-
-.user-type-instructor{
-    position: relative;
-    top: 0;
-    font-size: 15px;
-    font-weight: bold;
-    transition: all 0.3s ease;
-}
-
-.theme-light .user-type-instructor {
-    color: #9b59b6;
-    text-shadow: 0px 0px 6px rgba(155, 89, 182, 0.3);
-}
-
-.theme-dark .user-type-instructor {
-    color: #bb77c4;
-    text-shadow: 0px 0px 10px rgba(187, 119, 196, 0.4);
-}
-
-.user-type-student{
-    position: relative;
-    top: 0;
-    font-size: 15px;
-    font-weight: bold;
-    transition: all 0.3s ease;
-}
-
-.theme-light .user-type-student {
-    color: #3498db;
-    text-shadow: 0px 0px 6px rgba(52, 152, 219, 0.3);
-}
-
-.theme-dark .user-type-student {
-    color: #5dade2;
-    text-shadow: 0px 0px 10px rgba(93, 173, 226, 0.4);
 }
 /* 移除固定样式，使用主题适配 */
 .custom-menu-item {
