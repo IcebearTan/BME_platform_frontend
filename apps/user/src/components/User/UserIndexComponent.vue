@@ -150,7 +150,7 @@ onMounted(async () => {
 .right-content {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 16px;
 }
 
 /* 响应式 */

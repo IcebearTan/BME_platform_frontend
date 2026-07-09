@@ -1,11 +1,12 @@
 <template>
-  <div class="medal-showcase" :class="{ 'theme-dark': isDarkMode }">
-    <div class="medal-header">
-      <span class="medal-title">勋章成就</span>
-      <span class="medal-count" @click="goToMedalWall" style="cursor: pointer;">
-        {{ medalCount }} 枚 →
-      </span>
-    </div>
+  <DewCard size="lg" divided class="medal-showcase">
+    <template #header>
+      <div class="medal-header">
+        <span class="medal-title">勋章成就</span>
+        <span class="medal-count" @click="goToMedalWall">{{ medalCount }} 枚 →</span>
+      </div>
+    </template>
+
     <div class="medal-list" v-if="medalList.length > 0">
       <div
         v-for="medal in medalList"
@@ -18,21 +19,19 @@
         <span class="medal-name">{{ medal.Medal_Name_CN }}</span>
       </div>
     </div>
-    <div class="medal-empty" v-else @click="goToMedalWall" style="cursor: pointer;">
-      <span>查看全部勋章 -></span>
+    <div class="medal-empty" v-else @click="goToMedalWall">
+      <span>查看全部勋章 →</span>
     </div>
-  </div>
+  </DewCard>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useStore } from 'vuex'
 import api from '../../api'
+import { DewCard } from '../ui'
 
 const router = useRouter()
-const store = useStore()
-const isDarkMode = computed(() => store.getters.isDarkMode)
 
 const medalList = ref([])
 
@@ -65,123 +64,101 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.medal-showcase {
-  background: #fff;
-  border-radius: 12px;
-  padding: 20px;
-  margin-top: 16px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-}
-
+/* DewCard 负责玻璃表面与头部，这里只管勋章网格排版 */
 .medal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #f0f0f0;
 }
 
 .medal-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #333;
+  font-size: 18px;
+  font-weight: 700;
 }
 
 .medal-count {
-  font-size: 14px;
-  color: #888;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-primary);
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.medal-count:hover {
+  opacity: 0.7;
 }
 
 .medal-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 20px;
-  justify-content: flex-start;
+  gap: 16px;
 }
 
+/* 单个勋章卡：inset 玻璃质感（凹陷半透），dew-bounce 悬停上浮 */
 .medal-item {
   display: flex;
   flex-direction: column;
   align-items: center;
   width: 100px;
-  cursor: pointer;
-  transition: transform 0.25s ease;
-  padding: 12px;
+  padding: 14px 8px;
   border-radius: 16px;
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  cursor: pointer;
+  background: var(--dew-card-inset-bg);
+  border: 1px solid var(--dew-card-inset-border);
+  box-shadow: var(--dew-card-inset-shadow);
+  transition:
+    transform 0.3s var(--dew-bounce),
+    background 0.3s var(--dew-bounce),
+    border-color 0.3s var(--dew-bounce);
 }
 
 .medal-item:hover {
-  transform: translateY(-6px) scale(1.05);
-  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  transform: translateY(-5px) scale(1.04);
+  background: var(--dew-card-inset-bg-hover);
+  border-color: var(--dew-card-inset-border-hover);
 }
 
 .medal-icon {
-  width: 86px;
-  height: 86px;
+  width: 80px;
+  height: 80px;
   border-radius: 50%;
   object-fit: cover;
-  background: #eee;
-  padding: 6px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 5px;
+  background: var(--dew-card-bg);
 }
 
 .medal-name {
   margin-top: 10px;
   font-size: 13px;
   font-weight: 500;
-  color: #475569;
   text-align: center;
   max-width: 100px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: var(--dew-text-muted);
 }
 
 .medal-empty {
   text-align: center;
-  padding: 30px 0;
-  color: #aaa;
+  padding: 28px 0;
   font-size: 14px;
+  cursor: pointer;
+  color: var(--dew-text-faint);
+  transition: color 0.2s ease;
 }
 
-/* 暗黑模式 */
-.theme-dark .medal-showcase {
-  background: rgba(40, 40, 40, 0.9);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+.medal-empty:hover {
+  color: var(--dew-text-muted);
 }
 
-.theme-dark .medal-header {
-  border-bottom-color: #3a3a3a;
-}
+@media (max-width: 768px) {
+  .medal-list {
+    gap: 12px;
+  }
 
-.theme-dark .medal-title {
-  color: #f5f5f5;
-}
-
-.theme-dark .medal-count {
-  color: #888;
-}
-
-.theme-dark .medal-item {
-  background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
-}
-
-.theme-dark .medal-item:hover {
-  background: linear-gradient(135deg, #374151 0%, #4b5563 100%);
-}
-
-.theme-dark .medal-icon {
-  background: #1f2937;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-}
-
-.theme-dark .medal-name {
-  color: #cbd5e1;
-}
-
-.theme-dark .medal-empty {
-  color: #666;
+  .medal-item {
+    width: 88px;
+  }
 }
 </style>

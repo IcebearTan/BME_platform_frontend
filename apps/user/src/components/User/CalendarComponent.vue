@@ -7,6 +7,7 @@ import { computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { useStore } from 'vuex';
+import { DewCard } from '../ui';
 
 const store = useStore();
 const isDarkMode = computed(() => store.getters.isDarkMode);
@@ -187,68 +188,93 @@ const getDayCellStyle = (day) => {
 </script>
 
 <template>
-  <div class="calendarContainer" :class="{ 'theme-dark': isDarkMode }">
-    <div class="calendarCard">
-      <div class="calendarHeader">
-        <div style="font-size: 18px;">出勤日历</div>
-        <div>
-          <span style="margin-right: 20px; font-size: 14px; color: gray; font-weight: lighter;">累计出勤： {{ currentYearDays }} 天</span>
-          <span style="font-size: 14px; color: gray; font-weight: lighter;">最高连续： {{ streakDays }} 天</span>
+  <div class="calendarContainer">
+    <DewCard size="lg" divided class="calendar-card">
+      <template #header>
+        <div class="calendar-header">
+          <span class="calendar-title">出勤日历</span>
+          <div class="calendar-stats">
+            <span class="stat-item">累计出勤：<b>{{ currentYearDays }}</b> 天</span>
+            <span class="stat-item">最高连续：<b>{{ streakDays }}</b> 天</span>
+          </div>
+        </div>
+      </template>
+
+      <!-- 年度网格较宽，窄屏可横向滚动，绝不裁切 -->
+      <div class="calendar-scroll">
+        <div class="month-labels">
+          <span v-for="month in visibleMonths" :key="month">{{ month }}</span>
+        </div>
+        <div class="calendar-grid">
+          <div
+            v-for="(day, index) in yearAttendenceData"
+            :key="index"
+            class="day-cell"
+            :class="{ 'has-attendance': day.total_hours > 0 }"
+            :style="getDayCellStyle(day)"
+            :title="`${day.date}: ${day.total_hours}小时`"
+          >
+            <span v-if="day.total_hours > 0" class="day-hours">{{ day.total_hours }}h</span>
+            <div v-if="isToday(day.date)" class="today-marker"></div>
+          </div>
         </div>
       </div>
-      <div class="month-labels">
-        <span v-for="month in visibleMonths" :key="month">{{ month }}</span>
-      </div> 
-      <div class="calendar-grid">
-        <div
-          v-for="(day, index) in yearAttendenceData"
-          :key="index"
-          class="day-cell"
-          :class="{ 'has-attendance': day.total_hours > 0 }"
-          :style="getDayCellStyle(day)"
-          :title="`${day.date}: ${day.total_hours}小时`"
-        >
-          <span v-if="day.total_hours > 0" class="day-hours">{{ day.total_hours }}h</span>
-          <div v-if="isToday(day.date)" class="today-marker"></div>
-        </div>
-      </div>
-    </div>
+    </DewCard>
   </div>
 </template>
 
 <style scoped>
-.calendarContainer{
+.calendarContainer {
   width: 100%;
-  margin-bottom: 15px;
+  margin-bottom: 0;
 }
-.calendarCard{
-  /* width: 100%; */
-  height: 242px;
-  background-color: #fff;
-  border-radius: 10px;
-  box-shadow: #e7edf5 0px 0px 10px 0px;
-  padding: 5px;
-  padding-bottom: 0;
-}
-.calendarHeader{
-  height: 40px;
+
+/* DewCard 负责玻璃表面，这里只管标题行 + 网格排版 */
+.calendar-header {
   display: flex;
   justify-content: space-between;
-  /* align-items: center; */
-  /* padding: 0 10px; */
-  font-size: 16px;
-  font-weight: bold;
-  color: #333;
-  border-bottom: 1px solid #eee;
-  padding:10px 10px 0px 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
 }
+
+.calendar-title {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.calendar-stats {
+  display: flex;
+  gap: 20px;
+  font-size: 13px;
+  color: var(--dew-text-muted);
+}
+
+.calendar-stats b {
+  font-weight: 700;
+  color: var(--dew-text-heading);
+}
+
+/* 年度网格约 948px 宽：窄屏横向滚动兜底，绝不裁切 */
+.calendar-scroll {
+  overflow-x: auto;
+  padding: 6px 2px 4px;
+}
+
+.month-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  color: var(--dew-text-faint);
+  font-size: 12px;
+}
+
 .calendar-grid {
   display: grid;
   grid-auto-flow: column;
   grid-template-rows: repeat(7, 12px);
-  grid-auto-columns: 12px; 
-  gap: 6px; 
-  padding: 10px 15px 0px 10px;
+  grid-auto-columns: 12px;
+  gap: 6px;
 }
 
 .day-cell {
@@ -256,8 +282,11 @@ const getDayCellStyle = (day) => {
   height: 12px;
   border-radius: 2px;
   cursor: pointer;
-  background: #ebedf0;
-  transition: all 0.3s ease;
+  background: var(--color-bg-muted);
+  transition:
+    transform 0.25s var(--dew-bounce),
+    background-color 0.3s ease,
+    opacity 0.3s ease;
 }
 
 .has-attendance {
@@ -297,42 +326,11 @@ const getDayCellStyle = (day) => {
   background: #ff6b6b;
   border-radius: 50%;
 }
-.calendars{
-  width: 160px;
-  height: 150px;
 
-  border-radius: 5px;
-  background-color: #6666665b;
-
-  margin: 1px;
-  margin-top: 20px;
-}
-.month-labels {
-  display: flex;
-  justify-content: space-between;
-  color: #969696;
-  font-size: 12px;
-  order: 3;
-  padding: 25px 5% 0px 5%;
-  box-sizing: border-box;
-}
-
-/* 暗黑模式 */
-.theme-dark .calendarCard {
-  background-color: rgba(40, 40, 40, 0.9);
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
-}
-
-.theme-dark .calendarHeader {
-  color: #f5f5f5;
-  border-bottom-color: #3a3a3a;
-}
-
-.theme-dark .month-labels {
-  color: #666;
-}
-
-.theme-dark .day-cell {
-  background-color: #2a2a2a;
+/* 年度网格较宽，缩小 DewCard 左右内边距，桌面端不出现横向滚动条
+   （DewCard 默认 lg 为 20px，这里覆盖；窄屏由 .calendar-scroll 兜底滚动） */
+.calendar-card :deep(.dew-card__body) {
+  padding-left: 8px !important;
+  padding-right: 8px !important;
 }
 </style>
