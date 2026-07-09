@@ -44,7 +44,9 @@ export default {
         '/notification/manage': '通知管理',
         '/seat/manage': '座位管理',
         '/attendance-report/manage': '出勤报告',
-        '/camp/attendance': '营期考勤看板'
+        '/camp/attendance': '营期考勤看板',
+        '/camp/sessions': '营期管理',
+        '/camp/sessions/:id': '营期详情'
       };
       return routeMap[this.$route.path] || '系统管理';
     },
@@ -432,6 +434,14 @@ const handleClose = (key, keyPath) => {
             >
               <el-icon><Clock /></el-icon>
               <span>考勤看板</span>
+            </el-menu-item>
+            <el-menu-item
+              index="/camp/sessions"
+              @click="router.push('/camp/sessions')"
+              class="submenu-item"
+            >
+              <el-icon><List /></el-icon>
+              <span>营期列表</span>
             </el-menu-item>
           </el-sub-menu>
         </el-menu>

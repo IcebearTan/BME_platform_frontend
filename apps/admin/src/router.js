@@ -29,6 +29,8 @@ import NotificationManage from './components/NotificationManage.vue';
 import SeatManage from './components/SeatManage.vue';
 import AttendanceReportManage from './components/AttendanceReportManage.vue';
 import CampAttendanceBoard from './components/CampAttendanceBoard.vue';
+import CampSessionList from './components/CampSessionList.vue';
+import CampSessionDetail from './components/CampSessionDetail.vue';
 import store from './store';
 
 const router = createRouter({
@@ -148,6 +150,18 @@ const router = createRouter({
                     path: '/camp/attendance',
                     name: 'camp_attendance',
                     component: CampAttendanceBoard,
+                    meta: { staffOnly: true }
+                },
+                {
+                    path: '/camp/sessions',
+                    name: 'camp_sessions',
+                    component: CampSessionList,
+                    meta: { staffOnly: true }
+                },
+                {
+                    path: '/camp/sessions/:id',
+                    name: 'camp_session_detail',
+                    component: CampSessionDetail,
                     meta: { staffOnly: true }
                 }
             ]
