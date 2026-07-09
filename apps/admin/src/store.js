@@ -47,6 +47,7 @@ export default new Vuex.Store({
         role: (state) => state.user?.role || 'student',
         permissions: (state) => state.user?.permissions || [],
         can: (_state, getters) => (perm) => getters.role === 'super_admin' || getters.permissions.includes(perm),
+        isStaff: (state) => ['super_admin', 'teacher', 'mentor'].includes(state.user?.role),
     },
     plugins: [
         VuexPersist({

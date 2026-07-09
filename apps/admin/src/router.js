@@ -28,6 +28,8 @@ import AuditLogManage from './components/AuditLogManage.vue';
 import NotificationManage from './components/NotificationManage.vue';
 import SeatManage from './components/SeatManage.vue';
 import AttendanceReportManage from './components/AttendanceReportManage.vue';
+import CampAttendanceBoard from './components/CampAttendanceBoard.vue';
+import store from './store';
 
 const router = createRouter({
     history: createWebHistory("/admin/"),
@@ -141,6 +143,12 @@ const router = createRouter({
                     path: '/attendance-report/manage',
                     name: 'attendance_report_manage',
                     component: AttendanceReportManage
+                },
+                {
+                    path: '/camp/attendance',
+                    name: 'camp_attendance',
+                    component: CampAttendanceBoard,
+                    meta: { staffOnly: true }
                 }
             ]
         },
@@ -166,5 +174,12 @@ const router = createRouter({
         }
     ]
 })
+
+// RBAC 路由守卫：staffOnly 路由仅老师/导生/超管可入（防手输 URL 绕菜单）
+router.beforeEach((to) => {
+    if (to.meta.staffOnly && !store.getters.isStaff) {
+        return { name: 'home_default' };
+    }
+});
 
 export default router

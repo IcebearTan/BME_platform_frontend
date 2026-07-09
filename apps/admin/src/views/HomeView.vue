@@ -43,9 +43,13 @@ export default {
         '/audit/logs': '审计日志',
         '/notification/manage': '通知管理',
         '/seat/manage': '座位管理',
-        '/attendance-report/manage': '出勤报告'
+        '/attendance-report/manage': '出勤报告',
+        '/camp/attendance': '营期考勤看板'
       };
       return routeMap[this.$route.path] || '系统管理';
+    },
+    isStaff() {
+      return this.store.getters.isStaff;
     }
   },
 
@@ -412,6 +416,22 @@ const handleClose = (key, keyPath) => {
             >
               <el-icon><Clock /></el-icon>
               <span>收件人与测试发送</span>
+            </el-menu-item>
+          </el-sub-menu>
+
+          <!-- 营期管理（仅老师/导生/超管可见） -->
+          <el-sub-menu index="12" v-if="isStaff">
+            <template #title>
+              <el-icon class="menu-icon"><Tickets /></el-icon>
+              <span class="menu-text">营期管理</span>
+            </template>
+            <el-menu-item
+              index="/camp/attendance"
+              @click="router.push('/camp/attendance')"
+              class="submenu-item"
+            >
+              <el-icon><Clock /></el-icon>
+              <span>考勤看板</span>
             </el-menu-item>
           </el-sub-menu>
         </el-menu>
