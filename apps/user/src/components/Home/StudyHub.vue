@@ -26,7 +26,7 @@
       <DewButtonBar v-model="activeTab" :items="hubTabs" size="md" />
     </div>
 
-    <!-- 学习入口 -->
+    <!-- 快捷入口 -->
     <div v-if="activeTab === 'entries'" class="study-entries">
       <div class="entries-grid">
         <DewCard
@@ -96,7 +96,7 @@ const isDarkMode = computed(() => store.getters.isDarkMode)
 // 内容切换 tab
 const activeTab = ref('entries')
 const hubTabs = [
-  { value: 'entries', label: '学习入口' },
+  { value: 'entries', label: '快捷入口' },
   { value: 'community', label: '社区广场' },
   { value: 'seatmap', label: '在线看板' },
 ]
@@ -144,8 +144,8 @@ const studyEntries = ref([
   { id: 'groups', title: '学习小组', description: '协作学习与交流', route: '/group', color: '#E6A23C' },
   { id: 'exams', title: '考核评估', description: '检验学习效果', route: '/exam', color: '#F56C6C', disabled: true },
   { id: 'resources', title: '学习资源', description: '丰富的学习材料', route: '/resources', color: '#909399', disabled: true },
-  { id: '3d-print', title: '3D打印', description: '3D 模型打印预约', route: '/3d-print', color: '#06b6d4' },
-  { id: 'llm', title: '大模型', description: '大模型 API 接口平台', route: '/llm', color: '#ec4899' },
+  { id: '3d-print', title: '3D打印', description: '3D 模型打印预约', route: '/service/3d-print', color: '#06b6d4' },
+  { id: 'llm', title: '大模型', description: '大模型 API 接口平台', route: '/ai-service', color: '#ec4899' },
 ])
 
 // ── 社区广场：推送最新帖子（真实 API + mock 兜底） ──
