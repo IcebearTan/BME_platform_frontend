@@ -49,6 +49,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import api from '../api'
 import NotificationBell from './Notification/NotificationBell.vue'
+import DewPopover from './ui/DewPopover.vue'
 
 const buttonRef = ref()
 const popoverRef = ref()
@@ -140,6 +141,8 @@ const logOut = () => {
     window.location.reload()
 }
 
+const goUserCenter = () => router.push('/user')
+
 const handleUserInfo = () => {
     if (router.currentRoute.value.path != '/user-center/user-info') {
         setTimeout(() => {
@@ -219,51 +222,35 @@ const handleUserInfo = () => {
 
         <el-menu-item v-if="isLogin && !isAuthRoute" class="custom-menu-item theme-menu-item" :class="{ 'theme-dark': isDarkMode, 'theme-light': !isDarkMode }">
             <div class="user-avatar" style="cursor: pointer;">
-                <el-popover
-                    :showArrow=false
-                    trigger="click"
-                    width="300px"
-                    height="500px"
-                    :popper-class="`popover ${isDarkMode ? 'theme-dark' : 'theme-light'}`"
-                >
-                    <div :class="{ 'theme-dark': isDarkMode, 'theme-light': !isDarkMode }">
-                        <div style="display: flex; align-items: center; cursor: pointer;" @click="$router.push('/user')">
-                            <div style="width: 50px; height: 50px;">
-                                <el-avatar @click="visible = !visible"
-                                :src="User_Avatar" alt="image"
-                                :size="50"
-                                />
-                            </div>
-                            
-                            <div style="display: flex; flex-wrap: wrap; margin-left: 10px;">
-                                <div class="user-name">{{ $store.state.user.User_Name }}</div>
-                                <div v-if="$store.state.user.User_Mode == 'admin'" class="user-type-instructor">导师</div>
-                                <div v-else class="user-type-student">学生</div>
+                <DewPopover trigger="click" placement="bottom" :width="260" :offset="6" :show-arrow="true">
+                    <template #trigger>
+                        <el-avatar :src="User_Avatar" alt="头像" />
+                    </template>
+                    <div class="avatar-pop">
+                        <div class="avatar-pop__head" @click="goUserCenter">
+                            <el-avatar :src="User_Avatar" alt="头像" :size="44" />
+                            <div class="avatar-pop__info">
+                                <div class="avatar-pop__name">{{ $store.state.user?.User_Name }}</div>
+                                <div
+                                    class="avatar-pop__role"
+                                    :class="$store.state.user?.User_Mode === 'admin' ? 'avatar-pop__role--admin' : 'avatar-pop__role--student'"
+                                >
+                                    {{ $store.state.user?.User_Mode === 'admin' ? '导师' : '学生' }}
+                                </div>
                             </div>
                         </div>
-                        <ul style="list-style: none; padding: 0; margin-bottom: 0;" role="none">
-                            <li class="popli" role="none" @click="handleUserInfo()">
-                                <el-icon>
-                                    <User />
-                                </el-icon>
-                                <span style="margin-left: 10px;" >账户设置</span>
-                                
-                            </li>
-                            <li class="popli-exit" role="none" @click="logOut()">
-                                <el-icon>
-                                    <Close />
-                                </el-icon>
-                                <span style="margin-left: 10px;" >退出</span>
-                            </li>
-                        </ul>
+                        <div class="avatar-pop__actions">
+                            <div class="avatar-pop__action" @click="handleUserInfo">
+                                <el-icon><Setting /></el-icon>
+                                <span>账户设置</span>
+                            </div>
+                            <div class="avatar-pop__action avatar-pop__action--danger" @click="logOut">
+                                <el-icon><SwitchButton /></el-icon>
+                                <span>退出登录</span>
+                            </div>
+                        </div>
                     </div>
-                    
-                    <template #reference>
-                        <el-avatar @click="visible = !visible"
-                            :src="User_Avatar" alt="image"
-                        />
-                    </template>
-                </el-popover>
+                </DewPopover>
                 
             </div>
         </el-menu-item>
@@ -1100,26 +1087,67 @@ const handleUserInfo = () => {
 .theme-dark :deep(.el-input__inner::placeholder) {
     color: #cccccc;
 }
+
+/* ── 头像弹窗（DewPopover 内容，浮层本体由 DewPopover 提供） ── */
+.avatar-pop {
+  padding: 8px;
+  font-family: var(--dew-font, inherit);
+  color: var(--dew-popover-text, var(--dew-text));
+}
+.avatar-pop__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.avatar-pop__head:hover { background: var(--dew-ghost-hover-bg); }
+.avatar-pop__info { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.avatar-pop__name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--dew-text-heading);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.avatar-pop__role {
+  align-self: flex-start;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 8px;
+  border-radius: var(--radius-full);
+}
+.avatar-pop__role--admin { color: var(--color-primary); background: var(--color-primary-light); }
+.avatar-pop__role--student { color: var(--color-success); background: var(--color-success-light); }
+.avatar-pop__actions {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--dew-card-divider);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.avatar-pop__action {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 8px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--dew-text);
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+.avatar-pop__action:hover { background: var(--dew-ghost-hover-bg); }
+.avatar-pop__action .el-icon { font-size: 16px; color: var(--dew-text-muted); }
+.avatar-pop__action--danger { color: var(--color-danger); }
+.avatar-pop__action--danger:hover { background: var(--color-danger-light); }
+.avatar-pop__action--danger .el-icon { color: var(--color-danger); }
 </style>
 
 <style>
-.popover{
-    padding: 20px !important;
-    border-radius: 10px !important;
-    transition: all 0.3s ease;
-}
-
-/* 弹出框主题适配 */
-.theme-light .popover {
-    background-color: #ffffff !important;
-    border-color: #e4e7ed !important;
-    color: #333333 !important;
-}
-
-.theme-dark .popover {
-    background-color: #2c2c2c !important;
-    border-color: #4c4c4c !important;
-    color: #ffffff !important;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
-}
 </style>
