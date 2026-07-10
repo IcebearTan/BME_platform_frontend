@@ -116,13 +116,6 @@ const entryIcons = {
 const banners = ref([
   {
     id: 1,
-    title: '开启学习之旅',
-    description: '探索丰富的课程内容，提升你的技能',
-    image: bgImage,
-    route: '/study'
-  },
-  {
-    id: 2,
     title: '2026 暑期训练营',
     description: '加入营期，沉浸式学习与考勤打卡',
     image: import.meta.env.BASE_URL + '2026暑期训练营.png',
@@ -130,12 +123,19 @@ const banners = ref([
     bare: true
   },
   {
-    id: 3,
+    id: 2,
     title: '大模型服务中心',
     description: '大模型 API 接口平台',
     image: import.meta.env.BASE_URL + '大模型服务中心.png',
     route: '/ai-service',
     bare: true
+  },
+  {
+    id: 3,
+    title: '开启学习之旅',
+    description: '探索丰富的课程内容，提升你的技能',
+    image: bgImage,
+    route: '/study'
   }
 ])
 
