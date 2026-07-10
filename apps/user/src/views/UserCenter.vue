@@ -1,15 +1,18 @@
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick } from 'vue'; // 引入 Vue API
-import { useRouter } from "vue-router"; // RouterLink 已在模板中使用，但 router 实例可能需要
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
+import { useRouter } from "vue-router";
+import { useStore } from "vuex";
 import UserCenterComponent from "../components/User/UserCenterComponent.vue";
 import PageFooterComponent from "../components/PageFooterComponent.vue";
 import MenuComponent from "../components/MenuComponent.vue";
-import MobileMenuComponent from "../components/MobileMenuComponent.vue"; // 引入移动端菜单
+import MobileMenuComponent from "../components/MobileMenuComponent.vue";
 import api from '../api';
-import { ElMessage } from 'element-plus'; // 确保 ElMessage 被导入
-import { Menu as IconMenu, Rank, Fold, Expand } from '@element-plus/icons-vue'; // 引入图标
+import { ElMessage } from 'element-plus';
+import { Menu as IconMenu, Rank, Fold, Expand } from '@element-plus/icons-vue';
 
-const router = useRouter(); // 初始化 useRouter
+const router = useRouter();
+const store = useStore();
+const isDarkMode = computed(() => store.getters.isDarkMode);
 
 // --- 响应式 Header 逻辑 ---
 const isMobile = ref(window.innerWidth <= 768);
@@ -28,15 +31,13 @@ const toggleMobileMenu = () => {
 // --- 响应式 Header 逻辑结束 ---
 
 // --- UserCenter 原有的逻辑 ---
-const username = ref(''); // 将 data 中的 username 改为 ref
+const username = ref('');
 const loading = ref(false);
 
 onMounted(() => {
-    // 响应式 Header 的 onMounted 逻辑
     checkScreenSize();
     window.addEventListener('resize', checkScreenSize);
 
-    // 原有的 created 钩子逻辑
     api({
         url: "/user/user_index",
         method: "get",
@@ -47,13 +48,11 @@ onMounted(() => {
         }
     })
     .catch((error) => {
-        // 只做本地跳转，异常提示交给全局拦截器
         if (error.response && error.response.status === 401) {
             router.push('/login');
         }
     });
 
-    // 原有的 nextTick 逻辑
     loading.value = true;
     setTimeout(() => {
         loading.value = false;
@@ -61,15 +60,13 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-    // 响应式 Header 的 onUnmounted 逻辑
     window.removeEventListener('resize', checkScreenSize);
 });
-// --- UserCenter 原有逻辑结束 ---
 
 </script>
 
 <template>
-    <div class="common-layout">
+    <div :class="['user-center', { 'theme-dark': isDarkMode, 'theme-light': !isDarkMode }]">
         <el-container>
             <el-header class="header-container">
                 <!-- 桌面菜单 -->
@@ -91,8 +88,13 @@ onUnmounted(() => {
             <!-- 移动端菜单 -->
             <MobileMenuComponent v-if="isMobile && isMobileMenuOpen" @close="toggleMobileMenu" />
 
-            <el-main style="min-height: 100vh; background-color: #fff; width: 1200px; margin: auto;" v-loading="loading"
-                element-loading-background="rgba(255, 255, 255, 1)" :delay="0" element-loading-text="loading...">
+            <el-main
+                class="page-main"
+                v-loading="loading"
+                element-loading-background="transparent"
+                :delay="0"
+                element-loading-text="loading..."
+            >
                 <UserCenterComponent />
             </el-main>
             <el-footer class="page-footer">
@@ -104,15 +106,42 @@ onUnmounted(() => {
 
 
 <style scoped>
-/* --- Header 样式 (与 HomeView/StudyView 保持一致) --- */
+/* 根容器：亮/暗双极光底（对齐全站规范） */
+.user-center {
+  min-height: 100vh;
+  background-attachment: fixed;
+  transition: background 0.4s ease;
+}
+
+.theme-light.user-center {
+  background:
+    radial-gradient(ellipse 60% 50% at 12% 18%, rgba(96, 165, 250, 0.26), transparent 60%),
+    radial-gradient(ellipse 55% 60% at 88% 12%, rgba(244, 114, 182, 0.24), transparent 55%),
+    radial-gradient(ellipse 70% 55% at 82% 88%, rgba(52, 211, 153, 0.22), transparent 60%),
+    radial-gradient(ellipse 55% 60% at 8% 92%, rgba(251, 191, 36, 0.20), transparent 55%),
+    radial-gradient(ellipse 50% 50% at 50% 50%, rgba(34, 211, 238, 0.10), transparent 70%),
+    linear-gradient(135deg, #f0f4ff 0%, #fdf2f8 50%, #f0fdf4 100%);
+}
+
+.theme-dark.user-center {
+  background:
+    radial-gradient(ellipse 60% 50% at 12% 18%, rgba(59, 130, 246, 0.18), transparent 60%),
+    radial-gradient(ellipse 55% 60% at 88% 12%, rgba(236, 72, 153, 0.15), transparent 55%),
+    radial-gradient(ellipse 70% 55% at 82% 88%, rgba(16, 185, 129, 0.14), transparent 60%),
+    radial-gradient(ellipse 55% 60% at 8% 92%, rgba(245, 158, 11, 0.12), transparent 55%),
+    linear-gradient(160deg, #16161a 0%, #0f0f12 100%);
+}
+
+/* --- Header --- */
 .header-container {
     display: flex;
     justify-content: center;
     align-items: center;
-    border-bottom: solid 1px #e6e6e6;
+    border-bottom: solid 1px var(--dew-card-divider);
     padding: 0;
     height: 60px;
     position: relative;
+    background: transparent;
 }
 
 .desktop-menu-container {
@@ -127,7 +156,6 @@ onUnmounted(() => {
     height: 100%;
     padding: 0 15px;
     box-sizing: border-box;
-    display: flex;
     justify-content: space-between;
     align-items: center;
 }
@@ -140,7 +168,7 @@ onUnmounted(() => {
     display: none;
     font-size: 24px;
     cursor: pointer;
-    color: #606266;
+    color: var(--dew-text-muted);
 }
 
 @media (max-width: 768px) {
@@ -162,34 +190,12 @@ onUnmounted(() => {
     }
 }
 
-/* --- Header 样式结束 --- */
-
-.common-layout {
-    /* background-color: #f5f5f5 */
-}
-
-.el-menu--horizontal>.el-menu-item:nth-child(1) {
-    margin-right: auto;
-}
-
-.avatar {
-    width: 100px;
-    height: 100px;
-}
-
-.footer {
-    font-size: 15px;
-    display: flex;
-    padding: 10px;
-    background-color: #f5f5f5;
-    margin: 0;
-    width: 100%;
-    color: #bababa;
-}
-</style>
-<style>
-.example-showcase .el-loading-mask {
-    z-index: 9;
-    transition: none !important;
+/* --- 主内容区：透明，让极光透出 --- */
+.page-main {
+    min-height: 100vh;
+    width: 1200px;
+    max-width: 100%;
+    margin: 0 auto;
+    background: transparent;
 }
 </style>

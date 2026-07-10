@@ -1,12 +1,12 @@
 <!-- 使用vue3语法 -->
 <script setup>
 import api from '../../api';
-import { ref, onMounted, reactive, watch } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRouter, useRoute } from 'vue-router'
 import { useStore } from 'vuex';
-import { el } from 'element-plus/es/locales.mjs';
 import { Message, User, Calendar } from '@element-plus/icons-vue';
+import { DewCard, DewSidebar, DewTag } from '../ui'
 
 const User_Info = ref({})
 const User_Avatar = ref('');
@@ -17,6 +17,17 @@ const loading = ref(true)
 const router = useRouter()
 const route = useRoute()
 const store = useStore()
+
+// 左侧导航项（DewSidebar：value 即路由路径，选中后 push 过去）
+const navItems = [
+  { value: '/user-center/user-info', label: '账户设置', icon: User },
+  { value: '/user-center/my-feedbacks', label: '反馈记录', icon: Message },
+  { value: '/camp', label: '我的营期', icon: Calendar },
+]
+
+const onNavSelect = (value) => {
+  router.push(value)
+}
 
 const fetchUserInfo = async () => {
   loading.value = true
@@ -43,26 +54,21 @@ const fetchUserInfo = async () => {
 const fetchUserAvatar = async () => {
   try {
     const response = await api({
-      url: "/user/user_avatars", // 请求头像的URL
+      url: "/user/user_avatars",
       method: "get",
     });
     if (response.data.code === 200) {
-      // 检查服务器返回的头像数据是否存在
       if (response.data.User_Avatar && response.data.User_Avatar !== null) {
         User_Avatar.value = `data:image/png;base64,${response.data.User_Avatar}`;
       } else {
-        // 用户尚未设置头像，使用默认头像
         User_Avatar.value = 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png';
       }
     } else {
-      // 接口请求失败，使用默认头像
       User_Avatar.value = 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png';
       ElMessage.error('获取头像失败');
     }
   } catch (error) {
-    // 请求异常，使用默认头像
     User_Avatar.value = 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png';
-    // 只做本地跳转，异常提示交给全局拦截器
     if (error.response && error.response.status === 401) {
       router.push('/login');
     } else {
@@ -84,17 +90,13 @@ const vertifyUserMode = () => {
 
 // 计算当前应该高亮的菜单项
 const getActiveMenuIndex = (currentPath) => {
-  console.log('路由匹配检查 - 当前路径:', currentPath)
-  
   // 处理user-info的子路由
   if (currentPath.startsWith('/user-center/user-info')) {
-    console.log('匹配到user-info路由')
     return '/user-center/user-info'
   }
-  
+
   // 处理my-feedbacks的子路由
   if (currentPath.startsWith('/user-center/my-feedbacks')) {
-    console.log('匹配到my-feedbacks路由')
     return '/user-center/my-feedbacks'
   }
 
@@ -102,215 +104,97 @@ const getActiveMenuIndex = (currentPath) => {
   if (currentPath.startsWith('/camp')) {
     return '/camp'
   }
-  
-  console.log('未匹配到特定路由，返回原路径')
+
   // 其他路由直接返回路径
   return currentPath
 }
 
 // 监听路由变化，更新activeIndex
 watch(() => route.path, (newPath) => {
-  const activeMenuIndex = getActiveMenuIndex(newPath)
-  console.log('路由变化:', newPath, '-> 激活菜单:', activeMenuIndex)
-  activeIndex.value = activeMenuIndex
+  activeIndex.value = getActiveMenuIndex(newPath)
 }, { immediate: true })
 
 onMounted(() => {
   fetchUserInfo().then(() => {
     fetchUserAvatar();
   });
-  // 使用当前路由路径设置activeIndex
-  const initialActiveIndex = getActiveMenuIndex(route.path)
-  console.log('组件挂载 - 当前路径:', route.path, '-> 激活菜单:', initialActiveIndex)
-  activeIndex.value = initialActiveIndex;
+  activeIndex.value = getActiveMenuIndex(route.path);
 })
 </script>
 
 <template>
-  <!--  -->
-  <el-row>
-    <el-col :span="6">
-      <div class="left-side">
-        <div class="NavHeader">
-          <div class="avatarContainer">
+  <div class="uc-layout">
+    <!-- 左：个人资料 + 导航 -->
+    <aside class="uc-sidebar">
+      <DewCard size="lg" divided class="uc-sidebar-card">
+        <template #header>
+          <div class="uc-profile">
             <el-avatar
-                shape="square"
-                size="large"
-                class="avatar"
-                :src="User_Avatar" alt="image"
+              shape="square"
+              :size="72"
+              class="uc-avatar"
+              :src="User_Avatar"
+              alt="image"
             />
+            <div class="uc-username">{{ User_Info.User_Name }}</div>
+            <DewTag v-if="vertifyUserMode()" type="warning" size="sm" round>导师</DewTag>
+            <DewTag v-else type="info" size="sm" round>学生</DewTag>
           </div>
-          <div class="username">{{ User_Info.User_Name }}</div>
-          <div v-if="vertifyUserMode()" class="user-type-instructor">导师</div>
-          <div v-else class="user-type-student">学生</div>
-        </div>
-        <el-menu
-          :default-active=activeIndex
-          class="el-menu-vertical-demo"
-        >
-          <div class="functionSection">
-            <el-menu-item index="/user-center/user-info" @click="router.push('/user-center/user-info')">
-              <el-icon><User /></el-icon>
-              <span>账户设置</span>
-            </el-menu-item>
-          </div>
-          <div class="functionSection">
-            <el-menu-item index="/user-center/my-feedbacks" @click="router.push('/user-center/my-feedbacks')">
-              <el-icon><Message /></el-icon>
-              <span>反馈记录</span>
-            </el-menu-item>
-          </div>
-          <div class="functionSection">
-            <el-menu-item index="/camp" @click="router.push('/camp')">
-              <el-icon><Calendar /></el-icon>
-              <span>我的营期</span>
-            </el-menu-item>
-          </div>
-        </el-menu>
-      </div>
-    </el-col>
-    <el-col :span="18" style="padding-left: 20px;">
-      <router-view :User_Info="User_Info"></router-view>
-    </el-col>
-  </el-row>
-  
+        </template>
 
+        <DewSidebar
+          :items="navItems"
+          v-model="activeIndex"
+          @select="onNavSelect"
+        />
+      </DewCard>
+    </aside>
+
+    <!-- 右：子路由内容 -->
+    <section class="uc-content">
+      <router-view :User_Info="User_Info"></router-view>
+    </section>
+  </div>
 </template>
 
 <style scoped>
-.right-side{
-  border-radius: 5px;
-  box-shadow: #d3dce6 0px 0px 10px 0px;
-
-  color: #729bd4;
-
-  height: 200px;
-  width: 50%;
-
-  margin: 10px;
-}
-
-.left-side{
-  border-radius: 5px;
-  /* box-shadow: #d3dce6 0px 0px 10px 0px; */
-
-  min-height: 100vh;
-  width: 100%;
-
+/* 两栏布局：左侧栏 / 右内容，20px 间隔 */
+.uc-layout {
+  display: grid;
+  grid-template-columns: 1fr 3fr;
+  gap: 20px;
+  align-items: start;
   margin-top: 10px;
 }
 
-.NavHeader{
-  display: flex;
-  flex-wrap: wrap;
-
-  justify-content: center;
-  align-items: center;
-  padding: 10px;
-}
-
-.avatarContainer{
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-bottom: 10px;
-
+.uc-sidebar-card {
   width: 100%;
 }
 
-.user-type-instructor{
-    position: relative;
-    top: 0;
-    font-size: 20px;
-    font-weight: bold;
-    color: #DA6AFC;
-
-    text-shadow: 0px 0px 5px #ecadff;
-}
-
-.user-type-student{
-    position: relative;
-    top: 0;
-    font-size: 20px;
-    font-weight: bold;
-    color: #6AD5FC;
-
-    text-shadow: 0px 0px 5px #a5e7ff;
-
-}
-
-.username{
-  text-align: center;
+/* 个人资料（头部）：头像 + 用户名 + 身份标签，居中 */
+.uc-profile {
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  font-size: larger;
-  font-weight: normal;
-  margin-bottom: 5px;
-
-  width: 100%;
-
-  color: #666;
+  gap: 8px;
 }
 
-.avatar{
-  width: 75px;
-  height: 75px;
-
-  border-radius: 10px;
+.uc-avatar {
+  border-radius: 14px;
 }
 
-.functionSection{
-  border-top: 1px solid #d3dce6;
+.uc-username {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--dew-text-heading);
 }
 
-.el-menu-vertical-demo{
-  border: none !important;
-  background-color: none !important;
+/* DewSidebar 默认透明，直接贴在 DewCard 玻璃面上 */
 
-  width: 90%;
-  margin: auto;
-}
-
-/* 统一菜单项选中风格为淡蓝色 */
-.el-menu-vertical-demo .el-menu-item {
-  position: relative;
-  transition: all 0.3s ease;
-}
-
-.el-menu-vertical-demo .el-menu-item::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  background: linear-gradient(135deg, #409EFF 0%, #87CEEB 100%);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.el-menu-vertical-demo .el-menu-item:hover::before,
-.el-menu-vertical-demo .el-menu-item.is-active::before {
-  opacity: 1;
-}
-
-.el-menu-vertical-demo .el-menu-item:hover {
-  background-color: rgba(64, 158, 255, 0.1) !important;
-  color: #409EFF !important;
-}
-
-.el-menu-vertical-demo .el-menu-item.is-active {
-  background-color: rgba(64, 158, 255, 0.15) !important;
-  color: #409EFF !important;
-  font-weight: 500;
-}
-
-.el-menu-vertical-demo .el-menu-item:hover .el-icon,
-.el-menu-vertical-demo .el-menu-item.is-active .el-icon {
-  color: #409EFF !important;
-}
-
-.el-menu-vertical-demo .el-menu-item:hover span,
-.el-menu-vertical-demo .el-menu-item.is-active span {
-  color: #409EFF !important;
+/* 响应式：窄屏堆叠 */
+@media (max-width: 900px) {
+  .uc-layout {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
