@@ -8,11 +8,11 @@
             <router-link class="subtitle" :to="{ path: '/study'}" target="_blank">
                 LeaningBooks
             </router-link>
+            <router-link class="subtitle" :to="{ path: '/ai-service'}" target="_blank">
+                大模型平台
+            </router-link>
             <div class="subtitle_disabled">
-                考核报名
-            </div>
-            <div class="subtitle_disabled">
-                资源库
+                3D打印平台
             </div>
             <div class="subtitle_disabled">
                 讨论社区
@@ -61,12 +61,9 @@
         </div>
     </div>
     <hr class="custom-hr"></hr>
-    <div style="font-size: 15px; color: #fff; margin-bottom: 10px;">©2024-2025 中山大学医工融创训练营</div>
+    <div style="font-size: 15px; color: #fff; margin-bottom: 10px;">©2024-2026 中山大学医工融合科创协会</div>
     <div style="font-size: 13px; color: #999; margin-bottom: 10px; display: flex; flex-wrap: wrap;">
-        <div style="margin-right: 10px;">备案编号：1145141919810</div>
-        <div style="margin-right: 10px;">没有版权和免责声明</div>
-        <div style="margin-right: 10px;">服务冷线：4008-123-123</div>
-        <div style="margin-right: 10px;">客服邮箱：thisIsAfakeEmail@mail2.sysu.edu.cn</div>
+        <div style="margin-right: 10px;">客服邮箱：tanky6@mail2.sysu.edu.cn</div>
         <div style="margin-right: 10px;">版本：v{{ appVersion }}</div>
     </div>
   </div>
