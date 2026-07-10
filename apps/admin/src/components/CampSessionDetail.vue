@@ -17,8 +17,14 @@
           <el-table-column label="角色" width="80">
             <template #default="{ row }">{{ row.role === 'mentor' ? '导生' : '学员' }}</template>
           </el-table-column>
-          <el-table-column label="归属导生" width="120">
-            <template #default="{ row }">{{ mentorName(row.team_mentor_id) }}</template>
+          <el-table-column label="归属导生" min-width="140">
+            <template #default="{ row }">
+              <el-select v-if="row.role === 'student'" :model-value="row.team_mentor_id"
+                size="small" placeholder="未分配" clearable @change="(v) => updateMentor(row, v)">
+                <el-option v-for="m in mentorMembers" :key="m.user_id" :label="m.username" :value="m.user_id" />
+              </el-select>
+              <span v-else>—</span>
+            </template>
           </el-table-column>
           <el-table-column label="加入时间" width="120">
             <template #default="{ row }">{{ row.joined_at ? row.joined_at.slice(0, 10) : '' }}</template>
@@ -110,21 +116,52 @@
           </el-form-item>
         </el-form>
       </el-tab-pane>
+
+      <!-- ⑦ 加入申请 -->
+      <el-tab-pane label="加入申请" name="join">
+        <el-alert v-if="!joinRequests.length" type="info" :closable="false" title="暂无待审批的加入申请" />
+        <el-table :data="joinRequests" border size="small" style="margin-top: 12px;">
+          <el-table-column label="申请人" prop="username" width="110" />
+          <el-table-column label="邮箱" prop="email" min-width="160" show-overflow-tooltip />
+          <el-table-column label="身份" width="80">
+            <template #default="{ row }">{{ row.role === 'mentor' ? '导生' : '学员' }}</template>
+          </el-table-column>
+          <el-table-column label="事由" prop="reason" min-width="140" show-overflow-tooltip />
+          <el-table-column label="提交时间" width="110">
+            <template #default="{ row }">{{ row.created_at ? row.created_at.slice(0, 10) : '' }}</template>
+          </el-table-column>
+          <el-table-column label="归属导生" width="140">
+            <template #default="{ row }">
+              <el-select v-if="row.role === 'student'" v-model="row._mentor" size="small" placeholder="选导生" style="width:100%">
+                <el-option v-for="m in joinMentors" :key="m.user_id" :label="m.username" :value="m.user_id" />
+              </el-select>
+              <span v-else>—</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="140">
+            <template #default="{ row }">
+              <el-button size="small" type="success" link @click="approveJoin(row)">批准</el-button>
+              <el-button size="small" type="danger" link @click="rejectJoin(row)">拒绝</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </el-tab-pane>
     </el-tabs>
 
     <!-- 加成员 -->
     <el-dialog v-model="memberDlg.visible" title="加成员" width="460px">
       <el-form :model="memberDlg.form" label-width="80px">
         <el-form-item label="用户" required>
-          <el-select v-model="memberDlg.form.user_id" filterable placeholder="搜索选择用户" style="width: 100%;">
-            <el-option v-for="u in users" :key="u.User_Id" :label="`${u.User_Name} (${u.User_Email})`" :value="u.User_Id" />
+          <el-select v-model="memberDlg.form.user_id" filterable placeholder="搜索选择用户" style="width: 100%;" @change="onUserPicked">
+            <el-option v-for="u in selectableUsers" :key="u.User_Id" :label="`${u.User_Name}（${roleLabel(u.role)}）`" :value="u.User_Id" />
           </el-select>
+          <el-checkbox v-model="showAllUsers" style="margin-top: 6px; font-size: 12px;">显示教师/超管（不可加入）</el-checkbox>
         </el-form-item>
         <el-form-item label="角色">
-          <el-radio-group v-model="memberDlg.form.role">
-            <el-radio label="student">学员</el-radio>
-            <el-radio label="mentor">导生</el-radio>
-          </el-radio-group>
+          <el-tag v-if="memberDlg.form.role" :type="memberDlg.form.role === 'mentor' ? 'warning' : 'success'" effect="light">
+            {{ roleLabel(memberDlg.form.role) }}
+          </el-tag>
+          <span v-else style="color: #909399; font-size: 12px;">选择用户后按其身份自动确定</span>
         </el-form-item>
         <el-form-item v-if="memberDlg.form.role === 'student'" label="归属导生">
           <el-select v-model="memberDlg.form.team_mentor_id" clearable placeholder="选该学员的导生" style="width: 100%;">
@@ -195,13 +232,26 @@ const allCourses = ref([]);
 const medals = ref([]);
 const physicalSeats = ref([]);
 
-const memberDlg = reactive({ visible: false, form: { user_id: null, role: 'student', team_mentor_id: null } });
+const memberDlg = reactive({ visible: false, form: { user_id: null, role: null, team_mentor_id: null } });
 const courseDlg = reactive({ visible: false, course_id: null });
 const seatDlg = reactive({ visible: false, form: { seat_id: null, user_id: null } });
 const rewardForm = reactive({ user_id: null, medal_id: null, description: '' });
 const rewardSubmitting = ref(false);
+const joinRequests = ref([]);
+const joinMentors = ref([]);
 
 const mentorMembers = computed(() => members.value.filter((m) => m.role === 'mentor'));
+// 加成员：用户按全局 role 过滤（默认仅学员/导生），营期角色由所选用户派生
+const showAllUsers = ref(false);
+const roleLabel = (r) => ({ student: '学员', mentor: '导生', teacher: '教师', super_admin: '超管' }[r] || r || '—');
+const selectableUsers = computed(() =>
+  showAllUsers.value ? users.value : users.value.filter((u) => u.role === 'student' || u.role === 'mentor')
+);
+function onUserPicked(uid) {
+  const u = users.value.find((x) => x.User_Id === uid);
+  memberDlg.form.role = u ? u.role : null;
+  if (memberDlg.form.role !== 'student') memberDlg.form.team_mentor_id = null;
+}
 const studentMembers = computed(() => members.value.filter((m) => m.role === 'student'));
 const availableCourses = computed(() => {
   const added = new Set(courses.value.map((c) => c.course_id));
@@ -256,11 +306,12 @@ async function fetchOptions() {
 
 // ── 成员 ──
 function openAddMember() {
-  memberDlg.form = { user_id: null, role: 'student', team_mentor_id: null };
+  memberDlg.form = { user_id: null, role: null, team_mentor_id: null };
   memberDlg.visible = true;
 }
 async function submitAddMember() {
   if (!memberDlg.form.user_id) { ElMessage.warning('请选择用户'); return; }
+  if (!memberDlg.form.role) { ElMessage.warning('该用户不是学员/导生，不能加入营期'); return; }
   try {
     await api.post(`/camp/sessions/${campId}/members`, memberDlg.form);
     ElMessage.success('已加入');
@@ -348,7 +399,45 @@ async function issueReward() {
   }
 }
 
-onMounted(() => { fetchAll(); fetchOptions(); });
+// ── 加入申请 + 团队改派 ──
+async function fetchJoinRequests() {
+  try {
+    const res = await api.get(`/camp/sessions/${campId}/join-requests`);
+    joinRequests.value = (res.data.requests || []).map((r) => ({ ...r, _mentor: null }));
+    joinMentors.value = res.data.mentors || [];
+  } catch { /* 非管理角色或无权限，忽略 */ }
+}
+async function approveJoin(row) {
+  if (row.role === 'student' && !row._mentor) { ElMessage.warning('请先为该学员选择归属导生'); return; }
+  try {
+    await api.post(`/camp/join-requests/${row.id}/approve`, { team_mentor_id: row._mentor });
+    ElMessage.success('已批准并加入营期');
+    fetchAll();
+    fetchJoinRequests();
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '审批失败');
+  }
+}
+async function rejectJoin(row) {
+  try {
+    await api.post(`/camp/join-requests/${row.id}/reject`);
+    ElMessage.success('已拒绝');
+    fetchJoinRequests();
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '操作失败');
+  }
+}
+async function updateMentor(row, mentorId) {
+  try {
+    await api.put(`/camp/sessions/${campId}/members/${row.user_id}`, { team_mentor_id: mentorId });
+    row.team_mentor_id = mentorId;
+    ElMessage.success('归属导生已更新');
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '更新失败');
+  }
+}
+
+onMounted(() => { fetchAll(); fetchOptions(); fetchJoinRequests(); });
 </script>
 
 <style scoped>
