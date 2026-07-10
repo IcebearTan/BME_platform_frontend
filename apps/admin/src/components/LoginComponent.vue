@@ -75,8 +75,17 @@ export default {
                 }
             })
             .catch((error) => {
-                console.error('请求出错:', error);
-                this.$message.error('登录请求失败，请稍后重试');
+                const data = error.response?.data;
+                let msg = '登录请求失败，请稍后重试';
+                if (data) {
+                    if (typeof data.message === 'string') {
+                        msg = data.message;
+                    } else if (data.message && typeof data.message === 'object') {
+                        const k = Object.keys(data.message)[0];
+                        msg = (data.message[k] && data.message[k][0]) || '账号或密码错误';
+                    }
+                }
+                this.$message.error(msg);
             });
 
             // alert('登录成功');
