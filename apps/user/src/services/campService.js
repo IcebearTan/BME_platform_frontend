@@ -23,4 +23,18 @@ export const campService = {
   // 我的考勤（某营）
   fetchMyAttendance: (sid) =>
     api.get('/camp/attendance/mine', { params: { camp_session_id: sid } }).then(r => r.data),
+
+  // ── 导生团队事务（@camp_role 端点，对导生自动收敛本团队）──
+  fetchDashboard: (sid, params = {}) =>
+    api.get(`/camp/attendance/dashboard/${sid}`, { params }).then(r => r.data),
+  fetchTeamLeaves: (sid) =>
+    api.get(`/camp/sessions/${sid}/leave`).then(r => r.data),
+  approveLeave: (id, approve) =>
+    api.post(`/camp/leave/${id}/approve`, { approve }).then(r => r.data),
+  issueReward: (sid, userId, medalId, description) =>
+    api.post('/camp/reward', { camp_session_id: sid, user_id: userId, medal_id: medalId, description }).then(r => r.data),
+  fetchMembers: (sid) =>
+    api.get(`/camp/sessions/${sid}/members`).then(r => r.data),
+  fetchCampMedals: () =>
+    api.get('/camp/medals').then(r => r.data),
 }

@@ -27,9 +27,17 @@
       <!-- Tab + 内容 -->
       <template v-if="sid">
         <DewButtonBar v-model="tab" :items="tabItems" style="margin: 16px 0;" />
-        <CampSelection v-if="tab === 'selection'" :sid="sid" />
-        <CampAttendance v-else-if="tab === 'attendance'" :sid="sid" />
-        <LeaveApply v-else :sid="sid" />
+        <template v-if="isMentor">
+          <MentorDashboard v-if="tab === 'dashboard'" :sid="sid" />
+          <MentorLeave v-else-if="tab === 'leave'" :sid="sid" />
+          <MentorReward v-else-if="tab === 'reward'" :sid="sid" />
+          <MentorMembers v-else-if="tab === 'members'" :sid="sid" />
+        </template>
+        <template v-else>
+          <CampSelection v-if="tab === 'selection'" :sid="sid" />
+          <CampAttendance v-else-if="tab === 'attendance'" :sid="sid" />
+          <LeaveApply v-else :sid="sid" />
+        </template>
       </template>
     </div>
   </div>
@@ -45,6 +53,10 @@ import { campService } from '../services/campService';
 import CampSelection from '../components/Camp/CampSelection.vue';
 import CampAttendance from '../components/Camp/CampAttendance.vue';
 import LeaveApply from '../components/Camp/LeaveApply.vue';
+import MentorDashboard from '../components/Camp/MentorDashboard.vue';
+import MentorLeave from '../components/Camp/MentorLeave.vue';
+import MentorReward from '../components/Camp/MentorReward.vue';
+import MentorMembers from '../components/Camp/MentorMembers.vue';
 
 const store = useStore();
 const route = useRoute();
@@ -52,13 +64,22 @@ const isDarkMode = computed(() => store.getters.isDarkMode);
 
 const sessions = ref([]);
 const sid = ref(null);
-const tab = ref(['selection', 'attendance', 'leave'].includes(route.query.tab) ? route.query.tab : 'selection');
 const loadingSessions = ref(false);
-const tabItems = [
+
+const isMentor = computed(() => store.getters.role === 'mentor');
+const studentTabs = [
   { value: 'selection', label: '选课' },
   { value: 'attendance', label: '我的考勤' },
   { value: 'leave', label: '请假' },
 ];
+const mentorTabs = [
+  { value: 'dashboard', label: '团队考勤' },
+  { value: 'leave', label: '请假审批' },
+  { value: 'reward', label: '发奖励' },
+  { value: 'members', label: '团队成员' },
+];
+const tabItems = computed(() => (isMentor.value ? mentorTabs : studentTabs));
+const tab = ref((tabItems.value.find((t) => t.value === route.query.tab) || tabItems.value[0]).value);
 
 const current = computed(() => sessions.value.find((s) => s.id === sid.value));
 const sessionOptions = computed(() => sessions.value.map((s) => ({ label: s.name, value: s.id })));

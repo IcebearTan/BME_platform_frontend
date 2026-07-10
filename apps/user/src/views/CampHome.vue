@@ -28,6 +28,61 @@
           </div>
         </DewCard>
 
+        <!-- ━━ 导生：团队概览 ━━ -->
+        <template v-if="isMentor">
+          <DewCard variant="default" size="lg" :no-hover="true" class="dashboard-card">
+            <template #header>
+              <div class="card-title-row">
+                <h3>本团队出勤</h3>
+                <span class="card-hint">待审批请假 {{ pendingCount }} 条</span>
+              </div>
+            </template>
+            <div class="dashboard-body">
+              <div class="ring-wrap">
+                <el-progress type="circle" :percentage="teamRatePct" :width="132" :stroke-width="9" color="#6366f1" :show-text="false">
+                  <template #default>
+                    <div class="ring-center">
+                      <div class="ring-num">{{ teamRatePct }}<span class="ring-pct">%</span></div>
+                      <div class="ring-label">团队达标率</div>
+                    </div>
+                  </template>
+                </el-progress>
+              </div>
+              <div class="stat-grid">
+                <div class="stat-item" v-for="s in teamStats" :key="s.key">
+                  <span class="stat-dot" :style="{ background: s.color }"></span>
+                  <span class="stat-num">{{ s.value }}</span>
+                  <span class="stat-label">{{ s.label }}</span>
+                </div>
+              </div>
+            </div>
+          </DewCard>
+          <div class="shortcut-row" style="margin-top: 16px;">
+            <DewCard variant="default" size="md" :interactive="true" class="shortcut" @click="go('dashboard')">
+              <div class="sc-icon sc-icon-info">勤</div>
+              <div class="sc-title">团队考勤</div>
+              <div class="sc-desc">明细矩阵</div>
+            </DewCard>
+            <DewCard variant="default" size="md" :interactive="true" class="shortcut" @click="go('leave')">
+              <div class="sc-icon sc-icon-warning">假</div>
+              <div class="sc-title">请假审批</div>
+              <div class="sc-desc">待批 {{ pendingCount }}</div>
+            </DewCard>
+            <DewCard variant="default" size="md" :interactive="true" class="shortcut" @click="go('reward')">
+              <div class="sc-icon sc-icon-primary">奖</div>
+              <div class="sc-title">发奖励</div>
+              <div class="sc-desc">给学员发勋章</div>
+            </DewCard>
+            <DewCard variant="default" size="md" :interactive="true" class="shortcut" @click="go('members')">
+              <div class="sc-icon sc-icon-info">员</div>
+              <div class="sc-title">团队成员</div>
+              <div class="sc-desc">名册</div>
+            </DewCard>
+          </div>
+        </template>
+
+        <!-- ━━ 学员：我的出勤仪表盘 + 日历 + 规则 + 快捷 ━━ -->
+        <template v-else>
         <!-- ② 出勤仪表盘 -->
         <DewCard variant="default" size="lg" :no-hover="true" class="dashboard-card">
           <template #header>
@@ -118,6 +173,7 @@
             </div>
           </el-col>
         </el-row>
+        </template>
       </template>
     </div>
   </div>
@@ -137,10 +193,13 @@ const router = useRouter();
 const isDarkMode = computed(() => store.getters.isDarkMode);
 
 const loading = ref(true);
+const isMentor = computed(() => store.getters.role === 'mentor');
 const session = ref(null);
 const personal = ref(null);
 const daily = ref({});
 const dates = ref([]);
+const teamSummary = ref(null);   // 导生：本团队 dashboard.summary
+const teamLeaves = ref([]);      // 导生：本团队请假
 
 const statusLabel = (s) => ({ draft: '未开始', active: '进行中', archived: '已结束' }[s] || s);
 const ratePct = computed(() => Math.round((personal.value?.attendance_rate || 0) * 100));
@@ -154,6 +213,11 @@ const STATS_DEF = [
   { key: 'on_leave', label: '请假', color: 'var(--color-info)' },
 ];
 const stats = computed(() => STATS_DEF.map((s) => ({ ...s, value: personal.value?.[s.key] || 0 })));
+
+// 导生团队汇总
+const teamRatePct = computed(() => Math.round((teamSummary.value?.attendance_rate || 0) * 100));
+const teamStats = computed(() => STATS_DEF.map((s) => ({ ...s, value: teamSummary.value?.[s.key] || 0 })));
+const pendingCount = computed(() => teamLeaves.value.filter((l) => l.status === 'pending').length);
 
 const todayStr = computed(() => {
   const d = new Date();
@@ -195,10 +259,17 @@ onMounted(async () => {
     const active = list.find((s) => s.status === 'active') || list[0] || null;
     if (!active) { session.value = null; return; }
     session.value = active;
-    const att = await campService.fetchMyAttendance(active.id);
-    personal.value = att.personal || null;
-    daily.value = att.daily || {};
-    dates.value = att.dates || [];
+    if (isMentor.value) {
+      const db = await campService.fetchDashboard(active.id);
+      teamSummary.value = db.summary || null;
+      const lv = await campService.fetchTeamLeaves(active.id);
+      teamLeaves.value = lv.leaves || [];
+    } else {
+      const att = await campService.fetchMyAttendance(active.id);
+      personal.value = att.personal || null;
+      daily.value = att.daily || {};
+      dates.value = att.dates || [];
+    }
   } catch { ElMessage.error('加载营期主页失败'); }
   finally { loading.value = false; }
 });
