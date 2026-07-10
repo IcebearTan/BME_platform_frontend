@@ -8,8 +8,8 @@
         暂未开放营期，敬请期待。
       </DewCard>
 
-      <!-- 非成员：营期简介（大气招募页） -->
-      <template v-else-if="session && !isMember">
+      <!-- 非成员学员：营期简介（大气招募页） -->
+      <template v-else-if="session && !isMember && isStudent">
         <div class="camp-intro">
           <!-- ① Hero：大标题 + 介绍 + 力连接图背景 -->
           <div class="intro-hero">
@@ -43,6 +43,13 @@
             <div class="cta-hint">提交后由老师审批 · 通过即正式入营</div>
           </div>
         </div>
+      </template>
+
+      <!-- 非成员 staff（导生/老师/超管）：未分配提示，不申请 -->
+      <template v-else-if="session && !isMember">
+        <DewCard variant="inset" size="lg" :no-hover="true">
+          你尚未被分配到该营期。导生/老师由管理员在「营期管理」中直接分配，无需申请加入。
+        </DewCard>
       </template>
 
       <template v-else-if="session">
@@ -256,6 +263,7 @@ const isDarkMode = computed(() => store.getters.isDarkMode);
 
 const loading = ref(true);
 const isMentor = computed(() => store.getters.role === 'mentor');
+const isStudent = computed(() => store.getters.role === 'student');
 const session = ref(null);
 const isMember = ref(false);
 const myRequest = ref(null);
