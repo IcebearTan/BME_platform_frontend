@@ -228,7 +228,9 @@
                   <div class="day-date">{{ d.label }}</div>
                   <div class="day-sub">{{ d.weekday }}</div>
                 </div>
-                <div class="day-mark"></div>
+                <div class="day-mark">
+                  <el-icon class="day-check"><Check /></el-icon>
+                </div>
               </div>
             </div>
             <div class="sheet-footer">
@@ -249,7 +251,7 @@ import { useRouter } from 'vue-router';
 import MenuComponent from '../components/MenuComponent.vue';
 import { DewCard, DewButton, DewProgress } from '../components/ui';
 import { ElMessage } from 'element-plus';
-import { Calendar, Clock, User, Trophy } from '@element-plus/icons-vue';
+import { Calendar, Clock, User, Trophy, Check } from '@element-plus/icons-vue';
 import { campService } from '../services/campService';
 
 const store = useStore();
@@ -659,14 +661,35 @@ onMounted(async () => {
 }
 .day-row:hover { transform: translateY(-1px); }
 .day-row.selected {
-  border-color: var(--color-info);
-  background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(99,102,241,0.05));
+  border-color: var(--color-success);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(16, 185, 129, 0.05));
 }
 .day-main { display: flex; flex-direction: column; gap: 2px; }
 .day-date { font-size: 15px; font-weight: 600; color: var(--dew-text-heading); }
 .day-sub { font-size: 12px; color: var(--dew-text-muted); }
-.day-mark { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--dew-text-faint); transition: all 0.2s; flex-shrink: 0; }
-.day-row.selected .day-mark { border-color: var(--color-info); background: var(--color-info); box-shadow: 0 0 0 4px rgba(99,102,241,0.18); }
+.day-mark {
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 2px solid var(--dew-text-faint);
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s var(--dew-bounce);
+  flex-shrink: 0;
+}
+.day-check {
+  color: #fff;
+  font-size: 13px;
+  opacity: 0;
+  transform: scale(0.5);
+  transition: opacity 0.2s ease, transform 0.2s var(--dew-bounce);
+}
+.day-row.selected .day-mark {
+  border-color: var(--color-success);
+  background: var(--color-success);
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.18);
+}
+.day-row.selected .day-check {
+  opacity: 1;
+  transform: scale(1);
+}
 .sheet-footer { display: flex; gap: 10px; padding-top: 12px; border-top: 1px solid var(--dew-card-divider); }
 .sheet-footer .dew-button { flex: 1; }
 .sheet-enter-active, .sheet-leave-active { transition: opacity 0.25s; }
