@@ -4,12 +4,12 @@
       <template #header><h3>考勤汇总</h3></template>
       <div v-if="loading" v-loading="true" style="min-height: 80px;"></div>
       <div v-else-if="personal" class="summary">
-        <DewBadge type="neutral">承诺 {{ personal.planned_days }} 天</DewBadge>
+        <DewBadge type="neutral">承诺 {{ personal.pledged_days ?? personal.planned_days }} 天</DewBadge>
         <DewBadge type="success">出勤 {{ personal.present }}</DewBadge>
         <DewBadge type="warning">迟到 {{ personal.late }}</DewBadge>
         <DewBadge type="warning">时长不足 {{ personal.short_hours }}</DewBadge>
         <DewBadge type="danger">迟到+不足 {{ personal.late_and_short }}</DewBadge>
-        <DewBadge type="neutral">缺勤 {{ personal.absent }}</DewBadge>
+        <DewBadge type="danger">缺勤 {{ personal.absent }}</DewBadge>
         <DewBadge type="primary">请假 {{ personal.on_leave }}</DewBadge>
         <span class="rate">达标率 {{ pct(personal.attendance_rate) }}</span>
       </div>
@@ -43,19 +43,19 @@ const dates = ref([]);
 const loading = ref(false);
 
 const rows = computed(() =>
-  dates.value.map((d) => ({ date: d, cell: daily.value[d] || { status: 'absent' } })));
+  dates.value.map((d) => ({ date: d, cell: daily.value[d] || { status: 'unpledged' } })));
 
 const statusLabel = (s) => ({
   present: '出勤', late: '迟到', short_hours: '时长不足', late_and_short: '迟到+不足',
-  absent: '缺勤', on_leave: '请假',
+  absent: '缺勤', on_leave: '请假', pledged: '已承诺', unpledged: '未承诺',
 }[s] || s);
 const badgeType = (s) => ({
   present: 'success', late: 'warning', short_hours: 'warning', late_and_short: 'danger',
-  absent: 'neutral', on_leave: 'primary',
+  absent: 'danger', on_leave: 'primary', pledged: 'primary', unpledged: 'neutral',
 }[s] || 'neutral');
 const pct = (r) => (r == null ? '—' : (r * 100).toFixed(0) + '%');
 const metaText = (c) => {
-  if (c.status === 'on_leave' || c.status === 'absent') return '';
+  if (['on_leave', 'absent', 'pledged', 'unpledged'].includes(c.status)) return '';
   const parts = [];
   if (c.first_check_in) parts.push('签到 ' + c.first_check_in.slice(11, 16));
   if (c.total_hours != null) parts.push('时长 ' + c.total_hours + 'h');
@@ -91,6 +91,8 @@ watch(() => props.sid, load, { immediate: true });
 .cell-present { background: rgba(103, 194, 58, .08); }
 .cell-late, .cell-short_hours { background: rgba(230, 162, 60, .08); }
 .cell-late_and_short { background: rgba(245, 108, 108, .10); }
-.cell-absent { background: rgba(144, 147, 153, .08); }
+.cell-absent { background: rgba(245, 108, 108, .10); }
 .cell-on_leave { background: rgba(64, 158, 255, .08); }
+.cell-pledged { background: rgba(64, 158, 255, .05); }
+.cell-unpledged { background: transparent; }
 </style>
