@@ -245,6 +245,7 @@ onMounted(() => {
 <style scoped>
 .uc-feedbacks {
   width: 100%;
+  min-width: 0;
 }
 
 .feedbacks-card {
@@ -271,6 +272,11 @@ onMounted(() => {
 
 /* el-table 变量映射到 DewUI token：让表格在玻璃卡上 + 亮/暗都正确 */
 .fb-table-wrap {
+  /* 容器收口：防止 el-table 的列 min-content 把栅格项撑到无限宽，
+     表格超宽时在卡片内横向滚动，而不是把整个页面拉长 */
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
   --el-table-bg-color: transparent;
   --el-table-tr-bg-color: transparent;
   --el-table-header-bg-color: var(--dew-card-inset-bg);

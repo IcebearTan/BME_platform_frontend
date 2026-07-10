@@ -167,6 +167,12 @@ onMounted(() => {
   margin-top: 10px;
 }
 
+/* 右内容栅格项：min-width:0 关键 —— 否则 el-table 的列 min-content
+   会让该列无限撑宽，把整个页面横向拉长 */
+.uc-content {
+  min-width: 0;
+}
+
 .uc-sidebar-card {
   width: 100%;
 }
