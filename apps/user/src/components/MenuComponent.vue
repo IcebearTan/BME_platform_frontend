@@ -1069,6 +1069,15 @@ const handleUserInfo = () => {
     drop-shadow(0 0 7px rgba(255, 232, 120, 0.90))
     drop-shadow(0 0 18px rgba(255, 214, 90, 0.60));
 }
+
+/* 选中（已进入营期页面）：保留 EP 默认的蓝色下划线指示条，
+   再叠加 logo 放大 + 更强鹅黄发光 */
+.camp-nav-item.is-active .camp-nav-logo {
+  transform: scale(1.06);
+  filter:
+    drop-shadow(0 0 8px rgba(255, 235, 125, 0.95))
+    drop-shadow(0 0 20px rgba(255, 214, 90, 0.68));
+}
 </style>
 
 <style>
