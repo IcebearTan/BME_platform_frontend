@@ -17,19 +17,27 @@
         </template>
       </el-table-column>
       <el-table-column label="成员数" prop="member_count" width="80" align="center" />
-      <el-table-column label="操作" width="190" fixed="right">
+      <el-table-column label="操作" width="230" fixed="right">
         <template #default="{ row }">
           <el-button size="small" type="primary" @click="goDetail(row.id)">详情</el-button>
+          <el-button size="small" @click="openEdit(row)">编辑</el-button>
           <el-button v-if="row.status !== 'archived'" size="small" @click="archive(row)">归档</el-button>
         </template>
       </el-table-column>
     </el-table>
 
     <!-- 新建营期 -->
-    <el-dialog v-model="dlg.visible" title="新建营期" width="520px">
+    <el-dialog v-model="dlg.visible" :title="dlg.editId ? '编辑营期' : '新建营期'" width="520px">
       <el-form :model="dlg.form" label-width="110px">
+        <el-form-item v-if="dlg.editId" label="状态">
+          <el-select v-model="dlg.form.status" style="width:100%">
+            <el-option label="草稿" value="draft" />
+            <el-option label="进行中" value="active" />
+            <el-option label="已归档" value="archived" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="营期名称" required>
-          <el-input v-model="dlg.form.name" placeholder="如 2026暑期营" />
+          <el-input v-model="dlg.form.name" placeholder="如 2026暑期训练营" />
         </el-form-item>
         <el-form-item label="类型">
           <el-select v-model="dlg.form.camp_type" style="width:100%">
@@ -55,7 +63,7 @@
       </el-form>
       <template #footer>
         <el-button @click="dlg.visible = false">取消</el-button>
-        <el-button type="primary" :loading="dlg.submitting" @click="submitCreate">创建</el-button>
+        <el-button type="primary" :loading="dlg.submitting" @click="submit">{{ dlg.editId ? '保存' : '创建' }}</el-button>
       </template>
     </el-dialog>
   </div>
@@ -73,8 +81,8 @@ const loading = ref(false);
 const dateRange = ref(null);
 
 const dlg = reactive({
-  visible: false, submitting: false,
-  form: { name: '', camp_type: 'short_term', expected_check_in: null, min_daily_hours: 6, weekdays_only: true },
+  visible: false, submitting: false, editId: null,
+  form: { name: '', camp_type: 'short_term', status: 'draft', expected_check_in: null, min_daily_hours: 6, weekdays_only: true },
 });
 
 const typeLabel = (t) => ({ short_term: '短期营', semester: '学期营', winter: '冬令营' }[t] || t);
@@ -94,12 +102,25 @@ async function fetchList() {
 }
 
 function openCreate() {
-  dlg.form = { name: '', camp_type: 'short_term', expected_check_in: null, min_daily_hours: 6, weekdays_only: true };
+  dlg.editId = null;
+  dlg.form = { name: '', camp_type: 'short_term', status: 'draft', expected_check_in: null, min_daily_hours: 6, weekdays_only: true };
   dateRange.value = null;
   dlg.visible = true;
 }
 
-async function submitCreate() {
+function openEdit(row) {
+  dlg.editId = row.id;
+  dlg.form = {
+    name: row.name, camp_type: row.camp_type, status: row.status,
+    expected_check_in: row.expected_check_in ? String(row.expected_check_in).slice(0, 5) : null,
+    min_daily_hours: row.min_daily_hours,
+    weekdays_only: row.weekdays_only,
+  };
+  dateRange.value = [row.start_date, row.end_date];
+  dlg.visible = true;
+}
+
+async function submit() {
   if (!dlg.form.name || !dateRange.value || dateRange.value.length !== 2) {
     ElMessage.warning('请填写营期名称和起止日期');
     return;
@@ -107,12 +128,17 @@ async function submitCreate() {
   dlg.submitting = true;
   try {
     const body = { ...dlg.form, start_date: dateRange.value[0], end_date: dateRange.value[1] };
-    await api.post('/camp/sessions', body);
-    ElMessage.success('创建成功');
+    if (dlg.editId) {
+      await api.put(`/camp/sessions/${dlg.editId}`, body);
+      ElMessage.success('已保存');
+    } else {
+      await api.post('/camp/sessions', body);
+      ElMessage.success('创建成功');
+    }
     dlg.visible = false;
     fetchList();
   } catch (e) {
-    ElMessage.error(e.response?.data?.message || '创建失败');
+    ElMessage.error(e.response?.data?.message || '操作失败');
   } finally {
     dlg.submitting = false;
   }
