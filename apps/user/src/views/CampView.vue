@@ -89,15 +89,12 @@ onMounted(async () => {
   loadingSessions.value = true;
   try {
     const data = await campService.fetchSessions();
-    sessions.value = data.sessions || [];
-    // 选营优先级：route.query.sid（从 CampHome 入口带过来）> featured 营 > 列表第一个
+    // 仅保留本人是成员的营（staff 的 session_list 会返回所有营，须前端过滤；
+    // 学生/导生后端已按成员过滤，is_member 恒 true，此处无影响）
+    sessions.value = (data.sessions || []).filter((s) => s.is_member);
+    // 选营优先级：route.query.sid（从 CampHome 入口带过来，须为成员营）> 列表第一个
     let initSid = route.query.sid ? Number(route.query.sid) : null;
-    if (!initSid) {
-      try {
-        const f = await campService.fetchFeatured();
-        if (f.session) initSid = f.session.id;
-      } catch { /* featured 无则回落 */ }
-    }
+    if (initSid && !sessions.value.some((s) => s.id === initSid)) initSid = null;
     if (!initSid && sessions.value.length) initSid = sessions.value[0].id;
     if (initSid) sid.value = initSid;
   } catch { /* ignore */ }

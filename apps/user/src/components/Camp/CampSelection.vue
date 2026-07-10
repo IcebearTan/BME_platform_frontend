@@ -15,12 +15,19 @@
       </div>
       <div v-else class="course-grid">
         <DewCard v-for="c in available" :key="c.course_id" variant="inset" size="sm" class="course-card">
-          <div class="card-cover" :style="coverStyle(c.difficulty)">
-            <el-icon class="cover-icon"><Reading /></el-icon>
-            <span class="diff-badge" :class="diffClass(c.difficulty)">{{ diffLabel(c.difficulty) }}</span>
+          <div class="card-cover" :style="coverStyle(c.title)">
+            <div class="cover-title">{{ c.title }}</div>
           </div>
           <div class="card-meta">
-            <div class="course-title" :title="c.title">{{ c.title }}</div>
+            <div class="diff-row" :title="diffLabel(c.difficulty)">
+              <el-icon
+                v-for="i in 5"
+                :key="i"
+                class="star"
+                :class="{ filled: i <= diffLevel(c.difficulty) }"
+              ><StarFilled /></el-icon>
+              <span class="diff-text">{{ diffLabel(c.difficulty) }}</span>
+            </div>
             <div class="card-actions">
               <DewButton size="sm" type="ghost" @click="goCourse(c.course_id)">详情</DewButton>
               <DewButton size="sm" type="glass" @click="pick(c.course_id)">选课</DewButton>
@@ -44,14 +51,22 @@
       </div>
       <div v-else class="course-grid">
         <DewCard v-for="c in mine" :key="c.course_id" variant="inset" size="sm" tinted accent="success" class="course-card enrolled">
-          <div class="card-cover" :style="coverStyle(c.difficulty)">
-            <el-icon class="cover-icon"><Reading /></el-icon>
+          <div class="card-cover" :style="coverStyle(c.title)">
             <span class="status-badge">
               <el-icon><CircleCheckFilled /></el-icon>已选
             </span>
+            <div class="cover-title">{{ c.title }}</div>
           </div>
           <div class="card-meta">
-            <div class="course-title" :title="c.title">{{ c.title }}</div>
+            <div class="diff-row" :title="diffLabel(c.difficulty)">
+              <el-icon
+                v-for="i in 5"
+                :key="i"
+                class="star"
+                :class="{ filled: i <= diffLevel(c.difficulty) }"
+              ><StarFilled /></el-icon>
+              <span class="diff-text">{{ diffLabel(c.difficulty) }}</span>
+            </div>
             <div class="card-actions">
               <DewButton size="sm" type="glass" @click="goCourse(c.course_id)">去学习</DewButton>
             </div>
@@ -67,7 +82,7 @@ import { ref, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { DewCard, DewButton } from '../ui';
 import { ElMessage } from 'element-plus';
-import { Reading, Select, Collection, CircleCheckFilled } from '@element-plus/icons-vue';
+import { Select, Collection, CircleCheckFilled, StarFilled } from '@element-plus/icons-vue';
 import { campService } from '../../services/campService';
 
 const props = defineProps({ sid: { type: [Number, String], required: true } });
@@ -111,25 +126,28 @@ function goCourse(courseId) {
   router.push({ path: '/study/details', query: { id: courseId, from: 'camp' } });
 }
 
-// ── 难度色板（封面渐变 + badge） ──
-const DIFF_MAP = {
-  1: { label: '入门', cls: 'easy', hue: 150 },
-  2: { label: '较易', cls: 'easy', hue: 170 },
-  3: { label: '中等', cls: 'medium', hue: 38 },
-  4: { label: '较难', cls: 'hard', hue: 18 },
-  5: { label: '困难', cls: 'hard', hue: 0 },
-};
-function diffInfo(d) {
-  const n = Number(d);
-  if (!n || n < 1 || n > 5) return { label: '未分级', cls: 'unknown', hue: 220 };
-  return DIFF_MAP[n];
+// ── 封面色：与课程展示页（CoursesComponent）同逻辑——按课程名哈希映射到固定色板，同名同色 ──
+const COLOR_PALETTE = ['#b391ff', '#91bdff', '#91ffde', '#ffcc91', '#ff91c0'];
+function coverColor(name) {
+  let hash = 0;
+  const s = name || '';
+  for (let i = 0; i < s.length; i++) {
+    hash = s.charCodeAt(i) + (hash << 6) + (hash << 16) - hash;
+  }
+  return COLOR_PALETTE[Math.abs(hash) % COLOR_PALETTE.length];
 }
-const diffLabel = (d) => diffInfo(d).label;
-const diffClass = (d) => 'diff-' + diffInfo(d).cls;
-function coverStyle(d) {
-  const { hue } = diffInfo(d);
-  return { background: `linear-gradient(135deg, hsl(${hue}, 68%, 62%), hsl(${hue + 28}, 72%, 50%))` };
+function coverStyle(title) {
+  return { background: coverColor(title) };
 }
+
+// ── 难度：1-5 → 星级 + 文字 ──
+const DIFF_LABEL = { 1: '入门', 2: '较易', 3: '中等', 4: '较难', 5: '困难' };
+function diffLevel(d) {
+  const n = Math.floor(Number(d));
+  if (!n || n < 1) return 0;
+  return Math.min(5, n);
+}
+const diffLabel = (d) => DIFF_LABEL[diffLevel(d)] || '未分级';
 
 watch(() => props.sid, load, { immediate: true });
 </script>
@@ -155,21 +173,35 @@ watch(() => props.sid, load, { immediate: true });
 .course-card:hover { transform: translateY(-3px); }
 .course-card :deep(.dew-card__body) { padding: 0; }
 
+/* 彩色封面：放课程名 */
 .card-cover {
   position: relative;
-  height: 92px;
+  min-height: 92px;
+  padding: 16px 14px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(255, 255, 255, 0.92);
+  box-sizing: border-box;
 }
-.cover-icon { font-size: 32px; opacity: 0.82; transition: transform 0.3s ease; }
-.course-card:hover .cover-icon { transform: scale(1.08); }
+.cover-title {
+  color: rgba(255, 255, 255, 0.97);
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.4;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 
-.diff-badge,
+/* 已选角标 */
 .status-badge {
   position: absolute;
   top: 8px;
+  left: 8px;
   padding: 2px 9px;
   border-radius: 999px;
   font-size: 11px;
@@ -179,28 +211,36 @@ watch(() => props.sid, load, { immediate: true });
   display: inline-flex;
   align-items: center;
   gap: 3px;
+  color: #2c8a4a;
 }
-.diff-badge { right: 8px; color: #444; }
-.diff-badge.diff-easy { color: #2c8a4a; }
-.diff-badge.diff-medium { color: #c77a0e; }
-.diff-badge.diff-hard { color: #d23f3f; }
-.diff-badge.diff-unknown { color: #6b7280; }
-
-.status-badge { left: 8px; color: #2c8a4a; }
 .status-badge .el-icon { font-size: 12px; }
 
+/* 卡片下方信息 */
 .card-meta { padding: 12px 14px 14px; }
-.course-title {
-  font-weight: 600;
-  font-size: 14px;
-  line-height: 1.4;
+
+/* 难度星级 */
+.diff-row {
+  display: flex;
+  align-items: center;
+  gap: 3px;
   margin-bottom: 12px;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  min-height: 38px;
 }
+.diff-row .star {
+  font-size: 14px;
+  color: var(--dew-text-faint, #c0c0c0);
+  opacity: 0.45;
+}
+.diff-row .star.filled {
+  color: #f59e0b;
+  opacity: 1;
+}
+.diff-text {
+  margin-left: 7px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--dew-text-muted, #909399);
+}
+
 .card-actions { display: flex; gap: 8px; }
 
 .empty {
