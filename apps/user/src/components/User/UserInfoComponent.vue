@@ -6,6 +6,7 @@ import { ref, reactive, computed, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { useStore } from 'vuex';
+import { DewCard, DewInput, DewButton, DewTag, DewButtonBar } from '../ui'
 
 const store = useStore()
 
@@ -17,7 +18,7 @@ const splitStringBySpace = (str) => {
 };
 
 const joinArrayWithSpace = (arr) => {
-  return arr.join(' ');  // 使用空格连接数组元素
+  return arr.join(' ');
 };
 
 const fetchAvatar = async () => {
@@ -26,18 +27,14 @@ const fetchAvatar = async () => {
       method: "get",
   }).then((res) => {
       if (res.data.code == 200) {
-          // 检查头像数据是否存在
           if (res.data.User_Avatar && res.data.User_Avatar !== null) {
               store.commit('setAvatar', res.data.User_Avatar)
           } else {
-              // 头像为 null，清除 store 中的头像数据
               store.commit('setAvatar', null)
           }
-          console.log(store.state.avatar)
       }
   }).catch((error) => {
       console.error('获取头像失败:', error)
-      // 如果请求失败，也清除 store 中的头像数据
       store.commit('setAvatar', null)
   })
 }
@@ -49,25 +46,9 @@ const fetchUserInfo = async () => {
   }).then((res) => {
       if (res.data.code == 200) {
           store.commit('setUser', res.data)
-          console.log(store.state.user)
       }
   })
 }
-
-onMounted(() => {
-  setTimeout(() => {
-    // console.log(props.User_Info.User_Sex)
-    form.username = props.User_Info.User_Name
-    form.gender = props.User_Info.User_Sex
-    form.college = props.User_Info.College
-    form.major = props.User_Info.Major
-    form.introduction = props.User_Info.Introduction
-    form.GithubId = props.User_Info.Github_Id
-    form.Student_Id = props.User_Info.Student_Id || ''
-    form.tags = splitStringBySpace(props.User_Info.Skill_Tags)
-  }, 200)
-
-})
 
 const props = defineProps({
   User_Info: {
@@ -76,7 +57,6 @@ const props = defineProps({
   }
 })
 
-// const ruleFormRef = ref<FormInstance>();
 const form = reactive({
   username: '',
   gender: '',
@@ -96,7 +76,7 @@ const rules = {
     { min: 2, max: 15, message: '姓名长度需要在2-15个字符之间', trigger: 'blur' },
     {
       validator: (rule, value, callback) => {
-        const isChinese = /^[\u4e00-\u9fa5]+$/.test(value);
+        const isChinese = /^[一-龥]+$/.test(value);
         if (!isChinese) {
           callback(new Error('用户名必须为中文'));
         } else {
@@ -108,13 +88,33 @@ const rules = {
   ]
 }
 
-const tagsCount = computed(() => {
-  if (form.tags) {
-    return form.tags.length
-  }else {
-    return 0
+// 性别（DewButtonBar 分段选择，避免 el-select 在暗色下不适配）
+const genderOptions = [
+  { value: '男性', label: '男性' },
+  { value: '女性', label: '女性' },
+  { value: '武装直升机', label: '武装直升机' },
+  { value: '沃尔玛购物袋', label: '沃尔玛购物袋' },
+]
+
+// 技能标签：DewInput 回车添加 + DewTag 展示（替代 el-input-tag）
+const tagInput = ref('')
+const tagTypes = ['primary', 'success', 'info', 'warning', 'danger']
+const tagType = (i) => tagTypes[i % tagTypes.length]
+const addTag = () => {
+  const v = tagInput.value.trim()
+  if (!v) return
+  if (form.tags.length >= 10) {
+    ElMessage.warning('最多 10 个标签')
+    return
   }
-})
+  if (!form.tags.includes(v)) form.tags.push(v)
+  tagInput.value = ''
+}
+const removeTag = (i) => {
+  form.tags.splice(i, 1)
+}
+
+const tagsCount = computed(() => form.tags ? form.tags.length : 0)
 
 const loading = ref(false)
 nextTick(() => {
@@ -124,8 +124,20 @@ nextTick(() => {
     }, 500)
 })
 
+onMounted(() => {
+  setTimeout(() => {
+    form.username = props.User_Info.User_Name
+    form.gender = props.User_Info.User_Sex
+    form.college = props.User_Info.College
+    form.major = props.User_Info.Major
+    form.introduction = props.User_Info.Introduction
+    form.GithubId = props.User_Info.Github_Id
+    form.Student_Id = props.User_Info.Student_Id || ''
+    form.tags = splitStringBySpace(props.User_Info.Skill_Tags)
+  }, 200)
+})
+
 const onSubmit = () => {
-  // console.log(form)
   formRef.value.validate((valid) => {
     if (valid) {
       api({
@@ -142,7 +154,6 @@ const onSubmit = () => {
           User_Name: form.username
         }
       }).then(res => {
-        console.log(res)
         if (res.data.code === 200) {
           setTimeout(() => {
             window.location.reload()
@@ -161,123 +172,175 @@ const onSubmit = () => {
       ElMessage({ type: 'error', message: '用户信息修改失败！' })
     }
   })
-  
+
 }
 </script>
 
 <template>
-  <div class="userInfoContainer"
-        v-loading="loading" 
-        element-loading-background="rgba(255, 255, 255, 1)" 
-        :delay="0" 
-        element-loading-text="loading...">
-    <div class="UserInfoCard">
-      <div class="avatarContainer">
+  <div class="uc-userinfo">
+    <DewCard
+      size="lg"
+      divided
+      class="userinfo-card"
+      v-loading="loading"
+      element-loading-background="transparent"
+      :delay="0"
+      element-loading-text="loading..."
+    >
+      <template #header>账户设置</template>
+
+      <!-- 头像上传 -->
+      <div class="avatar-block">
         <AvatarUploadComponent />
-        <div style="width: 100%; text-align: center; margin-top: 10px; color: #999;">上传头像</div>
+        <div class="avatar-hint">上传头像</div>
       </div>
-      <div class="infoContainer">
-        <el-form ref="formRef" :model="form" label-width="auto" style="width: 90%;" label-position="top" size="large" :rules="rules">
-          <el-row :gutter="20">
-            <el-col :span="12">
-              <el-form-item label="姓名" prop="username">
-                <el-input v-model="form.username" placeholder="输入你的真实姓名" clearable/>
-              </el-form-item>
-            </el-col>
-            <el-col :span="12">
-              <el-form-item label="性别">
-                <el-select v-model="form.gender" placeholder="选择你的性别">
-                  <el-option label="男性" value="男性" />
-                  <el-option label="女性" value="女性" />
-                  <el-option label="武装直升机" value="武装直升机" />
-                  <el-option label="沃尔玛购物袋" value="沃尔玛购物袋" />
-                </el-select>
-              </el-form-item>
-            </el-col>
-          </el-row>
-          <el-row :gutter="20">
-            <el-col :span="12">
-              <el-form-item label="学校">
-                <el-input v-model="form.college" placeholder="学校名称" clearable/>
-              </el-form-item>
-            </el-col>
-            <el-col :span="12">
-              <el-form-item label="专业">
-                <el-input v-model="form.major" placeholder="所在专业" clearable/>
-              </el-form-item>
-            </el-col>
-          </el-row>
-          <el-row :gutter="20">
-            <el-col :span="12">
-              <el-form-item label="GitHub ID">
-                <el-input v-model="form.GithubId" placeholder="你的Github用户名" clearable/>
-              </el-form-item>
-            </el-col>
-            <el-col :span="12">
-              <el-form-item label="学号">
-                <el-input v-model="form.Student_Id" placeholder="你的学号" clearable/>
-              </el-form-item>
-            </el-col>
-          </el-row>
-          <el-form-item label="个人简介">
-            <el-input v-model="form.introduction" 
-            type="textarea" 
-            :autosize="{ minRows: 4, maxRows: 5 }" 
-            placeholder="简单介绍一下自己吧~" 
-            maxlength="100" 
-            show-word-limit 
-            clearable
+
+      <!-- 表单（保留 el-form 做校验；输入控件换成 DewUI，靠 token 自动适配亮/暗） -->
+      <el-form
+        ref="formRef"
+        :model="form"
+        label-position="top"
+        :rules="rules"
+        class="userinfo-form"
+      >
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="姓名" prop="username">
+              <DewInput v-model="form.username" placeholder="输入你的真实姓名" clearable />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="学号">
+              <DewInput v-model="form.Student_Id" placeholder="你的学号" clearable />
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="学校">
+              <DewInput v-model="form.college" placeholder="学校名称" clearable />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="专业">
+              <DewInput v-model="form.major" placeholder="所在专业" clearable />
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <el-form-item label="GitHub ID">
+          <DewInput v-model="form.GithubId" placeholder="你的 Github 用户名" clearable />
+        </el-form-item>
+
+        <el-form-item label="性别">
+          <DewButtonBar :items="genderOptions" v-model="form.gender" />
+        </el-form-item>
+
+        <el-form-item label="个人简介">
+          <DewInput
+            v-model="form.introduction"
+            type="textarea"
+            :rows="4"
+            placeholder="简单介绍一下自己吧~"
+          />
+        </el-form-item>
+
+        <el-form-item label="技能标签">
+          <div class="tag-editor">
+            <div v-if="tagsCount" class="tag-chips">
+              <DewTag v-for="(tag, i) in form.tags" :key="i" :type="tagType(i)" size="sm" round class="tag-chip">
+                {{ tag }}
+                <button type="button" class="tag-remove" @click="removeTag(i)" aria-label="移除">×</button>
+              </DewTag>
+            </div>
+            <DewInput
+              v-model="tagInput"
+              placeholder="输入技能后回车添加（最多 10 个）"
+              @enter="addTag"
             />
-          </el-form-item>
-          <el-form-item label="技能标签">
-            <el-input-tag v-model="form.tags" placeholder="你所拥有的技能" trigger="Enter" clearable :max="10" show-word-limit>
-              <template #suffix>
-                {{ tagsCount }} / 10
-              </template>
-            </el-input-tag>
-          </el-form-item>
-          <el-form-item>
-            <el-button type="success" @click="onSubmit" style="margin: auto;">保存</el-button>
-          </el-form-item>
-        </el-form>
-      </div>
-    </div>
+          </div>
+        </el-form-item>
+
+        <el-form-item>
+          <DewButton :active="true" @click="onSubmit">保存</DewButton>
+        </el-form-item>
+      </el-form>
+    </DewCard>
   </div>
 </template>
 
 <style scoped>
-.userInfoContainer{
+.uc-userinfo {
   width: 100%;
-
-  margin-top: 10px;
-  margin-left: 20px;
 }
-.UserInfoCard{
-  /* width: 100%; */
-  min-height: 250px;
-  background-color: #fff;
-  border-radius: 10px;
-  box-shadow: 0 0 10px rgb(232, 230, 230);
 
-  margin-right: 10px;
-}
-.avatarContainer{
+.userinfo-card {
   width: 100%;
+}
 
+/* 头像上传区 */
+.avatar-block {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
   align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
 
-  padding-top: 20px;
-  padding-bottom: 20px;
+.avatar-hint {
+  font-size: 13px;
+  color: var(--dew-text-faint);
+}
 
+/* 表单：DewInput 自带玻璃质感；el-form 仅做排版 + 校验 */
+.userinfo-form {
+  width: 100%;
+}
+
+.userinfo-form :deep(.el-form-item__label) {
+  color: var(--dew-text-heading);
+  font-weight: 600;
+  font-size: 13px;
+  padding-bottom: 4px;
+}
+
+.userinfo-form :deep(.el-form-item__error) {
+  color: var(--color-danger);
+}
+
+/* 技能标签编辑器 */
+.tag-editor {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tag-chips {
+  display: flex;
   flex-wrap: wrap;
+  gap: 6px;
 }
-.infoContainer{
-  width: 100%;
 
-  display: flex;
-  justify-content: center;
-  align-items: center;
+.tag-chip {
+  /* DewTag 是 inline-flex，移除按钮嵌在里面 */
+  gap: 4px;
+}
+
+.tag-remove {
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+}
+
+.tag-remove:hover {
+  opacity: 1;
 }
 </style>

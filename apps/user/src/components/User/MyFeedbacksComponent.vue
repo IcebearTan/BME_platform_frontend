@@ -1,111 +1,97 @@
 <template>
-  <div class="my-feedbacks">
-    <div class="header">
-      <h2>我的反馈记录</h2>
-      <p class="subtitle">查看您提交的所有反馈记录</p>
-    </div>
-
-    <el-table 
-      :data="feedbackList" 
-      v-loading="loading" 
-      style="width: 100%; max-width: 860px;"
-      stripe
-      :header-cell-style="{ background: '#f5f7fa', color: '#606266' }"
-      :cell-style="{ 'vertical-align': 'top', 'padding': '12px 8px' }"
-      :default-sort="{ prop: 'created_at', order: 'descending' }"
+  <div class="uc-feedbacks">
+    <DewCard
+      size="lg"
+      divided
+      class="feedbacks-card"
+      v-loading="loading"
+      element-loading-background="transparent"
     >
-      <el-table-column label="标题" width="120">
-        <template #default="scope">
-          <div class="cell-content title-cell">{{ scope.row.title }}</div>
-        </template>
-      </el-table-column>
-      
-      <el-table-column label="问题描述" width="295">
-        <template #default="scope">
-          <div class="cell-content content-cell">{{ scope.row.content }}</div>
-        </template>
-      </el-table-column>
-      
-      <el-table-column label="图片" width="70" align="center">
-        <template #default="scope">
-          <div v-if="scope.row.has_image && scope.row.images && scope.row.images.length > 0" class="image-preview">
-            <el-image
-              :src="scope.row.images[0]"
-              style="width: 40px; height: 40px; border-radius: 4px"
-              fit="cover"
-              :preview-src-list="scope.row.images"
-              :preview-teleported="true"
-            />
-            <span v-if="scope.row.images.length > 1" class="image-count">
-              +{{ scope.row.images.length - 1 }}
-            </span>
-          </div>
-          <span v-else style="color: #c0c4cc; font-size: 12px;">无</span>
-        </template>
-      </el-table-column>
-      
-      <el-table-column label="时间" width="140">
-        <template #default="scope">
-          <div class="cell-content time-cell">{{ scope.row.created_at }}</div>
-        </template>
-      </el-table-column>
-      
-      <el-table-column label="状态" width="80" align="center">
-        <template #default="scope">
-          <el-tag 
-            :type="scope.row.status === '已处理' ? 'success' : 'warning'"
-            effect="plain"
-            size="small"
-            style="font-size: 12px;"
-          >
-            {{ scope.row.status || '待处理' }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      
-      <el-table-column label="操作" width="110" align="center">
-        <template #default="scope">
-          <div class="action-buttons">
-            <el-button 
-              type="primary" 
-              link 
-              size="small"
-              @click="viewDetail(scope.row)"
-            >
-              查看
-            </el-button>
-            <el-button 
-              type="danger" 
-              link
-              style="margin-left: 0;"
-              size="small"
-              @click="confirmDelete(scope.row)"
-            >
-              删除
-            </el-button>
-          </div>
-        </template>
-      </el-table-column>
-    </el-table>
+      <template #header>
+        <div class="fb-header">
+          <span class="fb-title">我的反馈记录</span>
+          <span class="fb-subtitle">查看您提交的所有反馈记录</span>
+        </div>
+      </template>
 
-    <!-- 空状态 -->
-    <el-empty 
-      v-if="!loading && feedbackList.length === 0" 
-      description="暂无反馈记录"
-      :image-size="120"
-    >
-      <el-button type="primary" @click="$router.push('/')">
-        去首页提交反馈
-      </el-button>
-    </el-empty>
+      <!-- 反馈表格（DewUI 没有表格组件，保留 el-table，用 --el-table-* 变量映射到 DewUI token 做亮/暗适配） -->
+      <div class="fb-table-wrap" v-if="feedbackList.length > 0">
+        <el-table
+          :data="feedbackList"
+          style="width: 100%;"
+          stripe
+          :cell-style="{ 'vertical-align': 'top', 'padding': '12px 8px' }"
+          :default-sort="{ prop: 'created_at', order: 'descending' }"
+        >
+          <el-table-column label="标题" width="120">
+            <template #default="scope">
+              <div class="cell-content title-cell">{{ scope.row.title }}</div>
+            </template>
+          </el-table-column>
 
-    <!-- 详情对话框 -->
-    <el-dialog
-      v-model="detailVisible"
-      title="反馈详情"
-      width="600px"
-      :lock-scroll="false"
-    >
+          <el-table-column label="问题描述" min-width="240">
+            <template #default="scope">
+              <div class="cell-content content-cell">{{ scope.row.content }}</div>
+            </template>
+          </el-table-column>
+
+          <el-table-column label="图片" width="70" align="center">
+            <template #default="scope">
+              <div v-if="scope.row.has_image && scope.row.images && scope.row.images.length > 0" class="image-preview">
+                <el-image
+                  :src="scope.row.images[0]"
+                  style="width: 40px; height: 40px; border-radius: 6px"
+                  fit="cover"
+                  :preview-src-list="scope.row.images"
+                  :preview-teleported="true"
+                />
+                <span v-if="scope.row.images.length > 1" class="image-count">
+                  +{{ scope.row.images.length - 1 }}
+                </span>
+              </div>
+              <span v-else class="muted">无</span>
+            </template>
+          </el-table-column>
+
+          <el-table-column label="时间" width="150">
+            <template #default="scope">
+              <div class="cell-content time-cell">{{ scope.row.created_at }}</div>
+            </template>
+          </el-table-column>
+
+          <el-table-column label="状态" width="90" align="center">
+            <template #default="scope">
+              <DewTag
+                :type="scope.row.status === '已处理' ? 'success' : 'warning'"
+                size="sm"
+                round
+              >
+                {{ scope.row.status || '待处理' }}
+              </DewTag>
+            </template>
+          </el-table-column>
+
+          <el-table-column label="操作" width="110" align="center">
+            <template #default="scope">
+              <div class="action-buttons">
+                <DewButton size="sm" type="ghost" @click="viewDetail(scope.row)">查看</DewButton>
+                <DewButton size="sm" type="danger" @click="confirmDelete(scope.row)">删除</DewButton>
+              </div>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+
+      <!-- 空状态 -->
+      <div v-else-if="!loading" class="empty-state">
+        <el-icon class="empty-icon"><Document /></el-icon>
+        <span class="empty-text">暂无反馈记录</span>
+        <DewButton :active="true" @click="$router.push('/')">去首页提交反馈</DewButton>
+      </div>
+    </DewCard>
+
+    <!-- 详情对话框（DewUI） -->
+    <DewDialog v-model="detailVisible" title="反馈详情" :width="600">
       <div v-if="currentFeedback" class="feedback-detail">
         <div class="detail-item">
           <label>标题：</label>
@@ -122,7 +108,7 @@
               v-for="(img, index) in currentFeedback.images"
               :key="index"
               :src="img"
-              style="width: 80px; height: 80px; margin: 5px; border-radius: 6px"
+              style="width: 80px; height: 80px; border-radius: 8px"
               fit="cover"
               :preview-src-list="currentFeedback.images"
               :initial-index="index"
@@ -136,22 +122,24 @@
         </div>
         <div class="detail-item">
           <label>处理状态：</label>
-          <el-tag 
+          <DewTag
             :type="currentFeedback.status === '已处理' ? 'success' : 'warning'"
-            effect="plain"
+            size="sm"
+            round
           >
             {{ currentFeedback.status || '待处理' }}
-          </el-tag>
+          </DewTag>
         </div>
       </div>
-    </el-dialog>
+    </DewDialog>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { View } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+import { Document } from '@element-plus/icons-vue'
+import { DewCard, DewTag, DewButton, DewDialog, DewMessageBox } from '../ui'
 import api from '../../api'
 
 const feedbackList = ref([])
@@ -167,20 +155,17 @@ const fetchFeedbacks = async () => {
       url: '/information/error/query',
       method: 'get'
     })
-    
+
     if (response.data.code === 200) {
-      // 处理返回的数据格式
       feedbackList.value = (response.data.data || []).map(item => {
         let images = []
-        // 如果有图片且image字段不为空
         if (item.has_image && item.image) {
-          // 处理base64图片数据
-          const imageData = item.image.startsWith('data:image/') 
-            ? item.image 
+          const imageData = item.image.startsWith('data:image/')
+            ? item.image
             : `data:image/png;base64,${item.image}`
           images = [imageData]
         }
-        
+
         return {
           id: item.id,
           title: item.title,
@@ -188,7 +173,7 @@ const fetchFeedbacks = async () => {
           images,
           created_at: formatDate(item.create_time),
           has_image: item.has_image,
-          status: '待处理' // 默认状态，如果后端有status字段可以使用 item.status
+          status: '待处理'
         }
       })
     } else {
@@ -221,20 +206,17 @@ const formatDate = (dateStr) => {
   })
 }
 
-// 删除反馈
-const confirmDelete = (row) => {
-  ElMessageBox.confirm(
-    `确定要删除标题为“${row.title}”的反馈吗？`,
-    '删除确认',
-    {
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
-      type: 'warning',
-      lockScroll: false
-    }
-  ).then(() => {
-    deleteFeedback(row.id)
-  }).catch(() => {})
+// 删除反馈（DewUI 确认弹窗）
+const confirmDelete = async (row) => {
+  try {
+    await DewMessageBox.confirm(`确定要删除标题为“${row.title}”的反馈吗？`, '删除确认', {
+      confirmText: '删除',
+      cancelText: '取消',
+    })
+  } catch (e) {
+    return // 用户取消
+  }
+  deleteFeedback(row.id)
 }
 
 const deleteFeedback = async (id) => {
@@ -261,16 +243,61 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.my-feedbacks {
-  padding: 16px;
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-  min-height: 600px;
-  max-width: 900px;
-  margin: 0 auto;
+.uc-feedbacks {
+  width: 100%;
 }
 
+.feedbacks-card {
+  width: 100%;
+}
+
+/* 头部：标题 + 副标题 */
+.fb-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fb-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--dew-text-heading);
+}
+
+.fb-subtitle {
+  font-size: 13px;
+  color: var(--dew-text-muted);
+}
+
+/* el-table 变量映射到 DewUI token：让表格在玻璃卡上 + 亮/暗都正确 */
+.fb-table-wrap {
+  --el-table-bg-color: transparent;
+  --el-table-tr-bg-color: transparent;
+  --el-table-header-bg-color: var(--dew-card-inset-bg);
+  --el-table-header-text-color: var(--dew-text-heading);
+  --el-table-text-color: var(--dew-text);
+  --el-table-border-color: var(--dew-card-divider);
+  --el-table-border: 1px solid var(--dew-card-divider);
+  --el-table-row-hover-bg-color: var(--dew-ghost-hover-bg);
+  /* 斑马纹底色 */
+  --el-fill-color-light: var(--dew-card-inset-bg);
+  --el-fill-color-blank: transparent;
+}
+
+.fb-table-wrap :deep(.el-table) {
+  background: transparent;
+}
+
+.fb-table-wrap :deep(.el-table th.el-table__cell) {
+  background: var(--dew-card-inset-bg) !important;
+  font-weight: 600;
+}
+
+.fb-table-wrap :deep(.el-table .el-table__cell) {
+  border-bottom-color: var(--dew-card-divider);
+}
+
+/* 单元格文本 */
 .cell-content {
   line-height: 1.4;
   font-size: 13px;
@@ -280,14 +307,13 @@ onMounted(() => {
 }
 
 .title-cell {
-  font-weight: 500;
-  color: #303133;
+  font-weight: 600;
+  color: var(--dew-text-heading);
   max-width: 110px;
 }
 
 .content-cell {
-  color: #606266;
-  max-width: 290px;
+  color: var(--dew-text);
   max-height: 60px;
   overflow: hidden;
   display: -webkit-box;
@@ -298,36 +324,23 @@ onMounted(() => {
 
 .time-cell {
   font-size: 12px;
-  color: #909399;
-  max-width: 100px;
+  color: var(--dew-text-faint);
+  max-width: 130px;
+}
+
+.muted {
+  color: var(--dew-text-faint);
+  font-size: 12px;
 }
 
 .action-buttons {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
   align-items: center;
 }
 
-.header {
-  margin-bottom: 24px;
-  border-bottom: 1px solid #ebeef5;
-  padding-bottom: 16px;
-}
-
-.header h2 {
-  font-size: 24px;
-  font-weight: 600;
-  color: #303133;
-  margin: 0 0 8px 0;
-}
-
-.subtitle {
-  color: #909399;
-  margin: 0;
-  font-size: 14px;
-}
-
+/* 图片预览角标 */
 .image-preview {
   position: relative;
   display: inline-block;
@@ -337,35 +350,59 @@ onMounted(() => {
   position: absolute;
   bottom: 0;
   right: 0;
-  background: rgba(0,0,0,0.6);
+  background: rgba(0, 0, 0, 0.6);
   color: white;
-  font-size: 12px;
-  padding: 2px 4px;
-  border-radius: 2px;
+  font-size: 11px;
+  padding: 1px 5px;
+  border-radius: 0 6px 0 6px;
 }
 
+/* 空状态 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 56px 0;
+  color: var(--dew-text-faint);
+}
+
+.empty-icon {
+  font-size: 40px;
+  color: var(--dew-text-faint);
+}
+
+.empty-text {
+  font-size: 14px;
+}
+
+/* 详情对话框内容 */
 .feedback-detail {
-  padding: 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .detail-item {
-  margin-bottom: 16px;
   display: flex;
   align-items: flex-start;
+  gap: 8px;
 }
 
 .detail-item label {
   font-weight: 600;
-  color: #606266;
+  color: var(--dew-text-heading);
   min-width: 80px;
   flex-shrink: 0;
 }
 
+.detail-item span,
 .detail-item .content {
-  margin: 0;
+  color: var(--dew-text);
   line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-word;
+  margin: 0;
 }
 
 .images-grid {
@@ -374,14 +411,9 @@ onMounted(() => {
   gap: 8px;
 }
 
-/* 移动端适配 */
 @media (max-width: 768px) {
-  .my-feedbacks {
-    padding: 16px;
-  }
-  
-  .header h2 {
-    font-size: 20px;
+  .fb-title {
+    font-size: 16px;
   }
 }
 </style>
