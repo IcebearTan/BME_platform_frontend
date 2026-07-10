@@ -11,7 +11,7 @@
       >
         <el-carousel-item v-for="(banner, index) in banners" :key="index">
           <div class="banner-item" @click="handleBannerClick(banner)">
-            <div class="banner-overlay">
+            <div v-if="!banner.bare" class="banner-overlay">
               <h3 class="banner-title">{{ banner.title }}</h3>
               <p class="banner-description">{{ banner.description }}</p>
             </div>
@@ -125,8 +125,9 @@ const banners = ref([
     id: 2,
     title: '2026 暑期训练营',
     description: '加入营期，沉浸式学习与考勤打卡',
-    image: bgImage,
-    route: '/camp-home'
+    image: import.meta.env.BASE_URL + '2026暑期训练营.png',
+    route: '/camp-home',
+    bare: true
   },
   {
     id: 3,
