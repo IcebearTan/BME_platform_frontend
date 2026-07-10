@@ -90,7 +90,16 @@ onMounted(async () => {
   try {
     const data = await campService.fetchSessions();
     sessions.value = data.sessions || [];
-    if (sessions.value.length) sid.value = sessions.value[0].id;
+    // 选营优先级：route.query.sid（从 CampHome 入口带过来）> featured 营 > 列表第一个
+    let initSid = route.query.sid ? Number(route.query.sid) : null;
+    if (!initSid) {
+      try {
+        const f = await campService.fetchFeatured();
+        if (f.session) initSid = f.session.id;
+      } catch { /* featured 无则回落 */ }
+    }
+    if (!initSid && sessions.value.length) initSid = sessions.value[0].id;
+    if (initSid) sid.value = initSid;
   } catch { /* ignore */ }
   finally { loadingSessions.value = false; }
 });

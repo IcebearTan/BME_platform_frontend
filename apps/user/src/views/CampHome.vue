@@ -315,7 +315,7 @@ const calendarCells = computed(() => {
   return sorted.map((d) => ({ date: d, cell: daily.value[d] || { status: 'unpledged' } }));
 });
 
-function go(tab) { router.push({ path: '/camp', query: { tab } }); }
+function go(tab) { router.push({ path: '/camp', query: { tab, sid: session.value?.id } }); }
 
 async function loadFeatured() {
   const data = await campService.fetchFeatured();
