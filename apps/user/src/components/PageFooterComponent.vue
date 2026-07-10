@@ -14,9 +14,9 @@
             <div class="subtitle_disabled">
                 3D打印平台
             </div>
-            <div class="subtitle_disabled">
+            <router-link class="subtitle" :to="{ path: '/community'}" target="_blank">
                 讨论社区
-            </div>
+            </router-link>
         </div>
         <div class="links">
             <div class="title_disabled">
