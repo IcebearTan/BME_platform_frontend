@@ -171,6 +171,7 @@
               <span><span class="lg-dot lg-on_leave"></span>请假</span>
               <span><span class="lg-dot lg-late"></span>迟到/不足</span>
               <span><span class="lg-dot lg-absent"></span>缺勤</span>
+              <span><span class="lg-dot lg-future"></span>未到</span>
               <span><span class="lg-dot lg-unpledged"></span>未承诺</span>
             </div>
           </div>
@@ -536,6 +537,7 @@ onMounted(async () => {
 .lg-on_leave { background: var(--color-info); }
 .lg-late { background: var(--color-warning); }
 .lg-absent { background: var(--dew-text-faint); }
+.lg-future { background: var(--color-info); opacity: 0.35; }
 .lg-unpledged { background: var(--dew-text-faint); opacity: 0.4; }
 .heat-present { background: rgba(16, 185, 129, 0.12); } .heat-present .heat-dot { background: var(--color-success); }
 .heat-late, .heat-short_hours { background: rgba(245, 158, 11, 0.12); } .heat-late .heat-dot, .heat-short_hours .heat-dot { background: var(--color-warning); }
@@ -543,6 +545,7 @@ onMounted(async () => {
 .heat-absent { background: rgba(156, 163, 175, 0.14); } .heat-absent .heat-dot { background: var(--dew-text-faint); }
 .heat-on_leave { background: rgba(99, 102, 241, 0.12); } .heat-on_leave .heat-dot { background: var(--color-info); }
 .heat-unpledged { background: transparent; border: 1px dashed rgba(150,150,150,0.3); } .heat-unpledged .heat-dot { background: transparent; } .heat-unpledged .heat-day { color: var(--dew-text-faint); opacity: 0.5; }
+.heat-future { background: rgba(99, 102, 241, 0.06); } .heat-future .heat-dot { background: transparent; border: 1px solid var(--color-info); } .heat-future .heat-day { color: var(--color-info); opacity: 0.6; }
 
 /* bottom */
 .bottom-row { margin-bottom: 16px; }

@@ -5,6 +5,7 @@ import { useStore } from 'vuex'
 import { ArrowDown } from '@element-plus/icons-vue'
 import api from '../../api';
 import LearningPathComponent from './LearningPathComponent.vue'
+import { DewButtonBar } from '../ui'
 
 const router = useRouter()
 const store = useStore()
@@ -47,19 +48,14 @@ const mockCourseList = [
 
 const courseList = ref([])
 
-const buttons = reactive([
-    { label: '全部课程', active: true },
-    { label: '硬件组', active: false },
-    { label: '软件组', active: false },
-    { label: '先进制造组', active: false },
-]);
-
-// 设置活动按钮的方法
-const setActive = (index) => {
-    buttons.forEach((button, i) => {
-        button.active = i === index;
-    });
-};
+// 课程分类切换（DewButtonBar：value 即分类标签）
+const categories = [
+    { value: '全部课程', label: '全部课程' },
+    { value: '硬件组', label: '硬件组' },
+    { value: '软件组', label: '软件组' },
+    { value: '先进制造组', label: '先进制造组' },
+]
+const currentCategory = ref('全部课程')
 
 const getCourseList = async () => {
     if (USE_MOCK) {
@@ -83,13 +79,12 @@ const handleCourseClick = (courseId) => {
     router.push({ path: '/study/details', query: { id: courseId } })
 }
 
-// 计算属性：根据按钮过滤课程
+// 计算属性：根据当前分类过滤课程
 const filteredCourses = computed(() => {
-    const activeBtn = buttons.find(btn => btn.active);
-    if (!activeBtn || activeBtn.label === '全部课程') {
+    if (currentCategory.value === '全部课程') {
         return courseList.value;
     }
-    return courseList.value.filter(course => course.Course_Tags === activeBtn.label);
+    return courseList.value.filter(course => course.Course_Tags === currentCategory.value);
 });
 
 // 计算属性：按年份分组，年份降序排列
@@ -178,10 +173,7 @@ onMounted(() => {
     <div class="mainContainer" :class="themeClass">
         <div style="width: 1300px;">
             <div class="button-group-container">
-                <el-button v-for="(button, index) in buttons" :key="index" :type="button.active ? 'primary' : 'text'"
-                    class="styled-button" @click="setActive(index)">
-                    {{ button.label }}
-                </el-button>
+                <DewButtonBar :items="categories" v-model="currentCategory" />
             </div>
         </div>
 
@@ -690,27 +682,6 @@ onMounted(() => {
     margin-top: 30px;
     margin-left: 10px;
     margin-right: auto;
-}
-
-.styled-button {
-    font-size: 17px;
-    padding: 18px 20px;
-    border-radius: 8px;
-    transition: all 0.3s ease;
-    margin-right: 20px;
-}
-
-.styled-button:focus {
-    outline: none;
-}
-
-/* 主题适配 - 按钮样式 */
-.theme-light .styled-button:hover {
-    background-color: #f0f0f0;
-}
-
-.theme-dark .styled-button:hover {
-    background-color: #404040;
 }
 
 /* 激活状态按钮 */
