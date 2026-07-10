@@ -226,6 +226,13 @@
   --dew-bar-text:     rgba(55, 65, 81, 0.6);
   --dew-bar-text-active: #1f2937;
   --dew-bar-text-hover: rgba(55, 65, 81, 0.85);
+
+  /* 进度条 DewProgress（light：透明如水的蓝青填充 + 玻璃高光） */
+  --dew-progress-track-bg:         rgba(127, 127, 127, 0.12);
+  --dew-progress-track-shadow:     inset 0 1px 2px rgba(0, 0, 0, 0.06), inset 0 0 0 0.5px rgba(255, 255, 255, 0.25);
+  --dew-progress-fill-bg:          linear-gradient(90deg, rgba(59, 130, 246, 0.55) 0%, rgba(56, 189, 248, 0.50) 100%);
+  --dew-progress-fill-highlight:   rgba(255, 255, 255, 0.65);
+  --dew-progress-fill-shadow:      inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 
 /* ━━━━ 暗色模式覆盖 ━━━━ */
@@ -367,6 +374,13 @@
   --dew-bar-text:     rgba(255, 255, 255, 0.45);
   --dew-bar-text-active: rgba(255, 255, 255, 0.9);
   --dew-bar-text-hover: rgba(255, 255, 255, 0.7);
+
+  /* 进度条 DewProgress（dark：高亮发白光的填充 + 白色外发光） */
+  --dew-progress-track-bg:         rgba(255, 255, 255, 0.06);
+  --dew-progress-track-shadow:     inset 0 1px 2px rgba(0, 0, 0, 0.3), inset 0 0 0 0.5px rgba(255, 255, 255, 0.08);
+  --dew-progress-fill-bg:          linear-gradient(90deg, rgba(255, 255, 255, 0.95) 0%, rgba(210, 225, 255, 0.88) 100%);
+  --dew-progress-fill-highlight:   rgba(255, 255, 255, 0.9);
+  --dew-progress-fill-shadow:      0 0 10px rgba(255, 255, 255, 0.55), 0 0 22px rgba(180, 210, 255, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.85);
 
   /* Badge / Tag 的语义色底色也要加深 */
   --color-primary-light: rgba(59, 130, 246, 0.15);

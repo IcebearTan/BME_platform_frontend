@@ -64,7 +64,7 @@
             <span>{{ session.start_date }} ~ {{ session.end_date }}</span>
           </div>
           <div class="hero-progress">
-            <div class="hero-bar"><div class="hero-bar-fill" :style="{ width: progress.pct + '%' }"></div></div>
+            <DewProgress :percentage="progress.pct" size="md" />
             <div class="progress-meta">
               <span>营期进度</span>
               <span class="progress-num">{{ progress.elapsed }} / {{ progress.total }} 天 · {{ progress.pct }}%</span>
@@ -247,7 +247,7 @@ import { ref, reactive, computed, onMounted, onUnmounted, watch, nextTick } from
 import { useStore } from 'vuex';
 import { useRouter } from 'vue-router';
 import MenuComponent from '../components/MenuComponent.vue';
-import { DewCard, DewButton } from '../components/ui';
+import { DewCard, DewButton, DewProgress } from '../components/ui';
 import { ElMessage } from 'element-plus';
 import { Calendar, Clock, User, Trophy } from '@element-plus/icons-vue';
 import { campService } from '../services/campService';
@@ -521,8 +521,6 @@ onMounted(async () => {
 .dot-status-archived { background: var(--color-warning); }
 .hero-sub .sep { color: var(--dew-text-faint); }
 .hero-progress { margin-top: 18px; }
-.hero-bar { height: 6px; background: rgba(0, 0, 0, 0.06); border-radius: var(--radius-full); overflow: hidden; }
-.hero-bar-fill { height: 100%; background: linear-gradient(90deg, #3b82f6, #6366f1); border-radius: var(--radius-full); transition: width 0.6s var(--dew-bounce); }
 .progress-meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--dew-text-muted); margin-top: 8px; }
 .progress-num { font-weight: 600; color: var(--dew-text-heading); }
 

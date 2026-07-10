@@ -600,6 +600,30 @@
         </div>
       </section>
 
+      <!-- ━━━━ Progress ━━━━ -->
+      <section v-if="activeTab === 'progress'" style="margin-bottom: 36px;">
+        <h2 class="dew-showcase__heading" style="font-size: 15px; font-weight: 600; margin: 0 0 14px;">DewProgress 进度条</h2>
+        <div style="display: flex; flex-direction: column; gap: 20px; max-width: 520px;">
+          <div>
+            <div style="font-size: 12px; color: var(--dew-text-muted); margin-bottom: 6px;">sm · 35%</div>
+            <DewProgress :percentage="35" size="sm" />
+          </div>
+          <div>
+            <div style="font-size: 12px; color: var(--dew-text-muted); margin-bottom: 6px;">md · 60%（带百分比）</div>
+            <DewProgress :percentage="60" size="md" show-label />
+          </div>
+          <div>
+            <div style="font-size: 12px; color: var(--dew-text-muted); margin-bottom: 6px;">lg · 85%（带百分比）</div>
+            <DewProgress :percentage="85" size="lg" show-label />
+          </div>
+          <div>
+            <div style="font-size: 12px; color: var(--dew-text-muted); margin-bottom: 6px;">已完成 · 100%</div>
+            <DewProgress :percentage="100" size="md" show-label />
+          </div>
+        </div>
+        <div style="font-size: 12px; color: var(--dew-text-faint); margin-top: 18px;">light 模式为透明如水的蓝青填充，dark 模式为高亮发白光填充 —— 用右上角开关切换主题查看两种效果。</div>
+      </section>
+
       <!-- ━━━━ Tag ━━━━ -->
       <section v-if="activeTab === 'tag'" style="margin-bottom: 36px;">
         <h2 class="dew-showcase__heading" style="font-size: 15px; font-weight: 600; margin: 0 0 14px;">DewTag 标签</h2>
@@ -766,6 +790,7 @@ import DewDialog from '../components/ui/DewDialog.vue'
 import { DewMessageBox } from '../components/ui/DewMessageBox.js'
 import DewMessage from '../components/ui/DewMessage.js'
 import DewSidebar from '../components/ui/DewSidebar.vue'
+import DewProgress from '../components/ui/DewProgress.vue'
 import bgImage from '../assets/back_groud.jpg'
 import { Document, Check, Bell, User, Setting, Search, Lock, MoreFilled, EditPen, Delete, HomeFilled } from '@element-plus/icons-vue'
 
@@ -785,6 +810,7 @@ const navGroups = [
       { value: 'button', label: 'Button / ButtonBar' },
       { value: 'badge', label: 'Badge' },
       { value: 'tag', label: 'Tag' },
+      { value: 'progress', label: 'Progress' },
     ],
   },
   {
