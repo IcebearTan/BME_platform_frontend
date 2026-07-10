@@ -122,6 +122,13 @@ const banners = ref([
     route: '/study'
   },
   {
+    id: 2,
+    title: '2026 暑期训练营',
+    description: '加入营期，沉浸式学习与考勤打卡',
+    image: bgImage,
+    route: '/camp-home'
+  },
+  {
     id: 3,
     title: '技能认证考核',
     description: '通过考核验证你的学习成果',
