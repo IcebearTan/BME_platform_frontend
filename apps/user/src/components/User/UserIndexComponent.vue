@@ -113,12 +113,6 @@ onMounted(async () => {
 .profile-info-item {
   padding: 10px 0;
   color: var(--dew-text);
-  border-bottom: 1px solid var(--dew-card-divider);
-}
-
-.profile-info-item:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
 }
 
 .profile-skill-title {
