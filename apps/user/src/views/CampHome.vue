@@ -8,30 +8,41 @@
         暂未开放营期，敬请期待。
       </DewCard>
 
-      <!-- 非成员：营期简介 + 申请加入 -->
+      <!-- 非成员：营期简介（大气招募页） -->
       <template v-else-if="session && !isMember">
-        <DewCard glass variant="default" size="lg" class="hero-card">
-          <div class="hero-eyebrow">营期招募</div>
-          <h1 class="hero-title">{{ session.name }}</h1>
-          <div class="hero-sub">
-            <span class="status-dot" :class="'dot-status-' + session.status"></span>
-            <span>{{ statusLabel(session.status) }}</span>
-            <span class="sep">·</span>
-            <span>{{ session.start_date }} ~ {{ session.end_date }}</span>
+        <div class="camp-intro">
+          <!-- ① Hero：大标题 + 介绍 + 力连接图背景 -->
+          <div class="intro-hero">
+            <canvas ref="forceCanvas" class="force-canvas"></canvas>
+            <div class="intro-hero-inner">
+              <div class="intro-eyebrow">2026 暑期训练营 · 招募中</div>
+              <h1 class="intro-title">{{ session.name }}</h1>
+              <p class="intro-desc">加入营期，与同伴一起沉浸式学习、每日打卡考勤、累积有效时长；导生全程辅导，完成里程碑还可领取专属勋章。提交申请后由老师审批，通过即正式入营。</p>
+            </div>
           </div>
-        </DewCard>
-        <DewCard variant="inset" size="md" :no-hover="true" class="rule-card" style="margin-bottom:16px;">
-          <template #header><h3>营期规则</h3></template>
-          <div class="rule-row"><span>期望到岗</span><b>{{ session.expected_check_in || '—' }}</b></div>
-          <div class="rule-row"><span>每日最低时长</span><b>{{ session.min_daily_hours != null ? session.min_daily_hours + ' h' : '—' }}</b></div>
-          <div class="rule-row"><span>出勤日</span><b>{{ session.weekdays_only ? '仅工作日' : '含周末' }}</b></div>
-        </DewCard>
-        <DewCard variant="default" size="lg" :no-hover="true">
-          <p style="margin:0 0 16px; line-height:1.7; color:var(--dew-text-muted);">加入营期，与同伴一起沉浸式学习、打卡考勤、累积学习时长。提交申请后由老师审批，通过即正式入营。</p>
-          <DewButton v-if="myRequest?.status === 'pending'" type="glass" disabled>申请审核中…</DewButton>
-          <DewButton v-else-if="myRequest?.status === 'rejected'" type="glass" @click="requestJoin">上次未通过，重新申请</DewButton>
-          <DewButton v-else type="glass" :loading="joinSubmitting" @click="requestJoin">申请加入</DewButton>
-        </DewCard>
+
+          <!-- ② 特色卡片 -->
+          <div class="intro-features">
+            <DewCard v-for="f in features" :key="f.key" variant="inset" size="md" class="feature-card">
+              <div class="feature-top">
+                <div class="feature-icon" :style="{ background: f.color + '1f', color: f.color }">
+                  <el-icon><component :is="f.icon" /></el-icon>
+                </div>
+                <div class="feature-title">{{ f.title }}</div>
+              </div>
+              <div class="feature-subtitle">{{ f.subtitle }}</div>
+              <div class="feature-desc">{{ f.desc }}</div>
+            </DewCard>
+          </div>
+
+          <!-- ③ 申请加入 -->
+          <div class="intro-cta">
+            <DewButton v-if="myRequest?.status === 'pending'" type="glass" size="lg" disabled>申请审核中…</DewButton>
+            <DewButton v-else-if="myRequest?.status === 'rejected'" type="glass" size="lg" @click="requestJoin">上次未通过，重新申请</DewButton>
+            <DewButton v-else type="glass" size="lg" :loading="joinSubmitting" @click="requestJoin">申请加入</DewButton>
+            <div class="cta-hint">提交后由老师审批 · 通过即正式入营</div>
+          </div>
+        </div>
       </template>
 
       <template v-else-if="session">
@@ -206,12 +217,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useStore } from 'vuex';
 import { useRouter } from 'vue-router';
 import MenuComponent from '../components/MenuComponent.vue';
 import { DewCard, DewButton } from '../components/ui';
 import { ElMessage } from 'element-plus';
+import { Calendar, Clock, User, Trophy } from '@element-plus/icons-vue';
 import { campService } from '../services/campService';
 
 const store = useStore();
@@ -314,6 +326,94 @@ async function requestJoin() {
   }
 }
 
+// ── 特色卡片（基于营期数据）──
+const features = computed(() => {
+  const s = session.value;
+  if (!s) return [];
+  let days = 0;
+  try {
+    const a = new Date(s.start_date), b = new Date(s.end_date);
+    days = Math.max(1, Math.round((b - a) / 86400000) + 1);
+  } catch { days = 0; }
+  return [
+    { key: 'dur', icon: Calendar, title: days ? days + ' 天' : '营期', subtitle: s.start_date + ' ~ ' + s.end_date, desc: '完整周期 · 系统化推进', color: '#6366f1' },
+    { key: 'hrs', icon: Clock, title: s.min_daily_hours != null ? s.min_daily_hours + ' h' : '弹性', subtitle: '每日有效时长', desc: s.expected_check_in ? '期望 ' + s.expected_check_in + ' 到岗' : '弹性考勤 · 累积有效时长', color: '#06b6d4' },
+    { key: 'mentor', icon: User, title: '导生辅导', subtitle: '团队互助', desc: '导生答疑带学 · 同伴一起进步', color: '#ec4899' },
+    { key: 'reward', icon: Trophy, title: '勋章奖励', subtitle: '里程碑激励', desc: '完成阶段目标 · 领取专属徽章', color: '#f59e0b' },
+  ];
+});
+
+// ── 力连接图（canvas 粒子+连线，非成员视图背景，纯 JS 无依赖）──
+const forceCanvas = ref(null);
+let _rafId = null;
+function startForceGraph() {
+  const canvas = forceCanvas.value;
+  if (!canvas) return;
+  const host = canvas.parentElement;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  let W = 0, H = 0;
+  const resize = () => {
+    const r = host.getBoundingClientRect();
+    W = r.width; H = r.height;
+    canvas.width = W * dpr; canvas.height = H * dpr;
+    canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  };
+  resize();
+  window.addEventListener('resize', resize);
+  const N = Math.max(24, Math.min(50, Math.floor(W / 30)));
+  const dots = Array.from({ length: N }, () => ({
+    x: Math.random() * W, y: Math.random() * H,
+    vx: (Math.random() - 0.5) * 0.35, vy: (Math.random() - 0.5) * 0.35,
+  }));
+  const MAXD = 130;
+  const tick = () => {
+    const dark = isDarkMode.value;
+    const dotC = dark ? 'rgba(190,205,255,' : 'rgba(99,102,241,';
+    const lineC = dark ? 'rgba(150,170,225,' : 'rgba(99,102,241,';
+    ctx.clearRect(0, 0, W, H);
+    for (const d of dots) {
+      d.x += d.vx; d.y += d.vy;
+      if (d.x < 0 || d.x > W) d.vx *= -1;
+      if (d.y < 0 || d.y > H) d.vy *= -1;
+    }
+    for (let i = 0; i < dots.length; i++) {
+      for (let j = i + 1; j < dots.length; j++) {
+        const dx = dots[i].x - dots[j].x, dy = dots[i].y - dots[j].y;
+        const dist = Math.hypot(dx, dy);
+        if (dist < MAXD) {
+          const a = (1 - dist / MAXD) * (dark ? 0.2 : 0.32);
+          ctx.strokeStyle = lineC + a.toFixed(3) + ')';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(dots[i].x, dots[i].y);
+          ctx.lineTo(dots[j].x, dots[j].y);
+          ctx.stroke();
+        }
+      }
+    }
+    for (const d of dots) {
+      ctx.fillStyle = dotC + (dark ? 0.55 : 0.7) + ')';
+      ctx.beginPath();
+      ctx.arc(d.x, d.y, 2.1, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    _rafId = requestAnimationFrame(tick);
+  };
+  tick();
+  canvas._cleanup = () => window.removeEventListener('resize', resize);
+}
+function stopForceGraph() {
+  if (_rafId) { cancelAnimationFrame(_rafId); _rafId = null; }
+  if (forceCanvas.value && forceCanvas.value._cleanup) forceCanvas.value._cleanup();
+}
+watch([session, isMember], () => {
+  stopForceGraph();
+  if (session.value && !isMember.value) nextTick(startForceGraph);
+});
+onUnmounted(stopForceGraph);
+
 onMounted(async () => {
   loading.value = true;
   try { await loadFeatured(); }
@@ -414,4 +514,47 @@ onMounted(async () => {
 .sc-icon-warning { background: linear-gradient(135deg, #f59e0b, #f97316); }
 .sc-title { font-weight: 600; font-size: 14px; color: var(--dew-text-heading); margin-bottom: 2px; }
 .sc-desc { font-size: 12px; color: var(--dew-text-muted); }
+
+/* ── 营期简介（非成员招募页） ── */
+.camp-intro { display: flex; flex-direction: column; gap: 20px; }
+.intro-hero {
+  position: relative; height: 420px; overflow: hidden;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--dew-card-border);
+  background: var(--dew-card-bg);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+}
+.force-canvas { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+.intro-hero-inner {
+  position: relative; z-index: 1; height: 100%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; padding: 32px 24px;
+}
+.intro-eyebrow {
+  font-size: 12px; letter-spacing: 3px; color: var(--color-info);
+  margin-bottom: 14px; font-weight: 600;
+}
+.intro-title {
+  font-size: 46px; font-weight: 800; margin: 0 0 18px; letter-spacing: 1px;
+  background: linear-gradient(135deg, var(--dew-text-heading), var(--color-info));
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+}
+.intro-desc { max-width: 600px; margin: 0; font-size: 15px; line-height: 1.8; color: var(--dew-text-muted); }
+.intro-features { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.feature-card { text-align: center; }
+.feature-top { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 6px; }
+.feature-icon { width: 46px; height: 46px; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; }
+.feature-icon .el-icon { font-size: 22px; }
+.feature-title { font-size: 20px; font-weight: 700; color: var(--dew-text-heading); }
+.feature-subtitle { font-size: 12px; color: var(--color-info); margin-bottom: 4px; font-weight: 600; }
+.feature-desc { font-size: 12px; color: var(--dew-text-muted); line-height: 1.5; }
+.intro-cta { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 4px 0 12px; }
+.cta-hint { font-size: 12px; color: var(--dew-text-faint); }
+@media (max-width: 900px) { .intro-features { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) {
+  .intro-features { grid-template-columns: 1fr; }
+  .intro-title { font-size: 34px; }
+  .intro-hero { height: 360px; }
+}
 </style>
