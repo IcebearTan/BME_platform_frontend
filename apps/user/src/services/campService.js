@@ -41,6 +41,6 @@ export const campService = {
   // ── 营期主页（后台指定的当前营期）+ 加入申请 ──
   fetchFeatured: () =>
     api.get('/camp/featured').then(r => r.data),
-  requestJoin: (sid, reason) =>
-    api.post(`/camp/sessions/${sid}/join-request`, { reason }).then(r => r.data),
+  requestJoin: (sid, selected_days) =>
+    api.post(`/camp/sessions/${sid}/join-request`, { selected_days }).then(r => r.data),
 }

@@ -38,8 +38,8 @@
           <!-- ③ 申请加入 -->
           <div class="intro-cta">
             <DewButton v-if="myRequest?.status === 'pending'" type="glass" size="lg" disabled>申请审核中…</DewButton>
-            <DewButton v-else-if="myRequest?.status === 'rejected'" type="glass" size="lg" @click="requestJoin">上次未通过，重新申请</DewButton>
-            <DewButton v-else type="glass" size="lg" :loading="joinSubmitting" @click="requestJoin">申请加入</DewButton>
+            <DewButton v-else-if="myRequest?.status === 'rejected'" type="glass" size="lg" @click="openJoinSheet">上次未通过，重新申请</DewButton>
+            <DewButton v-else type="glass" size="lg" @click="openJoinSheet">申请加入</DewButton>
             <div class="cta-hint">提交后由老师审批 · 通过即正式入营</div>
           </div>
         </div>
@@ -125,7 +125,7 @@
           <template #header>
             <div class="card-title-row">
               <h3>我的出勤</h3>
-              <span class="card-hint">承诺 {{ personal?.planned_days || 0 }} 个出勤日</span>
+              <span class="card-hint">已满足 {{ personal?.satisfied || 0 }} / 承诺 {{ personal?.pledged_days || 0 }} 天</span>
             </div>
           </template>
           <div class="dashboard-body">
@@ -150,25 +150,20 @@
           </div>
         </DewCard>
 
-        <!-- ③ 承诺日热力日历 -->
+        <!-- ③ 出勤日历（营期所有天数） -->
         <DewCard variant="default" size="lg" :no-hover="true" class="heatmap-card">
           <template #header>
             <div class="card-title-row">
-              <h3>承诺出勤日历</h3>
-              <span class="card-hint">{{ personal?.present || 0 }} 天出勤 · {{ personal?.absent || 0 }} 天缺勤</span>
+              <h3>出勤日历</h3>
+              <span class="card-hint">已满足 {{ personal?.satisfied || 0 }} / 承诺 {{ personal?.pledged_days || 0 }} 天</span>
             </div>
           </template>
           <div class="heatmap">
-            <div class="heat-weekrow">
-              <span v-for="w in ['一','二','三','四','五','六','日']" :key="w" class="heat-weekday">{{ w }}</span>
-            </div>
             <div class="heat-grid">
               <div v-for="(c, i) in calendarCells" :key="i"
-                   :class="['heat-cell', c.empty ? 'heat-empty' : 'heat-' + c.cell.status, { today: c.date === todayStr }]">
-                <template v-if="!c.empty">
-                  <span class="heat-day">{{ Number(c.date.slice(8)) }}</span>
-                  <span class="heat-dot"></span>
-                </template>
+                   :class="['heat-cell', 'heat-' + (c.cell?.status || 'unpledged'), { today: c.date === todayStr }]">
+                <span class="heat-day">{{ Number(c.date.slice(8)) }}</span>
+                <span class="heat-dot"></span>
               </div>
             </div>
             <div class="legend">
@@ -176,6 +171,7 @@
               <span><span class="lg-dot lg-on_leave"></span>请假</span>
               <span><span class="lg-dot lg-late"></span>迟到/不足</span>
               <span><span class="lg-dot lg-absent"></span>缺勤</span>
+              <span><span class="lg-dot lg-unpledged"></span>未承诺</span>
             </div>
           </div>
         </DewCard>
@@ -212,12 +208,40 @@
         </el-row>
         </template>
       </template>
+
+      <!-- 选承诺出勤日 sheet（底部弹出，上下滚动多选） -->
+      <transition name="sheet">
+        <div v-if="joinSheet.visible" class="sheet-mask" @click.self="closeJoinSheet">
+          <div class="join-sheet">
+            <div class="sheet-grip"></div>
+            <div class="sheet-header">
+              <h3>选择承诺出勤日</h3>
+              <span class="sheet-hint">勾选你计划出勤的日期 · 已选 {{ joinSheet.selected.size }} 天</span>
+            </div>
+            <div class="sheet-days">
+              <div v-for="d in campDays" :key="d.iso"
+                   :class="['day-row', { selected: joinSheet.selected.has(d.iso) }]"
+                   @click="toggleDay(d.iso)">
+                <div class="day-main">
+                  <div class="day-date">{{ d.label }}</div>
+                  <div class="day-sub">{{ d.weekday }}</div>
+                </div>
+                <div class="day-mark"></div>
+              </div>
+            </div>
+            <div class="sheet-footer">
+              <DewButton type="glass" @click="closeJoinSheet">取消</DewButton>
+              <DewButton type="glass" :disabled="!joinSheet.selected.size" :loading="joinSubmitting" @click="submitJoin">确认承诺 {{ joinSheet.selected.size }} 天</DewButton>
+            </div>
+          </div>
+        </div>
+      </transition>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
+import { ref, reactive, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useStore } from 'vuex';
 import { useRouter } from 'vue-router';
 import MenuComponent from '../components/MenuComponent.vue';
@@ -280,14 +304,7 @@ const progress = computed(() => {
 
 const calendarCells = computed(() => {
   const sorted = [...dates.value].sort();
-  if (!sorted.length) return [];
-  const first = new Date(sorted[0]);
-  const lead = (first.getDay() + 6) % 7;  // 周一 = 0
-  const cells = [];
-  for (let i = 0; i < lead; i++) cells.push({ empty: true });
-  for (const d of sorted) cells.push({ date: d, cell: daily.value[d] || { status: 'absent' } });
-  while (cells.length % 7 !== 0) cells.push({ empty: true });
-  return cells;
+  return sorted.map((d) => ({ date: d, cell: daily.value[d] || { status: 'unpledged' } }));
 });
 
 function go(tab) { router.push({ path: '/camp', query: { tab } }); }
@@ -312,12 +329,39 @@ async function loadFeatured() {
   }
 }
 
-async function requestJoin() {
-  if (!session.value) return;
+// 选承诺出勤日 sheet（底部弹出，上下滚动多选营期范围内日期）
+const joinSheet = reactive({ visible: false, selected: new Set() });
+const campDays = computed(() => {
+  const s = session.value;
+  if (!s) return [];
+  const out = [];
+  const wk = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+  const pad = (n) => String(n).padStart(2, '0');
+  let cur = new Date(s.start_date);
+  const end = new Date(s.end_date);
+  while (cur <= end) {
+    const iso = `${cur.getFullYear()}-${pad(cur.getMonth() + 1)}-${pad(cur.getDate())}`;
+    out.push({ iso, label: `${cur.getMonth() + 1}/${cur.getDate()}`, weekday: wk[cur.getDay()] });
+    cur.setDate(cur.getDate() + 1);
+  }
+  return out;
+});
+function openJoinSheet() {
+  joinSheet.selected = new Set();
+  joinSheet.visible = true;
+}
+function closeJoinSheet() { joinSheet.visible = false; }
+function toggleDay(iso) {
+  if (joinSheet.selected.has(iso)) joinSheet.selected.delete(iso);
+  else joinSheet.selected.add(iso);
+}
+async function submitJoin() {
+  if (!session.value || !joinSheet.selected.size) return;
   joinSubmitting.value = true;
   try {
-    await campService.requestJoin(session.value.id);
+    await campService.requestJoin(session.value.id, [...joinSheet.selected]);
     ElMessage.success('申请已提交，等待审批');
+    joinSheet.visible = false;
     await loadFeatured();
   } catch (e) {
     ElMessage.error(e.response?.data?.message || '提交失败');
@@ -479,12 +523,9 @@ onMounted(async () => {
 .stat-label { font-size: 12px; color: var(--dew-text-muted); }
 
 /* heatmap */
-.heat-weekrow { display: grid; grid-template-columns: repeat(7, 1fr); margin-bottom: 8px; }
-.heat-weekday { text-align: center; font-size: 11px; color: var(--dew-text-faint); }
-.heat-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.heat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(46px, 1fr)); gap: 6px; }
 .heat-cell { aspect-ratio: 1; border-radius: var(--radius-md); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; transition: transform 0.2s var(--dew-bounce); }
 .heat-cell:hover { transform: scale(1.08); }
-.heat-empty { background: transparent; }
 .heat-day { font-size: 12px; font-weight: 500; color: var(--dew-text); }
 .heat-dot { width: 5px; height: 5px; border-radius: 50%; }
 .heat-cell.today { outline: 2px solid var(--color-primary); outline-offset: -2px; }
@@ -495,11 +536,13 @@ onMounted(async () => {
 .lg-on_leave { background: var(--color-info); }
 .lg-late { background: var(--color-warning); }
 .lg-absent { background: var(--dew-text-faint); }
+.lg-unpledged { background: var(--dew-text-faint); opacity: 0.4; }
 .heat-present { background: rgba(16, 185, 129, 0.12); } .heat-present .heat-dot { background: var(--color-success); }
 .heat-late, .heat-short_hours { background: rgba(245, 158, 11, 0.12); } .heat-late .heat-dot, .heat-short_hours .heat-dot { background: var(--color-warning); }
 .heat-late_and_short { background: rgba(239, 68, 68, 0.12); } .heat-late_and_short .heat-dot { background: var(--color-danger); }
 .heat-absent { background: rgba(156, 163, 175, 0.14); } .heat-absent .heat-dot { background: var(--dew-text-faint); }
 .heat-on_leave { background: rgba(99, 102, 241, 0.12); } .heat-on_leave .heat-dot { background: var(--color-info); }
+.heat-unpledged { background: transparent; border: 1px dashed rgba(150,150,150,0.3); } .heat-unpledged .heat-dot { background: transparent; } .heat-unpledged .heat-day { color: var(--dew-text-faint); opacity: 0.5; }
 
 /* bottom */
 .bottom-row { margin-bottom: 16px; }
@@ -557,4 +600,51 @@ onMounted(async () => {
   .intro-title { font-size: 34px; }
   .intro-hero { height: 360px; }
 }
+
+/* 选日 sheet（底部弹出） */
+.sheet-mask {
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(0,0,0,0.45);
+  display: flex; align-items: flex-end; justify-content: center;
+  backdrop-filter: blur(4px);
+}
+.join-sheet {
+  width: 100%; max-width: 520px; max-height: 80vh;
+  background: var(--dew-card-bg);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  border: 1px solid var(--dew-card-border);
+  box-shadow: 0 -8px 40px rgba(0,0,0,0.2);
+  display: flex; flex-direction: column;
+  padding: 12px 20px 20px;
+}
+.sheet-grip { width: 40px; height: 4px; border-radius: 999px; background: var(--dew-text-faint); opacity: 0.4; margin: 0 auto 12px; }
+.sheet-header h3 { margin: 0 0 4px; font-size: 17px; color: var(--dew-text-heading); }
+.sheet-hint { font-size: 12px; color: var(--dew-text-muted); }
+.sheet-days {
+  flex: 1; overflow-y: auto; margin: 14px 0; padding-right: 4px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.day-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 14px; border-radius: var(--radius-md);
+  border: 1px solid var(--dew-card-border);
+  background: var(--dew-card-bg);
+  cursor: pointer; transition: all 0.25s var(--dew-bounce);
+}
+.day-row:hover { transform: translateY(-1px); }
+.day-row.selected {
+  border-color: var(--color-info);
+  background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(99,102,241,0.05));
+}
+.day-main { display: flex; flex-direction: column; gap: 2px; }
+.day-date { font-size: 15px; font-weight: 600; color: var(--dew-text-heading); }
+.day-sub { font-size: 12px; color: var(--dew-text-muted); }
+.day-mark { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--dew-text-faint); transition: all 0.2s; flex-shrink: 0; }
+.day-row.selected .day-mark { border-color: var(--color-info); background: var(--color-info); box-shadow: 0 0 0 4px rgba(99,102,241,0.18); }
+.sheet-footer { display: flex; gap: 10px; padding-top: 12px; border-top: 1px solid var(--dew-card-divider); }
+.sheet-footer .dew-button { flex: 1; }
+.sheet-enter-active, .sheet-leave-active { transition: opacity 0.25s; }
+.sheet-enter-active .join-sheet, .sheet-leave-active .join-sheet { transition: transform 0.3s var(--dew-bounce); }
+.sheet-enter-from, .sheet-leave-to { opacity: 0; }
+.sheet-enter-from .join-sheet, .sheet-leave-to .join-sheet { transform: translateY(100%); }
 </style>
