@@ -7,7 +7,6 @@ import api from '../../api'
 import { API_URL } from '../../api'
 import { Star, StarFilled } from '@element-plus/icons-vue'
 
-import StudentRankComponent from './StudentRankComponent.vue'
 import ChapterTree from './ChapterTree.vue'
 
 const store = useStore()  // 获取 Vuex store
@@ -256,9 +255,6 @@ const wrapperBg = computed(() => {
 // 查询当前用户是否已经加入课程
 const isEnrolled = ref(false)
 
-// 查询当前用户是否已加入课程小组
-const hasGroup = ref(false)
-
 // 检查用户是否已选课
 const checkEnrollment = async () => {
   try {
@@ -274,24 +270,6 @@ const checkEnrollment = async () => {
     }
   } catch (error) {
     console.error('检查选课状态失败:', error)
-  }
-}
-
-// 检查用户是否已加入课程小组
-const checkGroupEnrollment = async () => {
-  try {
-    const res = await api({
-      url: '/course-groups/check',
-      method: 'get',
-      params: {
-        course_id: courseId.value
-      }
-    })
-    if (res.data.code === 200 && res.data.enrolled) {
-      hasGroup.value = true
-    }
-  } catch (error) {
-    console.error('检查小组加入状态失败:', error)
   }
 }
 
@@ -364,7 +342,6 @@ onMounted(() => {
   fetchCourseInfo()
 
   checkEnrollment()
-  checkGroupEnrollment()
 })
 
 // 方法：警告提示
@@ -409,7 +386,9 @@ const breadcrumbItems = computed(() => [
 
 // 返回学习中心
 const goBack = () => {
-  router.push('/study')
+  // 从营期选课跳来时，返回回到营期选课 Tab
+  const from = router.currentRoute.value.query.from
+  router.push(from === 'camp' ? '/camp?tab=selection' : '/study')
 }
 
 // 跳转到章节详情页面
@@ -637,25 +616,6 @@ const handleLessonClick = (lesson, chapter, indexPath) => {
             </el-tag>
           </div>
 
-          <!-- 已开始学习所展示的额外内容 -->
-          <div v-if="isEnrolled" class="enrolled-extra">
-            <!-- 导师+排行：仅在已加入小组时显示 -->
-            <div class="class-rank" v-if="hasGroup">
-              <StudentRankComponent :course-id="courseId" :chapters="courseInfo.Chapters" />
-            </div>
-            <!-- 未加入小组时显示引导 -->
-            <div class="no-group-tip" v-else>
-              <div class="tip-content">
-                <div class="tip-main">
-                  <div class="tip-title">加入学习小组</div>
-                  <div class="tip-desc">和同伴一起讨论课程内容</div>
-                </div>
-                <el-button type="primary" round class="join-group-btn">
-                  加入小组
-                </el-button>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </div>

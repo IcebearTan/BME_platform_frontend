@@ -21,6 +21,7 @@
         <DewCard v-for="c in mine" :key="c.course_id" variant="inset" size="sm"
                  accent="success" style="margin: 8px; min-width: 200px;">
           <div class="course-title">{{ c.title }}</div>
+          <DewButton size="sm" type="glass" @click="goStudy(c.course_id)">去学习</DewButton>
         </DewCard>
       </div>
     </DewCard>
@@ -29,11 +30,13 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import { DewCard, DewButton } from '../ui';
 import { ElMessage } from 'element-plus';
 import { campService } from '../../services/campService';
 
 const props = defineProps({ sid: { type: [Number, String], required: true } });
+const router = useRouter();
 
 const courses = ref([]);
 const mine = ref([]);
@@ -66,6 +69,11 @@ async function pick(course_id) {
   } catch (e) {
     ElMessage.error(e.response?.data?.message || '选课失败');
   }
+}
+
+// 跳到既有课程详情页学习（带 from=camp，详情页返回时回到本营期选课 Tab）
+function goStudy(courseId) {
+  router.push({ path: '/study/details', query: { id: courseId, from: 'camp' } });
 }
 
 watch(() => props.sid, load, { immediate: true });

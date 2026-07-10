@@ -78,7 +78,7 @@ import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
 import { ElCarousel, ElCarouselItem, ElIcon } from 'element-plus'
 import {
-  Reading, EditPen, UserFilled, Select, Files, Box, MagicStick,
+  Reading, EditPen, School, Select, Files, Box, MagicStick,
 } from '@element-plus/icons-vue'
 import bgImage from '../../assets/back_groud.jpg'
 import DewButtonBar from '../ui/DewButtonBar.vue'
@@ -105,7 +105,7 @@ const hubTabs = [
 const entryIcons = {
   courses: Reading,
   'question-bank': EditPen,
-  groups: UserFilled,
+  camp: School,
   exams: Select,
   resources: Files,
   '3d-print': Box,
@@ -122,13 +122,6 @@ const banners = ref([
     route: '/study'
   },
   {
-    id: 2,
-    title: '加入学习小组',
-    description: '与同学一起学习，共同进步',
-    image: bgImage,
-    route: '/group'
-  },
-  {
     id: 3,
     title: '技能认证考核',
     description: '通过考核验证你的学习成果',
@@ -141,7 +134,7 @@ const banners = ref([
 const studyEntries = ref([
   { id: 'courses', title: '课程', description: '系统化的课程学习', route: '/study', color: '#409EFF' },
   { id: 'question-bank', title: '题库', description: '练习巩固知识点', route: '/question-bank', color: '#67C23A', disabled: true },
-  { id: 'groups', title: '学习小组', description: '协作学习与交流', route: '/group', color: '#E6A23C' },
+  { id: 'camp', title: '营期', description: '2026 暑期训练营', route: '/camp-home', color: '#7c3aed' },
   { id: 'exams', title: '考核评估', description: '检验学习效果', route: '/exam', color: '#F56C6C', disabled: true },
   { id: 'resources', title: '学习资源', description: '丰富的学习材料', route: '/resources', color: '#909399', disabled: true },
   { id: '3d-print', title: '3D打印', description: '3D 模型打印预约', route: '/service/3d-print', color: '#06b6d4' },

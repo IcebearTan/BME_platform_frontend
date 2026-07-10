@@ -21,7 +21,6 @@ import MedalWallComponent from './components/User/MedalWallComponent.vue';
 
 import MedalView from './views/MedalView.vue';
 import NotificationView from './views/NotificationView.vue';
-import GroupView from './views/GroupView.vue';
 import ExerciseSolveView from './views/ExerciseSolveView.vue';
 import CourseChapterView from './views/CourseChapterView.vue';
 import QuestionBankView from './views/QuestionBankView.vue';
@@ -197,12 +196,8 @@ const router = createRouter({
             component: NotificationView,
             meta: { requiresAuth: false }
         },
-        {
-            path: '/group',
-            name: 'group',
-            component: GroupView,
-            meta: { requiresAuth: true }
-        },
+        // /group 已下线（小组功能并入营期），老书签重定向到营期主页
+        { path: '/group', redirect: '/camp-home' },
         {
             path: '/exercise/:id',
             name: 'exercise-solve',
