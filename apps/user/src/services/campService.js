@@ -37,4 +37,10 @@ export const campService = {
     api.get(`/camp/sessions/${sid}/members`).then(r => r.data),
   fetchCampMedals: () =>
     api.get('/camp/medals').then(r => r.data),
+
+  // ── 营期主页（后台指定的当前营期）+ 加入申请 ──
+  fetchFeatured: () =>
+    api.get('/camp/featured').then(r => r.data),
+  requestJoin: (sid, reason) =>
+    api.post(`/camp/sessions/${sid}/join-request`, { reason }).then(r => r.data),
 }

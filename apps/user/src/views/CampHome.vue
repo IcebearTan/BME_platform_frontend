@@ -5,8 +5,34 @@
     <div class="camp-home-wrap">
 
       <DewCard v-if="!loading && !session" variant="inset" size="lg" :no-hover="true">
-        你还没有加入任何进行中的营期。
+        暂未开放营期，敬请期待。
       </DewCard>
+
+      <!-- 非成员：营期简介 + 申请加入 -->
+      <template v-else-if="session && !isMember">
+        <DewCard glass variant="default" size="lg" class="hero-card">
+          <div class="hero-eyebrow">营期招募</div>
+          <h1 class="hero-title">{{ session.name }}</h1>
+          <div class="hero-sub">
+            <span class="status-dot" :class="'dot-status-' + session.status"></span>
+            <span>{{ statusLabel(session.status) }}</span>
+            <span class="sep">·</span>
+            <span>{{ session.start_date }} ~ {{ session.end_date }}</span>
+          </div>
+        </DewCard>
+        <DewCard variant="inset" size="md" :no-hover="true" class="rule-card" style="margin-bottom:16px;">
+          <template #header><h3>营期规则</h3></template>
+          <div class="rule-row"><span>期望到岗</span><b>{{ session.expected_check_in || '—' }}</b></div>
+          <div class="rule-row"><span>每日最低时长</span><b>{{ session.min_daily_hours != null ? session.min_daily_hours + ' h' : '—' }}</b></div>
+          <div class="rule-row"><span>出勤日</span><b>{{ session.weekdays_only ? '仅工作日' : '含周末' }}</b></div>
+        </DewCard>
+        <DewCard variant="default" size="lg" :no-hover="true">
+          <p style="margin:0 0 16px; line-height:1.7; color:var(--dew-text-muted);">加入营期，与同伴一起沉浸式学习、打卡考勤、累积学习时长。提交申请后由老师审批，通过即正式入营。</p>
+          <DewButton v-if="myRequest?.status === 'pending'" type="glass" disabled>申请审核中…</DewButton>
+          <DewButton v-else-if="myRequest?.status === 'rejected'" type="glass" @click="requestJoin">上次未通过，重新申请</DewButton>
+          <DewButton v-else type="glass" :loading="joinSubmitting" @click="requestJoin">申请加入</DewButton>
+        </DewCard>
+      </template>
 
       <template v-else-if="session">
         <!-- ① Hero -->
@@ -184,7 +210,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useStore } from 'vuex';
 import { useRouter } from 'vue-router';
 import MenuComponent from '../components/MenuComponent.vue';
-import { DewCard } from '../components/ui';
+import { DewCard, DewButton } from '../components/ui';
 import { ElMessage } from 'element-plus';
 import { campService } from '../services/campService';
 
@@ -195,6 +221,9 @@ const isDarkMode = computed(() => store.getters.isDarkMode);
 const loading = ref(true);
 const isMentor = computed(() => store.getters.role === 'mentor');
 const session = ref(null);
+const isMember = ref(false);
+const myRequest = ref(null);
+const joinSubmitting = ref(false);
 const personal = ref(null);
 const daily = ref({});
 const dates = ref([]);
@@ -251,26 +280,44 @@ const calendarCells = computed(() => {
 
 function go(tab) { router.push({ path: '/camp', query: { tab } }); }
 
-onMounted(async () => {
-  loading.value = true;
-  try {
-    const data = await campService.fetchSessions();
-    const list = data.sessions || [];
-    const active = list.find((s) => s.status === 'active') || list[0] || null;
-    if (!active) { session.value = null; return; }
-    session.value = active;
+async function loadFeatured() {
+  const data = await campService.fetchFeatured();
+  session.value = data.session || null;
+  isMember.value = !!data.is_member;
+  myRequest.value = data.my_request || null;
+  if (session.value && isMember.value) {
     if (isMentor.value) {
-      const db = await campService.fetchDashboard(active.id);
+      const db = await campService.fetchDashboard(session.value.id);
       teamSummary.value = db.summary || null;
-      const lv = await campService.fetchTeamLeaves(active.id);
+      const lv = await campService.fetchTeamLeaves(session.value.id);
       teamLeaves.value = lv.leaves || [];
     } else {
-      const att = await campService.fetchMyAttendance(active.id);
+      const att = await campService.fetchMyAttendance(session.value.id);
       personal.value = att.personal || null;
       daily.value = att.daily || {};
       dates.value = att.dates || [];
     }
-  } catch { ElMessage.error('加载营期主页失败'); }
+  }
+}
+
+async function requestJoin() {
+  if (!session.value) return;
+  joinSubmitting.value = true;
+  try {
+    await campService.requestJoin(session.value.id);
+    ElMessage.success('申请已提交，等待审批');
+    await loadFeatured();
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '提交失败');
+  } finally {
+    joinSubmitting.value = false;
+  }
+}
+
+onMounted(async () => {
+  loading.value = true;
+  try { await loadFeatured(); }
+  catch { ElMessage.error('加载营期主页失败'); }
   finally { loading.value = false; }
 });
 </script>
