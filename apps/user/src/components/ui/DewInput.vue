@@ -40,7 +40,7 @@
       v-if="type === 'textarea'"
       ref="inputRef"
       class="dew-input__inner dew-input__textarea"
-      :value="composing ? undefined : modelValue"
+      :value="modelValue"
       :placeholder="placeholder"
       :disabled="disabled"
       :rows="rows"
@@ -56,7 +56,7 @@
       ref="inputRef"
       class="dew-input__inner"
       :type="showPassword ? 'text' : nativeType"
-      :value="composing ? undefined : modelValue"
+      :value="modelValue"
       :placeholder="placeholder"
       :disabled="disabled"
       @input="onInput"
@@ -159,7 +159,8 @@ const composing = ref(false)
 
 function onInput(e) {
   // 中文输入法组合期间不更新 modelValue，避免打断拼音输入
-  if (e.isComposing) return
+  // composing ref 与原生 e.isComposing 双保险（ref 不再进模板，避免 compositionstart 触发重渲染清空输入框）
+  if (composing.value || e.isComposing) return
   emit('update:modelValue', e.target.value)
   emit('input', e.target.value)
   // 转发事件到根元素，让 el-form-item 能监听到
