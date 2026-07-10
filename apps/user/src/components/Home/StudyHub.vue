@@ -131,10 +131,11 @@ const banners = ref([
   },
   {
     id: 3,
-    title: '技能认证考核',
-    description: '通过考核验证你的学习成果',
-    image: bgImage,
-    route: '/exam'
+    title: '大模型服务中心',
+    description: '大模型 API 接口平台',
+    image: import.meta.env.BASE_URL + '大模型服务中心.png',
+    route: '/ai-service',
+    bare: true
   }
 ])
 
