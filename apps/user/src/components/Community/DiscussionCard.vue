@@ -8,6 +8,14 @@
     <div class="dc-tags">
       <DewTag type="primary" size="sm" round>讨论 · {{ discussion.category }}</DewTag>
       <DewTag v-if="discussion.isHot" type="warning" size="sm" round>置顶</DewTag>
+      <button
+        v-if="canDelete"
+        class="dc-delete"
+        title="删除帖子"
+        @click.stop="handleDelete"
+      >
+        <el-icon><Delete /></el-icon>
+      </button>
     </div>
 
     <!-- 标题 -->
@@ -22,8 +30,11 @@
       </div>
     </div>
 
-    <!-- 完整内容 -->
-    <div class="dc-content">{{ discussion.content || discussion.summary }}</div>
+    <!-- 正文（过长自动折叠） -->
+    <div class="dc-content">{{ displayContent }}</div>
+    <button v-if="isLong" class="dc-expand" @click.stop="expanded = !expanded">
+      {{ expanded ? '收起' : '展开全文' }}
+    </button>
 
     <!-- 操作按钮 -->
     <div class="dc-actions">
@@ -88,10 +99,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { ChatDotRound, View, Star, StarFilled } from '@element-plus/icons-vue'
+import { ref, computed, onMounted } from 'vue'
+import { useStore } from 'vuex'
+import { ChatDotRound, View, Star, StarFilled, Delete } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { DewCard, DewTag, DewInput, DewButton } from '../ui'
+import { DewCard, DewTag, DewInput, DewButton, DewMessageBox } from '../ui'
 import api from '../../api'
 
 const props = defineProps({
@@ -101,11 +113,31 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['like', 'reply'])
+const emit = defineEmits(['like', 'reply', 'delete'])
 
+const store = useStore()
 const showReplyInput = ref(false)
 const replyContent = ref('')
 const viewed = ref(false)
+
+// 正文折叠：超过阈值截断，提供「展开全文 / 收起」
+const COLLAPSE_THRESHOLD = 200
+const rawContent = computed(() => props.discussion.content || props.discussion.summary || '')
+const isLong = computed(() => rawContent.value.length > COLLAPSE_THRESHOLD)
+const expanded = ref(false)
+const displayContent = computed(() =>
+  isLong.value && !expanded.value
+    ? rawContent.value.slice(0, COLLAPSE_THRESHOLD) + '…'
+    : rawContent.value
+)
+
+// 是否可删除：本人发的帖 或 管理员
+// 注意：登录存的 User_Id 是 zfill(7) 字符串（如 "0000001"），帖子 author_id 是原始整数，比较前都转 Number
+const canDelete = computed(() => {
+  const authorId = Number(props.discussion.authorId)
+  if (!Number.isNaN(authorId) && authorId === Number(store.state.user?.User_Id)) return true
+  return store.getters.role === 'super_admin' || store.state.user?.User_Mode === 'admin'
+})
 
 // 使用 Intersection Observer 检测卡片是否进入视口
 onMounted(() => {
@@ -213,6 +245,34 @@ const submitReply = async () => {
     ElMessage.error('回复失败，请稍后重试')
   }
 }
+
+const handleDelete = async () => {
+  // 二次确认（DewUI 弹窗）：取消会 reject，直接返回
+  try {
+    await DewMessageBox.confirm('确定删除这条帖子吗？删除后不可恢复。', '删除帖子', {
+      confirmText: '删除',
+      cancelText: '取消',
+    })
+  } catch (e) {
+    return // 用户取消
+  }
+
+  try {
+    const res = await api({
+      url: `/discussions/threads/${props.discussion.id}`,
+      method: 'DELETE',
+    })
+    if (res.data.code === 200) {
+      ElMessage.success('已删除')
+      emit('delete', props.discussion)
+    } else {
+      ElMessage.error(res.data.message || '删除失败')
+    }
+  } catch (err) {
+    console.error('删除失败:', err)
+    ElMessage.error('删除失败，请稍后重试')
+  }
+}
 </script>
 
 <style scoped>
@@ -272,6 +332,51 @@ const submitReply = async () => {
   margin-bottom: 16px;
   white-space: pre-wrap;
   color: var(--dew-text);
+}
+
+/* 正文折叠时的「展开全文 / 收起」 */
+.dc-expand {
+  display: inline-block;
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin-top: -8px;
+  margin-bottom: 16px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-primary);
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.dc-expand:hover {
+  opacity: 0.75;
+}
+
+/* 删除按钮（仅本人 / 管理员可见） */
+.dc-delete {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--dew-text-faint);
+  transition: color 0.25s ease, background 0.25s ease;
+}
+
+.dc-delete .el-icon {
+  font-size: 16px;
+}
+
+.dc-delete:hover {
+  color: var(--color-danger);
+  background: rgba(239, 68, 68, 0.10);
 }
 
 /* 操作行：复用 DewPostCard 的轻量 action 模式（token 驱动 + dew-bounce） */

@@ -88,6 +88,7 @@
                 <!-- 讨论贴卡片 -->
                 <DiscussionCard
                   :discussion="item"
+                  @delete="handleDeleteThread"
                 />
               </template>
 
@@ -601,6 +602,11 @@ const loadMore = () => {
     loading.value = false
     ElMessage.success('加载成功')
   }, 1000)
+}
+
+// 删除帖子成功后，从信息流里移除
+const handleDeleteThread = (discussion) => {
+  feedItems.value = feedItems.value.filter(item => item.id !== discussion.id)
 }
 
 onMounted(() => {
