@@ -137,11 +137,18 @@ async function submitForm() {
       ElMessage.success('登录成功')
     }
   } catch (err) {
-    if (err.status === 402) {
-      ElMessage.error('密码错误或邮箱不存在')
-    } else {
-      ElMessage.error('网络错误或服务器异常')
+    const data = err.response?.data
+    let msg = '网络错误或服务器异常，请稍后重试'
+    if (data) {
+      if (typeof data.message === 'string') {
+        msg = data.message              // 后端具体错误：密码错误 / 用户不存在 等
+      } else if (data.message && typeof data.message === 'object') {
+        // 表单校验失败：form.errors { 字段: [错误] } → 取第一条
+        const k = Object.keys(data.message)[0]
+        msg = (data.message[k] && data.message[k][0]) || '账号或密码错误'
+      }
     }
+    ElMessage.error(msg)
   } finally {
     isLoading.value = false
   }
