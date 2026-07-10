@@ -4,6 +4,10 @@ import { ElMessage } from 'element-plus'
 import { Check, Medal } from '@element-plus/icons-vue'
 import api from '../../api';
 import { DewCard, DewButton, DewButtonBar } from '../ui'
+import { useStore } from 'vuex'
+
+const store = useStore()
+const isDarkMode = computed(() => store.getters.isDarkMode)
 
 const currentCategory = ref('');
 
@@ -86,7 +90,7 @@ const wearMedal = async (medal) => {
 </script>
 
 <template>
-  <div class="medal-wall-container">
+  <div :class="['medal-wall-container', { 'theme-dark': isDarkMode, 'theme-light': !isDarkMode }]">
     <!-- 头部区域 -->
     <div class="header">
       <h1 class="title">勋章墙</h1>
@@ -147,6 +151,12 @@ const wearMedal = async (medal) => {
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
   padding: 32px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  transition: background 0.4s ease;
+}
+
+/* 暗色模式背景：近黑渐变，让玻璃勋章卡 + 发光徽标在暗色下清晰 */
+.theme-dark.medal-wall-container {
+  background: linear-gradient(135deg, #16161a 0%, #0f0f12 100%);
 }
 
 /* 头部区域 */
@@ -158,14 +168,14 @@ const wearMedal = async (medal) => {
 .title {
   font-size: 40px;
   font-weight: 700;
-  color: #2d3748;
+  color: var(--dew-text-heading);
   margin: 0 0 8px 0;
   letter-spacing: -0.025em;
 }
 
 .subtitle {
   font-size: 18px;
-  color: #718096;
+  color: var(--dew-text-muted);
   margin: 0;
   font-weight: 400;
 }
