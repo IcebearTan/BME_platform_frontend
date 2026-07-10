@@ -104,6 +104,13 @@ async function load() {
     ]);
     courses.value = c.courses || [];
     mine.value = m.courses || [];
+    // 后端 /camp/selection/mine 的轻量 payload 不含 difficulty，
+    // 从完整课程目录补齐，保证已选卡片也能正确显示难度星级
+    const diffMap = new Map(courses.value.map((c) => [c.course_id, c.difficulty]));
+    mine.value = mine.value.map((mc) => ({
+      ...mc,
+      difficulty: mc.difficulty ?? diffMap.get(mc.course_id),
+    }));
   } catch {
     ElMessage.error('加载课程失败');
   } finally {
