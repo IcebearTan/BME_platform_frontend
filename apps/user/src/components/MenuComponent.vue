@@ -58,6 +58,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import api from '../api'
 import NotificationBell from './Notification/NotificationBell.vue'
+import campLogo from '../assets/暑期训练营.png'
 import DewPopover from './ui/DewPopover.vue'
 
 const buttonRef = ref()
@@ -192,8 +193,8 @@ const handleUserInfo = () => {
                 <el-menu-item index="/service-hall">
                     服务大厅
                 </el-menu-item>
-                <el-menu-item index="/camp-home">
-                    2026暑期训练营
+                <el-menu-item index="/camp-home" class="camp-nav-item">
+                    <img :src="campLogo" alt="2026暑期训练营" class="camp-nav-logo" />
                 </el-menu-item>
             </div>
             
@@ -1041,6 +1042,33 @@ const handleUserInfo = () => {
 .avatar-pop__action--danger { color: var(--color-danger); }
 .avatar-pop__action--danger:hover { background: var(--color-danger-light); }
 .avatar-pop__action--danger .el-icon { color: var(--color-danger); }
+
+/* === 暑期训练营 艺术字导航项 === */
+.camp-nav-item {
+  display: flex;
+  align-items: center;
+}
+
+.camp-nav-logo {
+  height: 30px;
+  width: auto;
+  display: block;
+  /* 鹅黄色发光：多层 drop-shadow 贴着字形（透明底 PNG 用 drop-shadow 而非 box-shadow） */
+  filter:
+    drop-shadow(0 0 5px rgba(255, 225, 110, 0.70))
+    drop-shadow(0 0 12px rgba(255, 214, 90, 0.42));
+  transition:
+    filter 0.3s ease,
+    transform 0.3s var(--dew-bounce);
+}
+
+/* hover：上浮 + 发光增强 */
+.camp-nav-item:hover .camp-nav-logo {
+  transform: translateY(-1px) scale(1.04);
+  filter:
+    drop-shadow(0 0 7px rgba(255, 232, 120, 0.90))
+    drop-shadow(0 0 18px rgba(255, 214, 90, 0.60));
+}
 </style>
 
 <style>

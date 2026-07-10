@@ -137,15 +137,12 @@
           </template>
           <div class="dashboard-body">
             <div class="ring-wrap">
-              <el-progress type="circle" :percentage="ratePct" :width="132" :stroke-width="9"
-                color="#6366f1" :show-text="false">
-                <template #default>
-                  <div class="ring-center">
-                    <div class="ring-num">{{ ratePct }}<span class="ring-pct">%</span></div>
-                    <div class="ring-label">达标率</div>
-                  </div>
-                </template>
-              </el-progress>
+              <div class="multi-ring" :style="ringStyle">
+                <div class="ring-hole">
+                  <div class="ring-num">{{ ratePct }}<span class="ring-pct">%</span></div>
+                  <div class="ring-label">达标率</div>
+                </div>
+              </div>
             </div>
             <div class="stat-grid">
               <div class="stat-item" v-for="s in stats" :key="s.key">
@@ -276,6 +273,25 @@ const teamLeaves = ref([]);      // 导生：本团队请假
 
 const statusLabel = (s) => ({ draft: '未开始', active: '进行中', archived: '已结束' }[s] || s);
 const ratePct = computed(() => Math.round((personal.value?.attendance_rate || 0) * 100));
+// 出勤分布多段环（已过承诺日的状态比例：出勤绿/迟到黄/缺勤红/请假蓝）
+const ringStyle = computed(() => {
+  const p = personal.value || {};
+  const seg = [
+    { c: 'var(--color-success)', v: p.present || 0 },
+    { c: 'var(--color-warning)', v: (p.late || 0) + (p.short_hours || 0) },
+    { c: 'var(--color-danger)', v: (p.late_and_short || 0) + (p.absent || 0) },
+    { c: 'var(--color-info)', v: p.on_leave || 0 },
+  ];
+  const total = seg.reduce((s, x) => s + x.v, 0);
+  if (!total) return { background: 'conic-gradient(rgba(150,150,150,0.15) 0% 100%)' };
+  let acc = 0;
+  const stops = [];
+  for (const s of seg) {
+    const pct = s.v / total * 100;
+    if (pct > 0) { stops.push(`${s.c} ${acc.toFixed(2)}% ${(acc + pct).toFixed(2)}%`); acc += pct; }
+  }
+  return { background: `conic-gradient(${stops.join(', ')})` };
+});
 
 const STATS_DEF = [
   { key: 'present', label: '出勤', color: 'var(--color-success)' },
@@ -520,6 +536,8 @@ onMounted(async () => {
 /* dashboard */
 .dashboard-body { display: flex; align-items: center; gap: 28px; flex-wrap: wrap; }
 .ring-wrap { flex-shrink: 0; }
+.multi-ring { width: 132px; height: 132px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: background 0.4s var(--dew-bounce); }
+.ring-hole { width: 96px; height: 96px; border-radius: 50%; background: var(--dew-card-bg); display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: inset 0 2px 8px rgba(0,0,0,0.06); }
 .ring-center { text-align: center; }
 .ring-num { font-size: 28px; font-weight: 700; color: var(--color-info); line-height: 1; }
 .ring-pct { font-size: 14px; font-weight: 600; }
