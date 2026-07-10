@@ -83,15 +83,37 @@
         <DewButton size="sm" :disabled="currentPage === totalPages" @click="currentPage++">下一页</DewButton>
       </div>
     </DewCard>
+
+    <!-- 系统通知详情弹窗 -->
+    <DewDialog v-model="detailVisible" title="通知详情" :width="600">
+      <div v-if="selectedNotice" class="notice-detail">
+        <div class="detail-row--title">
+          <span class="detail-value-title">{{ selectedNotice.title }}</span>
+          <DewTag v-if="selectedNotice.is_important" type="danger" size="sm" :round="true">重要</DewTag>
+        </div>
+        <p class="detail-content">{{ selectedNotice.content }}</p>
+        <div class="detail-meta">
+          <span class="detail-cat">{{ selectedNotice.category === 'camp' ? '营期通知' : '系统通知' }}</span>
+          <span class="detail-time">{{ formatRelativeTime(selectedNotice.created_at) }}</span>
+        </div>
+      </div>
+    </DewDialog>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { Bell } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { DewButton, DewButtonBar, DewCard, DewTag } from '../ui'
+import { DewButton, DewButtonBar, DewCard, DewTag, DewDialog } from '../ui'
 import { useNotifications, formatRelativeTime } from '../../composables/useNotifications'
+
+const router = useRouter()
+
+// 系统通知详情弹窗
+const detailVisible = ref(false)
+const selectedNotice = ref(null)
 
 // 共享状态（与 NotificationBell 共用同一份数据）
 const {
@@ -114,17 +136,20 @@ const total = computed(() => filteredList.value.length)
 // 筛选栏选项
 const filterItems = computed(() => [
   { value: 'all', label: '全部', icon: Bell },
-  { value: 'unread', label: '未读', icon: Bell, badge: unreadCount.value || undefined },
+  { value: 'system', label: '系统', icon: Bell },
   { value: 'camp', label: '营期', icon: Bell },
+  { value: 'unread', label: '未读', icon: Bell, badge: unreadCount.value || undefined },
 ])
 
 // 筛选 + 分页
 const filteredList = computed(() => {
   let list = notificationList.value
-  if (activeFilter.value === 'unread') {
-    list = list.filter(n => !n.is_read)
+  if (activeFilter.value === 'system') {
+    list = list.filter(n => n.category === 'system')
   } else if (activeFilter.value === 'camp') {
     list = list.filter(n => n.category === 'camp')
+  } else if (activeFilter.value === 'unread') {
+    list = list.filter(n => !n.is_read)
   }
   return list
 })
@@ -138,7 +163,29 @@ watch(activeFilter, () => { currentPage.value = 1 })
 // 交互
 function handleClick(item) {
   if (!item.is_read) markAsRead(item.id)
-  // TODO: 后端就绪后，根据 source_type + source_id + group_id 跳转到原始页面
+  // 系统通知：弹详情，不跳转
+  if (item.category === 'system') {
+    selectedNotice.value = item
+    detailVisible.value = true
+    return
+  }
+  // 营期通知：按 source_type 跳转到对应处理页
+  if (item.category === 'camp') {
+    const sid = item.camp_session_id
+    switch (item.source_type) {
+      case 'leave':
+        router.push({ path: '/camp', query: { tab: 'leave', sid } })
+        break
+      case 'join_request':
+        router.push('/camp-home')
+        break
+      case 'reward':
+        router.push('/medal/user-medal')
+        break
+      default:
+        router.push('/camp-home')
+    }
+  }
 }
 
 function handleMarkAllAsRead() {
@@ -198,5 +245,48 @@ onMounted(() => fetchNotifications())
   margin-top: 12px;
   padding-top: 12px;
   border-top: 1px solid var(--dew-card-divider);
+}
+
+/* 通知详情弹窗 */
+.notice-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.detail-row--title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.detail-value-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--dew-text-heading);
+}
+.detail-content {
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--dew-text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+}
+.detail-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--dew-card-divider);
+}
+.detail-cat {
+  font-size: 12px;
+  color: var(--dew-text-muted);
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgba(156, 163, 175, 0.12);
+}
+.detail-time {
+  font-size: 12px;
+  color: var(--dew-text-faint);
 }
 </style>

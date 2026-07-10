@@ -77,7 +77,7 @@ const greetingText = computed(() => {
   return '晚上好'
 })
 
-const userName = computed(() => store.state.user?.name || '同学')
+const userName = computed(() => store.state.user?.User_Name || '同学')
 
 const todayDate = computed(() => {
   const now = new Date()
