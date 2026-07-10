@@ -18,9 +18,7 @@
       </div>
       <div v-else class="camp-selector">
         <span class="selector-label">当前营期：</span>
-        <el-select v-model="sid" placeholder="选择营期" style="width: 280px;">
-          <el-option v-for="s in sessions" :key="s.id" :label="s.name" :value="s.id" />
-        </el-select>
+        <DewSelect v-model="sid" :options="sessionOptions" placeholder="选择营期" style="width: 280px;" />
         <el-tag v-if="current" size="small" style="margin-left: 12px;">
           {{ statusLabel(current.status) }} · {{ current.start_date }} ~ {{ current.end_date }}
         </el-tag>
@@ -42,7 +40,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useStore } from 'vuex';
 import { useRoute } from 'vue-router';
 import MenuComponent from '../components/MenuComponent.vue';
-import { DewButtonBar, DewCard } from '../components/ui';
+import { DewButtonBar, DewCard, DewSelect } from '../components/ui';
 import { campService } from '../services/campService';
 import CampSelection from '../components/Camp/CampSelection.vue';
 import CampAttendance from '../components/Camp/CampAttendance.vue';
@@ -63,6 +61,7 @@ const tabItems = [
 ];
 
 const current = computed(() => sessions.value.find((s) => s.id === sid.value));
+const sessionOptions = computed(() => sessions.value.map((s) => ({ label: s.name, value: s.id })));
 const statusLabel = (s) => ({ draft: '草稿', active: '进行中', archived: '已归档' }[s] || s);
 
 onMounted(async () => {
