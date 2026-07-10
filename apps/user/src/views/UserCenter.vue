@@ -32,7 +32,6 @@ const toggleMobileMenu = () => {
 
 // --- UserCenter 原有的逻辑 ---
 const username = ref('');
-const loading = ref(false);
 
 onMounted(() => {
     checkScreenSize();
@@ -52,11 +51,6 @@ onMounted(() => {
             router.push('/login');
         }
     });
-
-    loading.value = true;
-    setTimeout(() => {
-        loading.value = false;
-    }, 500);
 });
 
 onUnmounted(() => {
@@ -88,13 +82,7 @@ onUnmounted(() => {
             <!-- 移动端菜单 -->
             <MobileMenuComponent v-if="isMobile && isMobileMenuOpen" @close="toggleMobileMenu" />
 
-            <el-main
-                class="page-main"
-                v-loading="loading"
-                element-loading-background="transparent"
-                :delay="0"
-                element-loading-text="loading..."
-            >
+            <el-main class="page-main">
                 <UserCenterComponent />
             </el-main>
             <el-footer class="page-footer">

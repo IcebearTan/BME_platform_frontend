@@ -1,8 +1,7 @@
 <!-- 使用vue3语法 -->
 <script setup>
 import api from '../../api';
-import { onMounted } from 'vue'
-import { ref, reactive, computed, nextTick } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { useStore } from 'vuex';
@@ -116,26 +115,27 @@ const removeTag = (i) => {
 
 const tagsCount = computed(() => form.tags ? form.tags.length : 0)
 
-const loading = ref(false)
-nextTick(() => {
-    loading.value = true
-    setTimeout(() => {
-        loading.value = false
-    }, 500)
-})
+// loading 绑定真实数据：等 User_Info 填充表单后才消失（替代原来两个假 500ms）
+const loading = ref(true)
 
-onMounted(() => {
-  setTimeout(() => {
-    form.username = props.User_Info.User_Name
-    form.gender = props.User_Info.User_Sex
-    form.college = props.User_Info.College
-    form.major = props.User_Info.Major
-    form.introduction = props.User_Info.Introduction
-    form.GithubId = props.User_Info.Github_Id
-    form.Student_Id = props.User_Info.Student_Id || ''
-    form.tags = splitStringBySpace(props.User_Info.Skill_Tags)
-  }, 200)
-})
+const populateForm = (info) => {
+  form.username = info.User_Name
+  form.gender = info.User_Sex
+  form.college = info.College
+  form.major = info.Major
+  form.introduction = info.Introduction
+  form.GithubId = info.Github_Id
+  form.Student_Id = info.Student_Id || ''
+  form.tags = splitStringBySpace(info.Skill_Tags)
+}
+
+// User_Info 由父组件异步拉取后作为 prop 传入；拿到就填充并关掉 loading
+watch(() => props.User_Info, (info) => {
+  if (info && info.User_Name !== undefined) {
+    populateForm(info)
+    loading.value = false
+  }
+}, { immediate: true })
 
 const onSubmit = () => {
   formRef.value.validate((valid) => {
