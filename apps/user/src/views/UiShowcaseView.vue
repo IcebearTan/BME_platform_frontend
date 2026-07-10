@@ -150,6 +150,29 @@
         </div>
       </section>
 
+      <!-- ━━━━ Select ━━━━ -->
+      <section v-if="activeTab === 'select'" style="margin-bottom: 36px;">
+        <h2 class="dew-showcase__heading" style="font-size: 15px; font-weight: 600; margin: 0 0 14px;">DewSelect 下拉选择</h2>
+        <div style="font-size: 12px; color: var(--dew-text-faint); margin-bottom: 8px;">基础（玻璃触发器 + iOS 纯色浮层）</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 16px;">
+          <div style="width: 220px;">
+            <DewSelect v-model="selectVal1" :options="selectOptions" placeholder="请选择营期状态" />
+          </div>
+          <div style="font-size: 12px; color: var(--dew-text-faint);">值：{{ selectVal1 ?? '—' }}</div>
+        </div>
+        <div style="font-size: 12px; color: var(--dew-text-faint); margin-bottom: 8px;">尺寸 sm / md / lg</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 16px;">
+          <div style="width: 180px;"><DewSelect v-model="selectVal2" :options="selectOptions" placeholder="小号" size="sm" /></div>
+          <div style="width: 180px;"><DewSelect v-model="selectVal2" :options="selectOptions" placeholder="中号" size="md" /></div>
+          <div style="width: 180px;"><DewSelect v-model="selectVal2" :options="selectOptions" placeholder="大号" size="lg" /></div>
+        </div>
+        <div style="font-size: 12px; color: var(--dew-text-faint); margin-bottom: 8px;">可搜索 filterable / 禁用</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center;">
+          <div style="width: 220px;"><DewSelect v-model="selectVal3" :options="selectOptionsLong" placeholder="搜索学员…" filterable /></div>
+          <div style="width: 220px;"><DewSelect model-value="active" :options="selectOptions" disabled /></div>
+        </div>
+      </section>
+
       <!-- ━━━━ Card 基础变体 ━━━━ -->
       <section v-if="activeTab === 'card'" style="margin-bottom: 36px;">
         <h2 class="dew-showcase__heading" style="font-size: 15px; font-weight: 600; margin: 0 0 14px;">DewCard 卡片 · 基础变体</h2>
@@ -733,6 +756,7 @@ import DewBadge from '../components/ui/DewBadge.vue'
 import DewTag from '../components/ui/DewTag.vue'
 import DewInput from '../components/ui/DewInput.vue'
 import DewSwitch from '../components/ui/DewSwitch.vue'
+import DewSelect from '../components/ui/DewSelect.vue'
 import DewPopover from '../components/ui/DewPopover.vue'
 import DewDropdown from '../components/ui/DewDropdown.vue'
 import DewIsland from '../components/ui/DewIsland.vue'
@@ -768,6 +792,7 @@ const navGroups = [
     items: [
       { value: 'input', label: 'Input' },
       { value: 'switch', label: 'Switch' },
+      { value: 'select', label: 'Select' },
     ],
   },
   {
@@ -848,6 +873,20 @@ const sidebarTree = [
       { value: 'comment', label: '评论' },
     ],
   },
+]
+
+// DewSelect demo
+const selectVal1 = ref(null)
+const selectVal2 = ref(null)
+const selectVal3 = ref(null)
+const selectOptions = [
+  { label: '进行中', value: 'active' },
+  { label: '草稿', value: 'draft' },
+  { label: '已归档', value: 'archived' },
+]
+const selectOptionsLong = [
+  { label: '张三', value: 1 }, { label: '李四', value: 2 }, { label: '王五', value: 3 },
+  { label: '赵六', value: 4 }, { label: '孙七', value: 5 }, { label: '周八', value: 6 },
 ]
 
 const lit1 = ref(false)

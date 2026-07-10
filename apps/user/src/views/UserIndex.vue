@@ -47,7 +47,6 @@ export default {
 <script setup>
 import { onMounted, ref, computed } from "vue";
 import { useStore } from "vuex";
-import { DewCard } from "../components/ui";
 
 const store = useStore();
 
@@ -77,26 +76,24 @@ onMounted(() => {
 
       <el-main class="page-main">
         <div class="main-container">
-          <!-- 用户信息卡片 -->
-          <DewCard size="lg" class="user-info-card">
-            <div class="user-info">
-              <div class="avatar-wrapper">
-                <el-avatar
-                  @click="visible = !visible"
-                  shape="square"
-                  size="large"
-                  class="avatar"
-                  :src="User_Avatar"
-                  alt="image"
-                />
-              </div>
-              <div class="user-details">
-                <div class="username">{{ username }}</div>
-                <div class="user-email">Email：{{ user_email }}</div>
-                <div class="user-uid">#uid：{{ uid }}</div>
-              </div>
+          <!-- 用户信息（透明容器，无卡片效果） -->
+          <div class="user-info">
+            <div class="avatar-wrapper">
+              <el-avatar
+                @click="visible = !visible"
+                shape="square"
+                size="large"
+                class="avatar"
+                :src="User_Avatar"
+                alt="image"
+              />
             </div>
-          </DewCard>
+            <div class="user-details">
+              <div class="username">{{ username }}</div>
+              <div class="user-email">Email：{{ user_email }}</div>
+              <div class="user-uid">#uid：{{ uid }}</div>
+            </div>
+          </div>
 
           <UserIndexComponent />
         </div>
@@ -159,16 +156,14 @@ onMounted(() => {
   padding: 5px;
 }
 
-/* 用户信息卡片 */
-.user-info-card {
-  margin-top: 15px;
-  margin-bottom: 15px;
-}
-
+/* 用户信息：透明容器，无卡片效果，直接贴在极光底上 */
 .user-info {
   display: flex;
   align-items: center;
   gap: 20px;
+  margin-top: 15px;
+  margin-bottom: 15px;
+  padding: 20px;
 }
 
 .avatar-wrapper {
