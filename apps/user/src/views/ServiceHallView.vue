@@ -35,10 +35,6 @@ const toggleMobileMenu = () => {
   isMobileMenuOpen.value = !isMobileMenuOpen.value;
 };
 
-const handle3DPrintClick = () => {
-  router.push('/service/3d-print');
-};
-
 const handleAIServiceClick = () => {
   router.push('/ai-service');
 };
@@ -111,9 +107,9 @@ const handleAIServiceClick = () => {
               </div>
               
               <div class="cards-container">
-                <div class="service-card hover-effect" @click="handle3DPrintClick">
+                <div class="service-card disabled">
                   <div class="card-content">
-                    <div class="icon-box primary">
+                    <div class="icon-box gray">
                       <el-icon><Printer /></el-icon>
                     </div>
                     <div class="text-content">
@@ -121,8 +117,8 @@ const handleAIServiceClick = () => {
                       <p>模型上传、打印预约与进度查询</p>
                     </div>
                   </div>
-                  <div class="card-action">
-                    <el-icon><ArrowRight /></el-icon>
+                  <div class="card-footer">
+                    <span>建设中...</span>
                   </div>
                 </div>
 

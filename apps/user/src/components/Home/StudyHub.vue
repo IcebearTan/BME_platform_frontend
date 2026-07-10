@@ -146,7 +146,7 @@ const studyEntries = ref([
   { id: 'camp', title: '营期', description: '2026 暑期训练营', route: '/camp-home', color: '#7c3aed' },
   { id: 'exams', title: '考核评估', description: '检验学习效果', route: '/exam', color: '#F56C6C', disabled: true },
   { id: 'resources', title: '学习资源', description: '丰富的学习材料', route: '/resources', color: '#909399', disabled: true },
-  { id: '3d-print', title: '3D打印', description: '3D 模型打印预约', route: '/service/3d-print', color: '#06b6d4' },
+  { id: '3d-print', title: '3D打印', description: '3D 模型打印预约', route: '/service/3d-print', color: '#06b6d4', disabled: true },
   { id: 'llm', title: '大模型', description: '大模型 API 接口平台', route: '/ai-service', color: '#ec4899' },
 ])
 
