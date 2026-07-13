@@ -80,7 +80,6 @@ import { ElCarousel, ElCarouselItem, ElIcon } from 'element-plus'
 import {
   Reading, EditPen, School, Select, Files, Box, MagicStick,
 } from '@element-plus/icons-vue'
-import bgImage from '../../assets/back_groud.jpg'
 import DewButtonBar from '../ui/DewButtonBar.vue'
 import DewCard from '../ui/DewCard.vue'
 import DewPostCard from '../ui/DewPostCard.vue'
@@ -132,10 +131,11 @@ const banners = ref([
   },
   {
     id: 3,
-    title: '开启学习之旅',
-    description: '探索丰富的课程内容，提升你的技能',
-    image: bgImage,
-    route: '/study'
+    title: '3D打印农场',
+    description: '在线预约，一站式 3D 打印服务',
+    image: import.meta.env.BASE_URL + '3D打印农场.png',
+    route: '/service/3d-print',
+    bare: true
   }
 ])
 
