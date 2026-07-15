@@ -11,9 +11,9 @@
             <router-link class="subtitle" :to="{ path: '/ai-service'}" target="_blank">
                 大模型平台
             </router-link>
-            <div class="subtitle_disabled">
+            <a class="subtitle" href="/3dfarm/" target="_blank" rel="noopener">
                 3D打印平台
-            </div>
+            </a>
             <router-link class="subtitle" :to="{ path: '/community'}" target="_blank">
                 讨论社区
             </router-link>

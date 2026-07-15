@@ -39,6 +39,10 @@ const handleAIServiceClick = () => {
   router.push('/ai-service');
 };
 
+const open3DFarm = () => {
+  window.open('/3dfarm/', '_blank');
+};
+
 </script>
 
 <template>
@@ -107,18 +111,18 @@ const handleAIServiceClick = () => {
               </div>
               
               <div class="cards-container">
-                <div class="service-card disabled">
+                <div class="service-card hover-effect" @click="open3DFarm">
                   <div class="card-content">
-                    <div class="icon-box gray">
+                    <div class="icon-box cyan">
                       <el-icon><Printer /></el-icon>
                     </div>
                     <div class="text-content">
-                      <h3>3D打印服务</h3>
-                      <p>模型上传、打印预约与进度查询</p>
+                      <h3>3D打印农场</h3>
+                      <p>在线预约，一站式 3D 打印服务</p>
                     </div>
                   </div>
-                  <div class="card-footer">
-                    <span>建设中...</span>
+                  <div class="card-action">
+                    <el-icon><ArrowRight /></el-icon>
                   </div>
                 </div>
 
@@ -328,6 +332,12 @@ const handleAIServiceClick = () => {
   background: linear-gradient(135deg, #409EFF 0%, #3a8ee6 100%);
   color: white;
   box-shadow: 0 8px 16px rgba(64, 158, 255, 0.2);
+}
+
+.icon-box.cyan {
+  background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+  color: white;
+  box-shadow: 0 8px 16px rgba(6, 182, 212, 0.2);
 }
 
 .icon-box.gray {

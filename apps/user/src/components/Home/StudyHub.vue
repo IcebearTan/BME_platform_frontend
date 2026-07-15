@@ -134,7 +134,7 @@ const banners = ref([
     title: '3D打印农场',
     description: '在线预约，一站式 3D 打印服务',
     image: import.meta.env.BASE_URL + '3D打印农场.png',
-    route: '/service/3d-print',
+    external: '/3dfarm/',
     bare: true
   }
 ])
@@ -146,7 +146,7 @@ const studyEntries = ref([
   { id: 'camp', title: '营期', description: '2026 暑期训练营', route: '/camp-home', color: '#7c3aed' },
   { id: 'exams', title: '考核评估', description: '检验学习效果', route: '/exam', color: '#F56C6C', disabled: true },
   { id: 'resources', title: '学习资源', description: '丰富的学习材料', route: '/resources', color: '#909399', disabled: true },
-  { id: '3d-print', title: '3D打印', description: '3D 模型打印预约', route: '/service/3d-print', color: '#06b6d4', disabled: true },
+  { id: '3d-print', title: '3D打印', description: '3D 模型打印预约', external: '/3dfarm/', color: '#06b6d4' },
   { id: 'llm', title: '大模型', description: '大模型 API 接口平台', route: '/ai-service', color: '#ec4899' },
 ])
 
@@ -224,7 +224,9 @@ function goCommunity() {
 const emit = defineEmits(['banner-click', 'entry-click'])
 
 const handleBannerClick = (banner) => {
-  if (banner.route) {
+  if (banner.external) {
+    window.open(banner.external, '_blank')
+  } else if (banner.route) {
     router.push(banner.route)
   }
   emit('banner-click', banner)
@@ -232,7 +234,9 @@ const handleBannerClick = (banner) => {
 
 const handleEntryClick = (entry) => {
   if (entry.disabled) return
-  if (entry.route) {
+  if (entry.external) {
+    window.open(entry.external, '_blank')
+  } else if (entry.route) {
     router.push(entry.route)
   }
   emit('entry-click', entry)

@@ -10,7 +10,7 @@ export default {
 
     computed: {
         // 根据当前路由高亮对应一级菜单；
-        // 服务类子页面（服务大厅 / AI 大模型服务 / 3D 打印）统一高亮「服务大厅」
+        // 服务类子页面（服务大厅 / AI 大模型服务）统一高亮「服务大厅」
         activeIndex() {
             const path = this.$route.path
             if (path.startsWith('/camp-home')) {
@@ -19,7 +19,7 @@ export default {
             if (path.startsWith('/camp')) {
                 return '/camp'
             }
-            if (path === '/service-hall' || path.startsWith('/ai-service') || path.startsWith('/service/')) {
+            if (path === '/service-hall' || path.startsWith('/ai-service')) {
                 return '/service-hall'
             }
             // 课程相关高亮「课程」：课程列表 / 详情 / 章节页

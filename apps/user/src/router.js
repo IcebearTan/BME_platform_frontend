@@ -26,7 +26,6 @@ import CourseChapterView from './views/CourseChapterView.vue';
 import QuestionBankView from './views/QuestionBankView.vue';
 import ServiceHallView from './views/ServiceHallView.vue';
 import LLMServiceView from './views/LLMServiceView.vue';
-import ThreeDPrintView from './views/ThreeDPrintView.vue';
 import CommunityView from './views/CommunityView.vue';
 import UiShowcaseView from './views/UiShowcaseView.vue';
 import MyFeedbacksComponent from './components/User/MyFeedbacksComponent.vue';
@@ -222,12 +221,6 @@ const router = createRouter({
             path: '/service-hall',
             name: 'service-hall',
             component: ServiceHallView,
-            meta: { requiresAuth: true }
-        },
-        {
-            path: '/service/3d-print',
-            name: '3d-print',
-            component: ThreeDPrintView,
             meta: { requiresAuth: true }
         },
         {
