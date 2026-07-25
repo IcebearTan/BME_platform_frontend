@@ -19,7 +19,6 @@ export default {
     return {
       activeIndex: '/',
       sidebarCollapsed: false,
-      userAvatar: '',
       store: useStore(),
       router: useRouter(),
     };
@@ -31,7 +30,6 @@ export default {
         '/': '仪表盘',
         '/dashboard': '仪表盘',
         '/user-manage/users': '用户管理',
-        '/user-manage/attendence': '考勤管理',
         '/article/manage': '文章管理',
         '/article/create': '创建文章',
         '/group/manage': '小组管理',
@@ -56,6 +54,10 @@ export default {
     },
     isDarkMode() {
       return this.store.getters.isDarkMode;
+    },
+    userInitial() {
+      const name = this.store?.state?.user?.name || '管';
+      return String(name).charAt(0).toUpperCase();
     }
   },
 
@@ -159,16 +161,17 @@ const handleClose = (key, keyPath) => {
       </div>
       
       <div class="navbar-right">
-        <el-button text size="large" class="theme-toggle-btn" @click="toggleTheme" :title="isDarkMode ? '切换到白天模式' : '切换到夜间模式'">
+        <div class="icon-btn theme-toggle" :class="{ 'is-dark': isDarkMode }" @click="toggleTheme" :title="isDarkMode ? '切换到白天模式' : '切换到夜间模式'">
           <el-icon :size="18"><Sunny v-if="!isDarkMode" /><Moon v-else /></el-icon>
-        </el-button>
-        <el-button :icon="Bell" text size="large" class="notification-btn" @click="router.push('/notification/manage')">
-          <el-badge :value="3" class="notification-badge" />
-        </el-button>
-        
+        </div>
+        <div class="icon-btn notification-btn" @click="router.push('/notification/manage')" title="通知中心">
+          <el-icon :size="18"><Bell /></el-icon>
+          <span class="icon-dot"></span>
+        </div>
+
         <el-dropdown @command="handleUserAction">
           <div class="user-profile">
-            <el-avatar :size="32" :src="userAvatar" />
+            <div class="user-avatar-letter">{{ userInitial }}</div>
             <span class="username">{{ store.state.user?.name || '管理员' }}</span>
             <el-icon><ArrowDown /></el-icon>
           </div>
@@ -247,9 +250,6 @@ const handleClose = (key, keyPath) => {
               <el-icon class="menu-icon"><Clock /></el-icon>
               <span class="menu-text">考勤与营期</span>
             </template>
-            <el-menu-item index="/user-manage/attendence" @click="router.push('/user-manage/attendence')" class="submenu-item">
-              <el-icon><Clock /></el-icon><span>考勤打卡</span>
-            </el-menu-item>
             <el-menu-item index="/seat/manage" @click="router.push('/seat/manage')" class="submenu-item">
               <el-icon><Grid /></el-icon><span>座位管理</span>
             </el-menu-item>
@@ -300,9 +300,6 @@ const handleClose = (key, keyPath) => {
             </template>
             <el-menu-item index="/notification/manage" @click="router.push('/notification/manage')" class="submenu-item">
               <el-icon><Bell /></el-icon><span>系统通知</span>
-            </el-menu-item>
-            <el-menu-item index="/homepage/cover" @click="router.push('/homepage/cover')" class="submenu-item">
-              <el-icon><Picture /></el-icon><span>首页封面</span>
             </el-menu-item>
             <el-menu-item index="/audit/logs" @click="router.push('/audit/logs')" class="submenu-item">
               <el-icon><Tickets /></el-icon><span>审计日志</span>
@@ -393,15 +390,81 @@ const handleClose = (key, keyPath) => {
   gap: 16px;
 }
 
-.admin-layout .notification-btn {
+/* 顶栏圆形玻璃图标按钮（主题切换 / 通知） */
+.admin-layout .icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
   position: relative;
-  color: var(--text-secondary) !important;
+  color: var(--text-secondary);
+  background: var(--dew-card-bg);
+  border: 1px solid var(--dew-card-border);
+  backdrop-filter: blur(12px) saturate(1.4);
+  -webkit-backdrop-filter: blur(12px) saturate(1.4);
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease, color 0.3s ease;
 }
 
-.admin-layout .notification-badge {
+.admin-layout .icon-btn:hover {
+  color: var(--primary-color);
+  transform: scale(1.08);
+  box-shadow: var(--shadow-md);
+}
+
+/* 主题切换：白天金色 / 夜间深灰（仿用户端 MenuComponent） */
+.admin-layout .theme-toggle:not(.is-dark) {
+  background: linear-gradient(135deg, #f3bf12, #e6b222);
+  color: #fff;
+  border-color: rgba(243, 156, 18, 0.3);
+  box-shadow: 0 3px 12px rgba(243, 156, 18, 0.2);
+}
+
+.admin-layout .theme-toggle:not(.is-dark):hover {
+  color: #fff;
+  transform: scale(1.08) rotate(15deg);
+  box-shadow: 0 6px 20px rgba(243, 156, 18, 0.35);
+}
+
+.admin-layout .theme-toggle.is-dark {
+  background: linear-gradient(135deg, #2e3338, #313941);
+  color: #ffd700;
+  border-color: rgba(189, 195, 199, 0.2);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.3);
+}
+
+.admin-layout .theme-toggle.is-dark:hover {
+  transform: scale(1.08) rotate(-15deg);
+  box-shadow: 0 6px 20px rgba(52, 73, 94, 0.4);
+}
+
+/* 通知红点 */
+.admin-layout .icon-dot {
   position: absolute;
-  top: -8px;
-  right: -8px;
+  top: 7px;
+  right: 7px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--error-color);
+  border: 2px solid var(--dew-card-bg);
+}
+
+/* 用户首字母头像 */
+.admin-layout .user-avatar-letter {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  flex-shrink: 0;
 }
 
 .admin-layout .user-profile {
@@ -556,38 +619,37 @@ const handleClose = (key, keyPath) => {
   background: transparent !important;
   border-radius: var(--radius-md) !important;
   margin: 3px 0 !important;
-  transition: all var(--transition-fast) !important;
+  transition: background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1), color 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s ease !important;
   padding: 0 16px !important;
   height: 48px !important;
   line-height: 48px !important;
   border: none !important;
 }
 
-/* 悬停效果 - 增强对比度 */
+/* 悬停效果 - 柔和玻璃高光（去廉价位移） */
 .admin-layout .modern-menu .el-sub-menu__title:hover,
 .admin-layout .modern-menu .el-menu-item:hover {
-  background: rgba(255, 255, 255, 0.15) !important;
+  background: rgba(255, 255, 255, 0.12) !important;
   color: #ffffff !important;
-  transform: translateX(4px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
 }
 
-/* 激活状态 - 更明显的视觉反馈 */
+/* 激活状态 - 淡蓝玻璃底 + 精致左边条（克制，不凸起） */
 .admin-layout .modern-menu .el-menu-item.is-active {
-  background: rgba(var(--primary-color-rgb), 0.85) !important;
+  background: rgba(var(--primary-color-rgb), 0.16) !important;
   color: #ffffff !important;
   position: relative;
-  box-shadow: 0 4px 12px rgba(var(--primary-color-rgb), 0.3);
+  box-shadow: inset 0 0 0 1px rgba(var(--primary-color-rgb), 0.28);
 }
 
 .admin-layout .modern-menu .el-menu-item.is-active::before {
   content: '';
   position: absolute;
   left: 0;
-  top: 0;
-  bottom: 0;
-  width: 4px;
-  background: #ffffff;
+  top: 9px;
+  bottom: 9px;
+  width: 3px;
+  background: var(--primary-color);
   border-radius: 0 2px 2px 0;
 }
 
@@ -607,14 +669,13 @@ const handleClose = (key, keyPath) => {
   white-space: nowrap; /* 防止文字换行 */
 }
 
-/* 子菜单容器样式 - 解决白色突兀问题 */
+/* 子菜单容器 - 柔和凹陷玻璃（去突兀深色块） */
 .admin-layout .modern-menu .el-sub-menu .el-menu {
-  background: rgba(0, 0, 0, 0.3) !important;
+  background: rgba(0, 0, 0, 0.18) !important;
   border-radius: var(--radius-md) !important;
-  margin: 6px 0 !important;
-  padding: 8px 0 !important;
+  margin: 4px 0 !important;
+  padding: 6px 0 !important;
   border: none !important;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 /* 子菜单项样式 - 改善对比度 */
@@ -633,16 +694,15 @@ const handleClose = (key, keyPath) => {
 
 .admin-layout .modern-menu .el-sub-menu .el-menu .el-menu-item:hover,
 .admin-layout .submenu-item:hover {
-  background: rgba(255, 255, 255, 0.12) !important;
+  background: rgba(255, 255, 255, 0.1) !important;
   color: #ffffff !important;
-  transform: translateX(2px);
 }
 
 .admin-layout .modern-menu .el-sub-menu .el-menu .el-menu-item.is-active,
 .admin-layout .submenu-item.is-active {
-  background: rgba(var(--primary-color-rgb), 0.6) !important;
+  background: rgba(var(--primary-color-rgb), 0.2) !important;
   color: #ffffff !important;
-  box-shadow: 0 2px 6px rgba(var(--primary-color-rgb), 0.2);
+  box-shadow: inset 0 0 0 1px rgba(var(--primary-color-rgb), 0.32);
 }
 
 .admin-layout .submenu-item .el-icon {

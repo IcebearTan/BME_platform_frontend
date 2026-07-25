@@ -6,7 +6,6 @@ import RegisterView from './views/RegisterView.vue'
 
 import DashboardComponent from './components/DashboardComponent.vue'
 import UserManage from './components/UserManage.vue'
-import UserAttendence from './components/UserAttendence.vue'
 import ArticleManage from './components/ArticleManage.vue'
 import ArticleCreate from './components/ArticleCreate.vue'
 import EditorView from './views/EditorView.vue';
@@ -16,7 +15,6 @@ import EditorComponent from './components/EditorComponent.vue';
 import EditorCreateComponent from './components/EditorCreateComponent.vue';
 import GroupManage from './components/GroupManage.vue';
 import LearningProgress from './components/LearningProgress.vue';
-import HomeCoverManage from './components/HomeCoverManage.vue';
 import MedalManage from './components/MedalManage.vue';
 import MedalGrant from './components/MedalGrant.vue';
 import CourseManage from './components/CourseManage.vue';
@@ -47,11 +45,6 @@ const router = createRouter({
                     component: UserManage
                 },
                 {
-                    path: '/user-manage/attendence',
-                    name: 'user_manage_attendence',
-                    component: UserAttendence
-                },
-                {
                     path: '',
                     name: 'home_default',
                     component: DashboardComponent
@@ -80,11 +73,6 @@ const router = createRouter({
                     path: '/learningprgress/manage',
                     name: 'learningprgress_manage',
                     component: LearningProgress
-                },
-                {
-                    path: '/homepage/cover',
-                    name: 'homepage_cover',
-                    component: HomeCoverManage
                 },
                 {
                     path: '/medal/manage',
