@@ -1,31 +1,39 @@
-/* 现代化设计系统变量 */
-:root {
-    /* 主题色彩 */
-    --primary-color: #4f46e5;
-    --primary-light: #6366f1;
-    --primary-dark: #3730a3;
-    --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+/* Admin 设计系统变量 —— 克制版液态玻璃
+   通用结构变量（功能色/语义色/文字/背景/边框/阴影/圆角/间距/字体/字号/过渡）由此文件主导；
+   玻璃配方 --dew-* 与极光色值见 tokens.css（main.js import 顺序：tokens → variables → global → glass）。
+   功能强调色统一 #3b82f6（呼应极光蓝，是 UI 操作色，非品牌主色；品牌色为流动极光衬底）。 */
 
-    /* 语义色彩 */
+:root {
+    /* 功能强调色（UI 操作色，替代原紫色 #4f46e5） */
+    --primary-color: #3b82f6;
+    --primary-light: #60a5fa;
+    --primary-dark: #2563eb;
+    --primary-color-rgb: 59, 130, 246;
+
+    /* 语义色（与 tokens.css 对齐） */
     --success-color: #10b981;
     --warning-color: #f59e0b;
     --error-color: #ef4444;
     --info-color: #3b82f6;
 
-    /* 中性色彩 */
+    /* 文字 */
     --text-primary: #1f2937;
     --text-secondary: #6b7280;
     --text-tertiary: #9ca3af;
     --text-inverse: #ffffff;
 
-    /* 背景色彩 */
+    /* 背景 */
     --bg-primary: #ffffff;
     --bg-secondary: #f9fafb;
     --bg-tertiary: #f3f4f6;
     --bg-dark: #1f2937;
     --bg-darker: #111827;
 
-    /* 边框色彩 */
+    /* 内容实心台子：表格/表单高不透明衬底，保证数字文字可读（玻璃壳里的实心内容） */
+    --surface-solid: rgba(255, 255, 255, 0.92);
+    --surface-solid-hover: rgba(255, 255, 255, 1);
+
+    /* 边框 */
     --border-light: #e5e7eb;
     --border-medium: #d1d5db;
     --border-dark: #9ca3af;
@@ -51,11 +59,11 @@
     --spacing-xl: 32px;
     --spacing-2xl: 48px;
 
-    /* 字体 */
-    --font-family-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    --font-family-mono: 'JetBrains Mono', 'SF Mono', Monaco, 'Cascadia Code', monospace;
+    /* 字体（系统栈，国内禁外网字体 CDN） */
+    --font-family-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+    --font-family-mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
 
-    /* 字体大小 */
+    /* 字号 */
     --text-xs: 12px;
     --text-sm: 14px;
     --text-base: 16px;
@@ -72,19 +80,31 @@
 
     /* 侧边栏 */
     --sidebar-width: 280px;
-    --sidebar-bg: linear-gradient(180deg, #2d3748 0%, #1a202c 100%);
-    --sidebar-hover: rgba(255, 255, 255, 0.08);
-    --sidebar-active: rgba(79, 70, 229, 0.2);
 }
 
-/* 暗黑模式变量 */
-[data-theme="dark"] {
-    --bg-primary: #1f2937;
-    --bg-secondary: #111827;
-    --bg-tertiary: #0f172a;
-    --text-primary: #f9fafb;
+/* 深色模式（选择器与 tokens.css 一致：.theme-dark，由 App.vue 根 div + body 挂载） */
+.theme-dark {
+    --primary-color: #3b82f6;
+    --primary-light: #60a5fa;
+
+    --text-primary: #f3f4f6;
     --text-secondary: #d1d5db;
     --text-tertiary: #9ca3af;
+
+    --bg-primary: #1f2937;
+    --bg-secondary: #16161a;
+    --bg-tertiary: #111827;
+    --bg-dark: #0f0f12;
+    --bg-darker: #0a0a0c;
+
+    --surface-solid: rgba(30, 32, 38, 0.92);
+    --surface-solid-hover: rgba(38, 41, 48, 1);
+
     --border-light: #374151;
     --border-medium: #4b5563;
+
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.4);
+    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.6), 0 10px 10px -5px rgba(0, 0, 0, 0.5);
 }

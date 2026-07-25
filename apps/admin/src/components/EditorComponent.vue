@@ -83,7 +83,7 @@ export default {
 <li><strong>代码块</strong> - 支持代码高亮显示</li>
 </ul>
 <blockquote>
-<p>💡 <strong>小提示：</strong> 使用右侧的预览功能可以实时查看文章效果，使用分屏模式获得最佳编辑体验！</p>
+<p><strong>小提示：</strong> 使用右侧的预览功能可以实时查看文章效果，使用分屏模式获得最佳编辑体验！</p>
 </blockquote>
 <p>现在就开始您的编辑之旅吧！</p>
         `)
@@ -607,7 +607,7 @@ export default {
                 </div>
             </template>
             <div class="dialog-content">
-                <p>📝 编辑器使用小贴士：</p>
+                <p>编辑器使用小贴士：</p>
                 <ul>
                     <li>如果内容加载缓慢，请耐心等待1-2秒</li>
                     <li>图片粘贴可能需要重试一次以获得最佳效果</li>

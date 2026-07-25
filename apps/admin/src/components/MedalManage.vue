@@ -471,7 +471,7 @@ onMounted(() => {
       </div>
     </div>
     <div v-else class="empty-state">
-      <div class="empty-icon">🏆</div>
+      <div class="empty-icon"><el-icon><Trophy /></el-icon></div>
       <p class="empty-text">还没有勋章</p>
       <p class="empty-hint">等待加速制作专属勋章</p>
     </div>

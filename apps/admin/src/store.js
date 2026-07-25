@@ -8,6 +8,7 @@ export default new Vuex.Store({
         user: null,
         token: localStorage.getItem('token') || null,
         isLogin: false,
+        isDarkMode: false,
     },
     mutations: {
         setToken(state, token) {
@@ -21,6 +22,12 @@ export default new Vuex.Store({
         },
         clearUser(state) {
             state.user = null
+        },
+        setTheme(state, isDarkMode) {
+            state.isDarkMode = isDarkMode
+        },
+        toggleTheme(state) {
+            state.isDarkMode = !state.isDarkMode
         }
     },
     actions: {
@@ -43,6 +50,7 @@ export default new Vuex.Store({
     },
     getters: {
         isLogin: (state) => !!state.token,
+        isDarkMode: (state) => state.isDarkMode,
         // RBAC：role / permissions 随登录响应存于 state.user
         role: (state) => state.user?.role || 'student',
         permissions: (state) => state.user?.permissions || [],

@@ -144,7 +144,17 @@ export default {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #f5f6fa;
+    background:
+        radial-gradient(ellipse 55% 50% at 12% 18%, rgba(96, 165, 250, 0.18), transparent 60%),
+        radial-gradient(ellipse 60% 55% at 88% 88%, rgba(52, 211, 153, 0.15), transparent 60%),
+        linear-gradient(135deg, #f0f4ff 0%, #fdf2f8 50%, #f0fdf4 100%);
+}
+
+.theme-dark .login-bg-center {
+    background:
+        radial-gradient(ellipse 55% 50% at 12% 18%, rgba(59, 130, 246, 0.12), transparent 60%),
+        radial-gradient(ellipse 60% 55% at 88% 88%, rgba(16, 185, 129, 0.10), transparent 60%),
+        linear-gradient(160deg, #16161a 0%, #0f0f12 100%);
 }
 
 .login-container {
@@ -154,8 +164,11 @@ export default {
     flex-direction: column;
     justify-content: center;
     border-radius: 20px;
-    box-shadow: 0 6px 15px 0px rgb(209, 209, 209);
-    background: #fff;
+    box-shadow: var(--shadow-lg);
+    background: var(--dew-card-bg);
+    backdrop-filter: blur(20px) saturate(1.4);
+    -webkit-backdrop-filter: blur(20px) saturate(1.4);
+    border: 1px solid var(--dew-card-border);
 }
 
 .submit-button {
@@ -181,7 +194,7 @@ export default {
 }
 
 .gray-footer {
-    background: #f0f0f0;
+    background: rgba(255, 255, 255, 0.3);
     width: 100%;
     min-height: 50px;
     box-sizing: border-box;

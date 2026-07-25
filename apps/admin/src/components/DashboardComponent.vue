@@ -1,58 +1,66 @@
 <template>
   <div class="dashboard-container">
-    <!-- 欢迎横幅 -->
+    <!-- 欢迎横幅（克制极光 hero） -->
     <div class="welcome-banner">
       <div class="banner-content">
         <div class="welcome-text">
-          <h1 class="welcome-title">
-            欢迎回来，{{ userName }}！
-            <span class="wave-emoji">👋</span>
-          </h1>
-          <p class="welcome-subtitle">今天是一个学习的好日子，让我们开始吧！</p>
+          <h1 class="welcome-title">欢迎回来，{{ userName }}</h1>
+          <p class="welcome-subtitle">{{ todayLabel }} · 今日新增 {{ stats.user_new_today }} 人 · 今日打卡 {{ stats.checkin_today }} 人</p>
         </div>
-        <div class="banner-decoration">
-          <div class="floating-icon">📚</div>
-          <div class="floating-icon delay-1">🎓</div>
-          <div class="floating-icon delay-2">⭐</div>
+        <div class="banner-meta">
+          <div class="meta-value">{{ stats.pending_quota }}</div>
+          <div class="meta-label">待审批配额</div>
         </div>
       </div>
     </div>
 
-    <!-- 统计卡片 -->
+    <!-- 统计卡片（真实数据） -->
     <div class="stats-grid">
-      <div class="stat-card" v-for="stat in stats" :key="stat.title">
-        <div class="stat-icon" :style="{ background: stat.color }">
-          <el-icon :size="24">
-            <component :is="stat.icon" />
-          </el-icon>
+      <div class="stat-card glass-surface" v-for="stat in statCards" :key="stat.key">
+        <div class="stat-icon" :style="{ background: stat.bg, color: stat.color }">
+          <el-icon :size="22"><component :is="stat.icon" /></el-icon>
         </div>
         <div class="stat-content">
           <div class="stat-number">{{ stat.value }}</div>
           <div class="stat-title">{{ stat.title }}</div>
-          <div class="stat-change" :class="stat.changeType">
-            <el-icon><component :is="stat.changeIcon" /></el-icon>
-            <span>{{ stat.change }}</span>
-          </div>
         </div>
       </div>
     </div>
 
     <!-- 主要内容区域 -->
     <div class="content-grid">
+      <!-- 最近操作（真实审计日志） -->
+      <div class="panel-card glass-surface">
+        <div class="card-header">
+          <h3>最近操作</h3>
+          <el-icon class="header-icon"><Clock /></el-icon>
+        </div>
+        <div class="activity-list">
+          <div v-if="recentActivities.length === 0" class="empty-tip">暂无近期操作记录</div>
+          <div class="activity-item" v-for="activity in recentActivities" :key="activity.id">
+            <span class="activity-dot" :class="activity.result === 'success' ? 'ok' : 'fail'"></span>
+            <div class="activity-content">
+              <div class="activity-title">{{ activity.username }} · {{ activity.operation }}</div>
+              <div class="activity-time">{{ formatTime(activity.timestamp) }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- 快速操作 -->
-      <div class="quick-actions-card">
+      <div class="panel-card glass-surface">
         <div class="card-header">
           <h3>快速操作</h3>
           <el-icon class="header-icon"><Lightning /></el-icon>
         </div>
         <div class="actions-grid">
-          <div 
-            class="action-item" 
-            v-for="action in quickActions" 
+          <div
+            class="action-item"
+            v-for="action in quickActions"
             :key="action.title"
             @click="handleQuickAction(action.route)"
           >
-            <div class="action-icon" :style="{ background: action.color }">
+            <div class="action-icon" :style="{ background: action.bg, color: action.color }">
               <el-icon><component :is="action.icon" /></el-icon>
             </div>
             <div class="action-content">
@@ -63,227 +71,102 @@
           </div>
         </div>
       </div>
-
-      <!-- 最近活动 -->
-      <div class="recent-activity-card">
-        <div class="card-header">
-          <h3>最近活动</h3>
-          <el-icon class="header-icon"><Clock /></el-icon>
-        </div>
-        <div class="activity-list">
-          <div class="activity-item" v-for="activity in recentActivities" :key="activity.id">
-            <div class="activity-icon" :style="{ background: activity.color }">
-              <el-icon><component :is="activity.icon" /></el-icon>
-            </div>
-            <div class="activity-content">
-              <div class="activity-title">{{ activity.title }}</div>
-              <div class="activity-time">{{ activity.time }}</div>
-            </div>
-          </div>
-          <div class="activity-more">
-            <el-button text type="primary" style="color: white;">查看更多</el-button>
-          </div>
-        </div>
-      </div>
-
-      <!-- 系统状态 -->
-      <div class="system-status-card">
-        <div class="card-header">
-          <h3>系统状态</h3>
-          <el-icon class="header-icon"><Monitor /></el-icon>
-        </div>
-        <div class="status-list">
-          <div class="status-item" v-for="status in systemStatus" :key="status.name">
-            <div class="status-info">
-              <span class="status-name">{{ status.name }}</span>
-              <span class="status-value">{{ status.value }}</span>
-            </div>
-            <div class="status-bar">
-              <div 
-                class="status-progress" 
-                :style="{ 
-                  width: status.percentage + '%', 
-                  background: status.color 
-                }"
-              ></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 图表区域 -->
-    <div class="charts-section">
-      <div class="chart-card">
-        <div class="card-header">
-          <h3>用户活跃度趋势</h3>
-          <el-button-group size="small">
-            <el-button :type="chartPeriod === '7d' ? 'primary' : ''" @click="chartPeriod = '7d'">7天</el-button>
-            <el-button :type="chartPeriod === '30d' ? 'primary' : ''" @click="chartPeriod = '30d'">30天</el-button>
-            <el-button :type="chartPeriod === '90d' ? 'primary' : ''" @click="chartPeriod = '90d'">90天</el-button>
-          </el-button-group>
-        </div>
-        <div class="chart-placeholder">
-          <div class="chart-mock">
-            <div class="chart-bars">
-              <div class="chart-bar" v-for="i in 7" :key="i" :style="{ height: Math.random() * 100 + 20 + 'px' }"></div>
-            </div>
-            <p class="chart-note">📊 图表组件可以集成 ECharts 或 Chart.js</p>
-          </div>
-        </div>
-      </div>
     </div>
   </div>
 </template>
 
 <script>
-import { 
-  User, Document, Trophy, ChatLineRound, Lightning, Clock, 
-  Monitor, ArrowRight, TrendCharts, Bell, Setting, Plus,
-  Edit, Search, Upload
+import api from '../api';
+import {
+  User, Document, Trophy, ChatLineRound, Clock, Lightning,
+  ArrowRight, Edit, Reading
 } from '@element-plus/icons-vue';
 
 export default {
   name: 'DashboardComponent',
   data() {
     return {
-      chartPeriod: '7d',
-      userName: '管理员',
-      stats: [
-        {
-          title: '总用户数',
-          value: '2,847',
-          change: '+12.5%',
-          changeType: 'positive',
-          changeIcon: TrendCharts,
-          icon: User,
-          color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-        },
-        {
-          title: '文章数量',
-          value: '1,234',
-          change: '+8.2%',
-          changeType: 'positive',
-          changeIcon: TrendCharts,
-          icon: Document,
-          color: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
-        },
-        {
-          title: '活跃小组',
-          value: '156',
-          change: '+15.3%',
-          changeType: 'positive',
-          changeIcon: TrendCharts,
-          icon: ChatLineRound,
-          color: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)'
-        },
-        {
-          title: '勋章发放',
-          value: '892',
-          change: '+23.1%',
-          changeType: 'positive',
-          changeIcon: TrendCharts,
-          icon: Trophy,
-          color: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)'
-        }
-      ],
+      stats: {
+        user_total: 0,
+        user_new_today: 0,
+        checkin_today: 0,
+        article_count: 0,
+        course_count: 0,
+        medal_granted: 0,
+        group_count: 0,
+        camp_count: 0,
+        pending_quota: 0,
+      },
+      recentActivities: [],
       quickActions: [
-        {
-          title: '创建文章',
-          description: '发布新的学习内容',
-          icon: Edit,
-          color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          route: '/editor'
-        },
-        {
-          title: '用户管理',
-          description: '管理系统用户',
-          icon: User,
-          color: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-          route: '/user-manage/users'
-        },
-        {
-          title: '勋章管理',
-          description: '设置和管理勋章',
-          icon: Trophy,
-          color: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
-          route: '/medal/manage'
-        },
-        {
-          title: '数据导入',
-          description: '批量导入数据',
-          icon: Upload,
-          color: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
-          route: '/data/import'
-        }
+        { title: '发布文章', description: '撰写新的学习内容', icon: Edit, color: '#3b82f6', bg: 'rgba(59,130,246,0.12)', route: '/editor' },
+        { title: '用户管理', description: '管理系统用户', icon: User, color: '#10b981', bg: 'rgba(16,185,129,0.12)', route: '/user-manage/users' },
+        { title: '课程管理', description: '管理课程内容', icon: Reading, color: '#f59e0b', bg: 'rgba(245,158,11,0.12)', route: '/course/manage' },
+        { title: '勋章管理', description: '设置与发放勋章', icon: Trophy, color: '#ef4444', bg: 'rgba(239,68,68,0.12)', route: '/medal/manage' },
       ],
-      recentActivities: [
-        {
-          id: 1,
-          title: '用户张三注册了账户',
-          time: '2分钟前',
-          icon: User,
-          color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-        },
-        {
-          id: 2,
-          title: '文章《Vue3入门指南》被发布',
-          time: '15分钟前',
-          icon: Document,
-          color: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
-        },
-        {
-          id: 3,
-          title: '勋章"学习达人"被授予',
-          time: '1小时前',
-          icon: Trophy,
-          color: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)'
-        },
-        {
-          id: 4,
-          title: '小组"前端学习"创建成功',
-          time: '2小时前',
-          icon: ChatLineRound,
-          color: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)'
-        }
-      ],
-      systemStatus: [
-        {
-          name: 'CPU使用率',
-          value: '45%',
-          percentage: 45,
-          color: 'linear-gradient(90deg, #4facfe 0%, #00f2fe 100%)'
-        },
-        {
-          name: '内存使用',
-          value: '67%',
-          percentage: 67,
-          color: 'linear-gradient(90deg, #43e97b 0%, #38f9d7 100%)'
-        },
-        {
-          name: '磁盘空间',
-          value: '23%',
-          percentage: 23,
-          color: 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)'
-        },
-        {
-          name: '网络延迟',
-          value: '12ms',
-          percentage: 88,
-          color: 'linear-gradient(90deg, #f093fb 0%, #f5576c 100%)'
-        }
-      ]
     };
+  },
+  computed: {
+    userName() {
+      return this.$store?.state?.user?.name || '管理员';
+    },
+    todayLabel() {
+      const d = new Date();
+      const week = ['日', '一', '二', '三', '四', '五', '六'][d.getDay()];
+      return `${d.getMonth() + 1} 月 ${d.getDate()} 日 · 星期${week}`;
+    },
+    statCards() {
+      const s = this.stats;
+      return [
+        { key: 'user',    title: '总用户数', value: s.user_total,    icon: User,          color: '#3b82f6', bg: 'rgba(59,130,246,0.12)' },
+        { key: 'checkin', title: '今日打卡', value: s.checkin_today, icon: Clock,         color: '#10b981', bg: 'rgba(16,185,129,0.12)' },
+        { key: 'article', title: '文章数',   value: s.article_count, icon: Document,      color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
+        { key: 'course',  title: '课程数',   value: s.course_count,  icon: Reading,       color: '#8b5cf6', bg: 'rgba(139,92,246,0.12)' },
+        { key: 'medal',   title: '勋章发放', value: s.medal_granted, icon: Trophy,        color: '#ef4444', bg: 'rgba(239,68,68,0.12)' },
+        { key: 'group',   title: '小组数',   value: s.group_count,   icon: ChatLineRound,color: '#06b6d4', bg: 'rgba(6,182,212,0.12)' },
+      ];
+    },
   },
   methods: {
     handleQuickAction(route) {
-      if (route) {
-        this.$router.push(route);
-      } else {
-        this.$message.info('功能开发中...');
+      if (route) this.$router.push(route);
+    },
+    formatTime(ts) {
+      if (!ts) return '';
+      const d = new Date(ts);
+      const diff = (Date.now() - d.getTime()) / 1000;
+      if (diff < 60) return '刚刚';
+      if (diff < 3600) return `${Math.floor(diff / 60)} 分钟前`;
+      if (diff < 86400) return `${Math.floor(diff / 3600)} 小时前`;
+      if (diff < 86400 * 7) return `${Math.floor(diff / 86400)} 天前`;
+      return d.toLocaleDateString('zh-CN');
+    },
+    async fetchOverview() {
+      try {
+        const res = await api({ url: '/admin/overview', method: 'get' });
+        if (res.data.code === 200 && res.data.data) {
+          this.stats = { ...this.stats, ...res.data.data };
+        }
+      } catch (e) {
+        /* 权限不足或未登录时静默，登录态由 HomeView 处理 */
       }
-    }
-  }
+    },
+    async fetchActivities() {
+      try {
+        const res = await api({ url: '/auth/audit_records', method: 'get', params: { page: 1, per_page: 6 } });
+        if (res.data.code === 200) {
+          const data = res.data.data;
+          this.recentActivities = data?.records || data?.list || data || [];
+        }
+      } catch (e) {
+        /* 静默 */
+      }
+    },
+  },
+  mounted() {
+    this.fetchOverview();
+    this.fetchActivities();
+  },
 };
 </script>
 
@@ -291,18 +174,21 @@ export default {
 .dashboard-container {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 0;
 }
 
-/* 欢迎横幅 */
+/* 欢迎横幅 —— 克制极光 hero */
 .welcome-banner {
-  background: var(--primary-gradient);
   border-radius: var(--radius-xl);
-  padding: 32px;
-  margin-bottom: 32px;
+  padding: 28px 32px;
+  margin-bottom: 24px;
   position: relative;
   overflow: hidden;
-  color: white;
+  color: #ffffff;
+  background:
+    radial-gradient(ellipse 60% 90% at 8% 20%, rgba(59, 130, 246, 0.85), transparent 60%),
+    radial-gradient(ellipse 70% 90% at 92% 90%, rgba(16, 185, 129, 0.7), transparent 60%),
+    linear-gradient(135deg, #1e3a8a 0%, #1e293b 100%);
+  box-shadow: var(--shadow-md);
 }
 
 .banner-content {
@@ -317,152 +203,93 @@ export default {
   font-size: var(--text-3xl);
   font-weight: 700;
   margin: 0 0 8px 0;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.wave-emoji {
-  animation: wave 2s infinite;
-}
-
-@keyframes wave {
-  0%, 100% { transform: rotate(0deg); }
-  25% { transform: rotate(20deg); }
-  75% { transform: rotate(-20deg); }
+  color: #ffffff;
 }
 
 .welcome-subtitle {
-  font-size: var(--text-lg);
-  opacity: 0.9;
+  font-size: var(--text-base);
+  opacity: 0.85;
   margin: 0;
 }
 
-.banner-decoration {
-  display: flex;
-  gap: 16px;
+.banner-meta {
+  text-align: right;
 }
 
-.floating-icon {
-  font-size: 32px;
-  animation: float 3s ease-in-out infinite;
+.banner-meta .meta-value {
+  font-size: var(--text-4xl);
+  font-weight: 700;
+  line-height: 1;
 }
 
-.floating-icon.delay-1 {
-  animation-delay: 0.5s;
-}
-
-.floating-icon.delay-2 {
-  animation-delay: 1s;
-}
-
-@keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
+.banner-meta .meta-label {
+  font-size: var(--text-sm);
+  opacity: 0.8;
+  margin-top: 4px;
 }
 
 /* 统计卡片网格 */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 24px;
-  margin-bottom: 32px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
 }
 
 .stat-card {
-  background: var(--bg-primary);
   border-radius: var(--radius-lg);
-  padding: 24px;
-  box-shadow: var(--shadow-sm);
-  border: 1px solid var(--border-light);
-  transition: all var(--transition-normal);
+  padding: 20px;
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .stat-card:hover {
-  box-shadow: var(--shadow-lg);
   transform: translateY(-2px);
-  border-color: var(--border-medium);
+  box-shadow: var(--shadow-lg);
 }
 
 .stat-icon {
-  width: 56px;
-  height: 56px;
-  border-radius: var(--radius-lg);
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
   flex-shrink: 0;
-}
-
-.stat-content {
-  flex: 1;
 }
 
 .stat-number {
   font-size: var(--text-2xl);
   font-weight: 700;
   color: var(--text-primary);
-  margin-bottom: 4px;
+  line-height: 1.1;
 }
 
 .stat-title {
   font-size: var(--text-sm);
   color: var(--text-secondary);
-  margin-bottom: 8px;
-}
-
-.stat-change {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: var(--text-sm);
-  font-weight: 600;
-}
-
-.stat-change.positive {
-  color: var(--success-color);
-}
-
-.stat-change.negative {
-  color: var(--error-color);
+  margin-top: 2px;
 }
 
 /* 内容网格 */
 .content-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 24px;
-  margin-bottom: 32px;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
 }
 
-/* 通用卡片样式 */
-.quick-actions-card,
-.recent-activity-card,
-.system-status-card {
-  background: var(--bg-primary);
+.panel-card {
   border-radius: var(--radius-lg);
-  padding: 24px;
-  box-shadow: var(--shadow-sm);
-  border: 1px solid var(--border-light);
-  transition: all var(--transition-normal);
-}
-
-.quick-actions-card:hover,
-.recent-activity-card:hover,
-.system-status-card:hover {
-  box-shadow: var(--shadow-md);
-  border-color: var(--border-medium);
+  padding: 22px;
 }
 
 .card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 20px;
+  margin-bottom: 18px;
 }
 
 .card-header h3 {
@@ -473,82 +300,22 @@ export default {
 }
 
 .header-icon {
-  color: var(--text-secondary);
-  font-size: 20px;
-}
-
-/* 快速操作 */
-.actions-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.action-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px;
-  border-radius: var(--radius-md);
-  background: var(--bg-secondary);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.action-item:hover {
-  background: var(--bg-tertiary);
-  transform: translateX(4px);
-}
-
-.action-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius-md);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  flex-shrink: 0;
-}
-
-.action-content {
-  flex: 1;
-}
-
-.action-title {
-  font-size: var(--text-base);
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: 2px;
-}
-
-.action-description {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-}
-
-.action-arrow {
   color: var(--text-tertiary);
-  transition: all var(--transition-fast);
+  font-size: 18px;
 }
 
-.action-item:hover .action-arrow {
-  color: var(--primary-color);
-  transform: translateX(4px);
-}
-
-/* 最近活动 */
+/* 最近操作 */
 .activity-list {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 4px;
 }
 
 .activity-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
-  padding: 12px 0;
+  padding: 10px 0;
   border-bottom: 1px solid var(--border-light);
 }
 
@@ -556,141 +323,99 @@ export default {
   border-bottom: none;
 }
 
-.activity-icon {
+.activity-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-top: 6px;
+  flex-shrink: 0;
+  background: var(--text-tertiary);
+}
+
+.activity-dot.ok {
+  background: var(--success-color);
+}
+
+.activity-dot.fail {
+  background: var(--error-color);
+}
+
+.activity-title {
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.activity-time {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  margin-top: 2px;
+}
+
+.empty-tip {
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+  padding: 24px 0;
+}
+
+/* 快速操作 */
+.actions-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.action-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  background: var(--surface-solid);
+  cursor: pointer;
+  transition: background var(--transition-fast), transform var(--transition-fast);
+}
+
+.action-item:hover {
+  transform: translateX(4px);
+}
+
+.action-icon {
   width: 36px;
   height: 36px;
   border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
   flex-shrink: 0;
 }
 
-.activity-content {
-  flex: 1;
-}
-
-.activity-title {
-  font-size: var(--text-sm);
-  color: var(--text-primary);
-  margin-bottom: 2px;
-}
-
-.activity-time {
-  font-size: var(--text-xs);
-  color: var(--text-tertiary);
-}
-
-.activity-more {
-  text-align: center;
-  padding-top: 16px;
-  border-top: 1px solid var(--border-light);
-}
-
-/* 系统状态 */
-.status-list {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.status-item {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.status-info {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.status-name {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-}
-
-.status-value {
-  font-size: var(--text-sm);
+.action-title {
+  font-size: var(--text-base);
   font-weight: 600;
   color: var(--text-primary);
 }
 
-.status-bar {
-  height: 6px;
-  background: var(--bg-tertiary);
-  border-radius: var(--radius-full);
-  overflow: hidden;
-}
-
-.status-progress {
-  height: 100%;
-  border-radius: var(--radius-full);
-  transition: width var(--transition-slow);
-}
-
-/* 图表区域 */
-.charts-section {
-  margin-bottom: 32px;
-}
-
-.chart-card {
-  background: var(--bg-primary);
-  border-radius: var(--radius-lg);
-  padding: 24px;
-  box-shadow: var(--shadow-sm);
-  border: 1px solid var(--border-light);
-}
-
-.chart-placeholder {
-  height: 300px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg-secondary);
-  border-radius: var(--radius-md);
-  margin-top: 20px;
-}
-
-.chart-mock {
-  text-align: center;
-}
-
-.chart-bars {
-  display: flex;
-  align-items: end;
-  gap: 8px;
-  margin-bottom: 16px;
-  justify-content: center;
-}
-
-.chart-bar {
-  width: 20px;
-  background: var(--primary-gradient);
-  border-radius: 2px 2px 0 0;
-  animation: chartGrow 1s ease-out;
-}
-
-@keyframes chartGrow {
-  from { height: 0 !important; }
-}
-
-.chart-note {
+.action-description {
+  font-size: var(--text-xs);
   color: var(--text-secondary);
-  font-size: var(--text-sm);
-  margin: 0;
+  margin-top: 2px;
 }
 
-/* 响应式设计 */
+.action-arrow {
+  color: var(--text-tertiary);
+  transition: transform var(--transition-fast), color var(--transition-fast);
+}
+
+.action-item:hover .action-arrow {
+  color: var(--primary-color);
+  transform: translateX(2px);
+}
+
+/* 响应式 */
 @media (max-width: 1024px) {
   .content-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-  
-  .system-status-card {
-    grid-column: span 2;
+    grid-template-columns: 1fr;
   }
 }
 
@@ -700,25 +425,13 @@ export default {
     align-items: flex-start;
     gap: 16px;
   }
-  
-  .banner-decoration {
-    align-self: center;
+
+  .banner-meta {
+    text-align: left;
   }
-  
+
   .welcome-title {
     font-size: var(--text-2xl);
-  }
-  
-  .stats-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .content-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .system-status-card {
-    grid-column: span 1;
   }
 }
 </style>

@@ -5,7 +5,8 @@ import { useRouter } from 'vue-router'
 import {
   Document, User, ChatLineRound, Trophy, Setting, Location,
   Grid, Fold, Bell, ArrowDown, Clock, EditPen, TrendCharts,
-  HomeFilled, Picture, Search, List, Plus, Cpu, DataLine, Key, Tickets
+  HomeFilled, Picture, Search, List, Plus, Cpu, DataLine, Key, Tickets,
+  Sunny, Moon, Collection, Folder, School
 } from '@element-plus/icons-vue';
 
 export default {
@@ -52,6 +53,9 @@ export default {
     },
     isStaff() {
       return this.store.getters.isStaff;
+    },
+    isDarkMode() {
+      return this.store.getters.isDarkMode;
     }
   },
 
@@ -84,6 +88,10 @@ export default {
 
     handleSettingsClick() {
       this.$message.info('系统设置功能开发中...');
+    },
+
+    toggleTheme() {
+      this.store.commit('toggleTheme');
     }
   },
 
@@ -151,6 +159,9 @@ const handleClose = (key, keyPath) => {
       </div>
       
       <div class="navbar-right">
+        <el-button text size="large" class="theme-toggle-btn" @click="toggleTheme" :title="isDarkMode ? '切换到白天模式' : '切换到夜间模式'">
+          <el-icon :size="18"><Sunny v-if="!isDarkMode" /><Moon v-else /></el-icon>
+        </el-button>
         <el-button :icon="Bell" text size="large" class="notification-btn" @click="router.push('/notification/manage')">
           <el-badge :value="3" class="notification-badge" />
         </el-button>
@@ -176,287 +187,136 @@ const handleClose = (key, keyPath) => {
     <div class="sidebar-container" :class="{ collapsed: sidebarCollapsed }">
       <div class="sidebar-header">
         <div class="logo-container" v-show="!sidebarCollapsed">
-          <div class="logo-icon">🎓</div>
+          <div class="logo-icon"><el-icon><School /></el-icon></div>
           <div class="logo-text">
             <div class="logo-title">训练营</div>
             <div class="logo-subtitle">后台管理系统</div>
           </div>
         </div>
         <div class="logo-mini" v-show="sidebarCollapsed">
-          <div class="logo-icon">🎓</div>
+          <div class="logo-icon"><el-icon><School /></el-icon></div>
         </div>
       </div>
 
       <div class="sidebar-menu">
-        <el-menu 
-          :default-active="activeIndex" 
+        <el-menu
+          :default-active="activeIndex"
           class="modern-menu"
           :collapse="sidebarCollapsed"
           :collapse-transition="false"
-          @open="handleOpen" 
+          @open="handleOpen"
           @close="handleClose"
         >
-          <!-- 用户管理 -->
+          <!-- ① 用户与组织 -->
           <el-sub-menu index="1">
             <template #title>
               <el-icon class="menu-icon"><User /></el-icon>
-              <span class="menu-text">用户管理</span>
+              <span class="menu-text">用户与组织</span>
             </template>
-            <el-menu-item 
-              index="/user-manage/users" 
-              @click="router.push('/user-manage/users')"
-              class="submenu-item"
-            >
-              <el-icon><User /></el-icon>
-              <span>管理用户</span>
+            <el-menu-item index="/user-manage/users" @click="router.push('/user-manage/users')" class="submenu-item">
+              <el-icon><User /></el-icon><span>管理用户</span>
             </el-menu-item>
-            <el-menu-item 
-              index="/user-manage/attendence" 
-              @click="router.push('/user-manage/attendence')"
-              class="submenu-item"
-            >
-              <el-icon><Clock /></el-icon>
-              <span>考勤管理</span>
+            <el-menu-item index="/group/manage" @click="router.push('/group/manage')" class="submenu-item">
+              <el-icon><ChatLineRound /></el-icon><span>小组管理</span>
+            </el-menu-item>
+            <el-menu-item index="/learningprgress/manage" @click="router.push('/learningprgress/manage')" class="submenu-item">
+              <el-icon><TrendCharts /></el-icon><span>学习进度</span>
             </el-menu-item>
           </el-sub-menu>
 
-          <!-- 文章管理 -->
+          <!-- ② 内容与课程 -->
           <el-sub-menu index="2">
             <template #title>
               <el-icon class="menu-icon"><Document /></el-icon>
-              <span class="menu-text">文章管理</span>
+              <span class="menu-text">内容与课程</span>
             </template>
-            <el-menu-item 
-              index="/article/manage" 
-              @click="router.push('/article/manage')"
-              class="submenu-item"
-            >
-              <el-icon><Document /></el-icon>
-              <span>管理文章</span>
+            <el-menu-item index="/article/manage" @click="router.push('/article/manage')" class="submenu-item">
+              <el-icon><Document /></el-icon><span>文章管理</span>
             </el-menu-item>
-            <el-menu-item 
-              index="/article/create" 
-              @click="router.push('/article/create')" 
-              disabled
-              class="submenu-item"
-            >
-              <el-icon><EditPen /></el-icon>
-              <span>草稿箱</span>
+            <el-menu-item index="/course/manage" @click="router.push('/course/manage')" class="submenu-item">
+              <el-icon><Collection /></el-icon><span>课程管理</span>
+            </el-menu-item>
+            <el-menu-item index="/course/create" @click="router.push('/course/create')" class="submenu-item">
+              <el-icon><Plus /></el-icon><span>发布课程</span>
             </el-menu-item>
           </el-sub-menu>
 
-          <!-- 小组管理 -->
-          <el-sub-menu index="4">
-            <template #title>
-              <el-icon class="menu-icon"><ChatLineRound /></el-icon>
-              <span class="menu-text">小组管理</span>
-            </template>
-            <el-menu-item 
-              index="/group/manage" 
-              @click="router.push('/group/manage')"
-              class="submenu-item"
-            >
-              <el-icon><ChatLineRound /></el-icon>
-              <span>管理小组</span>
-            </el-menu-item>
-          </el-sub-menu>
-
-          <!-- 课程管理 -->
+          <!-- ③ 考勤与营期 -->
           <el-sub-menu index="3">
             <template #title>
-              <el-icon class="menu-icon"><Location /></el-icon>
-              <span class="menu-text">课程管理</span>
+              <el-icon class="menu-icon"><Clock /></el-icon>
+              <span class="menu-text">考勤与营期</span>
             </template>
-            <el-menu-item
-              index="/course/manage"
-              @click="router.push('/course/manage')"
-              class="submenu-item"
-            >
-              <el-icon><List /></el-icon>
-              <span>管理课程</span>
+            <el-menu-item index="/user-manage/attendence" @click="router.push('/user-manage/attendence')" class="submenu-item">
+              <el-icon><Clock /></el-icon><span>考勤打卡</span>
             </el-menu-item>
-            <el-menu-item
-              index="/course/create"
-              @click="router.push('/course/create')"
-              class="submenu-item"
-            >
-              <el-icon><Plus /></el-icon>
-              <span>发布课程</span>
+            <el-menu-item index="/seat/manage" @click="router.push('/seat/manage')" class="submenu-item">
+              <el-icon><Grid /></el-icon><span>座位管理</span>
+            </el-menu-item>
+            <el-menu-item index="/attendance-report/manage" @click="router.push('/attendance-report/manage')" class="submenu-item">
+              <el-icon><Tickets /></el-icon><span>出勤报告</span>
+            </el-menu-item>
+            <el-menu-item v-if="isStaff" index="/camp/attendance" @click="router.push('/camp/attendance')" class="submenu-item">
+              <el-icon><DataLine /></el-icon><span>营期考勤看板</span>
+            </el-menu-item>
+            <el-menu-item v-if="isStaff" index="/camp/sessions" @click="router.push('/camp/sessions')" class="submenu-item">
+              <el-icon><List /></el-icon><span>营期列表</span>
             </el-menu-item>
           </el-sub-menu>
 
-          <!-- 学习进度管理 -->
-          <el-sub-menu index="5">
-            <template #title>
-              <el-icon class="menu-icon"><TrendCharts /></el-icon>
-              <span class="menu-text">学习进度管理</span>
-            </template>
-            <el-menu-item 
-              index="/learningprgress/manage" 
-              @click="router.push('/learningprgress/manage')"
-              class="submenu-item"
-            >
-              <el-icon><TrendCharts /></el-icon>
-              <span>编辑学习进度</span>
-            </el-menu-item>
-          </el-sub-menu>
-
-          <!-- 首页管理 (禁用) -->
-          <el-sub-menu index="6" disabled>
-            <template #title>
-              <el-icon class="menu-icon"><HomeFilled /></el-icon>
-              <span class="menu-text">首页管理</span>
-            </template>
-            <el-menu-item 
-              index="/homepage/manage" 
-              @click="router.push('/homepage/cover')"
-              class="submenu-item"
-            >
-              <el-icon><Picture /></el-icon>
-              <span>编辑首页封面</span>
-            </el-menu-item>
-          </el-sub-menu>
-
-          <!-- 勋章管理 -->
-          <el-sub-menu index="7">
+          <!-- ④ 激励 -->
+          <el-sub-menu index="4">
             <template #title>
               <el-icon class="menu-icon"><Trophy /></el-icon>
-              <span class="menu-text">勋章管理</span>
+              <span class="menu-text">激励</span>
             </template>
-            <el-menu-item 
-              index="/medal/manage" 
-              @click="router.push('/medal/manage')"
-              class="submenu-item"
-            >
-              <el-icon><Trophy /></el-icon>
-              <span>管理勋章</span>
-            </el-menu-item>
-            <el-menu-item 
-              index="/medal/grant" 
-              @click="router.push('/medal/grant')" 
-              disabled
-              class="submenu-item"
-            >
-              <el-icon><Search /></el-icon>
-              <span>勋章查询</span>
+            <el-menu-item index="/medal/manage" @click="router.push('/medal/manage')" class="submenu-item">
+              <el-icon><Trophy /></el-icon><span>勋章管理</span>
             </el-menu-item>
           </el-sub-menu>
 
-          <el-sub-menu index="8">
+          <!-- ⑤ 大模型服务 -->
+          <el-sub-menu index="5">
             <template #title>
               <el-icon class="menu-icon"><Cpu /></el-icon>
               <span class="menu-text">大模型服务</span>
             </template>
-            <el-menu-item
-              index="/llm/projects"
-              @click="router.push('/llm/projects')"
-              class="submenu-item"
-            >
-              <el-icon><Grid /></el-icon>
-              <span>项目管理</span>
+            <el-menu-item index="/llm/projects" @click="router.push('/llm/projects')" class="submenu-item">
+              <el-icon><Folder /></el-icon><span>项目管理</span>
             </el-menu-item>
-            <el-menu-item
-              index="/llm/users"
-              @click="router.push('/llm/users')"
-              class="submenu-item"
-            >
-              <el-icon><DataLine /></el-icon>
-              <span>用户用量看板</span>
+            <el-menu-item index="/llm/users" @click="router.push('/llm/users')" class="submenu-item">
+              <el-icon><DataLine /></el-icon><span>用户用量</span>
             </el-menu-item>
-            <el-menu-item
-              index="/llm/quota-requests"
-              @click="router.push('/llm/quota-requests')"
-              class="submenu-item"
-            >
-              <el-icon><Key /></el-icon>
-              <span>增额申请审批</span>
+            <el-menu-item index="/llm/quota-requests" @click="router.push('/llm/quota-requests')" class="submenu-item">
+              <el-icon><Key /></el-icon><span>增额审批</span>
             </el-menu-item>
           </el-sub-menu>
 
-          <!-- 通知管理 -->
-          <el-sub-menu index="9">
+          <!-- ⑥ 运营与系统 -->
+          <el-sub-menu index="6">
             <template #title>
-              <el-icon class="menu-icon"><Bell /></el-icon>
-              <span class="menu-text">通知管理</span>
+              <el-icon class="menu-icon"><Setting /></el-icon>
+              <span class="menu-text">运营与系统</span>
             </template>
-            <el-menu-item
-              index="/notification/manage"
-              @click="router.push('/notification/manage')"
-              class="submenu-item"
-            >
-              <el-icon><Bell /></el-icon>
-              <span>系统通知</span>
+            <el-menu-item index="/notification/manage" @click="router.push('/notification/manage')" class="submenu-item">
+              <el-icon><Bell /></el-icon><span>系统通知</span>
             </el-menu-item>
-          </el-sub-menu>
-
-          <!-- 座位管理 -->
-          <el-sub-menu index="10">
-            <template #title>
-              <el-icon class="menu-icon"><Location /></el-icon>
-              <span class="menu-text">座位管理</span>
-            </template>
-            <el-menu-item
-              index="/seat/manage"
-              @click="router.push('/seat/manage')"
-              class="submenu-item"
-            >
-              <el-icon><Location /></el-icon>
-              <span>座位绑定</span>
+            <el-menu-item index="/homepage/cover" @click="router.push('/homepage/cover')" class="submenu-item">
+              <el-icon><Picture /></el-icon><span>首页封面</span>
             </el-menu-item>
-          </el-sub-menu>
-
-          <!-- 出勤报告 -->
-          <el-sub-menu index="11">
-            <template #title>
-              <el-icon class="menu-icon"><Clock /></el-icon>
-              <span class="menu-text">出勤报告</span>
-            </template>
-            <el-menu-item
-              index="/attendance-report/manage"
-              @click="router.push('/attendance-report/manage')"
-              class="submenu-item"
-            >
-              <el-icon><Clock /></el-icon>
-              <span>收件人与测试发送</span>
+            <el-menu-item index="/audit/logs" @click="router.push('/audit/logs')" class="submenu-item">
+              <el-icon><Tickets /></el-icon><span>审计日志</span>
             </el-menu-item>
-          </el-sub-menu>
-
-          <!-- 营期管理（仅老师/导生/超管可见） -->
-          <el-sub-menu index="12" v-if="isStaff">
-            <template #title>
-              <el-icon class="menu-icon"><Tickets /></el-icon>
-              <span class="menu-text">营期管理</span>
-            </template>
-            <el-menu-item
-              index="/camp/attendance"
-              @click="router.push('/camp/attendance')"
-              class="submenu-item"
-            >
-              <el-icon><Clock /></el-icon>
-              <span>考勤看板</span>
-            </el-menu-item>
-            <el-menu-item
-              index="/camp/sessions"
-              @click="router.push('/camp/sessions')"
-              class="submenu-item"
-            >
-              <el-icon><List /></el-icon>
-              <span>营期列表</span>
+            <el-menu-item index="__settings" @click="handleSettingsClick" class="submenu-item">
+              <el-icon><Setting /></el-icon><span>系统设置</span>
             </el-menu-item>
           </el-sub-menu>
         </el-menu>
       </div>
 
-      <!-- 底部系统设置 -->
+      <!-- 底部品牌 -->
       <div class="sidebar-footer">
-<div class="settings-item" @click="router.push('/audit/logs')">
-          <el-icon class="menu-icon"><Tickets /></el-icon>
-          <span class="menu-text" v-show="!sidebarCollapsed">审计日志</span>
-        </div>
-        <div class="settings-item" @click="handleSettingsClick">
-          <el-icon class="menu-icon"><Setting /></el-icon>
-          <span class="menu-text" v-show="!sidebarCollapsed">系统设置</span>
-        </div>
+        <div class="brand-footer" v-show="!sidebarCollapsed">BME 管理系统</div>
       </div>
     </div>
 
@@ -473,9 +333,19 @@ const handleClose = (key, keyPath) => {
 /* 全局样式 - 不使用scoped以确保优先级 */
 .admin-layout {
   min-height: 100vh;
-  background: var(--bg-secondary);
   display: flex;
   flex-direction: column;
+  background:
+    radial-gradient(ellipse 55% 50% at 12% 18%, rgba(96, 165, 250, 0.15), transparent 60%),
+    radial-gradient(ellipse 60% 55% at 88% 88%, rgba(52, 211, 153, 0.13), transparent 60%),
+    linear-gradient(135deg, #f0f4ff 0%, #fdf2f8 50%, #f0fdf4 100%);
+}
+
+.theme-dark .admin-layout {
+  background:
+    radial-gradient(ellipse 55% 50% at 12% 18%, rgba(59, 130, 246, 0.10), transparent 60%),
+    radial-gradient(ellipse 60% 55% at 88% 88%, rgba(16, 185, 129, 0.09), transparent 60%),
+    linear-gradient(160deg, #16161a 0%, #0f0f12 100%);
 }
 
 /* 顶部导航栏 */
@@ -485,15 +355,16 @@ const handleClose = (key, keyPath) => {
   left: 0;
   right: 0;
   height: 64px;
-  background: var(--bg-primary);
-  border-bottom: 1px solid var(--border-light);
+  background: var(--dew-card-bg);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  border-bottom: 1px solid var(--dew-card-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 24px;
   z-index: 1000;
   box-shadow: var(--shadow-sm);
-  backdrop-filter: blur(8px);
 }
 
 .admin-layout .navbar-left {
@@ -509,7 +380,7 @@ const handleClose = (key, keyPath) => {
 
 .admin-layout .sidebar-toggle:hover {
   color: var(--primary-color) !important;
-  background: rgba(79, 70, 229, 0.1) !important;
+  background: rgba(var(--primary-color-rgb), 0.1) !important;
 }
 
 .admin-layout .breadcrumb-container {
@@ -560,12 +431,14 @@ const handleClose = (key, keyPath) => {
   left: 0;
   bottom: 0;
   width: var(--sidebar-width);
-  background: var(--sidebar-bg);
+  background: rgba(15, 16, 20, 0.55);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
   transition: width var(--transition-normal);
   z-index: 999;
   display: flex;
   flex-direction: column;
-  border-right: 1px solid var(--border-light);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
   overflow: hidden; /* 防止内容溢出导致滚动 */
 }
@@ -608,6 +481,7 @@ const handleClose = (key, keyPath) => {
 
 .admin-layout .logo-icon {
   font-size: 32px;
+  color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -700,10 +574,10 @@ const handleClose = (key, keyPath) => {
 
 /* 激活状态 - 更明显的视觉反馈 */
 .admin-layout .modern-menu .el-menu-item.is-active {
-  background: linear-gradient(135deg, rgba(79, 70, 229, 0.8), rgba(99, 102, 241, 0.6)) !important;
+  background: rgba(var(--primary-color-rgb), 0.85) !important;
   color: #ffffff !important;
   position: relative;
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+  box-shadow: 0 4px 12px rgba(var(--primary-color-rgb), 0.3);
 }
 
 .admin-layout .modern-menu .el-menu-item.is-active::before {
@@ -766,9 +640,9 @@ const handleClose = (key, keyPath) => {
 
 .admin-layout .modern-menu .el-sub-menu .el-menu .el-menu-item.is-active,
 .admin-layout .submenu-item.is-active {
-  background: linear-gradient(135deg, rgba(79, 70, 229, 0.6), rgba(99, 102, 241, 0.4)) !important;
+  background: rgba(var(--primary-color-rgb), 0.6) !important;
   color: #ffffff !important;
-  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.2);
+  box-shadow: 0 2px 6px rgba(var(--primary-color-rgb), 0.2);
 }
 
 .admin-layout .submenu-item .el-icon {
@@ -813,6 +687,14 @@ const handleClose = (key, keyPath) => {
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   overflow: hidden; /* 防止内容溢出 */
   min-width: 0; /* 允许收缩 */
+}
+
+.admin-layout .brand-footer {
+  text-align: center;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
+  padding: 4px 0;
+  letter-spacing: 0.5px;
 }
 
 /* 设置项样式 - 不再使用el-menu */

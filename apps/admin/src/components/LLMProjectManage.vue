@@ -809,7 +809,7 @@ onMounted(() => {
   transition: color 0.2s;
 }
 .inline-link:hover {
-  color: #4f46e5;
+  color: var(--primary-color);
   text-decoration: underline;
 }
 .compat-tag {

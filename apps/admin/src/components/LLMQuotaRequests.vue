@@ -249,7 +249,7 @@ onMounted(fetchRequests);
   justify-content: space-between;
   gap: 12px;
   padding-top: 14px;
-  border-top: 1px solid rgba(99, 102, 241, 0.12);
+  border-top: 1px solid rgba(var(--primary-color-rgb), 0.12);
 }
 
 .pending-alert {

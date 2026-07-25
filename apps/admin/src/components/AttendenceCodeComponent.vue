@@ -7,7 +7,7 @@
             <div v-else class="code">
                 <template v-if="cnt >= validTime">
                     <div class="expired-container">
-                        <div class="expired-icon">⏰</div>
+                        <div class="expired-icon" style="color:#f55742"><el-icon><AlarmClock /></el-icon></div>
                         <div class="expired-text">签到码已过期</div>
                         <div class="expired-tip">请点击下方按钮重新生成</div>
                     </div>
@@ -34,7 +34,7 @@
   </div>
 
     <div class="help-tip">
-        <span class="help-icon">❓</span>
+        <span class="help-icon"><el-icon><QuestionFilled /></el-icon></span>
         <a href="#" @click.prevent="showHelpDialog" class="help-link">如何签到/签退？</a>
     </div>
   
@@ -42,7 +42,7 @@
   <el-dialog v-model="helpDialogVisible" title="签到/签退使用指南" width="500px" center>
     <div class="help-content">
       <div class="help-section">
-        <h4>📱 扫码方式（推荐）</h4>
+        <h4>扫码方式（推荐）</h4>
         <ol>
           <li>点击"签到"或"签退"按钮生成二维码</li>
           <li>使用手机自带扫码工具扫描二维码，或者使用微信扫码</li>
@@ -51,7 +51,7 @@
       </div>
       
       <div class="help-section">
-        <h4>🔢 手动输入方式</h4>
+        <h4>手动输入方式</h4>
         <ol>
           <li>点击"签到"或"签退"按钮</li>
           <li>记下显示的签到码</li>
@@ -60,7 +60,7 @@
       </div>
       
       <div class="help-section">
-        <h4>⚠️ 注意事项</h4>
+        <h4>注意事项</h4>
         <ul>
           <li>必须连接TP-106/TP-110/TP-112的WIFI</li>
           <li>签到码有效期为5分钟，每个签到码只能使用一次</li>
