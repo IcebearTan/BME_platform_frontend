@@ -132,7 +132,7 @@
           </el-table-column>
           <el-table-column label="归属导生" width="140">
             <template #default="{ row }">
-              <el-select v-if="row.role === 'student'" v-model="row._mentor" size="small" placeholder="选导生" style="width:100%">
+              <el-select v-if="row.role === 'student'" v-model="row._mentor" size="small" placeholder="选导生(可选)" style="width:100%">
                 <el-option v-for="m in joinMentors" :key="m.user_id" :label="m.username" :value="m.user_id" />
               </el-select>
               <span v-else>—</span>
@@ -408,7 +408,7 @@ async function fetchJoinRequests() {
   } catch { /* 非管理角色或无权限，忽略 */ }
 }
 async function approveJoin(row) {
-  if (row.role === 'student' && !row._mentor) { ElMessage.warning('请先为该学员选择归属导生'); return; }
+  // 归属导生可选：不指定则学员以 team_mentor_id=null 入营，事后可在「成员」Tab 改派
   try {
     await api.post(`/camp/join-requests/${row.id}/approve`, { team_mentor_id: row._mentor });
     ElMessage.success('已批准并加入营期');
