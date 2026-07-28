@@ -10,7 +10,7 @@
             <h1 class="article-title">{{ articleTitle }}</h1>
             <div class="article-meta">
               <div class="author-info">
-                <el-avatar :size="40">{{ (articleAuthor || '?').charAt(0) }}</el-avatar>
+                <el-avatar :size="40" :src="authorAvatar">{{ (articleAuthor || '?').charAt(0) }}</el-avatar>
                 <div class="author-details">
                   <span class="author-name">{{ articleAuthor }}</span>
                   <time class="publish-time">{{ formatTime(articleTime) }}</time>
@@ -92,7 +92,7 @@
         <DewCard variant="flat" divided class="side-card">
           <template #header>关于作者</template>
           <div class="author-card">
-            <el-avatar :size="56">{{ (articleAuthor || '?').charAt(0) }}</el-avatar>
+            <el-avatar :size="56" :src="authorAvatar">{{ (articleAuthor || '?').charAt(0) }}</el-avatar>
             <h4 class="author-card-name">{{ articleAuthor }}</h4>
             <p class="author-card-desc">技术分享者</p>
           </div>
@@ -118,6 +118,7 @@ const article = ref('')
 const articleTitle = ref('')
 const articleTime = ref('')
 const articleAuthor = ref('')
+const authorAvatar = ref('')
 const toc = ref([])
 const viewCount = ref(0)
 const likeCount = ref(0)
@@ -186,6 +187,7 @@ const getArticle = async () => {
     articleTitle.value = data.Article_Title
     articleTime.value = data.Publish_Time
     articleAuthor.value = data.Article_Author
+    authorAvatar.value = data.Article_Author_Avatar || ''
     const htmlContent = JSON.parse(data.html_content)
     toc.value = generateTOC(htmlContent)
   } catch (e) {

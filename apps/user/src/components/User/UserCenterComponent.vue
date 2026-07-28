@@ -5,7 +5,7 @@ import { ref, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRouter, useRoute } from 'vue-router'
 import { useStore } from 'vuex';
-import { Message, User, Calendar } from '@element-plus/icons-vue';
+import { Message, User, Calendar, Collection } from '@element-plus/icons-vue';
 import { DewCard, DewSidebar, DewTag } from '../ui'
 
 const User_Info = ref({})
@@ -22,6 +22,7 @@ const store = useStore()
 const navItems = [
   { value: '/user-center/user-info', label: '账户设置', icon: User },
   { value: '/user-center/my-feedbacks', label: '反馈记录', icon: Message },
+  { value: '/user-center/my-favorites', label: '我的收藏', icon: Collection },
   { value: '/camp', label: '我的营期', icon: Calendar },
 ]
 
@@ -98,6 +99,10 @@ const getActiveMenuIndex = (currentPath) => {
   // 处理my-feedbacks的子路由
   if (currentPath.startsWith('/user-center/my-feedbacks')) {
     return '/user-center/my-feedbacks'
+  }
+
+  if (currentPath.startsWith('/user-center/my-favorites')) {
+    return '/user-center/my-favorites'
   }
 
   // 营期（我的营期，跳 /camp 独立页）

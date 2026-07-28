@@ -14,6 +14,7 @@ import ExamView from './views/ExamView.vue'
 import UserIndex from './views/UserIndex.vue';
 import UserCenter from './views/UserCenter.vue';
 import UserInfoComponent from './components/User/UserInfoComponent.vue';
+import MyFavoritesComponent from './components/User/MyFavoritesComponent.vue';
 
 import AboutUsView from './views/AboutUsView.vue'
 import FindPasswordView from './views/FindPasswordView.vue'
@@ -118,6 +119,11 @@ const router = createRouter({
                     path: '/user-center/my-feedbacks',
                     name: 'my-feedbacks',
                     component: MyFeedbacksComponent,
+                },
+                {
+                    path: '/user-center/my-favorites',
+                    name: 'my-favorites',
+                    component: MyFavoritesComponent,
                 }
             ]
         },
