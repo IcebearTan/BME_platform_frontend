@@ -8,6 +8,7 @@ import PageFooterComponent from "../components/PageFooterComponent.vue";
 import FeedbackBubble from "../components/Home/FeedbackBubble.vue";
 import LivePanel from "../components/Home/LivePanel.vue";
 import AttenceRankComponent from "../components/Attendence/AttenceRankComponent.vue";
+import MiniCalendar from "../components/Attendence/MiniCalendar.vue";
 import UpdateAnnouncement from "../components/Home/UpdateAnnouncement.vue";
 import StudyHub from "../components/Home/StudyHub.vue";
 
@@ -100,8 +101,9 @@ const handleEntryClick = (entry) => {
               <StudyHub @banner-click="handleBannerClick" @entry-click="handleEntryClick" />
             </div>
             
-            <!-- 右侧分区 - 出勤排行榜 -->
+            <!-- 右侧分区 - 迷你日历 + 出勤排行榜 -->
             <div class="right-section">
+              <MiniCalendar />
               <AttenceRankComponent />
             </div>
           </div>
@@ -329,6 +331,9 @@ const handleEntryClick = (entry) => {
   flex-shrink: 0;
   min-width: 0; /* 允许内容在必要时收缩 */
   overflow: visible; /* 允许阴影等效果显示 */
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 /* 响应式设计 */
