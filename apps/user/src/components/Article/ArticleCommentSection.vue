@@ -2,7 +2,7 @@
   <div class="comment-section">
     <div class="comment-header">
       <h3 class="comment-title">评论</h3>
-      <span class="comment-count">{{ comments.length }}</span>
+      <span class="comment-count">{{ total }}</span>
     </div>
 
     <!-- 发表框 -->
@@ -14,20 +14,26 @@
         placeholder="写下你的评论..."
       />
       <div class="comment-form-foot">
-        <DewButton size="sm" :active="true" :disabled="!newComment.trim()" @click="submitComment">
-          发表评论
+        <DewButton
+          size="sm"
+          :active="true"
+          :disabled="!newComment.trim() || submitting"
+          @click="submitComment"
+        >
+          {{ submitting ? '发表中...' : '发表评论' }}
         </DewButton>
       </div>
     </div>
 
     <!-- 评论列表 -->
-    <div v-if="comments.length" class="comment-list">
+    <div v-if="loading" class="comment-empty">加载中...</div>
+    <div v-else-if="comments.length" class="comment-list">
       <div v-for="c in comments" :key="c.id" class="comment-item">
-        <el-avatar :size="36" :src="c.avatar">{{ (c.author || '?').charAt(0) }}</el-avatar>
+        <el-avatar :size="36" :src="c.author_avatar">{{ (c.author_name || '?').charAt(0) }}</el-avatar>
         <div class="comment-body">
           <div class="comment-row">
-            <span class="comment-name">{{ c.author }}</span>
-            <span class="comment-time">{{ c.time }}</span>
+            <span class="comment-name">{{ c.author_name }}</span>
+            <span class="comment-time">{{ formatTime(c.created_at) }}</span>
           </div>
           <div class="comment-text">{{ c.content }}</div>
           <button
@@ -36,7 +42,7 @@
             @click="toggleLike(c)"
           >
             <el-icon><StarFilled v-if="c.liked" /><Star v-else /></el-icon>
-            <span>{{ c.likeCount }}</span>
+            <span>{{ c.like_count }}</span>
           </button>
         </div>
       </div>
@@ -46,61 +52,114 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { useStore } from 'vuex'
+import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Star, StarFilled } from '@element-plus/icons-vue'
 import { DewInput, DewButton } from '../ui'
+import api from '../../api'
 
-defineProps({
-  articleId: { type: [String, Number], default: null },
+const props = defineProps({
+  articleId: { type: [String, Number], required: true },
 })
 
-const store = useStore()
-
-// ⚠️ mock 数据 —— 后端 TODO：
-// ArticleComment 表目前只有 like_time / view_time，需加 content / create_time / parent_id 字段，
-// 并补「发表 / 列表 / 删除 / 点赞」接口与权限防刷。当前评论仅前端本地态，刷新后重置。
-const comments = ref([
-  { id: 1, author: '同学 A', avatar: '', time: '2 小时前', content: '写得很清晰，组合式函数那段终于搞懂了！', liked: false, likeCount: 5 },
-  { id: 2, author: '同学 B', avatar: '', time: '1 小时前', content: '能不能补充一下 watch 和 watchEffect 的区别？', liked: false, likeCount: 2 },
-])
+const threadId = ref(null)
+const comments = ref([])
+const total = ref(0)
 const newComment = ref('')
-let nextId = 3
+const loading = ref(true)
+const submitting = ref(false)
 
 const isLoggedIn = () => !!localStorage.getItem('token')
 
-const submitComment = () => {
-  const text = newComment.value.trim()
-  if (!text) return
-  if (!isLoggedIn()) {
-    ElMessage.warning('请先登录后再评论')
-    return
-  }
-  // TODO: 后端待补 —— 接 POST /article/{id}/comment
-  const user = store.state.user || {}
-  comments.value.unshift({
-    id: nextId++,
-    author: user.username || user.User_Name || '我',
-    avatar: user.avatar || user.avatar_url || '',
-    time: '刚刚',
-    content: text,
-    liked: false,
-    likeCount: 0,
-  })
-  newComment.value = ''
-  ElMessage.success('评论成功（演示数据，刷新后重置）')
+// 绝对时间 → 相对时间
+const formatTime = (t) => {
+  if (!t) return ''
+  const d = new Date(t.replace(' ', 'T'))
+  const diff = (Date.now() - d.getTime()) / 1000
+  if (diff < 60) return '刚刚'
+  if (diff < 3600) return Math.floor(diff / 60) + ' 分钟前'
+  if (diff < 86400) return Math.floor(diff / 3600) + ' 小时前'
+  if (diff < 2592000) return Math.floor(diff / 86400) + ' 天前'
+  return d.toLocaleDateString('zh-CN')
 }
 
-const toggleLike = (c) => {
-  if (!isLoggedIn()) {
-    ElMessage.warning('请先登录后再点赞')
-    return
-  }
-  // TODO: 后端待补 —— 接 POST /article/comment/like
-  c.liked = !c.liked
-  c.likeCount += c.liked ? 1 : -1
+// 获取或创建该文章的评论汇总 thread
+const ensureThread = async () => {
+  const res = await api({ method: 'get', url: `/discussions/article/${props.articleId}/thread` })
+  threadId.value = res.data.data.thread_id
 }
+
+// 加载评论列表（discussion 的一级回复）
+const loadComments = async () => {
+  if (!threadId.value) { loading.value = false; return }
+  loading.value = true
+  try {
+    const res = await api({ method: 'get', url: `/discussions/threads/${threadId.value}/replies` })
+    comments.value = (res.data.data || []).map(r => ({ ...r, liked: false }))
+    total.value = res.data.total ?? comments.value.length
+  } catch (e) {
+    console.error('加载评论失败', e)
+  } finally {
+    loading.value = false
+  }
+}
+
+const submitComment = async () => {
+  const text = newComment.value.trim()
+  if (!text) return
+  if (!isLoggedIn()) { ElMessage.warning('请先登录后再评论'); return }
+  if (!threadId.value) { ElMessage.error('评论区未就绪'); return }
+  submitting.value = true
+  try {
+    const res = await api({
+      method: 'post',
+      url: `/discussions/threads/${threadId.value}/replies`,
+      data: { content: text }
+    })
+    if (res.data.code === 201) {
+      ElMessage.success('评论成功')
+      newComment.value = ''
+      await loadComments()
+    } else {
+      ElMessage.error(res.data.message || '评论失败')
+    }
+  } catch (e) {
+    console.error('评论失败', e)
+    ElMessage.error('评论失败，请稍后重试')
+  } finally {
+    submitting.value = false
+  }
+}
+
+const toggleLike = async (c) => {
+  if (!isLoggedIn()) { ElMessage.warning('请先登录后再点赞'); return }
+  // 乐观更新（discussion 的 reactions 接口为切换语义）
+  c.liked = !c.liked
+  c.like_count += c.liked ? 1 : -1
+  try {
+    await api({
+      method: 'post',
+      url: '/discussions/reactions',
+      data: { target_type: 'reply', target_id: c.id, reaction_type: 'like' }
+    })
+  } catch (e) {
+    // 失败回滚
+    c.liked = !c.liked
+    c.like_count += c.liked ? 1 : -1
+    console.error('点赞失败', e)
+    ElMessage.error('操作失败，请稍后重试')
+  }
+}
+
+onMounted(async () => {
+  try {
+    await ensureThread()
+    await loadComments()
+  } catch (e) {
+    console.error('评论区初始化失败', e)
+    loading.value = false
+  }
+})
 </script>
 
 <style scoped>

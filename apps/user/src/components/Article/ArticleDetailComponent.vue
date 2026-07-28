@@ -124,6 +124,7 @@ const likeCount = ref(0)
 const isLiked = ref(false)
 const isFavorited = ref(false)
 const activeId = ref('')
+const threadId = ref(null)
 
 let tocObserver = null
 
@@ -225,12 +226,44 @@ const handleLike = async () => {
   else ElMessage.info('已取消点赞')
 }
 
-const toggleFavorite = () => {
+// 获取/创建文章评论汇总 thread（收藏挂在其上，复用 discussion reaction）
+const ensureArticleThread = async () => {
+  try {
+    const res = await api({ method: 'get', url: `/discussions/article/${articleId}/thread` })
+    threadId.value = res.data.data.thread_id
+  } catch (e) {
+    console.error('获取文章主题失败', e)
+  }
+}
+
+// 拉取当前用户对该文章的收藏状态
+const fetchFavorite = async () => {
+  if (!threadId.value) return
+  try {
+    const res = await api({ method: 'get', url: `/discussions/threads/${threadId.value}/reactions/me` })
+    isFavorited.value = res.data?.data?.bookmarked ?? false
+  } catch (e) {
+    console.error('获取收藏状态失败', e)
+  }
+}
+
+const toggleFavorite = async () => {
   const token = localStorage.getItem('token')
   if (!token) { ElMessage.warning('请先登录后再收藏'); return }
-  // TODO: 后端待补 —— 文章收藏接口
-  isFavorited.value = !isFavorited.value
-  ElMessage.success(isFavorited.value ? '已收藏' : '已取消收藏')
+  if (!threadId.value) { ElMessage.error('操作失败，请稍后重试'); return }
+  isFavorited.value = !isFavorited.value  // 乐观更新
+  try {
+    await api({
+      method: 'post',
+      url: '/discussions/reactions',
+      data: { target_type: 'thread', target_id: threadId.value, reaction_type: 'bookmark' }
+    })
+    ElMessage.success(isFavorited.value ? '已收藏' : '已取消收藏')
+  } catch (e) {
+    isFavorited.value = !isFavorited.value  // 回滚
+    console.error('收藏失败', e)
+    ElMessage.error('操作失败，请稍后重试')
+  }
 }
 
 const handleShare = async () => {
@@ -256,6 +289,8 @@ onMounted(async () => {
     await postStatistic(false, true)
     await fetchStatistic()
   }
+  await ensureArticleThread()
+  await fetchFavorite()
   await nextTick()
   setupTocObserver()
 })
