@@ -1,93 +1,83 @@
 <template>
-  <div class="article-wrapper">
-    <!-- 文章主体区域 -->
-    <div class="article-container">
-      <!-- 文章头部 -->
-      <article class="article-main">
-        <header class="article-header">
-          <div class="article-category">
-            <span class="category-tag">网页推文</span>
-          </div>
-          
-          <h1 class="article-title">{{ articleTitle }}</h1>
-          
-          <div class="article-meta">
-            <div class="author-info">
-              <div class="author-avatar">
-                <img src="../../assets/ice_bear_avatar.jpg" alt="作者头像" />
+  <div class="article-wrap">
+    <div class="article-layout">
+      <!-- 主列：正文 + 评论 -->
+      <div class="article-primary">
+        <!-- 正文卡（纯色扁平） -->
+        <DewCard variant="flat" size="lg" class="article-main">
+          <!-- 头部 -->
+          <header class="article-header">
+            <h1 class="article-title">{{ articleTitle }}</h1>
+            <div class="article-meta">
+              <div class="author-info">
+                <el-avatar :size="40">{{ (articleAuthor || '?').charAt(0) }}</el-avatar>
+                <div class="author-details">
+                  <span class="author-name">{{ articleAuthor }}</span>
+                  <time class="publish-time">{{ formatTime(articleTime) }}</time>
+                </div>
               </div>
-              <div class="author-details">
-                <span class="author-name">{{ articleAuthor }}</span>
-                <time class="publish-time">{{ formatTime(articleTime) }}</time>
-              </div>
-            </div>
-            
-            <div class="article-actions">
-              <div class="action-item">
-                <i class="action-icon">👁</i>
-                <span>{{ viewCount }}</span>
-              </div>
-              <div class="action-item" @click="handleLike" style="cursor:pointer;">
-                <i class="action-icon">{{ isLiked ? '❤️' : '👍' }}</i>
-                <span>{{ likeCount }}</span>
-              </div>
-              <div class="action-item">
-                <i class="action-icon">💬</i>
-                <span>0</span>
+              <div class="meta-stats">
+                <span class="stat"><el-icon><View /></el-icon>{{ viewCount }}</span>
+                <span class="stat"><el-icon><Star /></el-icon>{{ likeCount }}</span>
               </div>
             </div>
+          </header>
+
+          <!-- 正文 -->
+          <div class="article-content">
+            <div class="content-body" v-html="article"></div>
           </div>
-        </header>
 
-        <!-- 文章内容 -->
-        <div class="article-content">
-          <div class="content-body" v-html="article"></div>
-        </div>
-
-        <!-- 文章底部操作区 -->
-        <footer class="article-footer">
-          <div class="interaction-section">
-            <div class="interaction-buttons">
-              <button class="btn-interaction like" @click="handleLike" :class="{ 'liked': isLiked }">
-                <i class="icon">{{ isLiked ? '❤️' : '👍' }}</i>
+          <!-- 底部交互栏 -->
+          <footer class="article-footer">
+            <div class="actions">
+              <button
+                class="art-action"
+                :class="{ 'is-liked': isLiked }"
+                @click="handleLike"
+              >
+                <el-icon><StarFilled v-if="isLiked" /><Star v-else /></el-icon>
                 <span>{{ isLiked ? '已点赞' : '点赞' }}</span>
+                <span v-if="likeCount" class="art-count">{{ likeCount }}</span>
               </button>
-              <button class="btn-interaction comment" @click="handleComingSoon">
-                <i class="icon">💬</i>
+              <button class="art-action" @click="scrollToComments">
+                <el-icon><ChatDotRound /></el-icon>
                 <span>评论</span>
               </button>
-              <button class="btn-interaction share" @click="handleComingSoon">
-                <i class="icon">📤</i>
+              <button class="art-action" @click="handleShare">
+                <el-icon><Share /></el-icon>
                 <span>分享</span>
               </button>
+              <button
+                class="art-action"
+                :class="{ 'is-favorited': isFavorited }"
+                @click="toggleFavorite"
+              >
+                <el-icon><Collection /></el-icon>
+                <span>{{ isFavorited ? '已收藏' : '收藏' }}</span>
+              </button>
             </div>
-          </div>
+          </footer>
+        </DewCard>
 
-          <!-- 标签区域 -->
-          <div class="tags-section">
-            <div class="article-tags">
-              <span class="tag">Vue.js</span>
-              <span class="tag">前端开发</span>
-              <span class="tag">教程</span>
-            </div>
-          </div>
-        </footer>
-      </article>
-    </div>
+        <!-- 评论区（纯色扁平） -->
+        <DewCard variant="flat" size="lg" class="article-comments" :id="`comments-${articleId}`">
+          <ArticleCommentSection :article-id="articleId" />
+        </DewCard>
+      </div>
 
-    <!-- 侧边栏区域 -->
-    <aside class="article-sidebar">
-      <!-- 目录导航 -->
-      <div class="sidebar-section toc-section">
-        <h3 class="section-title">目录</h3>
-        <div class="toc-content">
-          <div v-if="toc.length === 0" class="placeholder-text">暂无目录</div>
+      <!-- 侧边栏 -->
+      <aside class="article-sidebar">
+        <!-- 目录 -->
+        <DewCard variant="flat" divided class="side-card">
+          <template #header>目录</template>
+          <div v-if="toc.length === 0" class="placeholder">暂无目录</div>
           <ul v-else class="toc-list">
-            <li 
-              v-for="item in toc" 
+            <li
+              v-for="item in toc"
               :key="item.id"
               class="toc-item"
-              :class="`toc-level-${item.level}`"
+              :class="[`toc-level-${item.level}`, { active: item.id === activeId }]"
               @click="scrollToHeading(item.id)"
             >
               <a class="toc-link">
@@ -96,302 +86,224 @@
               </a>
             </li>
           </ul>
-        </div>
-      </div>
+        </DewCard>
 
-      <!-- 相关文章 -->
-      <div class="sidebar-section related-section">
-        <h3 class="section-title">相关文章</h3>
-        <div class="related-content">
-          <p class="placeholder-text">相关文章推荐</p>
-        </div>
-      </div>
-
-      <!-- 作者信息卡片 -->
-      <div class="sidebar-section author-card">
-        <h3 class="section-title">关于作者</h3>
-        <div class="author-card-content">
-          <div class="author-card-avatar">
-            <img src="../../assets/ice_bear_avatar.jpg" alt="作者头像" />
-          </div>
-          <div class="author-card-info">
+        <!-- 关于作者 -->
+        <DewCard variant="flat" divided class="side-card">
+          <template #header>关于作者</template>
+          <div class="author-card">
+            <el-avatar :size="56">{{ (articleAuthor || '?').charAt(0) }}</el-avatar>
             <h4 class="author-card-name">{{ articleAuthor }}</h4>
-            <p class="author-card-desc">技术分享者，专注前端开发</p>
+            <p class="author-card-desc">技术分享者</p>
           </div>
-        </div>
-      </div>
-    </aside>
+        </DewCard>
+      </aside>
+    </div>
   </div>
 </template>
 
-<script lang="ts">
-import { id } from 'element-plus/es/locales.mjs';
-import { defineComponent } from 'vue'
-import { ref, onMounted } from 'vue'
+<script setup>
+import { ref, onMounted, nextTick, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
-import api from '../../api';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from 'element-plus'
+import { View, Star, StarFilled, ChatDotRound, Share, Collection } from '@element-plus/icons-vue'
+import { DewCard } from '../ui'
+import api from '../../api'
+import ArticleCommentSection from './ArticleCommentSection.vue'
 
-export default defineComponent({
+const route = useRoute()
+const articleId = route.query.Article_Id
 
-    name: 'ArticleDetailComponent',
-    props: {
-        id: {
-            type: String,
-            required: true
-        }
-    },
+const article = ref('')
+const articleTitle = ref('')
+const articleTime = ref('')
+const articleAuthor = ref('')
+const toc = ref([])
+const viewCount = ref(0)
+const likeCount = ref(0)
+const isLiked = ref(false)
+const isFavorited = ref(false)
+const activeId = ref('')
 
-    setup(props, context) {
-        const route = useRoute(); // 获取当前路由
-        const article = ref(''); // 使用 ref 创建响应式数据
-        const articleTitle = ref('');
-        const articleTime = ref('');
-        const articleAuthor = ref('');
-        const toc = ref([]); // 目录数组
-        const viewCount = ref(0);
-        const likeCount = ref(0);
-        const isLiked = ref(false); // 新增：用户是否已点赞的状态
+let tocObserver = null
 
-        // 生成目录（带多级序号）
-        const generateTOC = (htmlContent) => {
-            if (!htmlContent) return [];
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = htmlContent;
-            const headings = tempDiv.querySelectorAll('h1, h2, h3, h4, h5, h6');
-            const tocList = [];
-            const numberStack = [0, 0, 0, 0, 0, 0]; // h1-h6
-            let lastLevel = 1;
-            headings.forEach((heading, index) => {
-                const level = parseInt(heading.tagName.charAt(1)); // 1-6
-                // 维护多级序号
-                if (level > lastLevel) {
-                    // 新子级
-                    numberStack[level - 1] = 1;
-                } else if (level === lastLevel) {
-                    numberStack[level - 1]++;
-                } else {
-                    // 回到上级，后面级别清零
-                    numberStack[level - 1]++;
-                    for (let i = level; i < 6; i++) numberStack[i] = 0;
-                }
-                lastLevel = level;
-                // 生成序号字符串
-                const indexStr = numberStack.slice(0, level).filter(n => n > 0).join('.');
-                const id = `toc-heading-${index}`;
-                const text = heading.textContent.trim();
-                heading.id = id;
-                tocList.push({
-                    id,
-                    text,
-                    level,
-                    index: indexStr,
-                    element: heading
-                });
-            });
-            article.value = tempDiv.innerHTML;
-            return tocList;
-        };
+// 生成目录（带多级序号），并把 id 写回正文 heading
+const generateTOC = (htmlContent) => {
+  if (!htmlContent) return []
+  const tempDiv = document.createElement('div')
+  tempDiv.innerHTML = htmlContent
+  const headings = tempDiv.querySelectorAll('h1, h2, h3, h4, h5, h6')
+  const tocList = []
+  const numberStack = [0, 0, 0, 0, 0, 0]
+  let lastLevel = 1
+  headings.forEach((heading, index) => {
+    const level = parseInt(heading.tagName.charAt(1))
+    if (level > lastLevel) numberStack[level - 1] = 1
+    else if (level === lastLevel) numberStack[level - 1]++
+    else { numberStack[level - 1]++; for (let i = level; i < 6; i++) numberStack[i] = 0 }
+    lastLevel = level
+    const indexStr = numberStack.slice(0, level).filter(n => n > 0).join('.')
+    const id = `toc-heading-${index}`
+    heading.id = id
+    tocList.push({ id, text: heading.textContent.trim(), level, index: indexStr })
+  })
+  article.value = tempDiv.innerHTML
+  return tocList
+}
 
-        // 目录项点击跳转
-        const scrollToHeading = (headingId) => {
-            const element = document.getElementById(headingId);
-            if (element) {
-                element.scrollIntoView({ 
-                    behavior: 'smooth', 
-                    block: 'start',
-                    inline: 'nearest'
-                });
-            }
-        };
+const scrollToHeading = (headingId) => {
+  const el = document.getElementById(headingId)
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
 
-        const getArticle = async () => {
-            try {
-                console.log(props.id);
-                const response = await api({
-                method: 'get',
-                url: '/article',
-                params: {
-                    Article_Id: props.id // 从路由查询参数获取Article_Id
-                }
-                });
-                console.log(response.data);
-                articleTitle.value = response.data.Article_Title;
-                articleTime.value = response.data.Publish_Time;
-                articleAuthor.value = response.data.Article_Author;
-                
-                const htmlContent = JSON.parse(response.data.html_content);
-                article.value = htmlContent;
-                
-                // 生成目录
-                toc.value = generateTOC(htmlContent);
-            } catch (error) {
-                console.error(error);
-            }
-        };
+const scrollToComments = () => {
+  const el = document.getElementById(`comments-${articleId}`)
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
 
-        // 获取统计数据（浏览或点赞）
-        const getStatistic = async (like = false, view = false) => {
-            try {
-                const token = localStorage.getItem('token');
-                // 已登录传 user: 'loginUser'，未登录传 user: ''
-                let user = token ? 'loginUser' : '';
-                const res = await api({
-                    method: 'post',
-                    url: '/article/statistic',
-                    data: {
-                        Article_Id: props.id,
-                        like,
-                        view,
-                        user
-                    }
-                });
-                // 不在post中更新统计，由fetchStatistic专门负责
-                console.log('统计操作完成:', res.data);
-            } catch (err) {
-                console.error('获取统计数据失败', err);
-            }
-        };
+// TOC 滚动跟随高亮：监听正文 heading，最靠上的可见项设为 active
+const setupTocObserver = () => {
+  if (tocObserver) tocObserver.disconnect()
+  if (!toc.value.length) return
+  tocObserver = new IntersectionObserver((entries) => {
+    const visible = entries.filter(e => e.isIntersecting)
+    if (visible.length) {
+      visible.sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)
+      activeId.value = visible[0].target.id
+    }
+  }, { rootMargin: '0px 0px -75% 0px', threshold: 0 })
+  toc.value.forEach(item => {
+    const el = document.getElementById(item.id)
+    if (el) tocObserver.observe(el)
+  })
+}
 
-        // 获取统计数据（仅get，返回最新统计信息）
-        const fetchStatistic = async () => {
-            try {
-                const token = localStorage.getItem('token');
-                let user = token ? 'loginUser' : '';
-                const res = await api({
-                    method: 'get',
-                    url: '/article/statistic',
-                    params: {
-                        Article_Id: props.id,
-                        user
-                    }
-                });
-                likeCount.value = res.data?.like_count ?? 0;
-                viewCount.value = res.data?.view_count ?? 0;
-                // 关键：获取用户是否已点赞状态
-                isLiked.value = res.data?.user_liked ?? false;
-                console.log('最新统计数据:', { likeCount: likeCount.value, viewCount: viewCount.value, isLiked: isLiked.value });
-            } catch (err) {
-                console.error('获取最新统计数据失败', err);
-            }
-        };
+const getArticle = async () => {
+  try {
+    const response = await api({ method: 'get', url: '/article', params: { Article_Id: articleId } })
+    const data = response.data
+    articleTitle.value = data.Article_Title
+    articleTime.value = data.Publish_Time
+    articleAuthor.value = data.Article_Author
+    const htmlContent = JSON.parse(data.html_content)
+    toc.value = generateTOC(htmlContent)
+  } catch (e) {
+    console.error('获取文章失败', e)
+  }
+}
 
-        // 格式化时间
-        const formatTime = (timeStr) => {
-            if (!timeStr) return '';
-            const date = new Date(timeStr);
-            return date.toLocaleDateString('zh-CN', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-            });
-        };
+const fetchStatistic = async () => {
+  try {
+    const token = localStorage.getItem('token')
+    const user = token ? 'loginUser' : ''
+    const res = await api({ method: 'get', url: '/article/statistic', params: { Article_Id: articleId, user } })
+    likeCount.value = res.data?.like_count ?? 0
+    viewCount.value = res.data?.view_count ?? 0
+    isLiked.value = res.data?.user_liked ?? false
+  } catch (e) {
+    console.error('获取统计失败', e)
+  }
+}
 
-        // onMounted生命周期钩子
-        onMounted(async () => {
-            console.log(route.query.Article_Id); // 打印查询参数
-            await getArticle(); // 获取文章数据
-            // 1. 首先get，获取当前用户是否已浏览/点赞，防止重复计数
-            await fetchStatistic();
-            // 2. 如果未浏览过，则post view
-            if (!viewCount.value) {
-                await getStatistic(false, true); // 仅浏览
-                await fetchStatistic(); // post后再get一次，刷新展示
-            }
-        });
+const postStatistic = async (like = false, view = false) => {
+  try {
+    const token = localStorage.getItem('token')
+    const user = token ? 'loginUser' : ''
+    await api({ method: 'post', url: '/article/statistic', data: { Article_Id: articleId, like, view, user } })
+  } catch (e) {
+    console.error('统计操作失败', e)
+  }
+}
 
-        // 点赞事件
-        const handleLike = async () => {
-            const token = localStorage.getItem('token');
-            if (!token) {
-                ElMessage.warning('请先登录后再点赞');
-                return;
-            }
-            // 根据当前点赞状态，切换点赞或取消点赞
-            const shouldLike = !isLiked.value;
-            await getStatistic(shouldLike, true); // view始终为true
-            await fetchStatistic(); // 重新获取状态
-            
-            if (shouldLike) {
-                ElMessage.success('点赞成功');
-            } else {
-                ElMessage.info('已取消点赞');
-            }
-        };
+const handleLike = async () => {
+  const token = localStorage.getItem('token')
+  if (!token) { ElMessage.warning('请先登录后再点赞'); return }
+  const shouldLike = !isLiked.value
+  await postStatistic(shouldLike, true)
+  await fetchStatistic()
+  if (shouldLike) ElMessage.success('点赞成功')
+  else ElMessage.info('已取消点赞')
+}
 
-        // 评论和分享按钮统一提示
-        const handleComingSoon = () => {
-            ElMessage.info('敬请期待');
-        };
+const toggleFavorite = () => {
+  const token = localStorage.getItem('token')
+  if (!token) { ElMessage.warning('请先登录后再收藏'); return }
+  // TODO: 后端待补 —— 文章收藏接口
+  isFavorited.value = !isFavorited.value
+  ElMessage.success(isFavorited.value ? '已收藏' : '已取消收藏')
+}
 
-        return {
-            article,
-            articleTitle,
-            articleTime,
-            articleAuthor,
-            toc,
-            formatTime,
-            scrollToHeading,
-            viewCount,
-            likeCount,
-            isLiked, // 导出点赞状态
-            handleLike,
-            handleComingSoon
-        }
-  },
+const handleShare = async () => {
+  const url = window.location.href
+  try {
+    if (navigator.clipboard) await navigator.clipboard.writeText(url)
+    ElMessage.success('链接已复制')
+  } catch {
+    ElMessage.info('分享链接：' + url)
+  }
+}
+
+const formatTime = (timeStr) => {
+  if (!timeStr) return ''
+  const date = new Date(timeStr)
+  return date.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })
+}
+
+onMounted(async () => {
+  await getArticle()
+  await fetchStatistic()
+  if (!viewCount.value) {
+    await postStatistic(false, true)
+    await fetchStatistic()
+  }
+  await nextTick()
+  setupTocObserver()
+})
+
+onBeforeUnmount(() => {
+  if (tocObserver) tocObserver.disconnect()
 })
 </script>
 
 <style scoped>
-.article-wrapper {
-  display: flex;
+.article-wrap {
+  font-family: var(--dew-font, inherit);
   max-width: 1200px;
   margin: 0 auto;
-  gap: 32px;
-  padding: 32px 20px;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  padding: 32px 20px 48px;
 }
 
-/* 文章主体区域 */
-.article-container {
+.article-layout {
+  display: flex;
+  gap: 28px;
+  align-items: flex-start;
+}
+
+.article-primary {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
 
-.article-main {
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-  overflow: hidden;
+/* flat 正文/评论卡：清掉 DewCard 默认内边距，由内部三段自定义 */
+.article-main :deep(.dew-card__body) {
+  padding: 0;
 }
 
-/* 文章头部 */
+/* ━━━━ 头部 ━━━━ */
 .article-header {
-  padding: 40px 40px 32px;
-  border-bottom: 1px solid #f1f3f5;
-}
-
-.article-category {
-  margin-bottom: 16px;
-}
-
-.category-tag {
-  display: inline-block;
-  padding: 6px 12px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.5px;
+  padding: 36px 40px 24px;
+  border-bottom: 1px solid var(--dew-card-flat-divider);
 }
 
 .article-title {
-  font-size: 32px;
+  margin: 0 0 20px 0;
+  font-size: 30px;
   font-weight: 700;
-  line-height: 1.3;
-  color: #1a1a1a;
-  margin: 0 0 24px 0;
+  line-height: 1.35;
+  color: var(--dew-text-heading);
   word-break: break-word;
 }
 
@@ -400,21 +312,13 @@ export default defineComponent({
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: 12px;
 }
 
 .author-info {
   display: flex;
   align-items: center;
   gap: 12px;
-}
-
-.author-avatar img {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 2px solid #f1f3f5;
 }
 
 .author-details {
@@ -424,333 +328,310 @@ export default defineComponent({
 }
 
 .author-name {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
-  color: #1a1a1a;
+  color: var(--dew-text-heading);
 }
 
 .publish-time {
-  font-size: 14px;
-  color: #8e8e93;
+  font-size: 13px;
+  color: var(--dew-text-faint);
 }
 
-.article-actions {
+.meta-stats {
   display: flex;
-  gap: 24px;
+  gap: 16px;
 }
 
-.action-item {
-  display: flex;
+.stat {
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  color: #8e8e93;
-  font-size: 14px;
+  gap: 5px;
+  font-size: 13px;
+  color: var(--dew-text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
-.action-icon {
-  font-size: 16px;
+.stat .el-icon {
+  font-size: 15px;
 }
 
-/* 文章内容 */
+/* ━━━━ 正文（v-html 内容用 :deep 命中并 token 化，跟随暗色） ━━━━ */
 .article-content {
-  padding: 0 40px;
+  padding: 28px 40px;
 }
 
-.content-body {
-  line-height: 1.8;
+.article-content :deep(.content-body) {
   font-size: 16px;
-  color: #2c2c2c;
+  line-height: 1.85;
+  color: var(--dew-text);
   word-break: break-word;
 }
 
-/* 全局文章内容样式 */
-.content-body h1, .content-body h2, .content-body h3 {
-  margin: 32px 0 16px 0;
-  color: #1a1a1a;
-  font-weight: 600;
-  scroll-margin-top: 80px; /* 为锚点跳转添加顶部偏移 */
-}
-
-.content-body h4, .content-body h5, .content-body h6 {
-  margin: 24px 0 12px 0;
-  color: #1a1a1a;
+.article-content :deep(.content-body h1),
+.article-content :deep(.content-body h2),
+.article-content :deep(.content-body h3),
+.article-content :deep(.content-body h4),
+.article-content :deep(.content-body h5),
+.article-content :deep(.content-body h6) {
+  margin: 28px 0 14px;
+  color: var(--dew-text-heading);
   font-weight: 600;
   scroll-margin-top: 80px;
 }
 
-.content-body h1 { font-size: 28px; }
-.content-body h2 { font-size: 24px; }
-.content-body h3 { font-size: 20px; }
+.article-content :deep(.content-body h1) { font-size: 26px; }
+.article-content :deep(.content-body h2) { font-size: 22px; }
+.article-content :deep(.content-body h3) { font-size: 18px; }
 
-.content-body p {
-  margin: 16px 0;
-  line-height: 1.8;
+.article-content :deep(.content-body p) {
+  margin: 14px 0;
+  line-height: 1.85;
 }
 
-.content-body img {
-  max-width: 100%;
-  height: auto;
-  border-radius: 8px;
-  margin: 24px 0;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}
-
-.content-body code {
-  background: #f6f8fa;
+.article-content :deep(.content-body code) {
+  background: var(--dew-card-inset-bg);
   padding: 2px 6px;
   border-radius: 4px;
-  font-family: 'SFMono-Regular', Consolas, monospace;
+  font-family: var(--dew-font-mono, monospace);
   font-size: 14px;
-  color: #d73a49;
+  color: var(--dew-text);
 }
 
-.content-body pre {
-  background: #f6f8fa;
-  padding: 16px;
-  border-radius: 8px;
+.article-content :deep(.content-body pre) {
+  background: var(--dew-card-inset-bg);
+  padding: 16px 18px;
+  border-radius: 10px;
   overflow-x: auto;
-  margin: 24px 0;
-  border-left: 4px solid #0366d6;
+  margin: 20px 0;
+  border: 1px solid var(--dew-card-inset-border);
 }
 
-/* 文章底部 */
-.article-footer {
-  padding: 32px 40px 40px;
-  border-top: 1px solid #f1f3f5;
-  margin-top: 40px;
-}
-
-.interaction-section {
-  margin-bottom: 32px;
-}
-
-.interaction-buttons {
-  display: flex;
-  gap: 16px;
-  justify-content: center;
-}
-
-.btn-interaction {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 24px;
-  background: #f8f9fa;
-  border: none;
-  border-radius: 50px;
-  cursor: pointer;
+.article-content :deep(.content-body pre code) {
+  background: transparent;
+  padding: 0;
   font-size: 14px;
-  font-weight: 500;
-  color: #495057;
-  transition: all 0.2s ease;
+  line-height: 1.6;
 }
 
-.btn-interaction:hover {
-  background: #e9ecef;
-  transform: translateY(-1px);
+.article-content :deep(.content-body img) {
+  max-width: 100%;
+  height: auto;
+  border-radius: 10px;
+  margin: 20px 0;
 }
 
-.btn-interaction.like {
-  background: #f8f9fa;
-  color: #495057;
+.article-content :deep(.content-body blockquote) {
+  margin: 16px 0;
+  padding: 4px 16px;
+  border-left: 3px solid var(--dew-card-flat-divider);
+  color: var(--dew-text-muted);
 }
 
-.btn-interaction.like.liked {
-  background: #fff5f5;
-  color: #e53e3e;
-  border: 1px solid #e53e3e;
+.article-content :deep(.content-body ul),
+.article-content :deep(.content-body ol) {
+  padding-left: 22px;
+  margin: 14px 0;
 }
 
-.btn-interaction.comment:hover {
-  background: #f0f8ff;
-  color: #3182ce;
+.article-content :deep(.content-body li) {
+  margin: 6px 0;
 }
 
-.btn-interaction.share:hover {
-  background: #f0fff4;
-  color: #38a169;
+/* ━━━━ 底部交互栏 ━━━━ */
+.article-footer {
+  padding: 20px 40px 32px;
+  border-top: 1px solid var(--dew-card-flat-divider);
 }
 
-.tags-section {
-  display: flex;
-  justify-content: center;
-}
-
-.article-tags {
+.actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 
-.tag {
-  padding: 6px 12px;
-  background: #f1f3f5;
-  color: #495057;
-  border-radius: 16px;
-  font-size: 12px;
-  font-weight: 500;
-  transition: all 0.2s ease;
-}
-
-.tag:hover {
-  background: #e9ecef;
+/* 轻量 action（平移 DiscussionCard 的 dc-action 模式，token 驱动） */
+.art-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: transparent;
+  padding: 8px 14px;
+  border-radius: var(--radius-full);
   cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--dew-text-muted);
+  transition: color 0.25s ease, background 0.25s ease, transform 0.35s var(--dew-bounce);
 }
 
-/* 侧边栏 */
+.art-action .el-icon {
+  font-size: 17px;
+}
+
+.art-action:hover {
+  color: var(--dew-text-heading);
+  background: var(--dew-ghost-hover-bg);
+}
+
+.art-action:active {
+  transform: scale(0.95);
+}
+
+.art-action.is-liked {
+  color: #f43f5e;
+}
+
+.art-action.is-liked:hover {
+  background: rgba(244, 63, 94, 0.10);
+}
+
+.art-action.is-favorited {
+  color: #f59e0b;
+}
+
+.art-action.is-favorited:hover {
+  background: rgba(245, 158, 11, 0.10);
+}
+
+.art-count {
+  font-weight: 600;
+}
+
+/* ━━━━ 侧边栏 ━━━━ */
 .article-sidebar {
   width: 280px;
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  position: sticky;
+  top: 20px;
 }
 
-.sidebar-section {
-  background: #fff;
-  border-radius: 12px;
-  padding: 24px;
-  margin-bottom: 24px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-  border: 1px solid #f1f3f5;
-}
-
-.section-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: #1a1a1a;
-  margin: 0 0 16px 0;
-  padding-bottom: 12px;
-  border-bottom: 2px solid #f1f3f5;
-}
-
-.placeholder-text {
-  color: #8e8e93;
-  font-size: 14px;
+.placeholder {
+  color: var(--dew-text-faint);
+  font-size: 13px;
   text-align: center;
-  padding: 20px 0;
+  padding: 16px 0;
   margin: 0;
 }
 
-/* 目录样式 */
+/* 目录 */
 .toc-list {
   list-style: none;
   padding: 0;
   margin: 0;
 }
 
-.toc-item {
-  margin-bottom: 8px;
-  transition: all 0.2s ease;
-}
-
 .toc-link {
   display: block;
-  padding: 8px 12px;
-  color: #495057;
+  padding: 7px 10px;
+  color: var(--dew-text-muted);
   text-decoration: none;
-  border-radius: 6px;
-  font-size: 14px;
-  line-height: 1.4;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  line-height: 1.45;
   cursor: pointer;
-  transition: all 0.2s ease;
-  border-left: 3px solid transparent;
+  transition: color 0.2s ease, background 0.2s ease;
 }
 
 .toc-index {
-  color: #b0b0b0;
-  font-size: 13px;
+  color: var(--dew-text-faint);
+  font-size: 12px;
   margin-right: 6px;
-  min-width: 32px;
-  display: inline-block;
+  font-variant-numeric: tabular-nums;
 }
 
 .toc-link:hover {
-  background: #f8f9fa;
-  color: #667eea;
-  border-left-color: #667eea;
+  color: var(--dew-text-heading);
+  background: var(--dew-ghost-hover-bg);
 }
 
-/* 不同级别标题的缩进 */
-.toc-level-1 .toc-link {
+.toc-item.active > .toc-link {
+  color: var(--dew-text-heading);
   font-weight: 600;
-  padding-left: 12px;
+  background: var(--dew-ghost-hover-bg);
 }
 
-.toc-level-2 .toc-link {
-  padding-left: 20px;
-  font-size: 13px;
-}
-
-.toc-level-3 .toc-link {
-  padding-left: 28px;
-  font-size: 13px;
-  color: #6c757d;
-}
-
+.toc-level-2 .toc-link { padding-left: 20px; font-size: 12.5px; }
+.toc-level-3 .toc-link { padding-left: 30px; font-size: 12.5px; }
 .toc-level-4 .toc-link,
 .toc-level-5 .toc-link,
-.toc-level-6 .toc-link {
-  padding-left: 36px;
-  font-size: 12px;
-  color: #6c757d;
-}
+.toc-level-6 .toc-link { padding-left: 40px; font-size: 12px; }
 
-/* 作者卡片 */
-.author-card-content {
+/* 作者卡 */
+.author-card {
   text-align: center;
+  padding: 4px 0;
 }
 
-.author-card-avatar {
-  margin-bottom: 16px;
+.author-card :deep(.el-avatar),
+.author-card-name,
+.author-card-desc {
+  margin: 0;
 }
 
-.author-card-avatar img {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 3px solid #f1f3f5;
+.author-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
 }
 
 .author-card-name {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
-  color: #1a1a1a;
-  margin: 0 0 8px 0;
+  color: var(--dew-text-heading);
 }
 
 .author-card-desc {
-  font-size: 14px;
-  color: #8e8e93;
-  margin: 0;
+  font-size: 13px;
+  color: var(--dew-text-faint);
   line-height: 1.5;
 }
 
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .article-wrapper {
+/* ━━━━ 响应式 ━━━━ */
+@media (max-width: 1024px) {
+  .article-layout {
     flex-direction: column;
-    padding: 16px;
-    gap: 24px;
   }
 
   .article-sidebar {
     width: 100%;
-    order: -1;
+    position: static;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .side-card {
+    flex: 1;
+    min-width: 240px;
+  }
+}
+
+@media (max-width: 640px) {
+  .article-wrap {
+    padding: 16px 14px 32px;
   }
 
   .article-header {
-    padding: 24px 20px;
-  }
-
-  .article-title {
-    font-size: 24px;
+    padding: 24px 20px 20px;
   }
 
   .article-content {
-    padding: 0 20px;
+    padding: 22px 20px;
   }
 
   .article-footer {
-    padding: 24px 20px;
+    padding: 18px 20px 26px;
+  }
+
+  .article-title {
+    font-size: 22px;
   }
 
   .article-meta {
@@ -758,39 +639,8 @@ export default defineComponent({
     align-items: flex-start;
   }
 
-  .interaction-buttons {
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-
-  .sidebar-section {
-    padding: 20px;
-  }
-}
-
-@media (max-width: 480px) {
-  .article-wrapper {
-    padding: 12px;
-  }
-
-  .article-header {
-    padding: 20px 16px;
-  }
-
-  .article-content {
-    padding: 0 16px;
-  }
-
-  .article-footer {
-    padding: 20px 16px;
-  }
-
-  .article-title {
-    font-size: 20px;
-  }
-
-  .content-body {
-    font-size: 15px;
+  .article-sidebar {
+    flex-direction: column;
   }
 }
 </style>

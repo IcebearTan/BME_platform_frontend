@@ -46,7 +46,7 @@
 import { ref, reactive, computed } from 'vue'
 
 const props = defineProps({
-  /** 卡片变体：default | elevated | inset */
+  /** 卡片变体：default | elevated | inset | flat（纯色扁平，无 glass） */
   variant: { type: String, default: 'default' },
   /** 尺寸：sm | md | lg */
   size: { type: String, default: 'md' },
@@ -167,6 +167,28 @@ const rippleStyle = computed(() => ({
 .dew-card--glass:hover {
   background: var(--dew-card-glass-bg-hover);
   box-shadow: var(--dew-card-glass-shadow-hover);
+}
+
+/* ━━━━ 扁平模式（纯色，无 glass，阅读/文档场景） ━━━━ */
+.dew-card--flat {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: var(--dew-card-flat-bg);
+  border-color: var(--dew-card-flat-border);
+  box-shadow: var(--dew-card-flat-shadow);
+}
+/* flat 是静态阅读/文档容器：hover 完全无反馈（背景/阴影/位移均不变） */
+.dew-card--flat:hover {
+  background: var(--dew-card-flat-bg);
+  box-shadow: var(--dew-card-flat-shadow);
+  transform: none;
+}
+/* flat 模式隐藏玻璃特效层（折射/色散/高光/底色） */
+.dew-card--flat .dew-card__refraction,
+.dew-card--flat .dew-card__chromatic,
+.dew-card--flat .dew-card__highlight,
+.dew-card--flat .dew-card__tint {
+  display: none;
 }
 
 /* ━━━━ 可交互 ━━━━ */

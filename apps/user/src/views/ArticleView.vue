@@ -1,18 +1,18 @@
-<script setup>// <--- 注意这里是 setup
-import { ref, onMounted, onUnmounted } from "vue";
-import { useRoute, useRouter } from "vue-router";
+<script setup>
+import { ref, onMounted, onUnmounted, computed } from "vue";
+import { useRouter } from "vue-router";
+import { useStore } from "vuex";
+import { Expand } from "@element-plus/icons-vue";
 import MenuComponent from "../components/MenuComponent.vue";
 import MobileMenuComponent from "../components/MobileMenuComponent.vue";
 import PageFooterComponent from "../components/PageFooterComponent.vue";
 import ArticleDetailComponent from "../components/Article/ArticleDetailComponent.vue";
-import { Expand } from '@element-plus/icons-vue'; // 只导入 Expand，因为模板中只用了它
 
-// api 的导入如果 ArticleView 本身不直接调用，可以考虑移除
-// import api from '../api';
-
-const route = useRoute();
+const store = useStore();
 const router = useRouter();
-const Article_Id = ref(route.query.Article_Id);
+
+// --- 主题管理（根节点挂 theme-dark/light，DewUI 变量才能级联进来） ---
+const isDarkMode = computed(() => store.state.isDarkMode);
 
 // --- 响应式 Header 逻辑 ---
 const isMobile = ref(window.innerWidth <= 768);
@@ -20,9 +20,7 @@ const isMobileMenuOpen = ref(false);
 
 const checkScreenSize = () => {
   isMobile.value = window.innerWidth <= 768;
-  if (!isMobile.value) {
-    isMobileMenuOpen.value = false;
-  }
+  if (!isMobile.value) isMobileMenuOpen.value = false;
 };
 
 const toggleMobileMenu = () => {
@@ -30,19 +28,17 @@ const toggleMobileMenu = () => {
 };
 
 onMounted(() => {
-  console.log("Article ID from route query (ArticleView):", Article_Id.value);
   checkScreenSize();
-  window.addEventListener('resize', checkScreenSize);
+  window.addEventListener("resize", checkScreenSize);
 });
 
 onUnmounted(() => {
-  window.removeEventListener('resize', checkScreenSize);
+  window.removeEventListener("resize", checkScreenSize);
 });
-// --- 响应式 Header 逻辑结束 ---
 </script>
 
 <template>
-  <div>
+  <div class="article-page" :class="{ 'theme-dark': isDarkMode, 'theme-light': !isDarkMode }">
     <el-container class="common-layout">
       <el-header class="header-container">
         <!-- 桌面菜单 -->
@@ -52,8 +48,7 @@ onUnmounted(() => {
         <!-- 移动端头部 -->
         <div v-else class="mobile-header">
           <div class="mobile-logo">
-            <img style="width: 40px; height: auto;" src="../assets/Logo_NewYear.png" @click="router.push('/')"
-              alt="Logo" />
+            <img style="width: 40px; height: auto;" src="../assets/Logo_NewYear.png" @click="router.push('/')" alt="Logo" />
           </div>
           <el-icon class="hamburger-icon" @click="toggleMobileMenu">
             <Expand />
@@ -62,11 +57,16 @@ onUnmounted(() => {
       </el-header>
 
       <!-- 移动端菜单 -->
-      <MobileMenuComponent v-if="isMobile && isMobileMenuOpen" @close="toggleMobileMenu" />
+      <MobileMenuComponent
+        v-if="isMobile && isMobileMenuOpen"
+        @close="toggleMobileMenu"
+        style="z-index: 1001;"
+      />
 
-      <el-main class="article-main-container">
-        <ArticleDetailComponent :id="Article_Id" />
+      <el-main style="padding: 0; min-height: 100vh; overflow-x: hidden;">
+        <ArticleDetailComponent />
       </el-main>
+
       <el-footer class="page-footer">
         <PageFooterComponent />
       </el-footer>
@@ -75,18 +75,41 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-/* ... 你的样式保持不变 ... */
-/* --- 开始：从 HomeView/StudyView 复制的 Header 相关样式 --- */
+/* --- 整体页面样式 --- */
+.article-page {
+  min-height: 100vh;
+  transition: all 0.3s ease;
+}
+
+.theme-light .article-page {
+  background: linear-gradient(135deg, #fafbfc 0%, #f5f7fa 100%);
+  color: #333333;
+}
+
+.theme-dark .article-page {
+  background-color: #1a1a1a;
+  color: #ffffff;
+}
+
+/* --- Header 样式 --- */
 .header-container {
   display: flex;
   justify-content: center;
   align-items: center;
-  border-bottom: solid 1px #e6e6e6;
   padding: 0;
   height: 60px;
   position: relative;
-  background: #fff; /* 显式白色背景，防止被父级灰色影响 */
-  z-index: 10;
+  transition: all 0.3s ease;
+}
+
+.theme-light .header-container {
+  border-bottom: solid 1px #e6e6e6;
+  background-color: #ffffff;
+}
+
+.theme-dark .header-container {
+  border-bottom: solid 1px #34495e;
+  background-color: #2c3e50;
 }
 
 .desktop-menu-container {
@@ -97,15 +120,12 @@ onUnmounted(() => {
 
 .mobile-header {
   display: none;
-  /* 默认隐藏 */
   width: 100%;
   height: 100%;
   padding: 0 15px;
-  /* 左右内边距 */
   box-sizing: border-box;
   display: flex;
   justify-content: space-between;
-  /* Logo 左，图标右 */
   align-items: center;
 }
 
@@ -115,90 +135,124 @@ onUnmounted(() => {
 
 .hamburger-icon {
   display: none;
-  /* 默认隐藏 */
   font-size: 24px;
-  /* 图标大小 */
   cursor: pointer;
-  color: #606266;
-  /* 深灰色图标颜色 */
+  transition: color 0.3s ease;
 }
 
-/* 媒体查询：当屏幕宽度小于等于 768px 时 */
+.theme-light .hamburger-icon {
+  color: #606266;
+}
+
+.theme-dark .hamburger-icon {
+  color: #cbd5e0;
+}
+
+.hamburger-icon:hover {
+  transform: scale(1.1);
+}
+
+.theme-light .hamburger-icon:hover {
+  color: #409eff;
+}
+
+.theme-dark .hamburger-icon:hover {
+  color: #63b3ed;
+}
+
 @media (max-width: 768px) {
   .desktop-menu-container {
     display: none;
-    /* 隐藏桌面菜单 */
   }
 
   .mobile-header {
     display: flex;
-    /* 显示移动端头部 */
   }
 
   .hamburger-icon {
     display: block;
-    /* 显示汉堡图标 */
   }
 
   .header-container {
     justify-content: space-between;
-    /* 移动端两端对齐 */
     padding: 0 15px;
-    /* 移动端内边距 */
   }
 }
-
-/* --- 结束：复制的 Header 相关样式 --- */
-
 
 .common-layout {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #f8f9fa;
+  justify-content: space-between;
+  position: relative;
 }
 
-.article-main-container {
-  padding: 0;
-  min-height: calc(100vh - 60px);
-  background: #f8f9fa;
+.common-layout :deep(.el-main) {
+  transition: background-color 0.3s ease;
 }
 
-.footer {
-  display: flex;
-  padding: 10px;
-  background-color: #f5f5f5;
-  margin: 0;
-  width: 100%;
-  color: #bababa;
+.theme-light .common-layout :deep(.el-main) {
+  background: linear-gradient(135deg, #fafbfc 0%, #f5f7fa 100%);
 }
 
-/* 注释掉 ArticleView 原有的、可能与新 Header 冲突或不再需要的样式 */
-/*
-.el-menu--horizontal>.el-menu-item:nth-child(1) {
-    margin-right: auto;
+.theme-dark .common-layout :deep(.el-main) {
+  background-color: #1a1a1a;
 }
-.left-col, .right-col, .main-col, .article-footer, .article-header, @keyframes jumpAnimation {
-  // ...
-}
-*/
 </style>
 
-<!-- <style>
-/* 全局样式 */
+<style>
 .el-header {
   padding: 0 !important;
-  background: #fff !important; /* 全局兜底，确保 header 始终为白色 */
 }
 
-/* .page-footer {
+.page-footer {
   display: flex;
   align-items: center;
   flex-direction: column;
-  padding: 10px;
-  background-color: #252525;
+  padding: 20px 10px;
   width: 100%;
   min-height: 400px;
   color: #ffffff;
-} */
-</style> -->
+  transition: all 0.3s ease;
+}
+
+.theme-light .page-footer {
+  background-color: #252525;
+}
+
+.theme-dark .page-footer {
+  background-color: #0f0f0f;
+}
+
+/* 滚动条美化 - 主题适配 */
+.theme-light ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.theme-light ::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+}
+.theme-light ::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+.theme-light ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+.theme-dark ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.theme-dark ::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+.theme-dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+}
+.theme-dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+</style>
