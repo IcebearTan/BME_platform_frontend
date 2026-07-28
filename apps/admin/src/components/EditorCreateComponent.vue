@@ -1,10 +1,11 @@
 <script>
-import { ref, reactive, watch, onMounted, onBeforeUnmount, computed } from 'vue';
+import { ref, reactive, watch, onMounted, onBeforeUnmount } from 'vue';
 import { ElMessage } from 'element-plus';
-import { Grid, Document, View, Hide, FullScreen, Upload, CircleCloseFilled } from '@element-plus/icons-vue';
+import { View, Hide, Upload, CircleCloseFilled } from '@element-plus/icons-vue';
 import api from '../api';
 import { useRouter } from 'vue-router';
 import FileUploadComponent from './FileUploadComponent.vue';
+import store from '../store';
 
 import Editor from '@tinymce/tinymce-vue';
 import tinymce from 'tinymce/tinymce';
@@ -31,11 +32,8 @@ export default {
     components: {
         Editor,
         FileUploadComponent,
-        Grid,
-        Document,
         View,
         Hide,
-        FullScreen,
         Upload,
         CircleCloseFilled,
     },
@@ -97,7 +95,7 @@ export default {
 
             base_url: '/admin/node_modules/tinymce/', // 根据实际路径调整
             skin_url: '/admin/tinymce/skins/ui/oxide',
-            content_css: '/admin/skins/content/default/content.css',
+            content_css: '/admin/article-content.css',
 
             paste_data_images: true, // 允许粘贴图片
             paste_word_valid_elements: 'img[src|width|height|alt|title|class]', // 允许图片标签带上特定属性
@@ -142,16 +140,14 @@ export default {
 
             // 优化的内容样式
             content_style: `
-                body { 
-                    color: #2c3e50; 
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
-                    font-size: 16px;
-                    line-height: 1.8;
-                    max-width: none;
-                    margin: 20px;
-                    padding: 0;
-                    word-wrap: break-word;
+                body {
+                    /* 文字/字体/字号由共享 article-content.css 的 .rich-text 接管（跟随主题）；
+                       这里只保留画布边距 + 跟随主题的画布底色（content_style 静态，靠 body.theme-dark 切暗色） */
+                    margin: 16px;
                     background: #fff;
+                }
+                body.theme-dark {
+                    background: #1c1c1e;
                 }
                 
                 h1, h2, h3, h4, h5, h6 {
@@ -255,8 +251,12 @@ export default {
             // 添加自定义设置
             setup: function (editor) {
                 editor.on('init', function () {
-                    // 编辑器初始化完成后的操作
-                    console.log('编辑器初始化完成');
+                    // 给 iframe <body> 挂 rich-text（命中共享样式）+ 同步当前主题 class
+                    const body = editor.getBody();
+                    if (body) {
+                        body.classList.add('rich-text');
+                        body.classList.add(store.getters.isDarkMode ? 'theme-dark' : 'theme-light');
+                    }
                 });
                 
                 editor.on('input', function () {
@@ -308,39 +308,8 @@ export default {
         }
 
         const isPreviewShow = ref(true);
-        const isFullscreen = ref(false);
-        const isSideBySide = ref(true); // 默认使用分屏模式，更好的写作体验
-        const screenWidth = ref(window.innerWidth);
-        
-        // 计算属性：根据屏幕大小决定是否强制使用单列模式
-        const effectiveLayoutMode = computed(() => {
-            return screenWidth.value < 1200 ? false : isSideBySide.value;
-        });
-        
         const togglePreview = () => {
             isPreviewShow.value = !isPreviewShow.value;
-        }
-        
-        const toggleFullscreen = () => {
-            isFullscreen.value = !isFullscreen.value;
-        }
-        
-        const toggleSideBySide = () => {
-            if (screenWidth.value < 1200) {
-                // 在小屏幕上给出提示
-                ElMessage.info('当前屏幕较小，建议使用单列模式以获得更好体验');
-                return;
-            }
-            isSideBySide.value = !isSideBySide.value;
-            // 如果切换到分屏模式，自动显示预览
-            if (isSideBySide.value) {
-                isPreviewShow.value = true;
-            }
-        }
-        
-        // 监听窗口大小变化
-        const handleResize = () => {
-            screenWidth.value = window.innerWidth;
         }
         
         // 处理文件导入
@@ -367,27 +336,35 @@ export default {
             }
         );
 
+        // 主题切换时同步所有 TinyMCE 实例 iframe 的 theme class
+        // （rich-text 作用域的共享样式靠 body 上的 theme-dark/light 切暗色）
+        const syncEditorTheme = (isDark) => {
+            const add = isDark ? 'theme-dark' : 'theme-light';
+            const rem = isDark ? 'theme-light' : 'theme-dark';
+            Object.values(tinymce.editors).forEach((ed) => {
+                const body = ed.getBody();
+                if (!body) return;
+                body.classList.add('rich-text');
+                body.classList.remove(rem);
+                body.classList.add(add);
+            });
+        };
+        watch(() => store.getters.isDarkMode, syncEditorTheme);
+
         onMounted(() => {
             // 在mounted中初始化tinymce
             tinymce.init({});
-            // 添加窗口大小监听
-            window.addEventListener('resize', handleResize);
         });
 
         onBeforeUnmount(() => {
             // 在组件卸载前销毁tinymce实例
             tinymce.remove();
-            // 移除事件监听
-            window.removeEventListener('resize', handleResize);
         })
 
         return {
             init,
             content,
             isPreviewShow,
-            isFullscreen,
-            isSideBySide,
-            effectiveLayoutMode,
             Article_Id,
             Article_Title,
             Article_Introduction,
@@ -396,8 +373,6 @@ export default {
             handleClick,
             handleSubmit,
             togglePreview,
-            toggleFullscreen,
-            toggleSideBySide,
             handleFileImported,
         };
 
@@ -406,43 +381,24 @@ export default {
 </script>
 
 <template>
-    <div class="editor-container" :class="{ 'fullscreen': isFullscreen, 'side-by-side': isSideBySide }">
+    <div class="editor-container">
         <el-form>
             <!-- 顶部工具栏 -->
             <div class="toolbar-container">
                 <div class="toolbar-left">
                     <div class="editor-title-section">
                         <h2 class="editor-title">文章编辑器</h2>
-                        <span class="mode-description">
-                            {{ effectiveLayoutMode ? '当前：左右分屏模式 - 编辑与预览并排显示' : '当前：上下单列模式 - 编辑在上，预览在下' }}
-                        </span>
                     </div>
                 </div>
                 <div class="toolbar-right">
                     <el-button-group>
-                        <el-button 
-                            @click="toggleSideBySide()" 
-                            :type="isSideBySide ? 'primary' : 'default'"
-                            size="default"
-                        >
-                            <el-icon><Grid v-if="isSideBySide" /><Document v-else /></el-icon>
-                            {{ isSideBySide ? '左右分屏' : '上下单列' }}
-                        </el-button>
-                        <el-button 
-                            @click="togglePreview()" 
+                        <el-button
+                            @click="togglePreview()"
                             :type="isPreviewShow ? 'success' : 'default'"
                             size="default"
                         >
                             <el-icon><View v-if="isPreviewShow" /><Hide v-else /></el-icon>
                             {{ isPreviewShow ? '预览开启' : '预览关闭' }}
-                        </el-button>
-                        <el-button 
-                            @click="toggleFullscreen()" 
-                            :type="isFullscreen ? 'warning' : 'default'"
-                            size="default"
-                        >
-                            <el-icon><FullScreen /></el-icon>
-                            {{ isFullscreen ? '退出全屏' : '进入全屏' }}
                         </el-button>
                     </el-button-group>
                     <el-button 
@@ -458,9 +414,9 @@ export default {
             </div>
 
             <!-- 主内容区域 -->
-            <div class="main-content" :class="{ 'split-layout': effectiveLayoutMode && isPreviewShow }">
+            <div class="main-content">
                 <!-- 左侧编辑区域 -->
-                <div class="editor-section" :class="{ 'half-width': effectiveLayoutMode && isPreviewShow }">
+                <div class="editor-section">
                     <!-- 文章信息面板 -->
                     <div class="article-info-panel">
                         <el-card class="info-card" shadow="never">
@@ -520,11 +476,7 @@ export default {
                 </div>
 
                 <!-- 右侧预览区域 -->
-                <div 
-                    v-show="isPreviewShow" 
-                    class="preview-section" 
-                    :class="{ 'half-width': effectiveLayoutMode, 'full-width': !effectiveLayoutMode }"
-                >
+                <div v-show="isPreviewShow" class="preview-section">
                     <el-card class="preview-card" shadow="never">
                         <template #header>
                             <div class="preview-header">
@@ -533,7 +485,6 @@ export default {
                                     size="small" 
                                     text 
                                     @click="togglePreview()"
-                                    v-if="!effectiveLayoutMode"
                                 >
                                     收起预览
                                 </el-button>
@@ -548,7 +499,7 @@ export default {
                                     <span class="preview-intro">{{ Article_Introduction || '文章简介将在此显示' }}</span>
                                 </div>
                                 <div class="preview-divider"></div>
-                                <div v-html="content" class="preview-body"></div>
+                                <div v-html="content" class="preview-body rich-text"></div>
                             </div>
                         </div>
                     </el-card>
@@ -586,19 +537,8 @@ export default {
     min-height: 100vh;
     background: #f5f7fa;
     transition: all 0.3s ease;
-    padding: 20px;
+    padding: 24px;
     box-sizing: border-box;
-}
-
-.editor-container.fullscreen {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 9999;
-    background: #fff;
-    padding: 20px;
 }
 
 /* 工具栏样式 */
@@ -627,12 +567,6 @@ export default {
     gap: 4px;
 }
 
-.mode-description {
-    font-size: 12px;
-    color: #909399;
-    font-weight: normal;
-}
-
 .toolbar-right {
     display: flex;
     align-items: center;
@@ -646,22 +580,14 @@ export default {
     min-height: calc(100vh - 120px);
 }
 
-.main-content.split-layout {
-    display: flex;
-}
-
 /* 编辑器区域 */
 .editor-section {
-    flex: 1;
+    flex: 0 0 50%;
+    max-width: 50%;
     display: flex;
     flex-direction: column;
     gap: 20px;
     transition: all 0.3s ease;
-}
-
-.editor-section.half-width {
-    flex: 0 0 50%;
-    max-width: 50%;
 }
 
 /* 文章信息面板 */
@@ -758,19 +684,11 @@ export default {
 
 /* 预览区域 */
 .preview-section {
+    flex: 0 0 50%;
+    max-width: 50%;
     transition: all 0.3s ease;
     display: flex;
     flex-direction: column;
-}
-
-.preview-section.half-width {
-    flex: 0 0 50%;
-    max-width: 50%;
-}
-
-.preview-section.full-width {
-    width: 100%;
-    margin-top: 20px;
 }
 
 .preview-card {
@@ -847,40 +765,9 @@ export default {
     color: #2c3e50;
 }
 
-.preview-body :deep(h1) { font-size: 24px; margin: 20px 0 16px 0; color: #2c3e50; }
-.preview-body :deep(h2) { font-size: 22px; margin: 18px 0 14px 0; color: #2c3e50; }
-.preview-body :deep(h3) { font-size: 20px; margin: 16px 0 12px 0; color: #2c3e50; }
-.preview-body :deep(p) { margin: 12px 0; }
-.preview-body :deep(img) { max-width: 100%; height: auto; border-radius: 8px; margin: 12px 0; }
-.preview-body :deep(table) { width: 100%; margin: 16px 0; border-collapse: collapse; }
-.preview-body :deep(table th), 
-.preview-body :deep(table td) { 
-    padding: 8px 12px; 
-    border: 1px solid #ddd; 
-    text-align: left; 
-}
-.preview-body :deep(table th) { background: #f5f5f5; font-weight: 600; }
-.preview-body :deep(blockquote) { 
-    margin: 16px 0; 
-    padding: 12px 20px; 
-    background: #f8f9fa; 
-    border-left: 4px solid #409eff; 
-    border-radius: 4px; 
-}
-.preview-body :deep(code) { 
-    background: #f1f2f3; 
-    padding: 2px 6px; 
-    border-radius: 4px; 
-    font-family: 'SF Mono', Monaco, 'Roboto Mono', monospace; 
-}
-.preview-body :deep(pre) { 
-    background: #2d3748; 
-    color: #e2e8f0; 
-    padding: 16px; 
-    border-radius: 8px; 
-    overflow-x: auto; 
-    margin: 16px 0; 
-}
+/* 预览面板的正文元素样式已迁移到共享 article-content.css（.rich-text 作用域）；
+   .preview-body 挂 rich-text class 即自动命中，并跟随 DewUI 主题/暗色。
+   下方仅保留 .preview-body 容器的响应式字号（见 @media 段）。 */
 
 /* 对话框样式 */
 .dialog-header {
@@ -922,21 +809,16 @@ export default {
     .toolbar-right {
         justify-content: center;
     }
-    
-    /* 在中等屏幕上强制使用单列模式 */
-    .main-content.split-layout {
+
+    /* 小屏改为上下单列 */
+    .main-content {
         flex-direction: column;
     }
-    
-    .editor-section.half-width,
-    .preview-section.half-width {
+    .editor-section,
+    .preview-section {
         flex: none;
         max-width: none;
         width: 100%;
-    }
-    
-    .preview-section.full-width {
-        margin-top: 20px;
     }
 }
 
@@ -976,18 +858,6 @@ export default {
     .preview-body {
         font-size: 15px;
     }
-    
-    /* 移动端强制单列布局 */
-    .main-content.split-layout {
-        flex-direction: column;
-    }
-    
-    .editor-section.half-width,
-    .preview-section.half-width {
-        flex: none;
-        max-width: none;
-        width: 100%;
-    }
 }
 
 @media (max-width: 480px) {
@@ -1017,17 +887,6 @@ export default {
     .preview-body {
         font-size: 14px;
     }
-}
-
-/* 全屏模式特殊样式 */
-.editor-container.fullscreen .main-content {
-    min-height: calc(100vh - 120px);
-}
-
-.editor-container.fullscreen .toolbar-container {
-    position: sticky;
-    top: 0;
-    z-index: 100;
 }
 
 /* 动画效果 */
