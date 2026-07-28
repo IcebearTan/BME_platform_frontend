@@ -25,7 +25,7 @@
 
           <!-- 正文 -->
           <div class="article-content">
-            <div class="content-body" v-html="article"></div>
+            <div class="content-body rich-text" v-html="article"></div>
           </div>
 
           <!-- 底部交互栏 -->
@@ -398,82 +398,9 @@ onBeforeUnmount(() => {
   padding: 28px 40px;
 }
 
-.article-content :deep(.content-body) {
-  font-size: 16px;
-  line-height: 1.85;
-  color: var(--dew-text);
-  word-break: break-word;
-}
-
-.article-content :deep(.content-body h1),
-.article-content :deep(.content-body h2),
-.article-content :deep(.content-body h3),
-.article-content :deep(.content-body h4),
-.article-content :deep(.content-body h5),
-.article-content :deep(.content-body h6) {
-  margin: 28px 0 14px;
-  color: var(--dew-text-heading);
-  font-weight: 600;
-  scroll-margin-top: 80px;
-}
-
-.article-content :deep(.content-body h1) { font-size: 26px; }
-.article-content :deep(.content-body h2) { font-size: 22px; }
-.article-content :deep(.content-body h3) { font-size: 18px; }
-
-.article-content :deep(.content-body p) {
-  margin: 14px 0;
-  line-height: 1.85;
-}
-
-.article-content :deep(.content-body code) {
-  background: var(--dew-card-inset-bg);
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-family: var(--dew-font-mono, monospace);
-  font-size: 14px;
-  color: var(--dew-text);
-}
-
-.article-content :deep(.content-body pre) {
-  background: var(--dew-card-inset-bg);
-  padding: 16px 18px;
-  border-radius: 10px;
-  overflow-x: auto;
-  margin: 20px 0;
-  border: 1px solid var(--dew-card-inset-border);
-}
-
-.article-content :deep(.content-body pre code) {
-  background: transparent;
-  padding: 0;
-  font-size: 14px;
-  line-height: 1.6;
-}
-
-.article-content :deep(.content-body img) {
-  max-width: 100%;
-  height: auto;
-  border-radius: 10px;
-  margin: 20px 0;
-}
-
-.article-content :deep(.content-body blockquote) {
-  margin: 16px 0;
-  padding: 4px 16px;
-  border-left: 3px solid var(--dew-card-flat-divider);
-  color: var(--dew-text-muted);
-}
-
-.article-content :deep(.content-body ul),
-.article-content :deep(.content-body ol) {
-  padding-left: 22px;
-  margin: 14px 0;
-}
-
-.article-content :deep(.content-body li) {
-  margin: 6px 0;
-}
+/* 正文元素样式（h1-h6 / p / blockquote / code / pre / img / table / ul / ol / li / a / hr）
+   已迁移到共享样式 src/styles/article-content.css（.rich-text 作用域，编辑器画布 / 预览 / 展示三处共用）。
+   .content-body 容器挂 rich-text class 即自动命中，并跟随 DewUI 主题/暗色。 */
 
 /* ━━━━ 底部交互栏 ━━━━ */
 .article-footer {
