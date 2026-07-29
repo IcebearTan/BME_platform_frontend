@@ -77,9 +77,10 @@
               </el-carousel>
             </div>
 
-            <!-- 筛选栏 -->
+            <!-- 筛选栏：类型分类(全部/文章/讨论) × 排序(热度/最新) 正交双控件 -->
             <div class="filter-bar">
-              <DewButtonBar :items="sortOptions" v-model="sortType" />
+              <DewButtonBar :items="typeOptions" v-model="contentType" size="md" />
+              <DewButtonBar :items="sortOptions" v-model="sortType" size="sm" />
             </div>
 
             <!-- 信息流（讨论帖 + 文章帖混合） -->
@@ -265,7 +266,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
 import MenuComponent from '../components/MenuComponent.vue'
@@ -317,25 +318,77 @@ const handleFilterChange = (value) => {
   ElMessage.info(`切换到: ${navItems.value.find(item => item.value === value)?.label}`)
 }
 
-// 排序选项
-const sortType = ref('latest')
-const sortOptions = [
-  { label: '最新', value: 'latest' },
-  { label: '热门', value: 'pinned' }
+// 类型分类 × 排序 双控件（正交：任一变化都重置到第 1 页重拉）
+const contentType = ref('all')
+const sortType = ref('hot')
+const typeOptions = [
+  { label: '全部', value: 'all' },
+  { label: '文章', value: 'article' },
+  { label: '讨论', value: 'discussion' }
 ]
+const sortOptions = [
+  { label: '热度', value: 'hot' },
+  { label: '最新', value: 'latest' }
+]
+const currentPage = ref(1)
+const totalPages = ref(1)
+
+// 把单条讨论帖补全：作者头像 + 内联回复（文章帖评论在详情页看，不内联）
+const enrichDiscussion = async (item) => {
+  if (item.type !== 'discussion') return item
+  if (item.authorId) item.author_avatar = await fetchAvatar(item.authorId)
+  try {
+    const repliesRes = await api.get(`/discussions/threads/${item.id}/replies`)
+    if (repliesRes.data && repliesRes.data.data) {
+      const replies = repliesRes.data.data.map(reply => ({
+        id: reply.id,
+        author: reply.author_name,
+        authorId: reply.author_id,
+        author_avatar: '', // 先留空，后续异步加载
+        content: reply.content,
+        time: formatTimeAgo(reply.created_at),
+        like_count: reply.like_count || 0,
+        liked: reply.liked || false,
+        children: reply.children || []
+      }))
+      for (const reply of replies) {
+        reply.author_avatar = await fetchAvatar(reply.authorId)
+        if (reply.children && reply.children.length > 0) {
+          for (const child of reply.children) {
+            child.author_avatar = await fetchAvatar(child.author_id)
+          }
+        }
+      }
+      item.replies = replies
+    }
+  } catch (err) {
+    console.error(`获取帖子${item.id}的回复失败:`, err)
+  }
+  return item
+}
 
 // 加载社区信息流（讨论帖 + 文章帖混合，来自聚合接口 /community/feed）
-const fetchThreads = async () => {
+// reset=true：切类型/排序或发帖后重置到第 1 页；reset=false：加载更多追加下一页
+const fetchThreads = async (reset = false) => {
   loading.value = true
   try {
+    if (reset) {
+      currentPage.value = 1
+      feedItems.value = []
+    } else {
+      currentPage.value += 1
+    }
     const res = await api.get('/community/feed', {
       params: {
-        page: 1,
+        page: currentPage.value,
         per_page: 20,
-        sort: sortType.value
+        sort: sortType.value,
+        type: contentType.value
       }
     })
     const raw = (res.data && res.data.data) || []
+    totalPages.value = res.data?.pages || 1
+    hasMore.value = currentPage.value < totalPages.value
     // 按类型映射为前端卡片所需结构
     const items = raw.map(item => {
       if (item.type === 'article') {
@@ -374,40 +427,12 @@ const fetchThreads = async () => {
       }
     })
 
-    // 讨论帖：补作者头像 + 内联回复（文章帖评论在详情页看，不内联）
+    // 仅对新拉到的讨论帖补全（避免追加模式下重复补全 → O(n²)）
     for (const item of items) {
-      if (item.type !== 'discussion') continue
-      if (item.authorId) item.author_avatar = await fetchAvatar(item.authorId)
-      try {
-        const repliesRes = await api.get(`/discussions/threads/${item.id}/replies`)
-        if (repliesRes.data && repliesRes.data.data) {
-          const replies = repliesRes.data.data.map(reply => ({
-            id: reply.id,
-            author: reply.author_name,
-            authorId: reply.author_id,
-            author_avatar: '', // 先留空，后续异步加载
-            content: reply.content,
-            time: formatTimeAgo(reply.created_at),
-            like_count: reply.like_count || 0,
-            liked: reply.liked || false,
-            children: reply.children || []
-          }))
-          for (const reply of replies) {
-            reply.author_avatar = await fetchAvatar(reply.authorId)
-            if (reply.children && reply.children.length > 0) {
-              for (const child of reply.children) {
-                child.author_avatar = await fetchAvatar(child.author_id)
-              }
-            }
-          }
-          item.replies = replies
-        }
-      } catch (err) {
-        console.error(`获取帖子${item.id}的回复失败:`, err)
-      }
+      await enrichDiscussion(item)
     }
 
-    feedItems.value = items
+    feedItems.value = reset ? items : feedItems.value.concat(items)
   } catch (error) {
     console.error('获取社区信息流失败:', error)
   } finally {
@@ -573,7 +598,7 @@ const submitNewThread = async () => {
     if (res.data && res.data.code === 201) {
       ElMessage.success('发布成功')
       createThreadVisible.value = false
-      fetchThreads() // 刷新列表
+      fetchThreads(true) // 刷新列表（重置到第1页）
     }
   } catch (error) {
     console.error('发布帖子失败:', error)
@@ -615,11 +640,7 @@ const submitReply = async () => {
 }
 
 const loadMore = () => {
-  loading.value = true
-  setTimeout(() => {
-    loading.value = false
-    ElMessage.success('加载成功')
-  }, 1000)
+  if (!loading.value && hasMore.value) fetchThreads(false)
 }
 
 // 文章帖：点击进文章详情页
@@ -637,13 +658,12 @@ const handleDeleteThread = (discussion) => {
 onMounted(() => {
   checkScreenSize()
   window.addEventListener('resize', checkScreenSize)
-  fetchThreads()
+  fetchThreads(true)
 })
 
-// 监听排序变化
-import { watch } from 'vue'
-watch(sortType, () => {
-  fetchThreads()
+// 监听类型/排序变化：重置到第 1 页并重拉
+watch([contentType, sortType], () => {
+  fetchThreads(true)
 })
 
 onUnmounted(() => {
@@ -782,6 +802,7 @@ onUnmounted(() => {
   display: flex;
   justify-content: flex-start;
   align-items: center;
+  gap: 12px;
   margin-bottom: 20px;
 }
 
