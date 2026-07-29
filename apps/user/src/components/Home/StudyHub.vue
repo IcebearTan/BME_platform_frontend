@@ -56,10 +56,10 @@
       <div v-if="communityPosts.length" class="post-list">
         <DewPostCard
           v-for="post in communityPosts"
-          :key="post.id"
+          :key="post.type + '-' + post.id"
           :post="post"
           mode="compact"
-          @click="goCommunity"
+          @click="onPostClick"
         />
       </div>
       <div v-else class="post-empty">社区还没有内容，快来发布第一条吧</div>
@@ -190,24 +190,32 @@ async function fetchAvatar(userId) {
 
 async function fetchCommunityPosts() {
   try {
-    const res = await api.get('/discussions/threads', { params: { page: 1, per_page: 5, sort: 'latest' } })
-    const threads = res.data?.data || []
-    if (Array.isArray(threads) && threads.length) {
-      communityPosts.value = threads.map(t => ({
-        id: t.id,
-        author: t.author_name || '匿名',
-        authorId: t.author_id,
-        authorAvatar: DEFAULT_AVATAR,
-        publishTime: formatTimeAgo(t.created_at),
-        title: t.title,
-        content: (t.content || '').replace(/\s+/g, ' '),
-        likes: t.like_count || 0,
-        comments: t.reply_count || 0,
-        liked: !!t.liked,
-      }))
-      // 异步补头像
+    const res = await api.get('/community/feed', { params: { page: 1, per_page: 5, sort: 'latest' } })
+    const raw = res.data?.data || []
+    if (Array.isArray(raw) && raw.length) {
+      communityPosts.value = raw.map(item => {
+        const isArticle = item.type === 'article'
+        const post = {
+          id: item.id,
+          type: item.type,
+          articleId: isArticle ? (item.article_id ?? item.id) : null,
+          author: item.author_name || '匿名',
+          authorId: item.author_id,
+          authorAvatar: item.author_avatar || DEFAULT_AVATAR,
+          publishTime: formatTimeAgo(item.created_at),
+          title: item.title,
+          content: ((item.summary || '') + '').replace(/\s+/g, ' '),
+          likes: item.like_count || 0,
+          comments: item.reply_count || 0,
+          liked: !!item.liked,
+        }
+        // 文章帖：用角标区分（compact 预览的轻量区分）
+        if (isArticle) post.badge = '文章'
+        return post
+      })
+      // 讨论帖作者头像走 base64 接口补全（文章帖已带 author_avatar）
       communityPosts.value.forEach(async (p) => {
-        if (p.authorId) p.authorAvatar = await fetchAvatar(p.authorId)
+        if (p.type !== 'article' && p.authorId) p.authorAvatar = await fetchAvatar(p.authorId)
       })
     }
     // 后端无数据则保留 mock
@@ -218,6 +226,15 @@ async function fetchCommunityPosts() {
 
 function goCommunity() {
   router.push('/community')
+}
+
+// 帖子点击：文章帖进文章详情，讨论帖进社区广场列表
+function onPostClick(post) {
+  if (post.type === 'article') {
+    router.push({ path: '/article', query: { Article_Id: post.articleId } })
+  } else {
+    goCommunity()
+  }
 }
 
 // 事件处理

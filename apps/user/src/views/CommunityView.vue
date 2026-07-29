@@ -82,11 +82,18 @@
               <DewButtonBar :items="sortOptions" v-model="sortType" />
             </div>
 
-            <!-- 信息流 -->
+            <!-- 信息流（讨论帖 + 文章帖混合） -->
             <div class="feed-list">
-              <template v-for="item in feedItems" :key="item.id">
-                <!-- 讨论贴卡片 -->
+              <template v-for="item in feedItems" :key="item.type + '-' + item.id">
+                <!-- 文章帖：flat 阅读卡，整卡点击进文章详情 -->
+                <ArticleCard
+                  v-if="item.type === 'article'"
+                  :article="item"
+                  @open="goArticle"
+                />
+                <!-- 讨论帖：玻璃对话卡，内联互动 -->
                 <DiscussionCard
+                  v-else
                   :discussion="item"
                   @delete="handleDeleteThread"
                 />
@@ -264,6 +271,7 @@ import { useRouter } from 'vue-router'
 import MenuComponent from '../components/MenuComponent.vue'
 import MobileMenuComponent from '../components/MobileMenuComponent.vue'
 import DiscussionCard from '../components/Community/DiscussionCard.vue'
+import ArticleCard from '../components/Community/ArticleCard.vue'
 import { DewButtonBar, DewCard, DewInput, DewButton } from '../components/ui'
 import api from '../api'
 import {
@@ -316,82 +324,92 @@ const sortOptions = [
   { label: '热门', value: 'pinned' }
 ]
 
-// 加载讨论区数据
+// 加载社区信息流（讨论帖 + 文章帖混合，来自聚合接口 /community/feed）
 const fetchThreads = async () => {
   loading.value = true
   try {
-    const res = await api.get('/discussions/threads', {
+    const res = await api.get('/community/feed', {
       params: {
         page: 1,
         per_page: 20,
         sort: sortType.value
       }
     })
-    if (res.data && res.data.data) {
-      // 将后端数据转换为前端格式
-      const threads = res.data.data.map(thread => ({
-        id: thread.id,
-        type: 'discussion',
-        title: thread.title,
-        content: thread.content,
-        summary: thread.content ? thread.content.substring(0, 100) + '...' : '',
-        category: thread.scope_type === 'global' ? '全局' : thread.scope_type,
-        author: thread.author_name,
-        authorId: thread.author_id,
-        author_avatar: '', // 先留空，后续异步加载
-        publishTime: formatTimeAgo(thread.created_at),
-        reply_count: thread.reply_count || 0,
-        like_count: thread.like_count || 0,
-        views: thread.view_count,
-        isHot: thread.is_pinned,
-        liked: thread.liked || false,
-        replies: []
-      }))
-
-      // 异步加载帖子作者头像
-      for (const thread of threads) {
-        thread.author_avatar = await fetchAvatar(thread.authorId)
-      }
-
-      // 为每个帖子获取回复列表
-      for (const thread of threads) {
-        try {
-          const repliesRes = await api.get(`/discussions/threads/${thread.id}/replies`)
-          if (repliesRes.data && repliesRes.data.data) {
-            const replies = repliesRes.data.data.map(reply => ({
-              id: reply.id,
-              author: reply.author_name,
-              authorId: reply.author_id,
-              author_avatar: '', // 先留空，后续异步加载
-              content: reply.content,
-              time: formatTimeAgo(reply.created_at),
-              like_count: reply.like_count || 0,
-              liked: reply.liked || false,
-              children: reply.children || []
-            }))
-
-            // 异步加载回复作者头像
-            for (const reply of replies) {
-              reply.author_avatar = await fetchAvatar(reply.authorId)
-              // 异步加载子回复作者头像
-              if (reply.children && reply.children.length > 0) {
-                for (const child of reply.children) {
-                  child.author_avatar = await fetchAvatar(child.author_id)
-                }
-              }
-            }
-
-            thread.replies = replies
-          }
-        } catch (err) {
-          console.error(`获取帖子${thread.id}的回复失败:`, err)
+    const raw = (res.data && res.data.data) || []
+    // 按类型映射为前端卡片所需结构
+    const items = raw.map(item => {
+      if (item.type === 'article') {
+        return {
+          type: 'article',
+          id: item.id,
+          article_id: item.article_id ?? item.id,
+          title: item.title,
+          summary: item.summary,
+          introduction: item.summary,
+          author_name: item.author_name,
+          author: item.author_name,
+          author_avatar: item.author_avatar,
+          reply_count: item.reply_count || 0,
+          created_at: item.created_at,
         }
       }
+      return {
+        id: item.id,
+        type: 'discussion',
+        title: item.title,
+        content: item.summary,
+        summary: item.summary,
+        category: '全局',
+        author: item.author_name,
+        authorId: item.author_id,
+        author_name: item.author_name,
+        author_avatar: item.author_avatar,
+        publishTime: formatTimeAgo(item.created_at),
+        reply_count: item.reply_count || 0,
+        like_count: item.like_count || 0,
+        views: item.view_count,
+        isHot: item.is_pinned,
+        liked: item.liked || false,
+        replies: []
+      }
+    })
 
-      feedItems.value = threads
+    // 讨论帖：补作者头像 + 内联回复（文章帖评论在详情页看，不内联）
+    for (const item of items) {
+      if (item.type !== 'discussion') continue
+      if (item.authorId) item.author_avatar = await fetchAvatar(item.authorId)
+      try {
+        const repliesRes = await api.get(`/discussions/threads/${item.id}/replies`)
+        if (repliesRes.data && repliesRes.data.data) {
+          const replies = repliesRes.data.data.map(reply => ({
+            id: reply.id,
+            author: reply.author_name,
+            authorId: reply.author_id,
+            author_avatar: '', // 先留空，后续异步加载
+            content: reply.content,
+            time: formatTimeAgo(reply.created_at),
+            like_count: reply.like_count || 0,
+            liked: reply.liked || false,
+            children: reply.children || []
+          }))
+          for (const reply of replies) {
+            reply.author_avatar = await fetchAvatar(reply.authorId)
+            if (reply.children && reply.children.length > 0) {
+              for (const child of reply.children) {
+                child.author_avatar = await fetchAvatar(child.author_id)
+              }
+            }
+          }
+          item.replies = replies
+        }
+      } catch (err) {
+        console.error(`获取帖子${item.id}的回复失败:`, err)
+      }
     }
+
+    feedItems.value = items
   } catch (error) {
-    console.error('获取讨论列表失败:', error)
+    console.error('获取社区信息流失败:', error)
   } finally {
     loading.value = false
   }
@@ -604,9 +622,16 @@ const loadMore = () => {
   }, 1000)
 }
 
-// 删除帖子成功后，从信息流里移除
+// 文章帖：点击进文章详情页
+const goArticle = (article) => {
+  router.push({ path: '/article', query: { Article_Id: article.article_id } })
+}
+
+// 删除帖子成功后，从信息流里移除（按 类型+id 精确匹配，避免与文章 id 冲突）
 const handleDeleteThread = (discussion) => {
-  feedItems.value = feedItems.value.filter(item => item.id !== discussion.id)
+  feedItems.value = feedItems.value.filter(
+    item => !(item.type === 'discussion' && item.id === discussion.id)
+  )
 }
 
 onMounted(() => {

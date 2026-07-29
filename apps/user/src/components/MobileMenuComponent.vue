@@ -23,7 +23,7 @@ const closeMenu = () => {
         <li><router-link to="/service-hall" @click="closeMenu">服务大厅</router-link></li>
         <li><router-link to="/exam" @click="closeMenu" class="disabled-link">考核</router-link></li>
         <li><router-link to="/order" @click="closeMenu" class="disabled-link">资源库</router-link></li>
-        <li><router-link to="/discuss" @click="closeMenu" class="disabled-link">讨论</router-link></li>
+        <li><router-link to="/community" @click="closeMenu">社区广场</router-link></li>
         <!-- 可以添加登录/注册/用户中心链接 -->
          <li><router-link to="/user-center/user-info" @click="closeMenu">个人中心</router-link></li>
       </ul>
