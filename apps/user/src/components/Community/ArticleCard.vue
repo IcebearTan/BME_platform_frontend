@@ -23,7 +23,7 @@
 
     <!-- 底部：作者 / 评论数 / 阅读全文 -->
     <div class="ac-foot">
-      <div class="ac-author">
+      <div class="ac-author" @click.stop="onAuthorClick">
         <el-avatar :size="24" :src="article.author_avatar" />
         <span class="ac-name">{{ article.author_name }}</span>
       </div>
@@ -51,9 +51,14 @@ const props = defineProps({
   article: { type: Object, required: true },
 })
 
-const emit = defineEmits(['open'])
+const emit = defineEmits(['open', 'user-click'])
 
 const onOpen = () => emit('open', props.article)
+
+// 作者点击：进其个人主页（仅在有作者 id 时）
+const onAuthorClick = () => {
+  if (props.article.authorId != null) emit('user-click', props.article.authorId)
+}
 
 // 轻量的相对时间格式（与社区其它卡片口径一致）
 const timeLabel = computed(() => formatTimeAgo(props.article.created_at))
@@ -147,6 +152,7 @@ function formatTimeAgo(dateStr) {
   align-items: center;
   gap: 8px;
   min-width: 0;
+  cursor: pointer;
 }
 .ac-name {
   font-size: 13px;

@@ -91,6 +91,7 @@
                   v-if="item.type === 'article'"
                   :article="item"
                   @open="goArticle"
+                  @user-click="goProfile"
                 />
                 <!-- 讨论帖：玻璃对话卡，内联互动 -->
                 <DiscussionCard
@@ -402,6 +403,7 @@ const fetchThreads = async (reset = false) => {
           introduction: item.summary,
           author_name: item.author_name,
           author: item.author_name,
+          authorId: item.author_id,
           author_avatar: item.author_avatar,
           reply_count: item.reply_count || 0,
           created_at: item.created_at,
