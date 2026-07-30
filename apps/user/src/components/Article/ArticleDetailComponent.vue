@@ -371,10 +371,6 @@ onBeforeUnmount(() => {
   cursor: pointer;
 }
 
-.author-info.clickable:hover .author-name {
-  color: #4f46e5;
-}
-
 .author-info.clickable:hover :deep(.el-avatar) {
   transform: scale(1.06);
 }
@@ -587,26 +583,12 @@ onBeforeUnmount(() => {
   cursor: pointer;
 }
 
-.author-card.clickable:hover .author-card-name {
-  color: #4f46e5;
-}
-
 .author-card.clickable:hover :deep(.el-avatar) {
   transform: scale(1.06);
 }
 
 .author-card :deep(.el-avatar) {
   transition: transform 0.35s var(--dew-bounce, ease);
-}
-
-.author-card-name {
-  transition: color 0.25s ease;
-}
-
-/* 暗色：作者可点 hover 提亮（与 ArticleCard 口径一致） */
-.theme-dark .author-info.clickable:hover .author-name,
-.theme-dark .author-card.clickable:hover .author-card-name {
-  color: #a5b4fc;
 }
 
 /* ━━━━ 响应式 ━━━━ */

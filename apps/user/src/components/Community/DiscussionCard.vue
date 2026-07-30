@@ -6,7 +6,7 @@
   >
     <!-- 分类标签 -->
     <div class="dc-tags">
-      <DewTag type="primary" size="sm" round>讨论 · {{ discussion.category }}</DewTag>
+      <DewTag type="neutral" size="sm" round>讨论</DewTag>
       <DewTag v-if="discussion.isHot" type="warning" size="sm" round>置顶</DewTag>
       <button
         v-if="canDelete"

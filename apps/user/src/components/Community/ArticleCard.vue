@@ -93,7 +93,7 @@ function formatTimeAgo(dateStr) {
   margin-bottom: 10px;
 }
 
-/* 文章标签：indigo（区别于讨论帖的 primary 蓝），无 surface 装饰 */
+/* 文章标签：项目主色 primary（文章作为核心长内容担当主色，与讨论帖灰标签区分） */
 .ac-type {
   display: inline-flex;
   align-items: center;
@@ -105,8 +105,8 @@ function formatTimeAgo(dateStr) {
   font-weight: 600;
   line-height: 1;
   white-space: nowrap;
-  background: rgba(99, 102, 241, 0.12);
-  color: #4f46e5;
+  background: var(--color-primary-light);
+  color: var(--color-primary);
 }
 .ac-type__icon {
   font-size: 13px;
@@ -189,7 +189,7 @@ function formatTimeAgo(dateStr) {
   gap: 3px;
   font-size: 13px;
   font-weight: 600;
-  color: #4f46e5;
+  color: var(--dew-text-muted);
   transition: gap 0.3s var(--dew-bounce, ease);
 }
 .ac-readmore__arrow {
@@ -197,24 +197,9 @@ function formatTimeAgo(dateStr) {
   transition: transform 0.3s var(--dew-bounce, ease);
 }
 
-/* 卡片可点提示：标题变色 + 箭头右移（不动 flat 静态背景） */
-.article-card:hover :deep(.ac-title) {
-  color: #4f46e5;
-}
+/* 卡片可点提示：标题保持原色，仅「阅读全文」箭头右移（不动 flat 静态背景） */
 .article-card:hover :deep(.ac-readmore__arrow) {
   transform: translateX(3px);
-}
-
-/* 暗色：indigo 提亮 */
-.theme-dark .ac-type {
-  background: rgba(129, 140, 248, 0.16);
-  color: #a5b4fc;
-}
-.theme-dark .ac-readmore {
-  color: #a5b4fc;
-}
-.theme-dark .article-card:hover :deep(.ac-title) {
-  color: #a5b4fc;
 }
 
 @media (max-width: 768px) {
