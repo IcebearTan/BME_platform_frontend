@@ -9,7 +9,7 @@
           <header class="article-header">
             <h1 class="article-title">{{ articleTitle }}</h1>
             <div class="article-meta">
-              <div class="author-info">
+              <div class="author-info" :class="{ clickable: authorId != null }" @click="goAuthor">
                 <el-avatar :size="40" :src="authorAvatar">{{ (articleAuthor || '?').charAt(0) }}</el-avatar>
                 <div class="author-details">
                   <span class="author-name">{{ articleAuthor }}</span>
@@ -91,7 +91,7 @@
         <!-- 关于作者 -->
         <DewCard variant="flat" divided class="side-card">
           <template #header>关于作者</template>
-          <div class="author-card">
+          <div class="author-card" :class="{ clickable: authorId != null }" @click="goAuthor">
             <el-avatar :size="56" :src="authorAvatar">{{ (articleAuthor || '?').charAt(0) }}</el-avatar>
             <h4 class="author-card-name">{{ articleAuthor }}</h4>
             <p class="author-card-desc">技术分享者</p>
@@ -104,7 +104,7 @@
 
 <script setup>
 import { ref, onMounted, nextTick, onBeforeUnmount } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { View, Star, StarFilled, ChatDotRound, Share, Collection } from '@element-plus/icons-vue'
 import { DewCard } from '../ui'
@@ -112,6 +112,7 @@ import api from '../../api'
 import ArticleCommentSection from './ArticleCommentSection.vue'
 
 const route = useRoute()
+const router = useRouter()
 const articleId = route.query.Article_Id
 
 const article = ref('')
@@ -119,6 +120,7 @@ const articleTitle = ref('')
 const articleTime = ref('')
 const articleAuthor = ref('')
 const authorAvatar = ref('')
+const authorId = ref(null)
 const toc = ref([])
 const viewCount = ref(0)
 const likeCount = ref(0)
@@ -163,6 +165,12 @@ const scrollToComments = () => {
   if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
+// 跳转作者个人主页（复用 user-profile 路由，与社区 ArticleCard 口径一致）
+const goAuthor = () => {
+  if (authorId.value == null) return
+  router.push({ name: 'user-profile', params: { id: authorId.value } })
+}
+
 // TOC 滚动跟随高亮：监听正文 heading，最靠上的可见项设为 active
 const setupTocObserver = () => {
   if (tocObserver) tocObserver.disconnect()
@@ -187,6 +195,7 @@ const getArticle = async () => {
     articleTitle.value = data.Article_Title
     articleTime.value = data.Publish_Time
     articleAuthor.value = data.Article_Author
+    authorId.value = data.Article_Author_Id ?? null
     authorAvatar.value = data.Article_Author_Avatar || ''
     const htmlContent = JSON.parse(data.html_content)
     toc.value = generateTOC(htmlContent)
@@ -356,6 +365,22 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.author-info.clickable {
+  cursor: pointer;
+}
+
+.author-info.clickable:hover .author-name {
+  color: #4f46e5;
+}
+
+.author-info.clickable:hover :deep(.el-avatar) {
+  transform: scale(1.06);
+}
+
+.author-info :deep(.el-avatar) {
+  transition: transform 0.35s var(--dew-bounce, ease);
 }
 
 .author-details {
@@ -556,6 +581,32 @@ onBeforeUnmount(() => {
   font-size: 13px;
   color: var(--dew-text-faint);
   line-height: 1.5;
+}
+
+.author-card.clickable {
+  cursor: pointer;
+}
+
+.author-card.clickable:hover .author-card-name {
+  color: #4f46e5;
+}
+
+.author-card.clickable:hover :deep(.el-avatar) {
+  transform: scale(1.06);
+}
+
+.author-card :deep(.el-avatar) {
+  transition: transform 0.35s var(--dew-bounce, ease);
+}
+
+.author-card-name {
+  transition: color 0.25s ease;
+}
+
+/* 暗色：作者可点 hover 提亮（与 ArticleCard 口径一致） */
+.theme-dark .author-info.clickable:hover .author-name,
+.theme-dark .author-card.clickable:hover .author-card-name {
+  color: #a5b4fc;
 }
 
 /* ━━━━ 响应式 ━━━━ */
