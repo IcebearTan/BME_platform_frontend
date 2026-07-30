@@ -13,7 +13,7 @@
       style="margin-bottom: 16px;"
     >
       每天 00:00 自动汇总昨日全平台出勤明细（HTML 正文 + CSV 附件），发送给下方收件人。
-      收件人通过 RBAC 权限 <el-tag size="small">attendance_report.recipient</el-tag> 管理。
+      收件人通过 RBAC 权限 <el-tag size="small">attendance_report_recipient</el-tag> 管理。
     </el-alert>
 
     <!-- 收件人管理 -->
@@ -105,7 +105,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '../api'
 
 // 收件人资格对应的 RBAC 权限名
-const PERMISSION_NAME = 'attendance_report.recipient'
+const PERMISSION_NAME = 'attendance_report_recipient'
 
 const loading = ref(false)
 const sending = ref(false)
