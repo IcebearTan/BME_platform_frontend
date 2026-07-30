@@ -12,6 +12,8 @@
         v-for="(user, index) in userRanks"
         :key="index"
         class="rank-row"
+        :class="{ 'rank-row--clickable': isRealData }"
+        @click="openProfile(user.user_id)"
       >
         <div class="rank-no" :class="medalClass(index)">{{ index + 1 }}</div>
         <el-avatar :size="38" :src="userAvatars[index]" />
@@ -26,6 +28,7 @@
 <script setup>
 import { defineComponent } from 'vue'
 import { reactive, ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import api from '../../api';
 import DewCard from '../ui/DewCard.vue';
 
@@ -53,9 +56,19 @@ const mockRanks = [
 
 const monthLabel = `${new Date().getMonth() + 1}月`
 
+const router = useRouter()
+
 const userRanks = ref(mockRanks)
 const userIds = ref([])
 const userAvatars = ref(mockRanks.map(() => DEFAULT_AVATAR))
+// 是否为后端真实数据（mock 占位时不可点，避免跳到假 id）
+const isRealData = ref(false)
+
+// 点击排行榜用户 → 进入其个人主页
+const openProfile = (id) => {
+  if (!isRealData.value || id == null) return
+  router.push('/profile/' + id)
+}
 
 const fetchUsersRank = async () => {
     try {
@@ -66,6 +79,7 @@ const fetchUsersRank = async () => {
         if (response.data && response.data.length > 0) {
             userRanks.value = response.data
             userIds.value = response.data.map(user => user.user_id)
+            isRealData.value = true
             await fetchUserAvatars();
         }
         // 后端无数据则保留 mock
@@ -151,6 +165,11 @@ onMounted(() => {
 
 .rank-row:hover {
   background: var(--dew-popover-item-hover);
+}
+
+/* 真实数据行可点进个人主页 */
+.rank-row--clickable {
+  cursor: pointer;
 }
 
 /* 名次徽标：默认淡灰圆，前三名金/银/铜 */

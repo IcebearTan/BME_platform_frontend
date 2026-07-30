@@ -97,6 +97,7 @@
                   v-else
                   :discussion="item"
                   @delete="handleDeleteThread"
+                  @user-click="goProfile"
                 />
               </template>
 
@@ -646,6 +647,11 @@ const loadMore = () => {
 // 文章帖：点击进文章详情页
 const goArticle = (article) => {
   router.push({ path: '/article', query: { Article_Id: article.article_id } })
+}
+
+// 作者点击：进其个人主页
+const goProfile = (id) => {
+  if (id != null && id !== '') router.push('/profile/' + id)
 }
 
 // 删除帖子成功后，从信息流里移除（按 类型+id 精确匹配，避免与文章 id 冲突）

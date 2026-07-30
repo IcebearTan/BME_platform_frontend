@@ -12,6 +12,7 @@ import ArticleView from './views/ArticleView.vue';
 import StudyView from './views/StudyView.vue'
 import ExamView from './views/ExamView.vue'
 import UserIndex from './views/UserIndex.vue';
+import UserProfileView from './views/UserProfileView.vue';
 import UserCenter from './views/UserCenter.vue';
 import UserInfoComponent from './components/User/UserInfoComponent.vue';
 import MyFavoritesComponent from './components/User/MyFavoritesComponent.vue';
@@ -102,6 +103,13 @@ const router = createRouter({
             path: '/user',
             name: 'user',
             component: UserIndex,
+            meta: { requiresAuth: true }
+        },
+        {
+            // 任意用户的公开主页（排行榜/社区点击进入）
+            path: '/profile/:id',
+            name: 'user-profile',
+            component: UserProfileView,
             meta: { requiresAuth: true }
         },
         {

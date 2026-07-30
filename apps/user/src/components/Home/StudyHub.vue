@@ -60,6 +60,7 @@
           :post="post"
           mode="compact"
           @click="onPostClick"
+          @user-click="onUserClick"
         />
       </div>
       <div v-else class="post-empty">社区还没有内容，快来发布第一条吧</div>
@@ -235,6 +236,13 @@ function onPostClick(post) {
   } else {
     goCommunity()
   }
+}
+
+// 作者点击：进其个人主页
+// 注意 DewPostCard 在缺 authorId 时会回退 emit post.id，这里只在该 id 确为某帖作者时才跳
+function onUserClick(id) {
+  const hit = communityPosts.value.find(p => p.authorId != null && Number(p.authorId) === Number(id))
+  if (hit) router.push('/profile/' + id)
 }
 
 // 事件处理

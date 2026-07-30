@@ -22,7 +22,7 @@
     <h3 class="dc-title">{{ discussion.title }}</h3>
 
     <!-- 作者信息 -->
-    <div class="dc-author">
+    <div class="dc-author" @click.stop="onAuthorClick">
       <el-avatar :size="32" :src="discussion.author_avatar" />
       <div class="dc-author-info">
         <span class="dc-author-name">{{ discussion.author }}</span>
@@ -113,7 +113,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['like', 'reply', 'delete'])
+const emit = defineEmits(['like', 'reply', 'delete', 'user-click'])
 
 const store = useStore()
 const showReplyInput = ref(false)
@@ -138,6 +138,11 @@ const canDelete = computed(() => {
   if (!Number.isNaN(authorId) && authorId === Number(store.state.user?.User_Id)) return true
   return store.getters.role === 'super_admin' || store.state.user?.User_Mode === 'admin'
 })
+
+// 作者点击：进其个人主页（仅在有作者 id 时）
+const onAuthorClick = () => {
+  if (props.discussion.authorId != null) emit('user-click', props.discussion.authorId)
+}
 
 // 使用 Intersection Observer 检测卡片是否进入视口
 onMounted(() => {
@@ -305,6 +310,7 @@ const handleDelete = async () => {
   align-items: center;
   gap: 10px;
   margin-bottom: 16px;
+  cursor: pointer;
 }
 
 .dc-author-info {

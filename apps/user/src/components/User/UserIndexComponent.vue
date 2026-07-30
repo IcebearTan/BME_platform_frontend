@@ -1,6 +1,6 @@
 <!-- 使用vue3语法 -->
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { useStore } from 'vuex'
@@ -9,6 +9,13 @@ import api from '../../api'
 import CalendarComponent from './CalendarComponent.vue'
 import MedalShowcase from './MedalShowcase.vue'
 import { DewCard, DewTag } from '../ui'
+
+// 可选 userInfo：父组件（UserProfileView）查到资料后直接传入，则不再自行请求；
+// 不传（自己的 /user 页）则照旧请求 /user/user_index
+const props = defineProps({
+  userInfo: { type: Object, default: null }
+})
+const isSelf = computed(() => !props.userInfo)
 
 const User_Info = ref({})
 const router = useRouter()
@@ -45,13 +52,23 @@ const fetchUserInfo = async () => {
   }
 }
 
+// 父组件传入资料则直接采用；否则自行拉取（自己的主页）
 onMounted(async () => {
-  await fetchUserInfo()
+  if (props.userInfo) {
+    User_Info.value = props.userInfo
+  } else {
+    await fetchUserInfo()
+  }
+})
+
+// 路由切换不同用户时，父组件传入的 userInfo 变化 → 同步刷新
+watch(() => props.userInfo, val => {
+  if (val) User_Info.value = val
 })
 </script>
 
 <template>
-  <div class="profile-layout" :class="{ 'theme-dark': isDarkMode }">
+  <div class="profile-layout" :class="{ 'theme-dark': isDarkMode, 'profile-layout--single': !isSelf }">
     <!-- 左：个人简介 -->
     <div class="profile-left">
       <DewCard size="lg" divided class="profile-card">
@@ -83,8 +100,8 @@ onMounted(async () => {
       </DewCard>
     </div>
 
-    <!-- 右：出勤日历 + 勋章展示 -->
-    <div class="profile-right">
+    <!-- 右：出勤日历 + 勋章展示（仅自己的主页显示） -->
+    <div class="profile-right" v-if="isSelf">
       <div class="right-content">
         <calendar-component />
         <medal-showcase />
@@ -146,6 +163,11 @@ onMounted(async () => {
   grid-template-columns: 1fr 3fr;
   gap: 20px;
   align-items: start;
+}
+
+/* 他人主页：隐藏右栏后切单列满宽 */
+.profile-layout--single {
+  grid-template-columns: 1fr;
 }
 
 /* 区块标题与「出勤日历 / 勋章成就」统一：18px / 700 */
