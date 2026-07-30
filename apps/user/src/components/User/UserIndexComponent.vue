@@ -8,6 +8,7 @@ import api from '../../api'
 
 import CalendarComponent from './CalendarComponent.vue'
 import MedalShowcase from './MedalShowcase.vue'
+import ArticleCard from '../Community/ArticleCard.vue'
 import { DewCard, DewTag } from '../ui'
 
 // 可选 userId：查看他人主页时传对方 id；不传（自己的 /user 页）则取自己
@@ -51,9 +52,33 @@ const fetchUserInfo = async () => {
   }
 }
 
-onMounted(fetchUserInfo)
+// 该用户发布的文章（复用社区 ArticleCard；自己看自己时取登录态 User_Id）
+const articles = ref([])
+const fetchArticles = async () => {
+  const id = props.userId ?? store.state.user?.User_Id
+  if (!id) return
+  try {
+    const res = await api({ url: `/article/by_author/${id}`, method: 'get' })
+    if (res?.data?.code === 200) articles.value = res.data.data || []
+  } catch {
+    articles.value = []
+  }
+}
+
+// 点文章卡 → 文章详情（与社区广场跳转口径一致）
+const goArticle = (article) => {
+  router.push({ path: '/article', query: { Article_Id: article.article_id } })
+}
+
+onMounted(async () => {
+  await fetchUserInfo()
+  await fetchArticles()
+})
 // 路由切换不同用户时刷新
-watch(() => props.userId, fetchUserInfo)
+watch(() => props.userId, async () => {
+  await fetchUserInfo()
+  await fetchArticles()
+})
 </script>
 
 <template>
@@ -96,6 +121,20 @@ watch(() => props.userId, fetchUserInfo)
         <medal-showcase :user-id="userId" />
       </div>
     </div>
+
+    <!-- 发布的文章（跨整行；复用社区 ArticleCard） -->
+    <section class="profile-articles">
+      <h3 class="block-title">发布的文章</h3>
+      <ArticleCard
+        v-for="a in articles"
+        :key="a.id"
+        :article="a"
+        @open="goArticle"
+      />
+      <div v-if="!articles.length" class="articles-empty">
+        {{ userId ? 'TA还没有发布文章' : '你还没有发布文章' }}
+      </div>
+    </section>
   </div>
 </template>
 
@@ -165,6 +204,25 @@ watch(() => props.userId, fetchUserInfo)
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+/* 发布的文章：跨两列整行 */
+.profile-articles {
+  grid-column: 1 / -1;
+}
+
+.block-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 4px 0 14px;
+  color: var(--dew-text-heading);
+}
+
+.articles-empty {
+  font-size: 14px;
+  color: var(--dew-text-faint);
+  text-align: center;
+  padding: 28px 0;
 }
 
 /* 响应式：窄屏堆叠为单列 */
