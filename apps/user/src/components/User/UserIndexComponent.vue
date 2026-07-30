@@ -10,12 +10,10 @@ import CalendarComponent from './CalendarComponent.vue'
 import MedalShowcase from './MedalShowcase.vue'
 import { DewCard, DewTag } from '../ui'
 
-// 可选 userInfo：父组件（UserProfileView）查到资料后直接传入，则不再自行请求；
-// 不传（自己的 /user 页）则照旧请求 /user/user_index
+// 可选 userId：查看他人主页时传对方 id；不传（自己的 /user 页）则取自己
 const props = defineProps({
-  userInfo: { type: Object, default: null }
+  userId: { type: [Number, String], default: null }
 })
-const isSelf = computed(() => !props.userInfo)
 
 const User_Info = ref({})
 const router = useRouter()
@@ -33,10 +31,11 @@ const skillTags = computed(() => {
 const tagTypes = ['primary', 'success', 'info', 'warning', 'danger']
 const getTagType = index => tagTypes[index % tagTypes.length]
 
-// 获取用户信息，异常处理更健壮
+// 获取用户信息：有 userId 查别人(/user/profile/:id)，否则自己(/user/user_index)
 const fetchUserInfo = async () => {
   try {
-    const res = await api({ url: '/user/user_index', method: 'get' })
+    const url = props.userId ? `/user/profile/${props.userId}` : '/user/user_index'
+    const res = await api({ url, method: 'get' })
     if (res?.data?.code === 200) {
       User_Info.value = res.data
       return res.data
@@ -52,23 +51,13 @@ const fetchUserInfo = async () => {
   }
 }
 
-// 父组件传入资料则直接采用；否则自行拉取（自己的主页）
-onMounted(async () => {
-  if (props.userInfo) {
-    User_Info.value = props.userInfo
-  } else {
-    await fetchUserInfo()
-  }
-})
-
-// 路由切换不同用户时，父组件传入的 userInfo 变化 → 同步刷新
-watch(() => props.userInfo, val => {
-  if (val) User_Info.value = val
-})
+onMounted(fetchUserInfo)
+// 路由切换不同用户时刷新
+watch(() => props.userId, fetchUserInfo)
 </script>
 
 <template>
-  <div class="profile-layout" :class="{ 'theme-dark': isDarkMode, 'profile-layout--single': !isSelf }">
+  <div class="profile-layout" :class="{ 'theme-dark': isDarkMode }">
     <!-- 左：个人简介 -->
     <div class="profile-left">
       <DewCard size="lg" divided class="profile-card">
@@ -100,11 +89,11 @@ watch(() => props.userInfo, val => {
       </DewCard>
     </div>
 
-    <!-- 右：出勤日历 + 勋章展示（仅自己的主页显示） -->
-    <div class="profile-right" v-if="isSelf">
+    <!-- 右：出勤日历 + 勋章展示（自己与他人都显示，按 userId 取数） -->
+    <div class="profile-right">
       <div class="right-content">
-        <calendar-component />
-        <medal-showcase />
+        <calendar-component :user-id="userId" />
+        <medal-showcase :user-id="userId" />
       </div>
     </div>
   </div>
@@ -163,11 +152,6 @@ watch(() => props.userInfo, val => {
   grid-template-columns: 1fr 3fr;
   gap: 20px;
   align-items: start;
-}
-
-/* 他人主页：隐藏右栏后切单列满宽 */
-.profile-layout--single {
-  grid-template-columns: 1fr;
 }
 
 /* 区块标题与「出勤日历 / 勋章成就」统一：18px / 700 */

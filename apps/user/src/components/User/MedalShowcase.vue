@@ -26,12 +26,17 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../../api'
 import { DewCard } from '../ui'
 
 const router = useRouter()
+
+// 可选 userId：查看他人主页时取对方勋章；不传则自己
+const props = defineProps({
+  userId: { type: [Number, String], default: null }
+})
 
 const medalList = ref([])
 
@@ -48,7 +53,7 @@ const goToMedalWall = () => {
 
 const fetchMedals = async () => {
   try {
-    const res = await api.get('/medal/user_medal_show')
+    const res = await api.get('/medal/user_medal_show', { params: props.userId ? { user_id: props.userId } : {} })
     if (res.data && res.data.Medal) {
       // 只显示已获得的勋章
       medalList.value = res.data.Medal.filter(m => m.Get_Time)
@@ -61,6 +66,8 @@ const fetchMedals = async () => {
 onMounted(() => {
   fetchMedals()
 })
+// 路由切换不同用户时刷新
+watch(() => props.userId, fetchMedals)
 </script>
 
 <style scoped>

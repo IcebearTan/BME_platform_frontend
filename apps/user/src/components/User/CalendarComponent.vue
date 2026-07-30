@@ -1,7 +1,7 @@
 <!-- 使用vue3语法 -->
 <script setup>
 import api from '../../api';
-import { onMounted } from 'vue'
+import { onMounted, watch } from 'vue'
 import { ref } from 'vue'
 import { computed } from 'vue'
 import { ElMessage } from 'element-plus'
@@ -12,6 +12,11 @@ import { DewCard } from '../ui';
 const store = useStore();
 const isDarkMode = computed(() => store.getters.isDarkMode);
 
+// 可选 userId：查看他人主页时取对方年度出勤；不传则自己
+const props = defineProps({
+  userId: { type: [Number, String], default: null }
+})
+
 //获取年度出勤数据
 const yearAttendenceData = ref([]);
 
@@ -19,7 +24,8 @@ const fetchYearAttendanceData = async () => {
   try {
     const response = await api({
       url: '/records/yearly',
-      method: 'get'
+      method: 'get',
+      params: props.userId ? { user_id: props.userId } : undefined
     })
     // 后端直接返回数组，不需要检查 code
     if (Array.isArray(response.data)) {
@@ -37,6 +43,8 @@ const fetchYearAttendanceData = async () => {
 onMounted(() => {
   fetchYearAttendanceData();
 })
+// 路由切换不同用户时刷新
+watch(() => props.userId, fetchYearAttendanceData)
 
 // 累计出勤天数
 

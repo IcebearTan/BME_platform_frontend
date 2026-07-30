@@ -1,70 +1,78 @@
-<script>
-import UserIndexComponent from "../components/User/UserIndexComponent.vue";
-import PageFooterComponent from "../components/PageFooterComponent.vue";
-import MenuComponent from "../components/MenuComponent.vue";
-import api from '../api';
-import { RouterLink } from "vue-router";
-
-export default {
-    name: 'UserIndex',
-    components: {
-        UserIndexComponent,
-        MenuComponent,
-        PageFooterComponent
-    },
-
-    data() {
-        return {
-            username: '',
-            user_email: '',
-            uid: '',
-        }
-    },
-
-    created() {
-        api({
-            url: "/user/user_index",
-            method: "get",
-        })
-        .then((res) => {
-            if (res.data.code == 200) {
-                this.username = res.data.User_Name
-                this.user_email = res.data.User_Email
-                this.uid = res.data.User_Id
-            }
-        })
-        .catch((error) => {
-            // 只做本地跳转，不再弹窗，401 交给全局拦截器
-            if (error.response && error.response.status === 401) {
-                this.$router.push('/login')
-            }
-        })
-    }
-
-};
-</script>
-
 <script setup>
-import { onMounted, ref, computed } from "vue";
-import { useStore } from "vuex";
+import { ref, computed, watch, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useStore } from 'vuex'
+import api from '../api'
 
-const store = useStore();
+import UserIndexComponent from '../components/User/UserIndexComponent.vue'
+import PageFooterComponent from '../components/PageFooterComponent.vue'
+import MenuComponent from '../components/MenuComponent.vue'
 
-const isDarkMode = computed(() => store.getters.isDarkMode);
+const route = useRoute()
+const router = useRouter()
+const store = useStore()
+const isDarkMode = computed(() => store.getters.isDarkMode)
 
-const User_Avatar = ref('');
+// /profile/:id 带参 = 看别人；/user 无参 = 自己
+const targetId = computed(() => route.params.id || null)
+const isOther = computed(() => !!targetId.value)
 
-const setUserAvatar = () => {
-    if (store.state.avatar) {
-        User_Avatar.value = `${store.state.avatar}`
-    } else {
-        User_Avatar.value = 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png'
-    }
+const DEFAULT_AVATAR = 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png'
+
+const username = ref('')
+const user_email = ref('')
+const uid = ref('')
+const User_Avatar = ref(DEFAULT_AVATAR)
+// 遗留的 avatar 点击占位（原 Options 版本既有，保持不动）
+const visible = ref(false)
+
+// 取别人头像（base64）
+const fetchAvatar = async (id) => {
+  try {
+    const res = await api({ url: '/user/user_avatars_id', method: 'get', params: { User_Id: id } })
+    User_Avatar.value = res.data?.User_Avatar
+      ? `data:image/png;base64,${res.data.User_Avatar}`
+      : DEFAULT_AVATAR
+  } catch {
+    User_Avatar.value = DEFAULT_AVATAR
+  }
 }
 
-onMounted(() => {
-    setUserAvatar();
-})
+const load = async () => {
+  if (isOther.value) {
+    // 别人：走公开资料接口（不含邮箱）
+    try {
+      const res = await api({ url: `/user/profile/${targetId.value}`, method: 'get' })
+      if (res?.data?.code === 200) {
+        username.value = res.data.User_Name || ''
+        user_email.value = ''              // 邮箱不对外
+        uid.value = res.data.User_Id || ''
+        await fetchAvatar(targetId.value)
+      }
+    } catch (error) {
+      if (error.response?.status === 401) router.push('/login')
+    }
+  } else {
+    // 自己：原 /user/user_index
+    try {
+      const res = await api({ url: '/user/user_index', method: 'get' })
+      if (res.data.code == 200) {
+        username.value = res.data.User_Name
+        user_email.value = res.data.User_Email
+        uid.value = res.data.User_Id
+      }
+    } catch (error) {
+      // 401 交给全局拦截器，这里只做本地跳转
+      if (error.response?.status === 401) router.push('/login')
+    }
+    // 自己的头像走 store（与原实现一致）
+    User_Avatar.value = store.state.avatar || DEFAULT_AVATAR
+  }
+}
+
+onMounted(load)
+// 路由切换（自己↔别人，或不同别人）时重新加载
+watch(targetId, load)
 </script>
 
 <template>
@@ -90,12 +98,12 @@ onMounted(() => {
             </div>
             <div class="user-details">
               <div class="username">{{ username }}</div>
-              <div class="user-email">Email：{{ user_email }}</div>
+              <div class="user-email" v-if="user_email">Email：{{ user_email }}</div>
               <div class="user-uid">#uid：{{ uid }}</div>
             </div>
           </div>
 
-          <UserIndexComponent />
+          <UserIndexComponent :user-id="targetId" />
         </div>
       </el-main>
 
