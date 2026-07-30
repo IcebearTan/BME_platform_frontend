@@ -26,6 +26,14 @@ const User_Avatar = ref(DEFAULT_AVATAR)
 // 遗留的 avatar 点击占位（原 Options 版本既有，保持不动）
 const visible = ref(false)
 
+// 月度统计（首页同款三项：本月天数 / 本月时长 / 月度排名）
+const stats = ref({ days: 0, hours: 0, rank: null })
+const applyStats = (d) => {
+  stats.value = d
+    ? { days: d.total_days || 0, hours: Math.floor(d.month_hours || 0), rank: d.month_rank || null }
+    : { days: 0, hours: 0, rank: null }
+}
+
 // 取别人头像（base64）
 const fetchAvatar = async (id) => {
   try {
@@ -39,6 +47,7 @@ const fetchAvatar = async (id) => {
 }
 
 const load = async () => {
+  applyStats(null)
   if (isOther.value) {
     // 别人：走公开资料接口（不含邮箱）
     try {
@@ -47,6 +56,7 @@ const load = async () => {
         username.value = res.data.User_Name || ''
         user_email.value = ''              // 邮箱不对外
         uid.value = res.data.User_Id || ''
+        applyStats(res.data.data)          // 月度统计（接口 data 字段）
         await fetchAvatar(targetId.value)
       }
     } catch (error) {
@@ -67,6 +77,11 @@ const load = async () => {
     }
     // 自己的头像走 store（与原实现一致）
     User_Avatar.value = store.state.avatar || DEFAULT_AVATAR
+    // 月度统计：首页同款 /records/my_stats
+    try {
+      const r = await api({ url: '/records/my_stats', method: 'get' })
+      if (r?.data?.code === 200) applyStats(r.data.data)
+    } catch { /* 统计非关键，忽略 */ }
   }
 }
 
@@ -100,6 +115,22 @@ watch(targetId, load)
               <div class="username">{{ username }}</div>
               <div class="user-email" v-if="user_email">Email：{{ user_email }}</div>
               <div class="user-uid">#uid：{{ uid }}</div>
+            </div>
+
+            <!-- 月度统计：本月天数 / 本月时长 / 月度排名（首页同款配色与字体，无卡片） -->
+            <div class="user-stats">
+              <div class="stat stat--days">
+                <div class="stat-value">{{ stats.days }}<span class="stat-unit">d</span></div>
+                <div class="stat-label">本月学习天数</div>
+              </div>
+              <div class="stat stat--hours">
+                <div class="stat-value">{{ stats.hours }}<span class="stat-unit">h</span></div>
+                <div class="stat-label">本月学习时长</div>
+              </div>
+              <div class="stat stat--rank">
+                <div class="stat-value">#{{ stats.rank || '--' }}</div>
+                <div class="stat-label">月度排名</div>
+              </div>
             </div>
           </div>
 
@@ -204,6 +235,43 @@ watch(targetId, load)
   color: var(--dew-text-muted);
 }
 
+/* 月度统计（头像右侧，首页同款配色/字体，无卡片） */
+.user-stats {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+.stat-value {
+  font-family: var(--dew-font, inherit);
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.stat-unit {
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0.85;
+  margin-left: 1px;
+}
+.stat-label {
+  font-size: 12px;
+  color: var(--dew-text-muted);
+  white-space: nowrap;
+}
+.stat--days .stat-value,
+.stat--days .stat-unit { color: #3b82f6; }
+.stat--hours .stat-value,
+.stat--hours .stat-unit { color: #22c55e; }
+.stat--rank .stat-value { color: #f59e0b; }
+
 /* 响应式 */
 @media (max-width: 1400px) {
   .main-container {
@@ -222,6 +290,12 @@ watch(targetId, load)
   .avatar {
     width: 80px;
     height: 80px;
+  }
+
+  .user-stats {
+    margin-left: 0;
+    justify-content: center;
+    gap: 22px;
   }
 }
 </style>
