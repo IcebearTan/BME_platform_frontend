@@ -9,6 +9,7 @@ import ProfileView from './views/ProfileView.vue'
 import LoginView from './views/LoginView.vue'
 import RegisterView from './views/RegisterView.vue'
 import ArticleView from './views/ArticleView.vue';
+import ArticleViewV2 from './views/ArticleViewV2.vue';
 import ArticleEditorView from './views/ArticleEditorView.vue';
 import ArticleEditorViewV2 from './views/ArticleEditorViewV2.vue';
 import StudyView from './views/StudyView.vue'
@@ -152,6 +153,12 @@ const router = createRouter({
             path: '/article-editor-v2',
             name: 'article-editor-v2',
             component: ArticleEditorViewV2,
+            meta: { requiresAuth: true }
+        },
+        {
+            path: '/article-v2',
+            name: 'article-v2',
+            component: ArticleViewV2,
             meta: { requiresAuth: true }
         },
         {

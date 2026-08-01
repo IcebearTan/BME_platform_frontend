@@ -17,24 +17,9 @@ import { useStore } from 'vuex'
 import { Upload } from '@element-plus/icons-vue'
 import api from '../../../api'
 import { DewButton, DewCard, DewInput, DewMessage } from '../../ui'
-import { MdEditor, MdCatalog, config } from 'md-editor-v3'
+import { MdEditor, MdCatalog } from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
-
-// ── 自托管 highlight.js：本地 public/md-ext/，杜绝 unpkg 外网请求 ──
-const BASE = import.meta.env.BASE_URL // '/AMEII/'
-config({
-  editorExtensions: {
-    highlight: {
-      js: `${BASE}md-ext/highlight.min.js`,
-      css: {
-        atom: {
-          light: `${BASE}md-ext/atom-one-light.min.css`,
-          dark: `${BASE}md-ext/atom-one-dark.min.css`,
-        },
-      },
-    },
-  },
-})
+import './md-setup' // 自托管 highlight.js（禁外网 CDN），与阅读页共享
 
 const EDITOR_ID = 'article-v2-editor'
 // 工具栏排除：mermaid/katex 走 CDN 且用不到；github/htmlPreview/save/sub/sup/catalog/fullscreen 按需去掉
@@ -128,8 +113,8 @@ const handleSubmit = async () => {
       const res = await api.post('/v2/article/public', payload)
       const newId = res.data.id
       DewMessage.success('文章发布成功')
-      // 第一版无 V2 详情页：带 id 进编辑态（便于继续编辑 / 验证读取）
-      setTimeout(() => router.push({ path: '/article-editor-v2', query: { id: newId } }), 600)
+      // 发布后跳 V2 阅读页查看效果
+      setTimeout(() => router.push({ path: '/article-v2', query: { id: newId } }), 600)
     }
   } catch (e) {
     DewMessage.error(e?.response?.data?.message || '保存失败，请重试')
