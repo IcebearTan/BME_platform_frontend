@@ -412,6 +412,7 @@ const fetchThreads = async (reset = false) => {
           type: 'article',
           id: item.id,
           article_id: item.article_id ?? item.id,
+          article_version: item.article_version,
           title: item.title,
           summary: item.summary,
           introduction: item.summary,
