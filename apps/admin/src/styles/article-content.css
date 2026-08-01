@@ -2,8 +2,9 @@
  * BME 共享富文本正文样式 —— 单一真相源（Single Source of Truth）
  * 权威文件：BME_frontend/src/styles/article-content.css
  * 镜像（须逐字符相同）：
+ *   - BME_frontend/public/article-content.css   （用户端 TinyMCE iframe content_css URL）
  *   - BME_backend/src/styles/article-content.css   （admin main bundle，预览面板用）
- *   - BME_backend/public/article-content.css        （TinyMCE iframe content_css URL，serve 在 /admin/article-content.css）
+ *   - BME_backend/public/article-content.css        （admin TinyMCE iframe content_css URL，serve 在 /admin/article-content.css）
  *
  * 设计：
  *   - 选择器统一 .rich-text 前缀，作用域隔离，零全局污染（无 :root 声明，绝不影响 DewUI 其它组件）。
@@ -14,7 +15,7 @@
  *     TinyMCE iframe <body>（init 时由 JS 挂上，并同步 theme-dark/theme-light）。
  *
  * 同步约定：tokens.css 改名/改值时，下方 fallback 字面量须同步（仅影响 iframe 画布）。
- * 改本文件后，运行 `npm run sync:richtext`（BME_frontend）把权威源同步到两个 admin 镜像。
+ * 改本文件后，运行 `npm run sync:richtext`（BME_frontend）把权威源同步到三个镜像。
  */
 
 /* ━━━━ 变量别名（.rich-text 作用域；fallback = iframe 镜像值） ━━━━ */
