@@ -85,7 +85,7 @@
 
             <!-- 信息流（讨论帖 + 文章帖混合） -->
             <div class="feed-list">
-              <template v-for="item in feedItems" :key="item.type + '-' + item.id">
+              <template v-for="item in feedItems" :key="item.type + '-' + item.id + (item.article_version ? '-v' + item.article_version : '')">
                 <!-- 文章帖：flat 阅读卡，整卡点击进文章详情 -->
                 <ArticleCard
                   v-if="item.type === 'article'"
@@ -660,9 +660,13 @@ const loadMore = () => {
   if (!loading.value && hasMore.value) fetchThreads(false)
 }
 
-// 文章帖：点击进文章详情页
+// 文章帖：点击进文章详情页（V2 Markdown 文章跳 V2 阅读页，旧文章跳旧阅读页）
 const goArticle = (article) => {
-  router.push({ path: '/article', query: { Article_Id: article.article_id } })
+  if (article.article_version === 2) {
+    router.push({ path: '/article-v2', query: { id: article.article_id } })
+  } else {
+    router.push({ path: '/article', query: { Article_Id: article.article_id } })
+  }
 }
 
 // 作者点击：进其个人主页
