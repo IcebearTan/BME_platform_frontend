@@ -63,7 +63,7 @@ onUnmounted(() => {
         style="z-index: 1001;"
       />
 
-      <el-main style="padding: 0; min-height: 100vh;">
+      <el-main style="padding: 0; min-height: 100vh; overflow: visible;">
         <ArticleDetailComponentV2 />
       </el-main>
 
