@@ -421,6 +421,9 @@ const fetchThreads = async (reset = false) => {
           authorId: item.author_id,
           author_avatar: item.author_avatar,
           reply_count: item.reply_count || 0,
+          like_count: item.like_count || 0,
+          liked: item.liked || false,
+          view_count: item.view_count || 0,
           created_at: item.created_at,
         }
       }

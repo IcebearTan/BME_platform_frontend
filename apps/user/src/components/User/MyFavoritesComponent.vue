@@ -21,8 +21,12 @@ const load = async () => {
   }
 }
 
-const open = (id) => {
-  router.push({ path: '/article', query: { Article_Id: id } })
+const open = (f) => {
+  if (f.article_version === 2) {
+    router.push({ path: '/article-v2', query: { id: f.article_id } })
+  } else {
+    router.push({ path: '/article', query: { Article_Id: f.article_id } })
+  }
 }
 
 const fmt = (t) => t ? new Date(t.replace(' ', 'T')).toLocaleDateString('zh-CN') : ''
@@ -42,7 +46,7 @@ onMounted(load)
         v-for="f in favorites"
         :key="f.article_id"
         class="fav-item"
-        @click="open(f.article_id)"
+        @click="open(f)"
       >
         <div class="fav-item-title">{{ f.title }}</div>
         <div class="fav-item-intro">{{ f.introduction }}</div>

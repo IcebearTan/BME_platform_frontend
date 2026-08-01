@@ -6,25 +6,27 @@
  *   - 拉取：GET /v2/article/<id> → content_md（裸 Markdown）
  *   - 渲染：v-html → MdPreview（md-editor-v3）
  *   - 目录：临时 div + IntersectionObserver → MdCatalog
- * 操作栏只留「分享」（评论/点赞/收藏后续阶段再做）。
+ * 互动区（点赞 / 评论 / 收藏）走 discussion 体系，与 v1 同构（useArticleReactions）。
  */
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useStore } from 'vuex'
 import { ElMessage } from 'element-plus'
-import { Share } from '@element-plus/icons-vue'
+import { Share, Star, StarFilled, ChatDotRound, Collection, View } from '@element-plus/icons-vue'
 import { DewCard } from '../../ui'
 import { MdPreview, MdCatalog } from 'md-editor-v3'
 import 'md-editor-v3/lib/preview.css'
 import './md-setup' // 自托管 highlight.js（与编辑器共享）
 import api from '../../../api'
+import ArticleCommentSection from '../ArticleCommentSection.vue'
+import { useArticleReactions } from '../../../composables/useArticleReactions'
 
 const PREVIEW_ID = 'article-v2-preview' // MdPreview 与 MdCatalog 共享，锚点一致
 
 const route = useRoute()
 const router = useRouter()
 const store = useStore()
-const articleId = route.query.id
+const articleId = ref(route.query.id)
 
 const isDarkMode = computed(() => store.getters.isDarkMode)
 const editorTheme = computed(() => (isDarkMode.value ? 'dark' : 'light'))
@@ -36,13 +38,21 @@ const articleAuthor = ref('')
 const authorAvatar = ref('')
 const authorId = ref(null)
 
+// 互动状态（点赞 / 收藏 / 计数），v2 走 discussion reaction 体系
+const {
+  likeCount, replyCount, viewCount, isLiked, isFavorited,
+  initCounts, ensureThread, fetchMe, recordView, toggleLike, toggleFav,
+} = useArticleReactions(articleId, 2)
+
+const isLoggedIn = () => !!localStorage.getItem('token')
+
 // 阅读页正文随页面流滚动 → 目录跟随 documentElement
 const scrollEl = typeof document !== 'undefined' ? document.documentElement : undefined
 
 const getArticle = async () => {
-  if (!articleId) return
+  if (!articleId.value) return
   try {
-    const res = await api({ method: 'get', url: `/v2/article/${articleId}` })
+    const res = await api({ method: 'get', url: `/v2/article/${articleId.value}` })
     const d = res.data.data || {} // V2 返 {code, data:{...}}，比 v1 多一层 data
     articleTitle.value = d.title || ''
     articleTime.value = d.publish_time || ''
@@ -50,6 +60,8 @@ const getArticle = async () => {
     authorId.value = d.author_id ?? null
     authorAvatar.value = d.author_avatar || ''
     contentMd.value = d.content_md || ''
+    // 详情接口附带的计数（匿名也有），回填互动 composable
+    initCounts(d.like_count ?? 0, d.reply_count ?? 0, d.view_count ?? 0)
   } catch (e) {
     console.error('获取文章失败', e)
     ElMessage.error('文章加载失败')
@@ -71,14 +83,29 @@ const handleShare = async () => {
   }
 }
 
+const scrollToComments = () => {
+  const el = document.getElementById(`comments-${articleId.value}`)
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
 const formatTime = (timeStr) => {
   if (!timeStr) return ''
   const date = new Date(timeStr)
   return date.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })
 }
 
-onMounted(() => {
-  getArticle()
+onMounted(async () => {
+  await getArticle()
+  // 已登录：建立 / 取得汇总 thread 并拉取本人点赞 / 收藏态（匿名跳过，计数已由详情接口带回）
+  if (isLoggedIn()) {
+    try {
+      await ensureThread()
+      await fetchMe()
+      await recordView()
+    } catch (e) {
+      console.error('互动区初始化失败', e)
+    }
+  }
 })
 </script>
 
@@ -99,6 +126,10 @@ onMounted(() => {
                   <time class="publish-time">{{ formatTime(articleTime) }}</time>
                 </div>
               </div>
+              <div class="meta-stats">
+                <span class="stat"><el-icon><View /></el-icon>{{ viewCount }}</span>
+                <span class="stat"><el-icon><Star /></el-icon>{{ likeCount }}</span>
+              </div>
             </div>
           </header>
 
@@ -113,15 +144,33 @@ onMounted(() => {
             />
           </div>
 
-          <!-- 底部交互栏（最小版：只分享） -->
+          <!-- 底部交互栏 -->
           <footer class="article-footer">
             <div class="actions">
+              <button class="art-action" :class="{ 'is-liked': isLiked }" @click="toggleLike">
+                <el-icon><StarFilled v-if="isLiked" /><Star v-else /></el-icon>
+                <span>{{ isLiked ? '已点赞' : '点赞' }}</span>
+                <span v-if="likeCount" class="art-count">{{ likeCount }}</span>
+              </button>
+              <button class="art-action" @click="scrollToComments">
+                <el-icon><ChatDotRound /></el-icon>
+                <span>评论</span>
+              </button>
               <button class="art-action" @click="handleShare">
                 <el-icon><Share /></el-icon>
                 <span>分享</span>
               </button>
+              <button class="art-action" :class="{ 'is-favorited': isFavorited }" @click="toggleFav">
+                <el-icon><Collection /></el-icon>
+                <span>{{ isFavorited ? '已收藏' : '收藏' }}</span>
+              </button>
             </div>
           </footer>
+        </DewCard>
+
+        <!-- 评论区（复用 ArticleCommentSection，:version=2 走 article_v2 thread） -->
+        <DewCard variant="flat" size="lg" class="article-comments" :id="`comments-${articleId}`">
+          <ArticleCommentSection :article-id="articleId" :version="2" />
         </DewCard>
       </div>
 
@@ -284,6 +333,39 @@ onMounted(() => {
 
 .art-action:active {
   transform: scale(0.95);
+}
+
+.art-action.is-liked {
+  color: #f43f5e;
+}
+
+.art-action.is-favorited {
+  color: #f59e0b;
+}
+
+.art-count {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 头部统计（浏览数 / 点赞数） */
+.meta-stats {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-left: auto;
+}
+
+.meta-stats .stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--dew-text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.meta-stats .stat .el-icon {
+  font-size: 15px;
 }
 
 /* ━━━━ 侧边栏 ━━━━ */

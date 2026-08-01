@@ -60,6 +60,7 @@ import api from '../../api'
 
 const props = defineProps({
   articleId: { type: [String, Number], required: true },
+  version: { type: Number, default: 1 },   // 1 = v1 文章, 2 = v2 文章
 })
 
 const threadId = ref(null)
@@ -85,7 +86,8 @@ const formatTime = (t) => {
 
 // 获取或创建该文章的评论汇总 thread
 const ensureThread = async () => {
-  const res = await api({ method: 'get', url: `/discussions/article/${props.articleId}/thread` })
+  const scope = props.version === 2 ? 'article_v2' : 'article'
+  const res = await api({ method: 'get', url: `/discussions/${scope}/${props.articleId}/thread` })
   threadId.value = res.data.data.thread_id
 }
 
