@@ -5,7 +5,7 @@ import { ref, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRouter, useRoute } from 'vue-router'
 import { useStore } from 'vuex';
-import { Message, User, Calendar, Collection } from '@element-plus/icons-vue';
+import { Message, User, Calendar, Collection, EditPen } from '@element-plus/icons-vue';
 import { DewCard, DewSidebar, DewTag } from '../ui'
 
 const User_Info = ref({})
@@ -23,6 +23,7 @@ const navItems = [
   { value: '/user-center/user-info', label: '账户设置', icon: User },
   { value: '/user-center/my-feedbacks', label: '反馈记录', icon: Message },
   { value: '/user-center/my-favorites', label: '我的收藏', icon: Collection },
+  { value: '/article-editor', label: '写文章', icon: EditPen },
   { value: '/camp', label: '我的营期', icon: Calendar },
 ]
 

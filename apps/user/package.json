@@ -16,8 +16,10 @@
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.1",
     "@tailwindcss/vite": "^4.3.0",
+    "@tinymce/tinymce-vue": "^6.1.0",
     "axios": "^1.7.7",
     "element-plus": "^2.8.3",
+    "tinymce": "^5.10.3",
     "gsap": "^3.12.7",
     "js-md5": "^0.8.3",
     "tailwindcss": "^4.3.0",

@@ -111,8 +111,22 @@
             </div>
           </main>
 
-          <!-- 右侧栏 - 发布帖子 -->
+          <!-- 右侧栏 - 写文章入口 + 发布帖子 -->
           <aside class="right-sidebar">
+            <!-- 写文章入口（长文创作，与发帖框同列） -->
+            <DewCard size="lg" interactive class="write-entry" @click="router.push('/article-editor')">
+              <div class="write-entry__inner">
+                <div class="write-entry__icon">
+                  <el-icon><EditPen /></el-icon>
+                </div>
+                <div class="write-entry__text">
+                  <span class="write-entry__title">写文章</span>
+                  <span class="write-entry__desc">发布长文，分享你的创作</span>
+                </div>
+                <el-icon class="write-entry__arrow"><ArrowRight /></el-icon>
+              </div>
+            </DewCard>
+
             <!-- 发布帖子卡片 -->
             <DewCard size="lg" divided class="create-post-card">
               <template #header>
@@ -281,7 +295,7 @@ import {
   Grid, Collection, ChatDotRound, User, TrendCharts, ArrowRight
 } from '@element-plus/icons-vue'
 import { Menu as Expand } from '@element-plus/icons-vue'
-import { View, Star, StarFilled } from '@element-plus/icons-vue'
+import { View, Star, StarFilled, EditPen } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
 const store = useStore()
@@ -812,6 +826,59 @@ onUnmounted(() => {
   align-items: center;
   gap: 12px;
   margin-bottom: 20px;
+}
+
+/* 写文章入口（右侧栏大入口卡，hover 形态反馈） */
+.write-entry {
+  margin-bottom: 16px;
+}
+
+.write-entry__inner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.write-entry__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  flex-shrink: 0;
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  font-size: 20px;
+}
+
+.write-entry__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.write-entry__title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--dew-text-heading);
+}
+
+.write-entry__desc {
+  font-size: 12px;
+  color: var(--dew-text-faint);
+}
+
+.write-entry__arrow {
+  font-size: 16px;
+  color: var(--dew-text-faint);
+  transition: transform 0.3s var(--dew-bounce, ease);
+}
+
+.write-entry:hover .write-entry__arrow {
+  transform: translateX(3px);
 }
 
 /* 加载状态 */

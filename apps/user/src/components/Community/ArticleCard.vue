@@ -27,6 +27,10 @@
         <el-avatar :size="24" :src="article.author_avatar" />
         <span class="ac-name">{{ article.author_name }}</span>
       </div>
+      <!-- 个人主页作者本人传入的编辑/删除操作（社区复用不传则不渲染） -->
+      <div v-if="$slots.actions" class="ac-actions" @click.stop>
+        <slot name="actions" />
+      </div>
       <div class="ac-meta">
         <span class="ac-comments">
           <el-icon><ChatDotRound /></el-icon>
@@ -180,6 +184,14 @@ function formatTimeAgo(dateStr) {
 }
 .ac-comments .el-icon {
   font-size: 15px;
+}
+
+/* 操作区（个人主页作者本人可见的编辑/删除） */
+.ac-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 /* 阅读全文：克制的可点引导（hover 箭头位移 + 主色） */

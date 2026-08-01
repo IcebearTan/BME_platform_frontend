@@ -9,7 +9,7 @@ import api from '../../api'
 import CalendarComponent from './CalendarComponent.vue'
 import MedalShowcase from './MedalShowcase.vue'
 import ArticleCard from '../Community/ArticleCard.vue'
-import { DewCard, DewTag } from '../ui'
+import { DewCard, DewTag, DewButton, DewMessage, DewMessageBox } from '../ui'
 
 // 可选 userId：查看他人主页时传对方 id；不传（自己的 /user 页）则取自己
 const props = defineProps({
@@ -68,6 +68,34 @@ const fetchArticles = async () => {
 // 点文章卡 → 文章详情（与社区广场跳转口径一致）
 const goArticle = (article) => {
   router.push({ path: '/article', query: { Article_Id: article.article_id } })
+}
+
+// 自己页（/user 无 userId，或传入的即登录用户）才显示编辑/删除
+const isSelf = computed(() => !props.userId || Number(props.userId) === store.state.user?.User_Id)
+
+// 编辑 → 文章编辑器（编辑模式）
+const goEdit = (article) => {
+  router.push({ path: '/article-editor', query: { id: article.article_id } })
+}
+
+// 删除自己的文章（后端按作者本人放行；管理员删全部走 admin 端）
+const handleDelete = async (article) => {
+  try {
+    await DewMessageBox.confirm('删除后不可恢复，确定删除这篇文章吗？', '删除文章')
+  } catch {
+    return // 用户取消
+  }
+  try {
+    const res = await api({ method: 'post', url: '/article/delete', data: { Article_Id: article.article_id } })
+    if (res?.data?.code === 200) {
+      DewMessage.success('文章已删除')
+      fetchArticles()
+    } else {
+      DewMessage.error(res?.data?.message || '删除失败')
+    }
+  } catch (e) {
+    DewMessage.error(e?.response?.data?.message || '删除失败')
+  }
 }
 
 onMounted(async () => {
@@ -130,7 +158,12 @@ watch(() => props.userId, async () => {
         :key="a.id"
         :article="a"
         @open="goArticle"
-      />
+      >
+        <template v-if="isSelf" #actions>
+          <DewButton size="sm" type="ghost" @click="goEdit(a)">编辑</DewButton>
+          <DewButton size="sm" type="danger" @click="handleDelete(a)">删除</DewButton>
+        </template>
+      </ArticleCard>
       <div v-if="!articles.length" class="articles-empty">
         {{ userId ? 'TA还没有发布文章' : '你还没有发布文章' }}
       </div>

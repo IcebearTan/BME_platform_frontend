@@ -1,10 +1,11 @@
 /**
  * 把权威富文本样式 BME_frontend/src/styles/article-content.css
- * 同步（逐字符复制）到两个 admin 镜像：
- *   - BME_backend/src/styles/article-content.css   （admin main bundle，预览面板用）
- *   - BME_backend/public/article-content.css        （TinyMCE iframe content_css URL）
+ * 同步（逐字符复制）到三个镜像：
+ *   - BME_frontend/public/article-content.css          （用户端 TinyMCE iframe content_css URL）
+ *   - BME_backend/src/styles/article-content.css       （admin main bundle，预览面板用）
+ *   - BME_backend/public/article-content.css            （admin TinyMCE iframe content_css URL）
  *
- * 三个前端是独立项目（非 monorepo），无法直接共享一份物理文件，
+ * 用户端与 admin 是两个独立前端项目（非 monorepo），无法直接共享一份物理文件，
  * 因此沿用 tokens.css 的「权威源 + 镜像」模式，用本脚本杜绝「改了权威源忘记同步」。
  *
  * 用法：改完权威源后运行  npm run sync:richtext
@@ -17,6 +18,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const src = path.join(__dirname, '..', 'src', 'styles', 'article-content.css');
 const targets = [
+  path.join(__dirname, '..', 'public', 'article-content.css'),
   path.join(__dirname, '..', '..', 'BME_backend', 'src', 'styles', 'article-content.css'),
   path.join(__dirname, '..', '..', 'BME_backend', 'public', 'article-content.css'),
 ];
