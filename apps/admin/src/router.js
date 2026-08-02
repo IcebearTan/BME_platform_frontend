@@ -8,8 +8,7 @@ import DashboardComponent from './components/DashboardComponent.vue'
 import UserManage from './components/UserManage.vue'
 import ArticleManage from './components/ArticleManage.vue'
 import ArticleCreate from './components/ArticleCreate.vue'
-import EditorView from './views/EditorView.vue';
-import CreateView from './views/CreateView.vue';
+import ArticleEditorV2 from './components/ArticleEditorV2.vue';
 
 import EditorComponent from './components/EditorComponent.vue';
 import EditorCreateComponent from './components/EditorCreateComponent.vue';
@@ -167,12 +166,12 @@ const router = createRouter({
         {
             path: '/editor',
             name: 'editor',
-            component: EditorView,
+            component: ArticleEditorV2,
         },
         {
             path: '/public',
             name: 'public',
-            component: CreateView,
+            component: ArticleEditorV2,
         }
     ]
 })
