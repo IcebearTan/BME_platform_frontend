@@ -9,13 +9,13 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Delete, EditPen, Plus } from '@element-plus/icons-vue'
-import { DewCard, DewButtonBar, DewButton, DewMessage, DewMessageBox } from '../ui'
+import { DewCard, DewButtonBar, DewButton, DewMessage, DewMessageBox, DewSkeleton } from '../ui'
 import api from '../../api'
 
 const router = useRouter()
 const activeTab = ref('published')   // 'published' | 'draft'
 const articles = ref([])
-const loading = ref(false)
+const loading = ref(true)
 const counts = ref({ published: 0, draft: 0 })
 
 const tabItems = [
@@ -105,7 +105,15 @@ onMounted(() => { loadCounts(); load() })
       </div>
     </template>
 
-    <div v-if="loading" class="ma-empty">加载中...</div>
+    <div v-if="loading" class="ma-list">
+      <div v-for="n in 4" :key="'ma-sk-' + n" class="ma-item">
+        <div class="ma-item-main" style="display: flex; flex-direction: column; gap: 8px; cursor: default;">
+          <DewSkeleton variant="text" width="45%" />
+          <DewSkeleton variant="text" :lines="2" :gap="6" />
+          <DewSkeleton variant="text" width="30%" />
+        </div>
+      </div>
+    </div>
     <div v-else-if="articles.length" class="ma-list">
       <div v-for="a in articles" :key="a.id" class="ma-item">
         <div class="ma-item-main" @click="openItem(a)">

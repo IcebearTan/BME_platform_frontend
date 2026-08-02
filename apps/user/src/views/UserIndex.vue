@@ -3,6 +3,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useStore } from 'vuex'
 import api from '../api'
+import { DewSkeleton } from '../components/ui'
 
 import UserIndexComponent from '../components/User/UserIndexComponent.vue'
 import PageFooterComponent from '../components/PageFooterComponent.vue'
@@ -25,6 +26,7 @@ const uid = ref('')
 const User_Avatar = ref(DEFAULT_AVATAR)
 // 遗留的 avatar 点击占位（原 Options 版本既有，保持不动）
 const visible = ref(false)
+const loading = ref(true)   // 首屏加载态：用户信息骨架占位
 
 // 月度统计（首页同款三项：本月天数 / 本月时长 / 月度排名）
 const stats = ref({ days: 0, hours: 0, rank: null })
@@ -83,6 +85,7 @@ const load = async () => {
       if (r?.data?.code === 200) applyStats(r.data.data)
     } catch { /* 统计非关键，忽略 */ }
   }
+  loading.value = false
 }
 
 onMounted(load)
@@ -100,7 +103,21 @@ watch(targetId, load)
       <el-main class="page-main">
         <div class="main-container">
           <!-- 用户信息（透明容器，无卡片效果） -->
-          <div class="user-info">
+          <!-- 加载中：用户信息骨架 -->
+          <div class="user-info" v-if="loading">
+            <DewSkeleton variant="rect" width="100" height="100" rounded="15px" />
+            <div class="user-details" style="display: flex; flex-direction: column; gap: 8px;">
+              <DewSkeleton variant="text" width="140px" height="20px" />
+              <DewSkeleton variant="text" width="100px" height="14px" />
+            </div>
+            <div class="user-stats">
+              <div class="stat" v-for="n in 3" :key="n">
+                <DewSkeleton variant="text" width="40px" height="20px" />
+                <DewSkeleton variant="text" width="64px" height="12px" />
+              </div>
+            </div>
+          </div>
+          <div class="user-info" v-else>
             <div class="avatar-wrapper">
               <el-avatar
                 @click="visible = !visible"

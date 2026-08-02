@@ -11,7 +11,10 @@
       </div>
 
       <!-- 选营 -->
-      <div v-if="!sessions.length && !loadingSessions" class="empty-camp">
+      <div v-if="loadingSessions" class="camp-selector">
+        <DewSkeleton variant="rect" width="280" height="34" rounded="6px" />
+      </div>
+      <div v-else-if="!sessions.length" class="empty-camp">
         <DewCard variant="inset" size="lg" :no-hover="true">
           你还没有加入任何营期。
         </DewCard>
@@ -48,7 +51,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useStore } from 'vuex';
 import { useRoute } from 'vue-router';
 import MenuComponent from '../components/MenuComponent.vue';
-import { DewButtonBar, DewCard, DewSelect } from '../components/ui';
+import { DewButtonBar, DewCard, DewSelect, DewSkeleton } from '../components/ui';
 import { campService } from '../services/campService';
 import CampSelection from '../components/Camp/CampSelection.vue';
 import CampAttendance from '../components/Camp/CampAttendance.vue';
@@ -64,7 +67,7 @@ const isDarkMode = computed(() => store.getters.isDarkMode);
 
 const sessions = ref([]);
 const sid = ref(null);
-const loadingSessions = ref(false);
+const loadingSessions = ref(true);
 
 const isMentor = computed(() => store.getters.role === 'mentor');
 const studentTabs = [

@@ -8,6 +8,7 @@ import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { useStore } from 'vuex';
 import { DewCard } from '../ui';
+import { DewSkeleton } from '../ui';
 
 const store = useStore();
 const isDarkMode = computed(() => store.getters.isDarkMode);
@@ -19,6 +20,7 @@ const props = defineProps({
 
 //获取年度出勤数据
 const yearAttendenceData = ref([]);
+const loading = ref(true)   // 首屏加载态：年度网格骨架
 
 const fetchYearAttendanceData = async () => {
   try {
@@ -37,6 +39,8 @@ const fetchYearAttendanceData = async () => {
     console.error('Error fetching year attendance data:', error);
     // 失败时使用空数据
     yearAttendenceData.value = [];
+  } finally {
+    loading.value = false;
   }
 };
 
@@ -201,7 +205,11 @@ const getDayCellStyle = (day) => {
       <template #header>
         <div class="calendar-header">
           <span class="calendar-title">出勤日历</span>
-          <div class="calendar-stats">
+          <div class="calendar-stats" v-if="loading">
+            <DewSkeleton variant="text" width="110px" height="14px" />
+            <DewSkeleton variant="text" width="110px" height="14px" />
+          </div>
+          <div class="calendar-stats" v-else>
             <span class="stat-item">累计出勤：<b>{{ currentYearDays }}</b> 天</span>
             <span class="stat-item">最高连续：<b>{{ streakDays }}</b> 天</span>
           </div>
@@ -214,17 +222,22 @@ const getDayCellStyle = (day) => {
           <span v-for="month in visibleMonths" :key="month">{{ month }}</span>
         </div>
         <div class="calendar-grid">
-          <div
-            v-for="(day, index) in yearAttendenceData"
-            :key="index"
-            class="day-cell"
-            :class="{ 'has-attendance': day.total_hours > 0 }"
-            :style="getDayCellStyle(day)"
-            :title="`${day.date}: ${day.total_hours}小时`"
-          >
-            <span v-if="day.total_hours > 0" class="day-hours">{{ day.total_hours }}h</span>
-            <div v-if="isToday(day.date)" class="today-marker"></div>
-          </div>
+          <template v-if="loading">
+            <DewSkeleton v-for="n in 350" :key="'cg-sk-' + n" variant="rect" width="12" height="12" rounded="2px" />
+          </template>
+          <template v-else>
+            <div
+              v-for="(day, index) in yearAttendenceData"
+              :key="index"
+              class="day-cell"
+              :class="{ 'has-attendance': day.total_hours > 0 }"
+              :style="getDayCellStyle(day)"
+              :title="`${day.date}: ${day.total_hours}小时`"
+            >
+              <span v-if="day.total_hours > 0" class="day-hours">{{ day.total_hours }}h</span>
+              <div v-if="isToday(day.date)" class="today-marker"></div>
+            </div>
+          </template>
         </div>
       </div>
     </DewCard>

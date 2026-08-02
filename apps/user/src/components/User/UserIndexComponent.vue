@@ -9,7 +9,7 @@ import api from '../../api'
 import CalendarComponent from './CalendarComponent.vue'
 import MedalShowcase from './MedalShowcase.vue'
 import ArticleCard from '../Community/ArticleCard.vue'
-import { DewCard, DewTag, DewButton, DewMessage, DewMessageBox } from '../ui'
+import { DewCard, DewTag, DewButton, DewMessage, DewMessageBox, DewSkeleton } from '../ui'
 
 // 可选 userId：查看他人主页时传对方 id；不传（自己的 /user 页）则取自己
 const props = defineProps({
@@ -17,6 +17,7 @@ const props = defineProps({
 })
 
 const User_Info = ref({})
+const loading = ref(true)   // 首屏加载态：简介卡 + 文章列表骨架
 const router = useRouter()
 const store = useStore()
 const isDarkMode = computed(() => store.getters.isDarkMode)
@@ -102,13 +103,17 @@ const handleDelete = async (article) => {
 }
 
 onMounted(async () => {
+  loading.value = true
   await fetchUserInfo()
   await fetchArticles()
+  loading.value = false
 })
 // 路由切换不同用户时刷新
 watch(() => props.userId, async () => {
+  loading.value = true
   await fetchUserInfo()
   await fetchArticles()
+  loading.value = false
 })
 </script>
 
@@ -116,7 +121,15 @@ watch(() => props.userId, async () => {
   <div class="profile-layout" :class="{ 'theme-dark': isDarkMode }">
     <!-- 左：个人简介 -->
     <div class="profile-left">
-      <DewCard size="lg" divided class="profile-card">
+      <!-- 加载中：简介卡骨架 -->
+      <DewCard v-if="loading" size="lg" divided class="profile-card">
+        <template #header><span class="profile-title">个人简介</span></template>
+        <DewSkeleton variant="text" :lines="3" :gap="10" style="margin-bottom: 14px;" />
+        <div style="display: flex; flex-direction: column; gap: 14px;">
+          <DewSkeleton v-for="n in 5" :key="n" variant="text" width="70%" />
+        </div>
+      </DewCard>
+      <DewCard v-else size="lg" divided class="profile-card">
         <template #header><span class="profile-title">个人简介</span></template>
         <div class="profile-intro">{{ User_Info.Introduction || '暂无简介' }}</div>
         <div class="profile-info">
@@ -156,20 +169,33 @@ watch(() => props.userId, async () => {
     <!-- 发布的文章（跨整行；复用社区 ArticleCard） -->
     <section class="profile-articles">
       <h3 class="block-title">发布的文章</h3>
-      <ArticleCard
-        v-for="a in articles"
-        :key="a.id"
-        :article="a"
-        @open="goArticle"
-      >
-        <template v-if="isSelf" #actions>
-          <DewButton size="sm" type="ghost" @click="goEdit(a)">编辑</DewButton>
-          <DewButton size="sm" type="danger" @click="handleDelete(a)">删除</DewButton>
-        </template>
-      </ArticleCard>
-      <div v-if="!articles.length" class="articles-empty">
-        {{ userId ? 'TA还没有发布文章' : '你还没有发布文章' }}
-      </div>
+      <!-- 加载中：文章卡骨架 -->
+      <template v-if="loading">
+        <DewCard v-for="n in 3" :key="'pa-sk-' + n" variant="flat" size="lg" style="margin-bottom: 16px;">
+          <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 10px;">
+            <DewSkeleton variant="circle" :size="24" />
+            <DewSkeleton variant="text" width="30%" />
+          </div>
+          <DewSkeleton variant="text" width="60%" height="18px" style="margin-bottom: 8px;" />
+          <DewSkeleton variant="text" :lines="2" />
+        </DewCard>
+      </template>
+      <template v-else>
+        <ArticleCard
+          v-for="a in articles"
+          :key="a.id"
+          :article="a"
+          @open="goArticle"
+        >
+          <template v-if="isSelf" #actions>
+            <DewButton size="sm" type="ghost" @click="goEdit(a)">编辑</DewButton>
+            <DewButton size="sm" type="danger" @click="handleDelete(a)">删除</DewButton>
+          </template>
+        </ArticleCard>
+        <div v-if="!articles.length" class="articles-empty">
+          {{ userId ? 'TA还没有发布文章' : '你还没有发布文章' }}
+        </div>
+      </template>
     </section>
   </div>
 </template>

@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue';
 import { ElMessage } from 'element-plus'
 import { Check, Medal } from '@element-plus/icons-vue'
 import api from '../../api';
-import { DewCard, DewButton, DewButtonBar } from '../ui'
+import { DewCard, DewButton, DewButtonBar, DewSkeleton } from '../ui'
 import { useStore } from 'vuex'
 
 const store = useStore()
@@ -43,6 +43,7 @@ const filteredMedals = computed(() => {
 });
 
 const medals = ref([])
+const loading = ref(true)
 
 const fetchMedals = async () => {
   try {
@@ -54,6 +55,8 @@ const fetchMedals = async () => {
     console.log(medals.value);
   } catch (error) {
     console.error('Error fetching medals:', error);
+  } finally {
+    loading.value = false;
   }
 }
 
@@ -102,8 +105,27 @@ const wearMedal = async (medal) => {
       <DewButtonBar :items="categories" v-model="currentCategory" />
     </div>
 
+    <!-- 加载中：勋章网格骨架（复用 .medals-grid 布局） -->
+    <div class="medals-grid" v-if="loading">
+      <DewCard
+        v-for="n in 8"
+        :key="'mw-sk-' + n"
+        size="md"
+        variant="inset"
+        class="medal-card"
+      >
+        <div class="medal-image-wrapper">
+          <DewSkeleton variant="circle" :size="100" />
+        </div>
+        <div class="medal-details">
+          <DewSkeleton variant="text" width="60%" style="margin: 0 auto 8px;" />
+          <DewSkeleton variant="text" width="40%" height="12px" style="margin: 0 auto;" />
+        </div>
+      </DewCard>
+    </div>
+
     <!-- 勋章网格 -->
-    <div class="medals-grid" v-if="filteredMedals.length > 0">
+    <div class="medals-grid" v-else-if="filteredMedals.length > 0">
       <DewCard
         v-for="medal in filteredMedals"
         :key="medal.Medal_Id"

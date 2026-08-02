@@ -8,7 +8,15 @@
       </div>
     </template>
 
-    <div class="mini-cal-months" v-if="months.length">
+    <div class="mini-cal-months" v-if="loading">
+      <div class="month-block" v-for="m in 2" :key="'mc-sk-' + m">
+        <DewSkeleton variant="text" width="40px" height="12px" style="margin-bottom: 6px;" />
+        <div class="month-grid">
+          <DewSkeleton v-for="n in 35" :key="n" variant="rect" width="12" height="12" rounded="2px" />
+        </div>
+      </div>
+    </div>
+    <div class="mini-cal-months" v-else-if="months.length">
       <div class="month-block" v-for="m in months" :key="m.key">
         <div class="month-label">{{ m.label }}</div>
         <div class="month-grid">
@@ -35,6 +43,7 @@ import { useRouter } from 'vue-router'
 import { useStore } from 'vuex'
 import api from '../../api'
 import DewCard from '../ui/DewCard.vue'
+import DewSkeleton from '../ui/DewSkeleton.vue'
 
 const router = useRouter()
 const store = useStore()
@@ -43,6 +52,7 @@ const isDarkMode = computed(() => store.getters.isDarkMode)
 // /records 返回 { previous_month: {month_name, records:[...]}, current_month: {...} }
 const previousMonth = ref(null) // { key, label, records }
 const currentMonth = ref(null)
+const loading = ref(true)   // 首屏加载态：双月骨架
 
 const months = computed(() => {
   const arr = []
@@ -65,6 +75,8 @@ const fetchData = async () => {
     }
   } catch (e) {
     console.error('MiniCalendar fetch error:', e)
+  } finally {
+    loading.value = false
   }
 }
 

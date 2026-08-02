@@ -85,21 +85,50 @@
 
             <!-- 信息流（讨论帖 + 文章帖混合） -->
             <div class="feed-list">
-              <template v-for="item in feedItems" :key="item.type + '-' + item.id + (item.article_version ? '-v' + item.article_version : '')">
-                <!-- 文章帖：flat 阅读卡，整卡点击进文章详情 -->
-                <ArticleCard
-                  v-if="item.type === 'article'"
-                  :article="item"
-                  @open="goArticle"
-                  @user-click="goProfile"
-                />
-                <!-- 讨论帖：玻璃对话卡，内联互动 -->
-                <DiscussionCard
-                  v-else
-                  :discussion="item"
-                  @delete="handleDeleteThread"
-                  @user-click="goProfile"
-                />
+              <!-- 加载中：帖子卡骨架占位（首屏 feedItems 为空时） -->
+              <template v-if="loading && feedItems.length === 0">
+                <DewCard
+                  v-for="n in 4"
+                  :key="'feed-skeleton-' + n"
+                  variant="flat"
+                  size="lg"
+                  style="margin-bottom: 16px;"
+                >
+                  <div style="display: flex; gap: 12px; align-items: flex-start;">
+                    <DewSkeleton variant="circle" :size="40" />
+                    <div style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
+                      <DewSkeleton variant="text" width="35%" />
+                      <DewSkeleton variant="text" :lines="2" />
+                    </div>
+                  </div>
+                </DewCard>
+              </template>
+
+              <!-- 空状态 -->
+              <DewCard v-else-if="feedItems.length === 0" variant="flat" size="lg">
+                <div style="text-align: center; padding: 48px 0; color: var(--dew-text-faint); font-size: 14px;">
+                  还没有内容，发个帖或写篇文章吧
+                </div>
+              </DewCard>
+
+              <!-- 真实信息流 -->
+              <template v-else>
+                <template v-for="item in feedItems" :key="item.type + '-' + item.id + (item.article_version ? '-v' + item.article_version : '')">
+                  <!-- 文章帖：flat 阅读卡，整卡点击进文章详情 -->
+                  <ArticleCard
+                    v-if="item.type === 'article'"
+                    :article="item"
+                    @open="goArticle"
+                    @user-click="goProfile"
+                  />
+                  <!-- 讨论帖：玻璃对话卡，内联互动 -->
+                  <DiscussionCard
+                    v-else
+                    :discussion="item"
+                    @delete="handleDeleteThread"
+                    @user-click="goProfile"
+                  />
+                </template>
               </template>
 
               <!-- 加载更多 -->
@@ -289,7 +318,7 @@ import MenuComponent from '../components/MenuComponent.vue'
 import MobileMenuComponent from '../components/MobileMenuComponent.vue'
 import DiscussionCard from '../components/Community/DiscussionCard.vue'
 import ArticleCard from '../components/Community/ArticleCard.vue'
-import { DewButtonBar, DewCard, DewInput, DewButton } from '../components/ui'
+import { DewButtonBar, DewCard, DewInput, DewButton, DewSkeleton } from '../components/ui'
 import api from '../api'
 import {
   Grid, Collection, ChatDotRound, User, TrendCharts, ArrowRight
@@ -512,7 +541,7 @@ const topics = ref([
 const feedItems = ref([])
 
 // 加载状态
-const loading = ref(false)
+const loading = ref(true)
 const hasMore = ref(true)
 
 // （原 base64 头像 fetchAvatar 已移除：改用后端相对路径 author_avatar，见 enrichDiscussion）

@@ -13,7 +13,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useStore } from 'vuex'
 import { ElMessage } from 'element-plus'
 import { Share, Star, StarFilled, ChatDotRound, Collection, View } from '@element-plus/icons-vue'
-import { DewCard } from '../../ui'
+import { DewCard, DewSkeleton } from '../../ui'
 import { MdPreview, MdCatalog } from 'md-editor-v3'
 import 'md-editor-v3/lib/preview.css'
 import './md-setup' // 自托管 highlight.js（与编辑器共享）
@@ -27,6 +27,7 @@ const route = useRoute()
 const router = useRouter()
 const store = useStore()
 const articleId = ref(route.query.id)
+const loading = ref(true)   // 首屏加载态：文章头部 + 正文骨架占位
 
 const isDarkMode = computed(() => store.getters.isDarkMode)
 const editorTheme = computed(() => (isDarkMode.value ? 'dark' : 'light'))
@@ -65,6 +66,8 @@ const getArticle = async () => {
   } catch (e) {
     console.error('获取文章失败', e)
     ElMessage.error('文章加载失败')
+  } finally {
+    loading.value = false
   }
 }
 
@@ -117,25 +120,41 @@ onMounted(async () => {
         <DewCard variant="flat" size="lg" class="article-main">
           <!-- 头部 -->
           <header class="article-header">
-            <h1 class="article-title">{{ articleTitle }}</h1>
-            <div class="article-meta">
-              <div class="author-info" :class="{ clickable: authorId != null }" @click="goAuthor">
-                <el-avatar :size="40" :src="authorAvatar">{{ (articleAuthor || '?').charAt(0) }}</el-avatar>
-                <div class="author-details">
-                  <span class="author-name">{{ articleAuthor }}</span>
-                  <time class="publish-time">{{ formatTime(articleTime) }}</time>
+            <template v-if="loading">
+              <DewSkeleton variant="text" width="60%" height="30px" style="margin-bottom: 20px;" />
+              <div class="article-meta">
+                <div class="author-info">
+                  <DewSkeleton variant="circle" :size="40" />
+                  <div class="author-details" style="display: flex; flex-direction: column; gap: 6px;">
+                    <DewSkeleton variant="text" width="100px" />
+                    <DewSkeleton variant="text" width="80px" height="12px" />
+                  </div>
                 </div>
               </div>
-              <div class="meta-stats">
-                <span class="stat"><el-icon><View /></el-icon>{{ viewCount }}</span>
-                <span class="stat"><el-icon><Star /></el-icon>{{ likeCount }}</span>
+            </template>
+            <template v-else>
+              <h1 class="article-title">{{ articleTitle }}</h1>
+              <div class="article-meta">
+                <div class="author-info" :class="{ clickable: authorId != null }" @click="goAuthor">
+                  <el-avatar :size="40" :src="authorAvatar">{{ (articleAuthor || '?').charAt(0) }}</el-avatar>
+                  <div class="author-details">
+                    <span class="author-name">{{ articleAuthor }}</span>
+                    <time class="publish-time">{{ formatTime(articleTime) }}</time>
+                  </div>
+                </div>
+                <div class="meta-stats">
+                  <span class="stat"><el-icon><View /></el-icon>{{ viewCount }}</span>
+                  <span class="stat"><el-icon><Star /></el-icon>{{ likeCount }}</span>
+                </div>
               </div>
-            </div>
+            </template>
           </header>
 
           <!-- 正文（Markdown 渲染） -->
           <div class="article-content">
+            <DewSkeleton v-if="loading" variant="text" :lines="8" :gap="14" />
             <MdPreview
+              v-else
               :model-value="contentMd"
               :id="PREVIEW_ID"
               :theme="editorTheme"

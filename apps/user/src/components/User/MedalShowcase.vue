@@ -3,12 +3,20 @@
     <template #header>
       <div class="medal-header">
         <span class="medal-title">勋章成就</span>
-        <span v-if="isSelf" class="medal-count" @click="goToMedalWall">{{ medalCount }} 枚 →</span>
+        <span v-if="loading" class="medal-count is-static"><DewSkeleton variant="text" width="56px" height="13px" /></span>
+        <span v-else-if="isSelf" class="medal-count" @click="goToMedalWall">{{ medalCount }} 枚 →</span>
         <span v-else class="medal-count is-static">{{ medalCount }} 枚</span>
       </div>
     </template>
 
-    <div class="medal-list" v-if="medalList.length > 0">
+    <!-- 加载中：勋章骨架（复用 .medal-list 布局） -->
+    <div class="medal-list" v-if="loading">
+      <div v-for="n in 5" :key="'ms-sk-' + n" class="medal-item" style="cursor: default;">
+        <DewSkeleton variant="circle" :size="80" />
+        <DewSkeleton variant="text" width="80px" height="13px" style="margin-top: 10px;" />
+      </div>
+    </div>
+    <div class="medal-list" v-else-if="medalList.length > 0">
       <div
         v-for="medal in medalList"
         :key="medal.Medal_Id"
@@ -34,7 +42,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useStore } from 'vuex'
 import api from '../../api'
-import { DewCard } from '../ui'
+import { DewCard, DewSkeleton } from '../ui'
 
 const router = useRouter()
 const store = useStore()
@@ -49,6 +57,8 @@ const props = defineProps({
 const isSelf = computed(() => !props.userId || Number(props.userId) === store.state.user?.User_Id)
 
 const medalList = ref([])
+
+const loading = ref(true)   // 首屏加载态：勋章骨架占位
 
 const medalCount = computed(() => medalList.value.length)
 
@@ -72,6 +82,8 @@ const fetchMedals = async () => {
     }
   } catch (error) {
     console.error('获取勋章失败:', error)
+  } finally {
+    loading.value = false
   }
 }
 

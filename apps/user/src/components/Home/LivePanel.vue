@@ -7,7 +7,14 @@
         <p class="greeting-date">{{ todayDate }}</p>
       </div>
 
-      <DewIslandGroup :items="islandItems" class="live-panel__islands">
+      <!-- 加载中：岛组骨架（主岛胶囊 + 卫星圆） -->
+      <div class="live-panel__islands" v-if="loading" style="display: flex; align-items: center; gap: 12px;">
+        <DewSkeleton variant="rect" width="160" height="44" rounded="999px" />
+        <DewSkeleton variant="circle" :size="48" />
+        <DewSkeleton variant="circle" :size="48" />
+        <DewSkeleton variant="circle" :size="48" />
+      </div>
+      <DewIslandGroup v-else :items="islandItems" class="live-panel__islands">
         <template #main-trigger>
           <DewButton
             v-if="checkinInfo.checkedIn && !checkinInfo.checkedOut"
@@ -61,6 +68,7 @@ import { useStore } from 'vuex'
 import api from '../../api'
 import DewButton from '../ui/DewButton.vue'
 import DewIslandGroup from '../ui/DewIslandGroup.vue'
+import DewSkeleton from '../ui/DewSkeleton.vue'
 
 const store = useStore()
 
@@ -281,6 +289,7 @@ function parseDurationString(str) {
 }
 
 // ── 生命周期 ──
+const loading = ref(true)   // 首屏加载态：岛组骨架
 onMounted(async () => {
   timeTimer = setInterval(() => { nowTime.value = new Date() }, 1000)
 
@@ -290,6 +299,7 @@ onMounted(async () => {
     await fetchMonthlyStats()
     await calculateTodayTotalDuration()
   }
+  loading.value = false
 })
 
 onUnmounted(() => {

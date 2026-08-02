@@ -7,7 +7,16 @@
       </div>
     </template>
 
-    <div class="rank-list" v-if="userRanks.length > 0">
+    <!-- 加载中：榜单骨架 -->
+    <div class="rank-list" v-if="loading">
+      <div v-for="n in 5" :key="'rk-sk-' + n" class="rank-row">
+        <DewSkeleton variant="circle" :size="28" />
+        <DewSkeleton variant="circle" :size="38" />
+        <DewSkeleton variant="text" width="40%" />
+        <DewSkeleton variant="text" width="40px" height="16px" />
+      </div>
+    </div>
+    <div class="rank-list" v-else-if="userRanks.length > 0">
       <div
         v-for="(user, index) in userRanks"
         :key="index"
@@ -31,6 +40,7 @@ import { reactive, ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '../../api';
 import DewCard from '../ui/DewCard.vue';
+import DewSkeleton from '../ui/DewSkeleton.vue';
 
 // 前三名奖牌样式：金 / 银 / 铜
 function medalClass(index) {
@@ -47,6 +57,7 @@ const router = useRouter()
 // 无真实数据时显示空状态（不再用 mock 占位，避免假 id 误导）
 const userRanks = ref([])
 const isRealData = ref(false)
+const loading = ref(true)   // 首屏加载态：榜单骨架
 
 // 点击排行榜用户 → 进入其个人主页
 const openProfile = (id) => {
@@ -67,6 +78,8 @@ const fetchUsersRank = async () => {
         // 后端无数据则保留空状态
     } catch (error) {
         console.log(error)
+    } finally {
+        loading.value = false
     }
 }
 

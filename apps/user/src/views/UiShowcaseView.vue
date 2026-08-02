@@ -652,6 +652,34 @@
         </div>
       </section>
 
+      <!-- ━━━━ Skeleton ━━━━ -->
+      <section v-if="activeTab === 'skeleton'" style="margin-bottom: 36px;">
+        <h2 class="dew-showcase__heading" style="font-size: 15px; font-weight: 600; margin: 0 0 14px;">DewSkeleton 骨架占位</h2>
+        <div style="font-size: 12px; color: var(--dew-text-faint); margin-bottom: 8px;">文本行 · 单行 / 多行 / 自定义宽高</div>
+        <DewCard variant="flat" size="lg" style="max-width: 520px; margin-bottom: 16px;">
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <DewSkeleton variant="text" width="40%" />
+            <DewSkeleton variant="text" :lines="3" />
+          </div>
+        </DewCard>
+        <div style="font-size: 12px; color: var(--dew-text-faint); margin-bottom: 8px;">矩形块 / 圆形头像</div>
+        <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
+          <DewSkeleton variant="rect" width="160px" height="90px" />
+          <DewSkeleton variant="circle" :size="48" />
+        </div>
+        <div style="font-size: 12px; color: var(--dew-text-faint); margin-bottom: 8px;">组合 · 帖子卡加载态（DewCard + DewSkeleton）</div>
+        <DewCard variant="flat" size="lg" style="max-width: 520px;">
+          <div style="display: flex; gap: 12px; align-items: flex-start;">
+            <DewSkeleton variant="circle" :size="40" />
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
+              <DewSkeleton variant="text" width="35%" />
+              <DewSkeleton variant="text" :lines="2" />
+            </div>
+          </div>
+        </DewCard>
+        <div style="font-size: 12px; color: var(--dew-text-faint); margin-top: 18px;">灰条走 --dew-skeleton-bg，亮/暗自适应；呼吸动画 opacity 0.5↔1（1.4s）。右上角切主题看暗色效果。</div>
+      </section>
+
       <!-- ━━━━ Sidebar ━━━━ -->
       <section v-if="activeTab === 'sidebar'" style="margin-bottom: 36px;">
         <h2 class="dew-showcase__heading" style="font-size: 15px; font-weight: 600; margin: 0 0 6px;">DewSidebar 侧边导航</h2>
@@ -776,6 +804,7 @@ import MenuComponent from '../components/MenuComponent.vue'
 import DewButton from '../components/ui/DewButton.vue'
 import DewButtonBar from '../components/ui/DewButtonBar.vue'
 import DewCard from '../components/ui/DewCard.vue'
+import DewSkeleton from '../components/ui/DewSkeleton.vue'
 import DewBadge from '../components/ui/DewBadge.vue'
 import DewTag from '../components/ui/DewTag.vue'
 import DewInput from '../components/ui/DewInput.vue'
@@ -811,6 +840,7 @@ const navGroups = [
       { value: 'badge', label: 'Badge' },
       { value: 'tag', label: 'Tag' },
       { value: 'progress', label: 'Progress' },
+      { value: 'skeleton', label: 'Skeleton' },
     ],
   },
   {

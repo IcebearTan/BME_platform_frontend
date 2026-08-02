@@ -20,9 +20,24 @@
 
     <!-- 通知列表 -->
     <DewCard style="margin-top: 12px;" size="lg" :no-hover="true">
-      <!-- 加载中 -->
-      <div v-if="loading" class="empty-state">
-        <span style="font-size: 14px;">加载中...</span>
+      <!-- 加载中：通知卡骨架 -->
+      <div v-if="loading" style="display: flex; flex-direction: column; gap: 6px;">
+        <DewCard
+          v-for="n in 4"
+          :key="'nt-sk-' + n"
+          variant="inset"
+          size="sm"
+          :no-hover="true"
+        >
+          <div style="display: flex; align-items: flex-start; gap: 12px;">
+            <DewSkeleton variant="rect" width="36" height="36" rounded="10px" />
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
+              <DewSkeleton variant="text" width="50%" />
+              <DewSkeleton variant="text" width="85%" />
+              <DewSkeleton variant="text" width="25%" />
+            </div>
+          </div>
+        </DewCard>
       </div>
 
       <!-- 空状态 -->
@@ -106,7 +121,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Bell } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { DewButton, DewButtonBar, DewCard, DewTag, DewDialog } from '../ui'
+import { DewButton, DewButtonBar, DewCard, DewTag, DewDialog, DewSkeleton } from '../ui'
 import { useNotifications, formatRelativeTime } from '../../composables/useNotifications'
 
 const router = useRouter()

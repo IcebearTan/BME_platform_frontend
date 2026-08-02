@@ -4,7 +4,7 @@ import { notificationService } from '../services/notificationService'
 
 // ── 模块级单例状态（所有 useNotifications() 实例共享同一份数据） ──
 const notificationList = ref([])
-const loading = ref(false)
+const loading = ref(true)
 let pollingTimer = null
 
 // ── 公共工具 ──
