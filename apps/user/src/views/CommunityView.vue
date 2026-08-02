@@ -114,7 +114,7 @@
           <!-- 右侧栏 - 写文章入口 + 发布帖子 -->
           <aside class="right-sidebar">
             <!-- 写文章入口（长文创作，与发帖框同列） -->
-            <DewCard size="lg" interactive class="write-entry" @click="router.push('/article-editor')">
+            <DewCard size="lg" interactive class="write-entry" @click="router.push('/article-editor-v2')">
               <div class="write-entry__inner">
                 <div class="write-entry__icon">
                   <el-icon><EditPen /></el-icon>
