@@ -1,9 +1,10 @@
 <template>
-  <DewCard size="lg" divided class="medal-showcase">
+  <DewCard size="lg" divided class="medal-showcase" :class="{ 'is-readonly': !isSelf }">
     <template #header>
       <div class="medal-header">
         <span class="medal-title">勋章成就</span>
-        <span class="medal-count" @click="goToMedalWall">{{ medalCount }} 枚 →</span>
+        <span v-if="isSelf" class="medal-count" @click="goToMedalWall">{{ medalCount }} 枚 →</span>
+        <span v-else class="medal-count is-static">{{ medalCount }} 枚</span>
       </div>
     </template>
 
@@ -19,8 +20,11 @@
         <span class="medal-name">{{ medal.Medal_Name_CN }}</span>
       </div>
     </div>
-    <div class="medal-empty" v-else @click="goToMedalWall">
+    <div v-else-if="isSelf" class="medal-empty" @click="goToMedalWall">
       <span>查看全部勋章 →</span>
+    </div>
+    <div v-else class="medal-empty is-static">
+      <span>TA还没有获得勋章</span>
     </div>
   </DewCard>
 </template>
@@ -28,15 +32,21 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useStore } from 'vuex'
 import api from '../../api'
 import { DewCard } from '../ui'
 
 const router = useRouter()
+const store = useStore()
 
 // 可选 userId：查看他人主页时取对方勋章；不传则自己
 const props = defineProps({
   userId: { type: [Number, String], default: null }
 })
+
+// 是否为自己：无 userId（自己的 /user 页）或传入的即登录用户。
+// 勋章墙页（MedalWallComponent）只支持查看自己的勋章，看他人主页时不可点进去
+const isSelf = computed(() => !props.userId || Number(props.userId) === store.state.user?.User_Id)
 
 const medalList = ref([])
 
@@ -47,7 +57,9 @@ const getMedalImage = (medalName) => {
   return '/medals/Default.png'
 }
 
+// 仅自己主页可进勋章墙；他人主页为纯展示
 const goToMedalWall = () => {
+  if (!isSelf.value) return
   router.push('/medal')
 }
 
@@ -157,6 +169,30 @@ watch(() => props.userId, fetchMedals)
 
 .medal-empty:hover {
   color: var(--dew-text-muted);
+}
+
+/* 查看他人主页：勋章区为纯展示，禁用点击态与悬停反馈 */
+.is-readonly .medal-count,
+.is-readonly .medal-item,
+.is-readonly .medal-empty {
+  cursor: default;
+}
+
+/* 非交互的计数用中性色，不占用强调色 */
+.is-readonly .medal-count.is-static {
+  color: var(--dew-text-muted);
+}
+
+.is-readonly .medal-count:hover,
+.is-readonly .medal-empty:hover {
+  opacity: 1;
+  color: var(--dew-text-faint);
+}
+
+.is-readonly .medal-item:hover {
+  transform: none;
+  background: var(--dew-card-inset-bg);
+  border-color: var(--dew-card-inset-border);
 }
 
 @media (max-width: 768px) {
