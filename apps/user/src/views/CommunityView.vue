@@ -367,14 +367,17 @@ const enrichDiscussion = async (item) => {
         liked: reply.liked || false,
         children: reply.children || []
       }))
+      // 并行拉取所有回复（及子回复）头像，避免逐条串行 await
+      const avatarTasks = []
       for (const reply of replies) {
-        reply.author_avatar = await fetchAvatar(reply.authorId)
+        avatarTasks.push(fetchAvatar(reply.authorId).then(av => { reply.author_avatar = av }))
         if (reply.children && reply.children.length > 0) {
           for (const child of reply.children) {
-            child.author_avatar = await fetchAvatar(child.author_id)
+            avatarTasks.push(fetchAvatar(child.author_id).then(av => { child.author_avatar = av }))
           }
         }
       }
+      await Promise.all(avatarTasks)
       item.replies = replies
     }
   } catch (err) {
@@ -448,10 +451,8 @@ const fetchThreads = async (reset = false) => {
       }
     })
 
-    // 仅对新拉到的讨论帖补全（避免追加模式下重复补全 → O(n²)）
-    for (const item of items) {
-      await enrichDiscussion(item)
-    }
+    // 仅对新拉到的讨论帖补全（避免追加模式下重复补全 → O(n²)）；并行加速
+    await Promise.all(items.map(item => enrichDiscussion(item)))
 
     feedItems.value = reset ? items : feedItems.value.concat(items)
   } catch (error) {

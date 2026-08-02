@@ -24,7 +24,7 @@
     <!-- 底部：作者 / 评论数 / 阅读全文 -->
     <div class="ac-foot">
       <div class="ac-author" @click.stop="onAuthorClick">
-        <el-avatar :size="24" :src="article.author_avatar" />
+        <el-avatar :size="24" :src="article.author_avatar">{{ (article.author_name || '?').charAt(0) }}</el-avatar>
         <span class="ac-name">{{ article.author_name }}</span>
       </div>
       <!-- 个人主页作者本人传入的编辑/删除操作（社区复用不传则不渲染） -->
