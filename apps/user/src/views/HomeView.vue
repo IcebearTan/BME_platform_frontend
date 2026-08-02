@@ -9,7 +9,6 @@ import FeedbackBubble from "../components/Home/FeedbackBubble.vue";
 import LivePanel from "../components/Home/LivePanel.vue";
 import AttenceRankComponent from "../components/Attendence/AttenceRankComponent.vue";
 import MiniCalendar from "../components/Attendence/MiniCalendar.vue";
-import UpdateAnnouncement from "../components/Home/UpdateAnnouncement.vue";
 import StudyHub from "../components/Home/StudyHub.vue";
 
 import MobileMenuComponent from "../components/MobileMenuComponent.vue";//添加这个竖屏版本的菜单
@@ -86,8 +85,6 @@ const handleEntryClick = (entry) => {
       <el-main class="homeMainContainer">
         <!-- 如果当前路由是学习页面，显示自定义布局 -->
         <div v-if="$route.path === '/home'">
-          <!-- 顶部通知公告 -->
-          <UpdateAnnouncement />
           
           <!-- 顶部LivePanel -->
           <div class="top-panel-section">

@@ -5,7 +5,8 @@ import { useRouter } from 'vue-router';
 import MenuComponent from "../components/MenuComponent.vue";
 import PageFooterComponent from "../components/PageFooterComponent.vue";
 import MobileMenuComponent from "../components/MobileMenuComponent.vue";
-import { Menu as Expand, Printer, Calendar, Monitor, ArrowRight, Service, MagicStick } from '@element-plus/icons-vue';
+import { DewCard, DewTag } from '../components/ui';
+import { Menu as Expand, Printer, Monitor, MagicStick, ArrowRight } from '@element-plus/icons-vue';
 
 const store = useStore();
 const router = useRouter();
@@ -43,6 +44,16 @@ const open3DFarm = () => {
   window.open('/3dfarm/', '_blank');
 };
 
+// 服务入口数据（图标底色用 inline color+'1a'，对齐 StudyHub 范式）
+const deviceServices = [
+  { title: '实验室设备', desc: '各类实验器材与设备预约', icon: Monitor, color: '#909399', status: '建设中' },
+];
+
+const selfServices = [
+  { title: '3D打印农场', desc: '在线预约，一站式 3D 打印服务', icon: Printer, color: '#06b6d4', action: open3DFarm },
+  { title: 'AI 大模型服务', desc: '创建 API Key、查看用量与申请额度', icon: MagicStick, color: '#409EFF', action: handleAIServiceClick },
+];
+
 </script>
 
 <template>
@@ -61,87 +72,82 @@ const open3DFarm = () => {
           </el-icon>
         </div>
       </el-header>
-      
+
       <MobileMenuComponent v-if="isMobile && isMobileMenuOpen" @close="toggleMobileMenu" />
 
       <el-main class="main-content">
         <div class="content-wrapper">
           <!-- Page Header -->
           <div class="page-header">
-            <h1 class="main-title">服务大厅</h1>
+            <div class="page-title-row">
+              <span class="title-accent"></span>
+              <h1 class="page-title">服务大厅</h1>
+            </div>
             <p class="sub-title">便捷的校园服务一站式平台</p>
           </div>
-          
+
           <div class="service-grid">
-            <!-- Section: Device Reservation -->
-            <div class="service-section">
-              <div class="section-header">
-                <div class="section-icon-wrapper blue">
-                  <el-icon><Calendar /></el-icon>
-                </div>
+            <!-- Section: 设备预约 -->
+            <section class="service-section">
+              <div class="section-title-row">
+                <span class="title-accent sm"></span>
                 <h2 class="section-title">设备预约</h2>
-                <el-tag type="info" effect="plain" round size="small" class="status-tag">暂未开放</el-tag>
+                <DewTag type="info" size="sm" round>暂未开放</DewTag>
               </div>
-              
+
               <div class="cards-container">
-                <div class="service-card disabled">
-                  <div class="card-content">
-                    <div class="icon-box gray">
-                      <el-icon><Monitor /></el-icon>
+                <DewCard
+                  v-for="(s, i) in deviceServices"
+                  :key="i"
+                  size="md"
+                  :no-hover="true"
+                  class="entry-card entry-card--disabled"
+                >
+                  <div class="card-row">
+                    <div class="icon-box" :style="{ background: s.color + '1a', color: s.color }">
+                      <el-icon><component :is="s.icon" /></el-icon>
                     </div>
                     <div class="text-content">
-                      <h3>实验室设备</h3>
-                      <p>各类实验器材与设备预约</p>
+                      <h3>{{ s.title }}</h3>
+                      <p>{{ s.desc }}</p>
                     </div>
+                    <DewTag type="neutral" size="sm" round>{{ s.status }}</DewTag>
                   </div>
-                  <div class="card-footer">
-                    <span>建设中...</span>
-                  </div>
-                </div>
+                </DewCard>
               </div>
-            </div>
+            </section>
 
-            <!-- Section: Self Service -->
-            <div class="service-section">
-              <div class="section-header">
-                <div class="section-icon-wrapper green">
-                  <el-icon><Service /></el-icon>
-                </div>
+            <!-- Section: 自助服务 -->
+            <section class="service-section">
+              <div class="section-title-row">
+                <span class="title-accent sm"></span>
                 <h2 class="section-title">自助服务</h2>
               </div>
-              
-              <div class="cards-container">
-                <div class="service-card hover-effect" @click="open3DFarm">
-                  <div class="card-content">
-                    <div class="icon-box cyan">
-                      <el-icon><Printer /></el-icon>
-                    </div>
-                    <div class="text-content">
-                      <h3>3D打印农场</h3>
-                      <p>在线预约，一站式 3D 打印服务</p>
-                    </div>
-                  </div>
-                  <div class="card-action">
-                    <el-icon><ArrowRight /></el-icon>
-                  </div>
-                </div>
 
-                <div class="service-card hover-effect" @click="handleAIServiceClick">
-                  <div class="card-content">
-                    <div class="icon-box primary">
-                      <el-icon><MagicStick /></el-icon>
+              <div class="cards-container">
+                <DewCard
+                  v-for="(s, i) in selfServices"
+                  :key="i"
+                  size="md"
+                  interactive
+                  class="entry-card"
+                  @click="s.action && s.action()"
+                >
+                  <div class="card-row">
+                    <div class="icon-box" :style="{ background: s.color + '1a', color: s.color }">
+                      <el-icon><component :is="s.icon" /></el-icon>
                     </div>
                     <div class="text-content">
-                      <h3>AI 大模型服务</h3>
-                      <p>创建 API Key、查看用量与申请额度</p>
+                      <h3>{{ s.title }}</h3>
+                      <p>{{ s.desc }}</p>
+                    </div>
+                    <div class="card-action">
+                      <el-icon><ArrowRight /></el-icon>
                     </div>
                   </div>
-                  <div class="card-action">
-                    <el-icon><ArrowRight /></el-icon>
-                  </div>
-                </div>
+                </DewCard>
               </div>
-            </div>
+            </section>
           </div>
         </div>
       </el-main>
@@ -154,11 +160,34 @@ const open3DFarm = () => {
 </template>
 
 <style scoped>
+/* 根容器：极光背景（对齐 NotificationView/HomeView 规范），玻璃 DewCard 靠它折射出彩 */
 .service-hall-container {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  background-attachment: fixed;
+  transition: background 0.4s ease, color 0.3s ease;
+}
+
+.theme-light.service-hall-container {
+  background:
+    radial-gradient(ellipse 60% 50% at 12% 18%, rgba(96, 165, 250, 0.26), transparent 60%),
+    radial-gradient(ellipse 55% 60% at 88% 12%, rgba(244, 114, 182, 0.24), transparent 55%),
+    radial-gradient(ellipse 70% 55% at 82% 88%, rgba(52, 211, 153, 0.22), transparent 60%),
+    radial-gradient(ellipse 55% 60% at 8% 92%, rgba(251, 191, 36, 0.20), transparent 55%),
+    radial-gradient(ellipse 50% 50% at 50% 50%, rgba(34, 211, 238, 0.10), transparent 70%),
+    linear-gradient(135deg, #f0f4ff 0%, #fdf2f8 50%, #f0fdf4 100%);
+  color: #303133;
+}
+
+.theme-dark.service-hall-container {
+  background:
+    radial-gradient(ellipse 60% 50% at 12% 18%, rgba(59, 130, 246, 0.18), transparent 60%),
+    radial-gradient(ellipse 55% 60% at 88% 12%, rgba(236, 72, 153, 0.15), transparent 55%),
+    radial-gradient(ellipse 70% 55% at 82% 88%, rgba(16, 185, 129, 0.14), transparent 60%),
+    radial-gradient(ellipse 55% 60% at 8% 92%, rgba(245, 158, 11, 0.12), transparent 55%),
+    linear-gradient(160deg, #16161a 0%, #0f0f12 100%);
+  color: #E5EAF3;
 }
 
 .header-container {
@@ -173,7 +202,7 @@ const open3DFarm = () => {
 
 .main-content {
   flex: 1;
-  padding: 100px 20px 40px; /* Increased top padding for fixed header */
+  padding: 100px 20px 40px; /* top padding for fixed header */
   display: flex;
   justify-content: center;
   overflow-x: hidden;
@@ -221,17 +250,36 @@ const open3DFarm = () => {
   text-align: left;
 }
 
-.main-title {
-  font-size: 32px;
+.page-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.title-accent {
+  display: inline-block;
+  width: 4px;
+  height: 26px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #3b82f6, #8b5cf6);
+}
+
+.title-accent.sm {
+  height: 18px;
+}
+
+.page-title {
+  font-size: 28px;
   font-weight: 700;
-  margin: 0 0 10px 0;
-  letter-spacing: 1px;
+  margin: 0;
+  color: var(--dew-text-heading);
 }
 
 .sub-title {
-  font-size: 16px;
+  font-size: 15px;
   margin: 0;
-  opacity: 0.8;
+  color: var(--dew-text-muted);
 }
 
 /* Service Sections */
@@ -245,41 +293,18 @@ const open3DFarm = () => {
   background: transparent;
 }
 
-.section-header {
+.section-title-row {
   display: flex;
   align-items: center;
+  gap: 10px;
   margin-bottom: 20px;
-  gap: 12px;
-}
-
-.section-icon-wrapper {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20px;
-}
-
-.section-icon-wrapper.blue {
-  background-color: rgba(64, 158, 255, 0.1);
-  color: #409EFF;
-}
-
-.section-icon-wrapper.green {
-  background-color: rgba(103, 194, 58, 0.1);
-  color: #67C23A;
 }
 
 .section-title {
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 600;
   margin: 0;
-}
-
-.status-tag {
-  margin-left: auto;
+  color: var(--dew-text-heading);
 }
 
 /* Cards Container */
@@ -289,72 +314,42 @@ const open3DFarm = () => {
   gap: 20px;
 }
 
-/* Service Card */
-.service-card {
-  border-radius: 16px;
-  padding: 24px;
+/* DewCard 内层横向排版 */
+.card-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  border: 1px solid transparent;
-  position: relative;
-  overflow: hidden;
-}
-
-.service-card.hover-effect {
-  cursor: pointer;
-}
-
-.service-card.hover-effect:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
-}
-
-.card-content {
-  display: flex;
-  align-items: center;
-  gap: 20px;
+  gap: 16px;
+  width: 100%;
 }
 
 .icon-box {
-  width: 56px;
-  height: 56px;
-  border-radius: 16px;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 28px;
+  font-size: 24px;
   flex-shrink: 0;
 }
 
-.icon-box.primary {
-  background: linear-gradient(135deg, #409EFF 0%, #3a8ee6 100%);
-  color: white;
-  box-shadow: 0 8px 16px rgba(64, 158, 255, 0.2);
-}
-
-.icon-box.cyan {
-  background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
-  color: white;
-  box-shadow: 0 8px 16px rgba(6, 182, 212, 0.2);
-}
-
-.icon-box.gray {
-  background-color: #909399;
-  color: white;
+.text-content {
+  flex: 1;
+  min-width: 0;
 }
 
 .text-content h3 {
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 600;
-  margin: 0 0 6px 0;
+  margin: 0 0 4px 0;
+  color: var(--dew-text-heading);
 }
 
 .text-content p {
-  font-size: 14px;
+  font-size: 13px;
   margin: 0;
   line-height: 1.4;
+  color: var(--dew-text-muted);
 }
 
 .card-action {
@@ -364,92 +359,13 @@ const open3DFarm = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s ease;
+  color: var(--dew-text-muted);
+  flex-shrink: 0;
+  transition: transform 0.3s var(--dew-bounce, ease);
 }
 
-.service-card:hover .card-action {
-  background-color: rgba(0, 0, 0, 0.05);
-  transform: translateX(5px);
-}
-
-/* Disabled State */
-.service-card.disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-  background-image: repeating-linear-gradient(
-    45deg,
-    transparent,
-    transparent 10px,
-    rgba(0, 0, 0, 0.02) 10px,
-    rgba(0, 0, 0, 0.02) 20px
-  );
-}
-
-.card-footer {
-  font-size: 12px;
-  font-weight: 500;
-  padding: 4px 12px;
-  border-radius: 12px;
-  background-color: rgba(0, 0, 0, 0.05);
-}
-
-/* Theme: Light */
-.theme-light {
-  background-color: #f5f7fa;
-  color: #303133;
-}
-
-.theme-light .service-card {
-  background-color: #ffffff;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
-  border-color: #ebeef5;
-}
-
-.theme-light .text-content p {
-  color: #909399;
-}
-
-.theme-light .card-action {
-  color: #909399;
-}
-
-/* Theme: Dark */
-.theme-dark {
-  background-color: #121212;
-  color: #E5EAF3;
-}
-
-.theme-dark .service-card {
-  background-color: #1E1E1E;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-  border-color: #363637;
-}
-
-.theme-dark .text-content p {
-  color: #A3A6AD;
-}
-
-.theme-dark .card-action {
-  color: #A3A6AD;
-}
-
-.theme-dark .service-card:hover .card-action {
-  background-color: rgba(255, 255, 255, 0.1);
-}
-
-.theme-dark .card-footer {
-  background-color: rgba(255, 255, 255, 0.1);
-  color: #909399;
-}
-
-.theme-dark .service-card.disabled {
-  background-image: repeating-linear-gradient(
-    45deg,
-    transparent,
-    transparent 10px,
-    rgba(255, 255, 255, 0.02) 10px,
-    rgba(255, 255, 255, 0.02) 20px
-  );
+.entry-card--disabled {
+  opacity: 0.65;
 }
 
 /* Mobile Styles */
@@ -480,21 +396,17 @@ const open3DFarm = () => {
 
 @media (max-width: 768px) {
   .main-content {
-    padding: 20px 16px;
+    padding: 80px 16px 20px;
   }
-  
-  .main-title {
-    font-size: 24px;
+
+  .page-title {
+    font-size: 22px;
   }
-  
-  .service-card {
-    padding: 20px;
-  }
-  
+
   .icon-box {
-    width: 48px;
-    height: 48px;
-    font-size: 24px;
+    width: 42px;
+    height: 42px;
+    font-size: 20px;
   }
 }
 </style>
