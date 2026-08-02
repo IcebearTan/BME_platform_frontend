@@ -155,10 +155,10 @@ const studyEntries = ref([
 const DEFAULT_AVATAR = 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png'
 
 const mockPosts = [
-  { id: 1, author: '陈思远', authorAvatar: DEFAULT_AVATAR, publishTime: '12分钟前', title: '生物材料期末复习重点整理', content: '把这几章的核心考点和易错题梳理了一遍，附学姐笔记，需要的同学自取～', likes: 86, comments: 23, liked: false },
-  { id: 2, author: '林晓彤', authorAvatar: DEFAULT_AVATAR, publishTime: '1小时前', title: '组织工程实验报告模板分享', content: '按老师要求做了一份模板，含数据分析部分，大家可以参考。', likes: 54, comments: 15, liked: false },
-  { id: 3, author: '王浩然', authorAvatar: DEFAULT_AVATAR, publishTime: '3小时前', title: '求助：高分子降解速率怎么测？', content: '课上没太听懂这部分，有同学能讲讲体外降解实验的操作要点吗？', likes: 28, comments: 41, liked: false },
-  { id: 4, author: '张雨琪', authorAvatar: DEFAULT_AVATAR, publishTime: '昨天', title: '考研复试经验帖 | 生物医学工程方向', content: '刚结束复试，把准备过程和面试常见问题记录下来，希望对学弟学妹有帮助。', likes: 192, comments: 67, liked: false },
+  { id: 1, author: '陈思远', authorAvatar: '', publishTime: '12分钟前', title: '生物材料期末复习重点整理', content: '把这几章的核心考点和易错题梳理了一遍，附学姐笔记，需要的同学自取～', likes: 86, comments: 23, liked: false },
+  { id: 2, author: '林晓彤', authorAvatar: '', publishTime: '1小时前', title: '组织工程实验报告模板分享', content: '按老师要求做了一份模板，含数据分析部分，大家可以参考。', likes: 54, comments: 15, liked: false },
+  { id: 3, author: '王浩然', authorAvatar: '', publishTime: '3小时前', title: '求助：高分子降解速率怎么测？', content: '课上没太听懂这部分，有同学能讲讲体外降解实验的操作要点吗？', likes: 28, comments: 41, liked: false },
+  { id: 4, author: '张雨琪', authorAvatar: '', publishTime: '昨天', title: '考研复试经验帖 | 生物医学工程方向', content: '刚结束复试，把准备过程和面试常见问题记录下来，希望对学弟学妹有帮助。', likes: 192, comments: 67, liked: false },
 ]
 
 const communityPosts = ref(mockPosts)
@@ -192,7 +192,7 @@ async function fetchCommunityPosts() {
           articleVersion: isArticle ? item.article_version : null,
           author: item.author_name || '匿名',
           authorId: item.author_id,
-          authorAvatar: item.author_avatar || DEFAULT_AVATAR,
+          authorAvatar: item.author_avatar || '',
           publishTime: formatTimeAgo(item.created_at),
           title: item.title,
           content: ((item.summary || '') + '').replace(/\s+/g, ' '),

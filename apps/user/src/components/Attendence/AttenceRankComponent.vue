@@ -16,7 +16,7 @@
         @click="openProfile(user.user_id)"
       >
         <div class="rank-no" :class="medalClass(index)">{{ index + 1 }}</div>
-        <el-avatar :size="38" :src="userAvatars[index]" />
+        <el-avatar :size="38" :src="user.avatar">{{ (user.user_name || '?').charAt(0) }}</el-avatar>
         <div class="rank-name">{{ user.user_name }}</div>
         <div class="rank-hours">{{ user.total_hours }}<span class="rank-unit">h</span></div>
       </div>
@@ -40,16 +40,12 @@ function medalClass(index) {
   return ''
 }
 
-const DEFAULT_AVATAR = 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png'
-
 const monthLabel = `${new Date().getMonth() + 1}月`
 
 const router = useRouter()
 
 // 无真实数据时显示空状态（不再用 mock 占位，避免假 id 误导）
 const userRanks = ref([])
-const userIds = ref([])
-const userAvatars = ref([])
 const isRealData = ref(false)
 
 // 点击排行榜用户 → 进入其个人主页
@@ -66,35 +62,11 @@ const fetchUsersRank = async () => {
         })
         if (response.data && response.data.length > 0) {
             userRanks.value = response.data
-            userIds.value = response.data.map(user => user.user_id)
             isRealData.value = true
-            await fetchUserAvatars();
         }
-        // 后端无数据则保留 mock
+        // 后端无数据则保留空状态
     } catch (error) {
         console.log(error)
-    }
-}
-const fetchUserAvatars = async () => {
-    userAvatars.value = []; // 初始化头像数组
-    for (const userId of userIds.value) {
-        try {
-            const response = await api({
-                url: '/user/user_avatars_id',
-                method: 'get',
-                params: {
-                    User_Id: userId
-                }
-            });
-            if (response.data.User_Avatar) {
-                userAvatars.value.push(`data:image/png;base64,${response.data.User_Avatar}`);
-            } else {
-                userAvatars.value.push(DEFAULT_AVATAR);
-            }
-        } catch (error) {
-            console.log(`Error fetching avatar for user ${userId}:`, error);
-            userAvatars.value.push(DEFAULT_AVATAR);
-        }
     }
 }
 

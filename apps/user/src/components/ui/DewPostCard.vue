@@ -3,7 +3,7 @@
     <!-- ━━ full 模式：完整正文 + 图片网格 + 操作行 ━━ -->
     <template v-if="mode === 'full'">
       <div class="dew-post__head">
-        <el-avatar :size="40" :src="post.authorAvatar" class="dew-post__avatar" @click.stop="onUserClick" />
+        <el-avatar :size="40" :src="post.authorAvatar" class="dew-post__avatar" @click.stop="onUserClick">{{ (post.author || '?').charAt(0) }}</el-avatar>
         <div class="dew-post__user">
           <div class="dew-post__name-row">
             <span class="dew-post__name" @click.stop="onUserClick">{{ post.author }}</span>
@@ -53,7 +53,7 @@
         <!-- 左：发帖人信息 + 正文，塞进一个容器 -->
         <div class="dew-post__main">
           <div class="dew-post__head">
-            <el-avatar :size="36" :src="post.authorAvatar" class="dew-post__avatar" @click.stop="onUserClick" />
+            <el-avatar :size="36" :src="post.authorAvatar" class="dew-post__avatar" @click.stop="onUserClick">{{ (post.author || '?').charAt(0) }}</el-avatar>
             <div class="dew-post__user">
               <div class="dew-post__name-row">
                 <span class="dew-post__name" @click.stop="onUserClick">{{ post.author }}</span>
