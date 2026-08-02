@@ -109,7 +109,7 @@ async function fetchMonthlyStats() {
     const data = res.data.data
     if (data) {
       monthlyStats.value = {
-        totalDays: data.total_days || 0,
+        totalDays: data.month_days || 0,
         totalHours: Math.floor(data.month_hours || 0),
         rank: data.month_rank || null,
       }

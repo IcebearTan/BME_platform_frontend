@@ -32,7 +32,7 @@ const loading = ref(true)   // 首屏加载态：用户信息骨架占位
 const stats = ref({ days: 0, hours: 0, rank: null })
 const applyStats = (d) => {
   stats.value = d
-    ? { days: d.total_days || 0, hours: Math.floor(d.month_hours || 0), rank: d.month_rank || null }
+    ? { days: d.month_days || 0, hours: Math.floor(d.month_hours || 0), rank: d.month_rank || null }
     : { days: 0, hours: 0, rank: null }
 }
 
