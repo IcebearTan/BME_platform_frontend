@@ -162,7 +162,6 @@ const mockPosts = [
 ]
 
 const communityPosts = ref(mockPosts)
-const avatarCache = {}
 
 function formatTimeAgo(iso) {
   if (!iso) return ''
@@ -177,17 +176,7 @@ function formatTimeAgo(iso) {
   return new Date(iso).toLocaleDateString()
 }
 
-async function fetchAvatar(userId) {
-  if (!userId || avatarCache[userId]) return avatarCache[userId] || DEFAULT_AVATAR
-  try {
-    const res = await api({ url: '/user/user_avatars_id', method: 'get', params: { User_Id: userId } })
-    const av = res.data?.User_Avatar ? `data:image/jpeg;base64,${res.data.User_Avatar}` : DEFAULT_AVATAR
-    avatarCache[userId] = av
-    return av
-  } catch {
-    return DEFAULT_AVATAR
-  }
-}
+// （原 base64 fetchAvatar 已移除：feed 的 author_avatar 已是相对路径，map 内直接用）
 
 async function fetchCommunityPosts() {
   try {
@@ -215,10 +204,7 @@ async function fetchCommunityPosts() {
         if (isArticle) post.badge = '文章'
         return post
       })
-      // 讨论帖作者头像走 base64 接口补全（文章帖已带 author_avatar）
-      communityPosts.value.forEach(async (p) => {
-        if (p.type !== 'article' && p.authorId) p.authorAvatar = await fetchAvatar(p.authorId)
-      })
+      // 作者头像统一用 feed 返回的相对路径 author_avatar（含讨论帖），不再逐条调 base64 接口
     }
     // 后端无数据则保留 mock
   } catch (e) {
