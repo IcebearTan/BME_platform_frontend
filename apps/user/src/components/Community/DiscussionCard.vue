@@ -23,7 +23,7 @@
 
     <!-- 作者信息 -->
     <div class="dc-author" @click.stop="onAuthorClick">
-      <el-avatar :size="32" :src="discussion.author_avatar" />
+      <el-avatar :size="32" :src="discussion.author_avatar">{{ (discussion.author || '?').charAt(0) }}</el-avatar>
       <div class="dc-author-info">
         <span class="dc-author-name">{{ discussion.author }}</span>
         <span class="dc-time">{{ discussion.publishTime }}</span>
@@ -66,7 +66,7 @@
         :key="reply.id"
         class="dc-reply"
       >
-        <el-avatar :size="28" :src="reply.author_avatar" />
+        <el-avatar :size="28" :src="reply.author_avatar">{{ (reply.author || '?').charAt(0) }}</el-avatar>
         <div class="dc-reply-body">
           <div class="dc-reply-head">
             <span class="dc-reply-name">{{ reply.author }}</span>

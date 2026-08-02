@@ -352,33 +352,22 @@ const totalPages = ref(1)
 // 把单条讨论帖补全：作者头像 + 内联回复（文章帖评论在详情页看，不内联）
 const enrichDiscussion = async (item) => {
   if (item.type !== 'discussion') return item
-  if (item.authorId) item.author_avatar = await fetchAvatar(item.authorId)
+  // 作者/回复头像直接用后端返回的相对路径 author_avatar（/data/avatars/...），不再逐个
+  // 调 base64 接口 /user/user_avatars_id（单个可达数百 KB 且不可缓存，是社区慢的主因）
   try {
     const repliesRes = await api.get(`/discussions/threads/${item.id}/replies`)
     if (repliesRes.data && repliesRes.data.data) {
-      const replies = repliesRes.data.data.map(reply => ({
+      item.replies = repliesRes.data.data.map(reply => ({
         id: reply.id,
         author: reply.author_name,
         authorId: reply.author_id,
-        author_avatar: '', // 先留空，后续异步加载
+        author_avatar: reply.author_avatar || '',
         content: reply.content,
         time: formatTimeAgo(reply.created_at),
         like_count: reply.like_count || 0,
         liked: reply.liked || false,
         children: reply.children || []
       }))
-      // 并行拉取所有回复（及子回复）头像，避免逐条串行 await
-      const avatarTasks = []
-      for (const reply of replies) {
-        avatarTasks.push(fetchAvatar(reply.authorId).then(av => { reply.author_avatar = av }))
-        if (reply.children && reply.children.length > 0) {
-          for (const child of reply.children) {
-            avatarTasks.push(fetchAvatar(child.author_id).then(av => { child.author_avatar = av }))
-          }
-        }
-      }
-      await Promise.all(avatarTasks)
-      item.replies = replies
     }
   } catch (err) {
     console.error(`获取帖子${item.id}的回复失败:`, err)
@@ -526,31 +515,7 @@ const feedItems = ref([])
 const loading = ref(false)
 const hasMore = ref(true)
 
-// 头像缓存
-const avatarCache = ref({})
-const defaultAvatar = 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png'
-
-// 按需获取用户头像
-const fetchAvatar = async (userId) => {
-  if (!userId) return defaultAvatar
-  if (avatarCache.value[userId]) return avatarCache.value[userId]
-
-  try {
-    const res = await api({
-      url: '/user/user_avatars_id',
-      method: 'get',
-      params: { User_Id: userId }
-    })
-    if (res.data.code === 200 && res.data.User_Avatar) {
-      const avatar = 'data:image/jpeg;base64,' + res.data.User_Avatar
-      avatarCache.value[userId] = avatar
-      return avatar
-    }
-  } catch (err) {
-    console.error('获取头像失败:', err)
-  }
-  return defaultAvatar
-}
+// （原 base64 头像 fetchAvatar 已移除：改用后端相对路径 author_avatar，见 enrichDiscussion）
 
 // 帖子详情相关状态
 const threadDetailVisible = ref(false)
