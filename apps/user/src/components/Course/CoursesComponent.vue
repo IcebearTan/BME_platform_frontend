@@ -47,6 +47,7 @@ const mockCourseList = [
 ]
 
 const courseList = ref([])
+const loading = ref(true)  // 首屏加载态：为 true 时展示骨架占位，避免误显「暂时没有课程」
 
 // 课程分类切换（DewButtonBar：value 即分类标签）
 const categories = [
@@ -58,8 +59,10 @@ const categories = [
 const currentCategory = ref('全部课程')
 
 const getCourseList = async () => {
+    loading.value = true
     if (USE_MOCK) {
         courseList.value = mockCourseList
+        loading.value = false
         return
     }
     try {
@@ -70,6 +73,8 @@ const getCourseList = async () => {
         courseList.value = res.data
     } catch (err) {
         console.error(err)
+    } finally {
+        loading.value = false
     }
 }
 
@@ -178,8 +183,22 @@ onMounted(() => {
         </div>
 
         <div class="columnContainer">
-            <template v-if="filteredCourses.length === 0">
-                <el-card style="width: 100%; text-align: center; box-shadow: 0 0 0 0 ; border: none;" :class="themeClass">
+            <!-- 加载中：骨架卡片占位，主题自适应，杜绝首屏闪现刺眼的白底空状态 -->
+            <template v-if="loading">
+                <div class="course-grid">
+                    <div v-for="n in 6" :key="n" class="course-card course-card--skeleton" :class="themeClass">
+                        <div class="book-cover-skeleton"></div>
+                        <div class="book-info-skeleton">
+                            <div class="sk-line sk-line--title"></div>
+                            <div class="sk-line sk-line--desc"></div>
+                            <div class="sk-line sk-line--stats"></div>
+                        </div>
+                    </div>
+                </div>
+            </template>
+            <!-- 加载完成且确实没有课程 -->
+            <template v-else-if="filteredCourses.length === 0">
+                <el-card class="empty-card" :class="themeClass">
                     <div class="empty-message">暂时没有课程哦╮(╯▽╰)╭</div>
                 </el-card>
             </template>
@@ -588,6 +607,78 @@ onMounted(() => {
 
 .theme-dark .empty-message {
     color: #aaa;
+}
+
+/* 空状态卡片：去掉 Element 默认白底，仅保留居中文案，两种主题下都不再有刺眼的色块 */
+.empty-card {
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 0 0 0;
+    border: none;
+    background-color: transparent;
+    --el-card-background-color: transparent;
+}
+
+/* 加载态骨架卡片：复用 .course-card 的主题背景，内部用灰条占位并做呼吸动画 */
+.course-card--skeleton {
+    cursor: default;
+    pointer-events: none;
+}
+
+.book-cover-skeleton {
+    width: 75px;
+    height: 100px;
+    border-radius: 8px;
+    flex-shrink: 0;
+    box-sizing: border-box;
+}
+
+.book-info-skeleton {
+    flex: 1;
+    height: 95px;
+    padding-left: 10px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 12px;
+}
+
+.sk-line {
+    height: 12px;
+    border-radius: 6px;
+}
+
+.sk-line--title {
+    width: 55%;
+    height: 16px;
+}
+
+.sk-line--desc {
+    width: 90%;
+}
+
+.sk-line--stats {
+    width: 35%;
+}
+
+.theme-light .book-cover-skeleton,
+.theme-light .sk-line {
+    background-color: #ececec;
+}
+
+.theme-dark .book-cover-skeleton,
+.theme-dark .sk-line {
+    background-color: #3a3a3a;
+}
+
+.book-cover-skeleton,
+.sk-line {
+    animation: skeleton-breathe 1.4s ease-in-out infinite;
+}
+
+@keyframes skeleton-breathe {
+    0%, 100% { opacity: 0.55; }
+    50% { opacity: 1; }
 }
 
 .book-cover {
