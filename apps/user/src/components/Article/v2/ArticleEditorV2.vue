@@ -75,6 +75,13 @@ const title = ref('')
 const introduction = ref('')
 const submitting = ref(false)
 
+// currentId：编辑模式由父传入 articleId；保存草稿新建后更新为草稿 id（避免再点又新建）
+// articleStatus：null=新建 | 'draft' | 'published'，决定按钮组（草稿可发布，已发布只保存）
+const currentId = ref(props.articleId)
+const articleStatus = ref(null)
+const isPublishedMode = computed(() => articleStatus.value === 'published')
+const publishLabel = computed(() => (isPublishedMode.value ? '保存修改' : '发布文章'))
+
 // 编辑模式：回填（md 是裸字符串，无需 JSON.parse）
 const loadArticle = async () => {
   if (!props.articleId) return
@@ -84,11 +91,43 @@ const loadArticle = async () => {
     title.value = d.title || ''
     introduction.value = d.introduction || ''
     content.value = d.content_md || ''
+    articleStatus.value = d.status || null
   } catch {
     DewMessage.error('文章加载失败')
   }
 }
 
+// 保存草稿（宽松校验：标题或正文有一个即可）。新建后持有 id，后续按更新走
+const handleSaveDraft = async () => {
+  if (!title.value.trim() && !content.value.trim()) {
+    DewMessage.warning('写点标题或内容再保存')
+    return
+  }
+  if (submitting.value) return
+  submitting.value = true
+  try {
+    const payload = {
+      title: title.value,
+      introduction: introduction.value,
+      content_md: content.value,
+    }
+    if (currentId.value && articleStatus.value === 'draft') {
+      await api.post('/v2/article/draft', { id: currentId.value, ...payload })
+      DewMessage.success('草稿已更新')
+    } else if (!currentId.value) {
+      const res = await api.post('/v2/article/draft', payload)
+      currentId.value = res.data.id
+      articleStatus.value = 'draft'
+      DewMessage.success('已保存到草稿箱')
+    }
+  } catch (e) {
+    DewMessage.error(e?.response?.data?.message || '保存失败，请重试')
+  } finally {
+    submitting.value = false
+  }
+}
+
+// 发布 / 保存修改（按 currentId × articleStatus 分流）
 const handleSubmit = async () => {
   if (!title.value.trim()) {
     DewMessage.warning('请填写文章标题')
@@ -106,10 +145,17 @@ const handleSubmit = async () => {
       introduction: introduction.value,
       content_md: content.value, // 裸 md 字符串，不 JSON.stringify
     }
-    if (props.articleId) {
-      await api.post(`/v2/article/${props.articleId}/edit`, payload)
+    if (currentId.value && articleStatus.value === 'draft') {
+      // 草稿→发布（接口会把当前编辑内容一并写入，避免改动丢失）
+      await api.post(`/v2/article/${currentId.value}/publish`, payload)
+      DewMessage.success('文章发布成功')
+      setTimeout(() => router.push({ path: '/article-v2', query: { id: currentId.value } }), 600)
+    } else if (currentId.value && articleStatus.value === 'published') {
+      // 更新已发布文章
+      await api.post(`/v2/article/${currentId.value}/edit`, payload)
       DewMessage.success('文章更新成功')
     } else {
+      // 新建并发布
       const res = await api.post('/v2/article/public', payload)
       const newId = res.data.id
       DewMessage.success('文章发布成功')
@@ -137,11 +183,20 @@ onMounted(() => {
     <!-- 顶部工具条 -->
     <DewCard class="editor-toolbar">
       <div class="toolbar-row">
-        <h2 class="editor-title">{{ props.articleId ? '编辑文章' : '写文章' }}</h2>
+        <h2 class="editor-title">{{ currentId ? '编辑文章' : '写文章' }}</h2>
         <div class="toolbar-actions">
+          <DewButton
+            v-if="!isPublishedMode"
+            type="ghost"
+            size="sm"
+            :disabled="submitting"
+            @click="handleSaveDraft"
+          >
+            保存草稿
+          </DewButton>
           <DewButton size="sm" :disabled="submitting" @click="handleSubmit">
             <Upload class="btn-icon" />
-            {{ props.articleId ? '保存修改' : '发布文章' }}
+            {{ publishLabel }}
           </DewButton>
         </div>
       </div>

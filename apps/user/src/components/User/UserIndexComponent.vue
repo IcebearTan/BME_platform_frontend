@@ -58,8 +58,11 @@ const fetchArticles = async () => {
   const id = props.userId ?? store.state.user?.User_Id
   if (!id) return
   try {
-    const res = await api({ url: `/article/by_author/${id}`, method: 'get' })
-    if (res?.data?.code === 200) articles.value = res.data.data || []
+    const res = await api({ url: `/v2/article/by_author/${id}`, method: 'get' })
+    if (res?.data?.code === 200) {
+      // v2 字段补 authorId 供 ArticleCard 作者点击；reply_count 缺省 0
+      articles.value = (res.data.data || []).map(a => ({ ...a, authorId: a.author_id, reply_count: a.reply_count || 0 }))
+    }
   } catch {
     articles.value = []
   }
@@ -67,7 +70,7 @@ const fetchArticles = async () => {
 
 // 点文章卡 → 文章详情（与社区广场跳转口径一致）
 const goArticle = (article) => {
-  router.push({ path: '/article', query: { Article_Id: article.article_id } })
+  router.push({ path: '/article-v2', query: { id: article.id } })
 }
 
 // 自己页（/user 无 userId，或传入的即登录用户）才显示编辑/删除
@@ -75,7 +78,7 @@ const isSelf = computed(() => !props.userId || Number(props.userId) === store.st
 
 // 编辑 → 文章编辑器（编辑模式）
 const goEdit = (article) => {
-  router.push({ path: '/article-editor', query: { id: article.article_id } })
+  router.push({ path: '/article-editor-v2', query: { id: article.id } })
 }
 
 // 删除自己的文章（后端按作者本人放行；管理员删全部走 admin 端）
@@ -86,7 +89,7 @@ const handleDelete = async (article) => {
     return // 用户取消
   }
   try {
-    const res = await api({ method: 'post', url: '/article/delete', data: { Article_Id: article.article_id } })
+    const res = await api({ method: 'post', url: `/v2/article/${article.id}/delete` })
     if (res?.data?.code === 200) {
       DewMessage.success('文章已删除')
       fetchArticles()

@@ -42,26 +42,14 @@ function medalClass(index) {
 
 const DEFAULT_AVATAR = 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png'
 
-// Mock 数据：后端 /records_top10 无数据或未启动时展示，有真实数据则覆盖
-const mockRanks = [
-  { user_id: 1, user_name: '陈思远', total_hours: 47 },
-  { user_id: 2, user_name: '林晓彤', total_hours: 42 },
-  { user_id: 3, user_name: '王浩然', total_hours: 38 },
-  { user_id: 4, user_name: '张雨琪', total_hours: 33 },
-  { user_id: 5, user_name: '刘子轩', total_hours: 29 },
-  { user_id: 6, user_name: '赵欣怡', total_hours: 25 },
-  { user_id: 7, user_name: '黄俊杰', total_hours: 21 },
-  { user_id: 8, user_name: '周梦瑶', total_hours: 18 },
-]
-
 const monthLabel = `${new Date().getMonth() + 1}月`
 
 const router = useRouter()
 
-const userRanks = ref(mockRanks)
+// 无真实数据时显示空状态（不再用 mock 占位，避免假 id 误导）
+const userRanks = ref([])
 const userIds = ref([])
-const userAvatars = ref(mockRanks.map(() => DEFAULT_AVATAR))
-// 是否为后端真实数据（mock 占位时不可点，避免跳到假 id）
+const userAvatars = ref([])
 const isRealData = ref(false)
 
 // 点击排行榜用户 → 进入其个人主页

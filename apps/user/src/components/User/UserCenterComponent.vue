@@ -1,12 +1,12 @@
 <!-- 使用vue3语法 -->
 <script setup>
 import api from '../../api';
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRouter, useRoute } from 'vue-router'
 import { useStore } from 'vuex';
-import { Message, User, Calendar, Collection, EditPen } from '@element-plus/icons-vue';
-import { DewCard, DewSidebar, DewTag } from '../ui'
+import { Message, User, Calendar, Collection, EditPen, Document } from '@element-plus/icons-vue';
+import { DewCard, DewSidebar } from '../ui'
 
 const User_Info = ref({})
 const User_Avatar = ref('');
@@ -20,11 +20,23 @@ const store = useStore()
 
 // 左侧导航项（DewSidebar：value 即路由路径，选中后 push 过去）
 const navItems = [
-  { value: '/user-center/user-info', label: '账户设置', icon: User },
-  { value: '/user-center/my-feedbacks', label: '反馈记录', icon: Message },
-  { value: '/user-center/my-favorites', label: '我的收藏', icon: Collection },
-  { value: '/article-editor', label: '写文章', icon: EditPen },
-  { value: '/camp', label: '我的营期', icon: Calendar },
+  {
+    label: '账户与反馈', children: [
+      { value: '/user-center/user-info', label: '账户设置', icon: User },
+      { value: '/user-center/my-feedbacks', label: '反馈记录', icon: Message },
+    ],
+  },
+  {
+    label: '我的内容', children: [
+      { value: '/user-center/my-articles', label: '我的文章', icon: Document },
+      { value: '/user-center/my-favorites', label: '我的收藏', icon: Collection },
+    ],
+  },
+  {
+    label: '学习', children: [
+      { value: '/camp', label: '我的营期', icon: Calendar },
+    ],
+  },
 ]
 
 const onNavSelect = (value) => {
@@ -79,16 +91,12 @@ const fetchUserAvatar = async () => {
   }
 }
 
-const vertifyUserMode = () => {
-  if (store.state.user) {
-    if (store.state.user.User_Mode == 'admin') {
-      return true
-    } else {
-      return false
-    }
-  }
-  return false
-}
+// 角色标签：与顶栏点头像（MenuComponent）一致，走 RBAC role（不再用旧 User_Mode）
+const roleLabel = computed(() => {
+  const map = { super_admin: '超管', teacher: '老师', mentor: '导生', student: '学生' }
+  return map[store.getters.role] || '同学'
+})
+const roleIsStaff = computed(() => ['super_admin', 'teacher', 'mentor'].includes(store.getters.role))
 
 // 计算当前应该高亮的菜单项
 const getActiveMenuIndex = (currentPath) => {
@@ -104,6 +112,10 @@ const getActiveMenuIndex = (currentPath) => {
 
   if (currentPath.startsWith('/user-center/my-favorites')) {
     return '/user-center/my-favorites'
+  }
+
+  if (currentPath.startsWith('/user-center/my-articles')) {
+    return '/user-center/my-articles'
   }
 
   // 营期（我的营期，跳 /camp 独立页）
@@ -143,14 +155,15 @@ onMounted(() => {
               alt="image"
             />
             <div class="uc-username">{{ User_Info.User_Name }}</div>
-            <DewTag v-if="vertifyUserMode()" type="warning" size="sm" round>导师</DewTag>
-            <DewTag v-else type="info" size="sm" round>学生</DewTag>
+            <span class="uc-role" :class="roleIsStaff ? 'uc-role--staff' : 'uc-role--student'">{{ roleLabel }}</span>
           </div>
         </template>
 
         <DewSidebar
           :items="navItems"
           v-model="activeIndex"
+          size="lg"
+          :collapsible="false"
           @select="onNavSelect"
         />
       </DewCard>
@@ -164,6 +177,24 @@ onMounted(() => {
 </template>
 
 <style scoped>
+/* 分组标题靠左贴边：去掉 arrow 占位、减小左留白 */
+.uc-sidebar-card :deep(.dew-sidebar__item.is-group) {
+  padding-left: 4px;
+}
+.uc-sidebar-card :deep(.dew-sidebar__item.is-group .dew-sidebar__arrow--placeholder) {
+  display: none;
+}
+
+/* 角色 tag：与顶栏点头像（MenuComponent .avatar-pop__role）完全一致 */
+.uc-role {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 8px;
+  border-radius: var(--radius-full);
+}
+.uc-role--staff { color: var(--color-primary); background: var(--color-primary-light); }
+.uc-role--student { color: var(--color-success); background: var(--color-success-light); }
+
 /* 两栏布局：左侧栏 / 右内容，20px 间隔 */
 .uc-layout {
   display: grid;

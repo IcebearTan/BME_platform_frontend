@@ -200,6 +200,7 @@ async function fetchCommunityPosts() {
           id: item.id,
           type: item.type,
           articleId: isArticle ? (item.article_id ?? item.id) : null,
+          articleVersion: isArticle ? item.article_version : null,
           author: item.author_name || '匿名',
           authorId: item.author_id,
           authorAvatar: item.author_avatar || DEFAULT_AVATAR,
@@ -232,7 +233,12 @@ function goCommunity() {
 // 帖子点击：文章帖进文章详情，讨论帖进社区广场列表
 function onPostClick(post) {
   if (post.type === 'article') {
-    router.push({ path: '/article', query: { Article_Id: post.articleId } })
+    // 与社区广场一致：v2 文章进 /article-v2，v1 旧文进 /article
+    if (post.articleVersion === 2) {
+      router.push({ path: '/article-v2', query: { id: post.articleId } })
+    } else {
+      router.push({ path: '/article', query: { Article_Id: post.articleId } })
+    }
   } else {
     goCommunity()
   }
