@@ -26,7 +26,7 @@
             type="textarea"
             placeholder="请输入通知内容"
             :rows="4"
-            maxlength="500"
+            maxlength="5000"
             show-word-limit
           />
         </el-form-item>
