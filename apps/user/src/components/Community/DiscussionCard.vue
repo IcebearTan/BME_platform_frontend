@@ -60,7 +60,7 @@
 
     <!-- 回复列表 -->
     <div v-if="discussion.replies && discussion.replies.length > 0" class="dc-replies">
-      <div class="dc-replies-header">全部回复 ({{ discussion.replies.length }})</div>
+      <div class="dc-replies-header">{{ discussion.reply_count }} 条回复</div>
       <div
         v-for="reply in discussion.replies"
         :key="reply.id"
@@ -83,6 +83,13 @@
           </button>
         </div>
       </div>
+      <button
+        v-if="discussion.reply_count > discussion.replies.length && !allLoaded"
+        class="dc-more-replies"
+        @click.stop="loadMoreReplies"
+      >
+        查看更多回复
+      </button>
     </div>
 
     <!-- 回复输入框 -->
@@ -99,7 +106,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { useStore } from 'vuex'
 import { ChatDotRound, View, Star, StarFilled, Delete } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
@@ -118,7 +125,6 @@ const emit = defineEmits(['like', 'reply', 'delete', 'user-click'])
 const store = useStore()
 const showReplyInput = ref(false)
 const replyContent = ref('')
-const viewed = ref(false)
 
 // 正文折叠：超过阈值截断，提供「展开全文 / 收起」
 const COLLAPSE_THRESHOLD = 200
@@ -144,42 +150,52 @@ const onAuthorClick = () => {
   if (props.discussion.authorId != null) emit('user-click', props.discussion.authorId)
 }
 
-// 使用 Intersection Observer 检测卡片是否进入视口
-onMounted(() => {
-  const observer = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting && !viewed.value) {
-          viewed.value = true
-          // 调用帖子详情 API（会同时增加浏览量）
-          api.get(`/discussions/threads/${props.discussion.id}`)
-            .then(res => {
-              if (res.data && res.data.code === 200) {
-                const data = res.data.data
-                props.discussion.views = data.view_count
-                props.discussion.like_count = data.like_count
-                props.discussion.reply_count = data.reply_count
-              }
-            })
-            .catch(err => console.error('获取帖子详情失败:', err))
-          observer.disconnect()
-        }
-      })
-    },
-    { threshold: 0.5 }
-  )
-
-  const card = document.querySelector(`[data-discussion-id="${props.discussion.id}"]`)
-  if (card) {
-    observer.observe(card)
-  }
-})
-
 const formatNumber = (num) => {
   if (num >= 1000) {
     return (num / 1000).toFixed(1) + 'k'
   }
   return num
+}
+
+// 相对时间格式化（与 CommunityView 一致，供懒加载的回复映射用）
+const formatTimeAgo = (dateStr) => {
+  if (!dateStr) return ''
+  const date = new Date(dateStr)
+  const now = new Date()
+  const diff = now - date
+  const minutes = Math.floor(diff / 60000)
+  const hours = Math.floor(diff / 3600000)
+  const days = Math.floor(diff / 86400000)
+  if (minutes < 1) return '刚刚'
+  if (minutes < 60) return `${minutes}分钟前`
+  if (hours < 24) return `${hours}小时前`
+  if (days < 30) return `${days}天前`
+  return date.toLocaleDateString('zh-CN')
+}
+
+// 是否已懒加载过全部回复（避免重复拉取）
+const allLoaded = ref(false)
+const loadMoreReplies = async () => {
+  try {
+    const res = await api.get(`/discussions/threads/${props.discussion.id}/replies`, {
+      params: { per_page: 50 }
+    })
+    if (res.data && res.data.data) {
+      props.discussion.replies = res.data.data.map(reply => ({
+        id: reply.id,
+        author: reply.author_name,
+        authorId: reply.author_id,
+        author_avatar: reply.author_avatar || '',
+        content: reply.content,
+        time: formatTimeAgo(reply.created_at),
+        like_count: reply.like_count || 0,
+        liked: reply.liked || false
+      }))
+      allLoaded.value = true
+    }
+  } catch (err) {
+    console.error('加载更多回复失败:', err)
+  }
 }
 
 const handleLike = async () => {
@@ -358,6 +374,27 @@ const handleDelete = async () => {
 
 .dc-expand:hover {
   opacity: 0.75;
+}
+
+/* 回复列表底部「查看更多回复」（懒加载，避免初始 N+1） */
+.dc-more-replies {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 6px 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-primary);
+  cursor: pointer;
+  transition: background 0.25s ease;
+}
+
+.dc-more-replies:hover {
+  background: var(--dew-card-divider);
 }
 
 /* 删除按钮（仅本人 / 管理员可见） */

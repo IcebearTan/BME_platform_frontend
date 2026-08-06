@@ -378,32 +378,6 @@ const sortOptions = [
 const currentPage = ref(1)
 const totalPages = ref(1)
 
-// 把单条讨论帖补全：作者头像 + 内联回复（文章帖评论在详情页看，不内联）
-const enrichDiscussion = async (item) => {
-  if (item.type !== 'discussion') return item
-  // 作者/回复头像直接用后端返回的相对路径 author_avatar（/data/avatars/...），不再逐个
-  // 调 base64 接口 /user/user_avatars_id（单个可达数百 KB 且不可缓存，是社区慢的主因）
-  try {
-    const repliesRes = await api.get(`/discussions/threads/${item.id}/replies`)
-    if (repliesRes.data && repliesRes.data.data) {
-      item.replies = repliesRes.data.data.map(reply => ({
-        id: reply.id,
-        author: reply.author_name,
-        authorId: reply.author_id,
-        author_avatar: reply.author_avatar || '',
-        content: reply.content,
-        time: formatTimeAgo(reply.created_at),
-        like_count: reply.like_count || 0,
-        liked: reply.liked || false,
-        children: reply.children || []
-      }))
-    }
-  } catch (err) {
-    console.error(`获取帖子${item.id}的回复失败:`, err)
-  }
-  return item
-}
-
 // 加载社区信息流（讨论帖 + 文章帖混合，来自聚合接口 /community/feed）
 // reset=true：切类型/排序或发帖后重置到第 1 页；reset=false：加载更多追加下一页
 const fetchThreads = async (reset = false) => {
@@ -465,14 +439,38 @@ const fetchThreads = async (reset = false) => {
         views: item.view_count,
         isHot: item.is_pinned,
         liked: item.liked || false,
-        replies: []
+        // feed 已附带前 2 条回复预览，直接用，不再逐帖拉（消灭 N+1）
+        replies: (item.replies || []).map(reply => ({
+          id: reply.id,
+          author: reply.author_name,
+          authorId: reply.author_id,
+          author_avatar: reply.author_avatar || '',
+          content: reply.content,
+          time: formatTimeAgo(reply.created_at),
+          like_count: reply.like_count || 0,
+          liked: reply.liked || false
+        }))
       }
     })
 
-    // 仅对新拉到的讨论帖补全（避免追加模式下重复补全 → O(n²)）；并行加速
-    await Promise.all(items.map(item => enrichDiscussion(item)))
-
     feedItems.value = reset ? items : feedItems.value.concat(items)
+
+    // 当前页讨论帖批量上报浏览（幂等去重），对实际计数的帖乐观 +1，让浏览数即时反馈
+    const discussionIds = items.filter(i => i.type === 'discussion').map(i => i.id)
+    if (discussionIds.length) {
+      api.post('/discussions/threads/view_batch', { thread_ids: discussionIds })
+        .then(res => {
+          const viewed = new Set((res.data && res.data.viewed) || [])
+          if (viewed.size) {
+            items.forEach(i => {
+              if (i.type === 'discussion' && viewed.has(i.id)) {
+                i.views = (i.views || 0) + 1
+              }
+            })
+          }
+        })
+        .catch(() => {})
+    }
   } catch (error) {
     console.error('获取社区信息流失败:', error)
   } finally {
