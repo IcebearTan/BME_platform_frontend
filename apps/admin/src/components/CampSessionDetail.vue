@@ -10,7 +10,7 @@
       <!-- ① 成员 -->
       <el-tab-pane label="成员" name="members">
         <div style="margin-bottom: 12px;">
-          <el-button type="primary" size="small" @click="openAddMember">加成员</el-button>
+          <el-button v-if="manageWritable" type="primary" size="small" @click="openAddMember">加成员</el-button>
         </div>
         <el-table :data="members" border size="small">
           <el-table-column label="用户" prop="username" min-width="120" />
@@ -19,17 +19,18 @@
           </el-table-column>
           <el-table-column label="归属导生" min-width="140">
             <template #default="{ row }">
-              <el-select v-if="row.role === 'student'" :model-value="row.team_mentor_id"
+              <el-select v-if="row.role === 'student' && manageWritable" :model-value="row.team_mentor_id"
                 size="small" placeholder="未分配" clearable @change="(v) => updateMentor(row, v)">
                 <el-option v-for="m in mentorMembers" :key="m.user_id" :label="m.username" :value="m.user_id" />
               </el-select>
+              <span v-else-if="row.role === 'student'">{{ mentorName(row.team_mentor_id) }}</span>
               <span v-else>—</span>
             </template>
           </el-table-column>
           <el-table-column label="加入时间" width="120">
             <template #default="{ row }">{{ row.joined_at ? row.joined_at.slice(0, 10) : '' }}</template>
           </el-table-column>
-          <el-table-column label="操作" width="90">
+          <el-table-column v-if="manageWritable" label="操作" width="90">
             <template #default="{ row }">
               <el-button size="small" type="danger" link @click="removeMember(row)">移除</el-button>
             </template>
@@ -40,11 +41,16 @@
       <!-- ② 课程目录 -->
       <el-tab-pane label="课程目录" name="courses">
         <div style="margin-bottom: 12px;">
-          <el-button type="primary" size="small" @click="openAddCourse" :disabled="!availableCourses.length">加课程</el-button>
+          <el-button v-if="manageWritable" type="primary" size="small" @click="openAddCourse" :disabled="!availableCourses.length">加课程</el-button>
         </div>
         <el-table :data="courses" border size="small">
           <el-table-column label="课程" prop="title" min-width="200" />
           <el-table-column label="难度" prop="difficulty" width="100" />
+          <el-table-column v-if="manageWritable" label="操作" width="80">
+            <template #default="{ row }">
+              <el-button size="small" type="danger" link @click="removeCourse(row)">移除</el-button>
+            </template>
+          </el-table-column>
         </el-table>
       </el-tab-pane>
 
@@ -53,15 +59,15 @@
         <el-alert type="info" :closable="false"
           :title="`本营 ${studentMembers.length} 名学员；承诺出勤日按营期范围内工作日（${session.weekdays_only ? '仅周一~周五' : '含周末'}）展开`" />
         <div style="margin-top: 12px;">
-          <el-button type="primary" @click="regenPlan">重生成承诺出勤日</el-button>
-          <span class="hint">加入新学员时自动生成；此处可手动重生成（幂等）</span>
+          <el-button v-if="manageWritable" type="primary" @click="regenPlan">重生成承诺出勤日</el-button>
+          <span class="hint">加入新学员时自动生成；此处可手动重生成（幂等，自动清理范围外/范围内周末的旧承诺日）</span>
         </div>
       </el-tab-pane>
 
       <!-- ④ 座位 -->
       <el-tab-pane label="座位" name="seats">
         <div style="margin-bottom: 12px;">
-          <el-button type="primary" size="small" @click="openAssignSeat">分配座位</el-button>
+          <el-button v-if="manageWritable" type="primary" size="small" @click="openAssignSeat">分配座位</el-button>
         </div>
         <el-table :data="seats" border size="small">
           <el-table-column label="座位" prop="label" width="120" />
@@ -84,12 +90,14 @@
               <el-tag :type="leaveStatusType(row.status)" size="small">{{ leaveStatusLabel(row.status) }}</el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="140">
+          <el-table-column label="操作" width="200">
             <template #default="{ row }">
               <template v-if="row.status === 'pending'">
                 <el-button size="small" type="success" link @click="approveLeave(row, true)">批准</el-button>
                 <el-button size="small" type="danger" link @click="approveLeave(row, false)">拒绝</el-button>
               </template>
+              <el-button v-if="row.status === 'approved'" size="small" type="warning" link
+                @click="revokeLeave(row)">撤回批准</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -105,7 +113,7 @@
           </el-form-item>
           <el-form-item label="勋章">
             <el-select v-model="rewardForm.medal_id" placeholder="选择勋章" style="width: 100%;">
-              <el-option v-for="md in medals" :key="md.Medal_Id" :label="md.Medal_Name" :value="md.Medal_Id" />
+              <el-option v-for="md in medals" :key="md.id" :label="md.name" :value="md.id" />
             </el-select>
           </el-form-item>
           <el-form-item label="描述">
@@ -117,8 +125,8 @@
         </el-form>
       </el-tab-pane>
 
-      <!-- ⑦ 加入申请 -->
-      <el-tab-pane label="加入申请" name="join">
+      <!-- ⑦ 加入申请（仅老师/超管；mentor 无审批权，隐藏入口） -->
+      <el-tab-pane v-if="canManage" label="加入申请" name="join">
         <el-alert v-if="!joinRequests.length" type="info" :closable="false" title="暂无待审批的加入申请" />
         <el-table :data="joinRequests" border size="small" style="margin-top: 12px;">
           <el-table-column label="申请人" prop="username" width="110" />
@@ -212,11 +220,17 @@
 import api from '../api';
 import { ref, reactive, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { useStore } from 'vuex';
 import { ElMessage, ElMessageBox } from 'element-plus';
 
 const route = useRoute();
 const router = useRouter();
+const store = useStore();
 const campId = route.params.id;
+
+// 营期管理写操作 = 老师/超管 且 营期未归档（mentor 只读：请假审批/发奖励除外）
+const canManage = computed(() => ['teacher', 'super_admin'].includes(store.getters.role));
+const manageWritable = computed(() => canManage.value && session.value.status !== 'archived');
 
 const loading = ref(false);
 const activeTab = ref('members');
@@ -254,8 +268,9 @@ function onUserPicked(uid) {
 }
 const studentMembers = computed(() => members.value.filter((m) => m.role === 'student'));
 const availableCourses = computed(() => {
-  const added = new Set(courses.value.map((c) => c.course_id));
-  return allCourses.value.filter((c) => !added.has(c.Course_Id));
+  // /camp/.../courses 返回 int id 而 /course/list 返回字符串 id，统一转 String 再比对
+  const added = new Set(courses.value.map((c) => String(c.course_id)));
+  return allCourses.value.filter((c) => !added.has(String(c.Course_Id)));
 });
 const mentorName = (id) => (id ? members.value.find((m) => m.user_id === id)?.username || '—' : '—');
 
@@ -289,17 +304,18 @@ async function fetchAll() {
 }
 
 async function fetchOptions() {
-  // 这些接口需对应 _management 权限；teacher 由 seed 授全部，mentor 可能缺。失败则选项空。
+  // 用户/课程/座位接口需对应权限；勋章走 /camp/medals（仅需营期角色，不依赖 medal_management，
+  // 否则无该权限的 teacher 勋章下拉为空、发奖励整个不可用）。失败则选项为空。
   try {
     const [u, c, md, ps] = await Promise.all([
       api.get('/user/user_list').catch(() => null),
       api.get('/course/list').catch(() => null),
-      api.get('/medal/medal_list').catch(() => null),
+      api.get('/camp/medals').catch(() => null),
       api.get('/seat/rooms/106/seats').catch(() => null),
     ]);
     users.value = u?.data || [];
     allCourses.value = c?.data || [];
-    medals.value = md?.data?.medal || [];
+    medals.value = md?.data?.medals || [];
     physicalSeats.value = ps?.data?.seats || [];
   } catch { /* 忽略 */ }
 }
@@ -328,7 +344,11 @@ function removeMember(row) {
     await api.delete(`/camp/sessions/${campId}/members/${row.user_id}`);
     ElMessage.success('已移除');
     fetchAll();
-  }).catch(() => {});
+  }).catch((e) => {
+    // 用户取消是 'cancel'/'close' 字符串；其余才是请求失败
+    if (e === 'cancel' || e === 'close') return;
+    ElMessage.error(e.response?.data?.message || '移除失败');
+  });
 }
 
 // ── 课程 ──
@@ -343,6 +363,19 @@ async function submitAddCourse() {
   } catch (e) {
     ElMessage.error(e.response?.data?.message || '加入失败');
   }
+}
+
+function removeCourse(row) {
+  ElMessageBox.confirm(`确定从本营移除课程「${row.title}」吗？（不影响学员已选课记录）`, '提示', {
+    confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning',
+  }).then(async () => {
+    await api.delete(`/camp/sessions/${campId}/courses/${row.course_id}`);
+    ElMessage.success('已移除');
+    fetchAll();
+  }).catch((e) => {
+    if (e === 'cancel' || e === 'close') return;
+    ElMessage.error(e.response?.data?.message || '移除失败');
+  });
 }
 
 // ── 出勤计划 ──
@@ -370,14 +403,48 @@ async function submitAssignSeat() {
 }
 
 // ── 请假 ──
-async function approveLeave(row, approve) {
-  try {
-    await api.post(`/camp/leave/${row.id}/approve`, { approve });
-    ElMessage.success(approve ? '已批准' : '已拒绝');
-    fetchAll();
-  } catch (e) {
-    ElMessage.error(e.response?.data?.message || '审批失败');
-  }
+// 审批类操作防连击：共享一个 busy 标记（后端另有 pending 校验兜底）
+const actionBusy = ref(false);
+async function guarded(fn) {
+  if (actionBusy.value) return;
+  actionBusy.value = true;
+  try { await fn(); } finally { actionBusy.value = false; }
+}
+
+function approveLeave(row, approve) {
+  guarded(async () => {
+    if (!approve) {
+      // 拒绝影响较大，先确认
+      try {
+        await ElMessageBox.confirm(`确定拒绝「${row.username}」${row.start_date}~${row.end_date} 的请假吗？`, '拒绝请假',
+          { confirmButtonText: '拒绝', cancelButtonText: '取消', type: 'warning' });
+      } catch { return; }
+    }
+    try {
+      await api.post(`/camp/leave/${row.id}/approve`, { approve });
+      ElMessage.success(approve ? '已批准' : '已拒绝');
+      fetchAll();
+    } catch (e) {
+      ElMessage.error(e.response?.data?.message || '审批失败');
+    }
+  });
+}
+
+function revokeLeave(row) {
+  guarded(async () => {
+    try {
+      await ElMessageBox.confirm(
+        `确定撤回「${row.username}」${row.start_date}~${row.end_date} 已批准的请假吗？撤回后重新进入待审批，其考勤按缺勤回算。`,
+        '撤回批准', { confirmButtonText: '撤回', cancelButtonText: '取消', type: 'warning' });
+    } catch { return; }
+    try {
+      await api.post(`/camp/leave/${row.id}/revoke`);
+      ElMessage.success('已撤回，该请假重新进入待审批');
+      fetchAll();
+    } catch (e) {
+      ElMessage.error(e.response?.data?.message || '撤回失败');
+    }
+  });
 }
 
 // ── 奖励 ──
@@ -407,25 +474,41 @@ async function fetchJoinRequests() {
     joinMentors.value = res.data.mentors || [];
   } catch { /* 非管理角色或无权限，忽略 */ }
 }
-async function approveJoin(row) {
+function approveJoin(row) {
   // 归属导生可选：不指定则学员以 team_mentor_id=null 入营，事后可在「成员」Tab 改派
-  try {
-    await api.post(`/camp/join-requests/${row.id}/approve`, { team_mentor_id: row._mentor });
-    ElMessage.success('已批准并加入营期');
-    fetchAll();
-    fetchJoinRequests();
-  } catch (e) {
-    ElMessage.error(e.response?.data?.message || '审批失败');
-  }
+  guarded(async () => {
+    try {
+      await api.post(`/camp/join-requests/${row.id}/approve`, { team_mentor_id: row._mentor });
+      ElMessage.success('已批准并加入营期');
+      fetchAll();
+      fetchJoinRequests();
+    } catch (e) {
+      ElMessage.error(e.response?.data?.message || '审批失败');
+    }
+  });
 }
-async function rejectJoin(row) {
-  try {
-    await api.post(`/camp/join-requests/${row.id}/reject`);
-    ElMessage.success('已拒绝');
-    fetchJoinRequests();
-  } catch (e) {
-    ElMessage.error(e.response?.data?.message || '操作失败');
-  }
+function rejectJoin(row) {
+  guarded(async () => {
+    // 拒绝原因可选，会拼进申请人的通知里
+    let reason = '';
+    try {
+      const { value } = await ElMessageBox.prompt(
+        `可填写拒绝原因（将通知「${row.username}」）`, '拒绝加入申请',
+        { confirmButtonText: '拒绝', cancelButtonText: '取消', inputPlaceholder: '原因（可选）' });
+      reason = value || '';
+    } catch (e) {
+      if (e === 'cancel' || e === 'close') return;   // 用户取消，不执行拒绝
+      ElMessage.error('操作失败');
+      return;
+    }
+    try {
+      await api.post(`/camp/join-requests/${row.id}/reject`, { reason });
+      ElMessage.success('已拒绝');
+      fetchJoinRequests();
+    } catch (e) {
+      ElMessage.error(e.response?.data?.message || '操作失败');
+    }
+  });
 }
 async function updateMentor(row, mentorId) {
   try {
@@ -437,7 +520,7 @@ async function updateMentor(row, mentorId) {
   }
 }
 
-onMounted(() => { fetchAll(); fetchOptions(); fetchJoinRequests(); });
+onMounted(() => { fetchAll(); fetchOptions(); if (canManage.value) fetchJoinRequests(); });
 </script>
 
 <style scoped>

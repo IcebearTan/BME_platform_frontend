@@ -60,8 +60,12 @@ const board = ref({});
 const loading = ref(false);
 
 const GLYPH = {
-  present: '✓', late: '迟', short_hours: '短', late_and_short: '⚠',
-  absent: '✗', on_leave: '假',
+  present: '✓', late: '迟', short_hours: '短', late_and_short: '!',
+  absent: '✗', on_leave: '假', pledged: '·', unpledged: '', in_progress: '…',
+};
+const STATUS_TEXT = {
+  present: '出勤', late: '迟到·时长达标', short_hours: '时长不足', late_and_short: '迟到+时长不足',
+  absent: '缺勤', on_leave: '请假', pledged: '已承诺·待考勤', unpledged: '未承诺', in_progress: '考勤进行中',
 };
 const glyph = (s) => GLYPH[s] || '';
 
@@ -72,7 +76,7 @@ const label = (d) => {              // 'YYYY-MM-DD' → 'M/D'
 
 const tip = (c) => {
   if (!c) return '';
-  const parts = [c.status];
+  const parts = [STATUS_TEXT[c.status] || c.status];
   if (c.first_check_in) parts.push(`签到 ${c.first_check_in.slice(11, 16)}`);
   if (c.total_hours != null) parts.push(`时长 ${c.total_hours}h`);
   if (c.in_progress) parts.push('未签退');
@@ -97,7 +101,14 @@ async function fetchSessions() {
 
 function onSessionChange() {
   const s = sessions.value.find((x) => x.id === sid.value);
-  if (s) dateRange.value = [s.start_date, s.end_date];   // 默认范围 = 营期起止
+  if (s) {
+    // 默认只看到今天（clamp 到营期范围内）：进行中的营拉全期会带一整排未来空列
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const todayIso = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    const to = [s.start_date, todayIso, s.end_date].sort()[1];
+    dateRange.value = [s.start_date, to];
+  }
   fetchBoard();
 }
 
@@ -140,4 +151,7 @@ onMounted(fetchSessions);
 .cell-late_and_short { background: #fde2e2; color: #f56c6c; }
 .cell-absent { background: #f4f4f5; color: #bbb; }
 .cell-on_leave { background: #ecf5ff; color: #409eff; }
+.cell-pledged { background: #f9fbff; color: #a0cfff; }
+.cell-unpledged { background: transparent; color: #dcdfe6; }
+.cell-in_progress { background: #e8f4ff; color: #409eff; }
 </style>

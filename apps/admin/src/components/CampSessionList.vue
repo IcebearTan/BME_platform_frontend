@@ -1,7 +1,7 @@
 <template>
   <div class="camp-session-list">
     <div class="header-bar">
-      <el-button type="primary" @click="openCreate">新建营期</el-button>
+      <el-button v-if="canManage" type="primary" @click="openCreate">新建营期</el-button>
     </div>
     <el-table :data="sessions" v-loading="loading" border stripe>
       <el-table-column label="营期名称" prop="name" min-width="160" />
@@ -20,14 +20,14 @@
       <el-table-column label="主页营期" width="120" align="center">
         <template #default="{ row }">
           <el-tag v-if="row.is_featured" type="success" size="small">当前主页</el-tag>
-          <el-button v-else size="small" link @click="setFeatured(row)">设为当前</el-button>
+          <el-button v-else-if="canManage" size="small" link @click="setFeatured(row)">设为当前</el-button>
         </template>
       </el-table-column>
       <el-table-column label="操作" width="230" fixed="right">
         <template #default="{ row }">
           <el-button size="small" type="primary" @click="goDetail(row.id)">详情</el-button>
-          <el-button size="small" @click="openEdit(row)">编辑</el-button>
-          <el-button v-if="row.status !== 'archived'" size="small" @click="archive(row)">归档</el-button>
+          <el-button v-if="canManage" size="small" @click="openEdit(row)">编辑</el-button>
+          <el-button v-if="canManage && row.status !== 'archived'" size="small" @click="archive(row)">归档</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -77,11 +77,15 @@
 
 <script setup>
 import api from '../api';
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { useStore } from 'vuex';
 import { ElMessage, ElMessageBox } from 'element-plus';
 
 const router = useRouter();
+const store = useStore();
+// 营期管理操作仅老师/超管（mentor 只读查看）
+const canManage = computed(() => ['teacher', 'super_admin'].includes(store.getters.role));
 const sessions = ref([]);
 const loading = ref(false);
 const dateRange = ref(null);
@@ -159,7 +163,10 @@ function archive(row) {
     await api.put(`/camp/sessions/${row.id}`, { status: 'archived' });
     ElMessage.success('已归档');
     fetchList();
-  }).catch(() => {});
+  }).catch((e) => {
+    if (e === 'cancel' || e === 'close') return;   // 用户取消
+    ElMessage.error(e.response?.data?.message || '归档失败');
+  });
 }
 
 async function setFeatured(row) {
