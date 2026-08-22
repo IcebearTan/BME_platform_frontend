@@ -204,8 +204,10 @@ function handleClick(item) {
 }
 
 function handleMarkAllAsRead() {
-  markAllAsRead()
-  ElMessage.success('已全部标记为已读')
+  // 在分类 tab 下只标记该分类，避免把营期/系统通知一起标掉
+  const cat = (activeFilter.value === 'camp' || activeFilter.value === 'system') ? activeFilter.value : null
+  markAllAsRead(cat)
+  ElMessage.success(cat ? `已将「${cat === 'camp' ? '营期' : '系统'}」通知标记为已读` : '已全部标记为已读')
 }
 
 // 初始化：拉取数据

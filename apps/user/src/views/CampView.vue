@@ -52,6 +52,7 @@ import { useStore } from 'vuex';
 import { useRoute } from 'vue-router';
 import MenuComponent from '../components/MenuComponent.vue';
 import { DewButtonBar, DewCard, DewSelect, DewSkeleton } from '../components/ui';
+import { ElMessage } from 'element-plus';
 import { campService } from '../services/campService';
 import CampSelection from '../components/Camp/CampSelection.vue';
 import CampAttendance from '../components/Camp/CampAttendance.vue';
@@ -100,8 +101,9 @@ onMounted(async () => {
     if (initSid && !sessions.value.some((s) => s.id === initSid)) initSid = null;
     if (!initSid && sessions.value.length) initSid = sessions.value[0].id;
     if (initSid) sid.value = initSid;
-  } catch { /* ignore */ }
-  finally { loadingSessions.value = false; }
+  } catch {
+    ElMessage.error('加载营期列表失败，请刷新重试');
+  } finally { loadingSessions.value = false; }
 });
 </script>
 

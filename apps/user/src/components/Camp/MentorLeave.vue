@@ -15,6 +15,9 @@
             <DewButton size="sm" type="glass" @click="approve(lv, true)">批准</DewButton>
             <DewButton size="sm" type="ghost" @click="approve(lv, false)">拒绝</DewButton>
           </div>
+          <div v-else-if="lv.status === 'approved'" class="actions">
+            <DewButton size="sm" type="ghost" @click="revoke(lv)">撤回批准</DewButton>
+          </div>
         </DewCard>
       </div>
     </DewCard>
@@ -24,12 +27,13 @@
 <script setup>
 import { ref, watch } from 'vue';
 import { DewCard, DewBadge, DewButton } from '../ui';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import { campService } from '../../services/campService';
 
 const props = defineProps({ sid: { type: [Number, String], required: true } });
 
 const leaves = ref([]);
+const busy = ref(false);   // 审批/撤回防连击（后端另有 pending 校验兜底）
 const statusLabel = (s) => ({ pending: '待审批', approved: '已批准', rejected: '已拒绝' }[s] || s);
 const statusType = (s) => ({ pending: 'warning', approved: 'success', rejected: 'danger' }[s] || 'neutral');
 
@@ -39,13 +43,39 @@ async function load() {
 }
 
 async function approve(lv, ok) {
+  if (busy.value) return;
+  if (!ok) {
+    try {
+      await ElMessageBox.confirm(`确定拒绝 ${lv.username} ${lv.start_date}~${lv.end_date} 的请假吗？`, '拒绝请假',
+        { confirmButtonText: '拒绝', cancelButtonText: '取消', type: 'warning' });
+    } catch { return; }
+  }
+  busy.value = true;
   try {
     await campService.approveLeave(lv.id, ok);
     ElMessage.success(ok ? '已批准' : '已拒绝');
     load();
   } catch (e) {
     ElMessage.error(e.response?.data?.message || '审批失败');
-  }
+  } finally { busy.value = false; }
+}
+
+// 撤回已批准的请假（如误批）：重新进入待审批，考勤按缺勤回算
+async function revoke(lv) {
+  if (busy.value) return;
+  try {
+    await ElMessageBox.confirm(
+      `撤回后 ${lv.username} ${lv.start_date}~${lv.end_date} 的请假将重新进入待审批，其间考勤按缺勤回算。确定撤回吗？`,
+      '撤回批准', { confirmButtonText: '撤回', cancelButtonText: '取消', type: 'warning' });
+  } catch { return; }
+  busy.value = true;
+  try {
+    await campService.revokeLeave(lv.id);
+    ElMessage.success('已撤回，该请假重新进入待审批');
+    load();
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '撤回失败');
+  } finally { busy.value = false; }
 }
 
 watch(() => props.sid, load, { immediate: true });

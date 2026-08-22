@@ -85,7 +85,7 @@
               <div class="ring-wrap">
                 <div class="multi-ring" :style="teamRingStyle">
                   <div class="ring-hole">
-                    <div class="ring-num">{{ teamRatePct }}<span class="ring-pct">%</span></div>
+                    <div class="ring-num">{{ teamRatePct }}<span v-if="teamRatePct !== '—'" class="ring-pct">%</span></div>
                     <div class="ring-label">团队达标率</div>
                   </div>
                 </div>
@@ -130,14 +130,14 @@
           <template #header>
             <div class="card-title-row">
               <h3>我的出勤</h3>
-              <span class="card-hint">已满足 {{ personal?.satisfied || 0 }} / 承诺 {{ personal?.pledged_days || 0 }} 天</span>
+              <span class="card-hint">已满足 {{ personal?.satisfied || 0 }} / 已过承诺 {{ personal?.elapsed_pledged ?? 0 }} 天</span>
             </div>
           </template>
           <div class="dashboard-body">
             <div class="ring-wrap">
               <div class="multi-ring" :style="ringStyle">
                 <div class="ring-hole">
-                  <div class="ring-num">{{ ratePct }}<span class="ring-pct">%</span></div>
+                  <div class="ring-num">{{ ratePct }}<span v-if="ratePct !== '—'" class="ring-pct">%</span></div>
                   <div class="ring-label">达标率</div>
                 </div>
               </div>
@@ -157,7 +157,7 @@
           <template #header>
             <div class="card-title-row">
               <h3>出勤日历</h3>
-              <span class="card-hint">已满足 {{ personal?.satisfied || 0 }} / 承诺 {{ personal?.pledged_days || 0 }} 天</span>
+              <span class="card-hint">已满足 {{ personal?.satisfied || 0 }} / 已过承诺 {{ personal?.elapsed_pledged ?? 0 }} 天</span>
             </div>
           </template>
           <div class="heatmap">
@@ -173,6 +173,8 @@
               <span><span class="lg-dot lg-on_leave"></span>请假</span>
               <span><span class="lg-dot lg-late"></span>迟到/不足</span>
               <span><span class="lg-dot lg-absent"></span>缺勤</span>
+              <span><span class="lg-dot lg-in_progress"></span>进行中</span>
+              <span><span class="lg-dot lg-pledged"></span>已承诺·待考勤</span>
               <span><span class="lg-dot lg-unpledged"></span>未承诺</span>
             </div>
           </div>
@@ -222,16 +224,19 @@
             </div>
             <div class="sheet-days">
               <div v-for="d in campDays" :key="d.iso"
-                   :class="['day-row', { selected: joinSheet.selected.has(d.iso) }]"
-                   @click="toggleDay(d.iso)">
+                   :class="['day-row', { selected: joinSheet.selected.has(d.iso), disabled: d.disabled }]"
+                   @click="d.disabled || toggleDay(d.iso)">
                 <div class="day-main">
                   <div class="day-date">{{ d.label }}</div>
-                  <div class="day-sub">{{ d.weekday }}</div>
+                  <div class="day-sub">{{ d.disabled ? d.why : d.weekday }}</div>
                 </div>
                 <div class="day-mark">
                   <el-icon class="day-check"><Check /></el-icon>
                 </div>
               </div>
+            </div>
+            <div class="sheet-reason">
+              <DewInput v-model="joinReason" type="textarea" :rows="2" placeholder="申请理由（可选，老师审批时可见）" />
             </div>
             <div class="sheet-footer">
               <DewButton type="glass" @click="closeJoinSheet">取消</DewButton>
@@ -249,7 +254,7 @@ import { ref, reactive, computed, onMounted, onUnmounted, watch, nextTick } from
 import { useStore } from 'vuex';
 import { useRouter } from 'vue-router';
 import MenuComponent from '../components/MenuComponent.vue';
-import { DewCard, DewButton, DewProgress } from '../components/ui';
+import { DewCard, DewButton, DewProgress, DewInput } from '../components/ui';
 import { ElMessage } from 'element-plus';
 import { Calendar, Clock, User, Trophy, Check } from '@element-plus/icons-vue';
 import { campService } from '../services/campService';
@@ -272,7 +277,11 @@ const teamSummary = ref(null);   // 导生：本团队 dashboard.summary
 const teamLeaves = ref([]);      // 导生：本团队请假
 
 const statusLabel = (s) => ({ draft: '未开始', active: '进行中', archived: '已结束' }[s] || s);
-const ratePct = computed(() => Math.round((personal.value?.attendance_rate || 0) * 100));
+// 达标率 null（营未开始/无已过承诺日）显示「—」而非误导性的 0%
+const ratePct = computed(() => {
+  const r = personal.value?.attendance_rate;
+  return r == null ? '—' : Math.round(r * 100);
+});
 // 出勤分布多段环（已过承诺日的状态比例：出勤绿/迟到黄/缺勤红/请假蓝）
 function ringStyleFrom(p) {
   const seg = [
@@ -305,7 +314,10 @@ const STATS_DEF = [
 const stats = computed(() => STATS_DEF.map((s) => ({ ...s, value: personal.value?.[s.key] || 0 })));
 
 // 导生团队汇总
-const teamRatePct = computed(() => Math.round((teamSummary.value?.attendance_rate || 0) * 100));
+const teamRatePct = computed(() => {
+  const r = teamSummary.value?.attendance_rate;
+  return r == null ? '—' : Math.round(r * 100);
+});
 const teamStats = computed(() => STATS_DEF.map((s) => ({ ...s, value: teamSummary.value?.[s.key] || 0 })));
 const pendingCount = computed(() => teamLeaves.value.filter((l) => l.status === 'pending').length);
 
@@ -356,23 +368,33 @@ async function loadFeatured() {
 
 // 选承诺出勤日 sheet（底部弹出，上下滚动多选营期范围内日期）
 const joinSheet = reactive({ visible: false, selected: new Set() });
+const joinReason = ref('');
 const campDays = computed(() => {
   const s = session.value;
   if (!s) return [];
   const out = [];
   const wk = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
   const pad = (n) => String(n).padStart(2, '0');
+  const today = new Date(); today.setHours(0, 0, 0, 0);
   let cur = new Date(s.start_date);
   const end = new Date(s.end_date);
   while (cur <= end) {
     const iso = `${cur.getFullYear()}-${pad(cur.getMonth() + 1)}-${pad(cur.getDate())}`;
-    out.push({ iso, label: `${cur.getMonth() + 1}/${cur.getDate()}`, weekday: wk[cur.getDay()] });
+    // 与后端 join_request_submit 同口径：过去日不可承诺；仅工作日营不含周末
+    const past = cur < today;
+    const weekend = cur.getDay() === 0 || cur.getDay() === 6;
+    out.push({
+      iso, label: `${cur.getMonth() + 1}/${cur.getDate()}`, weekday: wk[cur.getDay()],
+      disabled: past || (s.weekdays_only && weekend),
+      why: past ? '已过去' : '非工作日',
+    });
     cur.setDate(cur.getDate() + 1);
   }
   return out;
 });
 function openJoinSheet() {
   joinSheet.selected = new Set();
+  joinReason.value = '';
   joinSheet.visible = true;
 }
 function closeJoinSheet() { joinSheet.visible = false; }
@@ -381,10 +403,11 @@ function toggleDay(iso) {
   else joinSheet.selected.add(iso);
 }
 async function submitJoin() {
+  if (joinSubmitting.value) return;   // 重入护栏：防双击连发两个申请（第二个撞 409）
   if (!session.value || !joinSheet.selected.size) return;
   joinSubmitting.value = true;
   try {
-    await campService.requestJoin(session.value.id, [...joinSheet.selected]);
+    await campService.requestJoin(session.value.id, [...joinSheet.selected], joinReason.value.trim());
     ElMessage.success('申请已提交，等待审批');
     joinSheet.visible = false;
     await loadFeatured();
@@ -562,7 +585,8 @@ onMounted(async () => {
 .lg-on_leave { background: var(--color-info); }
 .lg-late { background: var(--color-warning); }
 .lg-absent { background: var(--color-danger); }
-.lg-future { background: var(--color-info); opacity: 0.35; }
+.lg-in_progress { background: var(--color-primary); }
+.lg-pledged { background: var(--color-info); opacity: 0.5; }
 .lg-unpledged { background: var(--dew-text-faint); opacity: 0.4; }
 .heat-present { background: rgba(16, 185, 129, 0.12); } .heat-present .heat-dot { background: var(--color-success); }
 .heat-late, .heat-short_hours { background: rgba(245, 158, 11, 0.12); } .heat-late .heat-dot, .heat-short_hours .heat-dot { background: var(--color-warning); }
@@ -571,6 +595,7 @@ onMounted(async () => {
 .heat-on_leave { background: rgba(99, 102, 241, 0.12); } .heat-on_leave .heat-dot { background: var(--color-info); }
 .heat-unpledged { background: transparent; border: 1px dashed rgba(150,150,150,0.3); } .heat-unpledged .heat-dot { background: transparent; } .heat-unpledged .heat-day { color: var(--dew-text-faint); opacity: 0.5; }
 .heat-pledged { background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.35); } .heat-pledged .heat-dot { background: var(--color-info); opacity: 0.5; } .heat-pledged .heat-day { color: var(--color-info); }
+.heat-in_progress { background: rgba(59, 130, 246, 0.12); } .heat-in_progress .heat-dot { background: var(--color-primary); } .heat-in_progress .heat-day { color: var(--color-primary); }
 
 /* bottom */
 .bottom-row { margin-bottom: 16px; }
@@ -660,6 +685,11 @@ onMounted(async () => {
   cursor: pointer; transition: all 0.25s var(--dew-bounce);
 }
 .day-row:hover { transform: translateY(-1px); }
+.day-row.disabled {
+  cursor: not-allowed; opacity: 0.45;
+  border-style: dashed;
+}
+.day-row.disabled:hover { transform: none; }
 .day-row.selected {
   border-color: var(--color-success);
   background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(16, 185, 129, 0.05));
@@ -690,6 +720,7 @@ onMounted(async () => {
   opacity: 1;
   transform: scale(1);
 }
+.sheet-reason { margin: 4px 0 12px; }
 .sheet-footer { display: flex; gap: 10px; padding-top: 12px; border-top: 1px solid var(--dew-card-divider); }
 .sheet-footer .dew-button { flex: 1; }
 .sheet-enter-active, .sheet-leave-active { transition: opacity 0.25s; }

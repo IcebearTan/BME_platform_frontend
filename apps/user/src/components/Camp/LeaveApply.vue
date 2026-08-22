@@ -53,7 +53,9 @@ async function load() {
   try {
     const data = await campService.fetchMyLeaves(props.sid);
     leaves.value = data.leaves || [];
-  } catch { /* ignore */ }
+  } catch {
+    ElMessage.error('加载请假记录失败');
+  }
 }
 
 async function submit() {

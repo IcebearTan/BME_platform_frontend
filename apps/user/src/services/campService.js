@@ -31,6 +31,8 @@ export const campService = {
     api.get(`/camp/sessions/${sid}/leave`).then(r => r.data),
   approveLeave: (id, approve) =>
     api.post(`/camp/leave/${id}/approve`, { approve }).then(r => r.data),
+  revokeLeave: (id) =>
+    api.post(`/camp/leave/${id}/revoke`).then(r => r.data),
   issueReward: (sid, userId, medalId, description) =>
     api.post('/camp/reward', { camp_session_id: sid, user_id: userId, medal_id: medalId, description }).then(r => r.data),
   fetchMembers: (sid) =>
@@ -41,6 +43,6 @@ export const campService = {
   // ── 营期主页（后台指定的当前营期）+ 加入申请 ──
   fetchFeatured: () =>
     api.get('/camp/featured').then(r => r.data),
-  requestJoin: (sid, selected_days) =>
-    api.post(`/camp/sessions/${sid}/join-request`, { selected_days }).then(r => r.data),
+  requestJoin: (sid, selected_days, reason = '') =>
+    api.post(`/camp/sessions/${sid}/join-request`, { selected_days, reason }).then(r => r.data),
 }

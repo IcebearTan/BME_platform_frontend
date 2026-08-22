@@ -43,12 +43,16 @@ const summary = computed(() => board.value.summary || null);
 const dates = computed(() => board.value.dates || []);
 const rows = computed(() => board.value.rows || []);
 
-const GLYPH = { present: '✓', late: '迟', short_hours: '短', late_and_short: '!', absent: '✗', on_leave: '休' };
+const GLYPH = { present: '✓', late: '迟', short_hours: '短', late_and_short: '!', absent: '✗',
+                on_leave: '休', pledged: '·', unpledged: '', in_progress: '…' };
+const STATUS_TEXT = { present: '出勤', late: '迟到·时长达标', short_hours: '时长不足',
+                      late_and_short: '迟到+时长不足', absent: '缺勤', on_leave: '请假',
+                      pledged: '已承诺·待考勤', unpledged: '未承诺', in_progress: '考勤进行中' };
 const glyph = (s) => GLYPH[s] || '';
 const label = (d) => { const [, m, day] = d.split('-'); return `${parseInt(m)}/${parseInt(day)}`; };
 const pct = (r) => (r == null ? '—' : (r * 100).toFixed(0) + '%');
 const tip = (c) => {
-  const p = [c.status];
+  const p = [STATUS_TEXT[c.status] || c.status];
   if (c.first_check_in) p.push('签到 ' + c.first_check_in.slice(11, 16));
   if (c.total_hours != null) p.push('时长 ' + c.total_hours + 'h');
   if (c.in_progress) p.push('未签退');
@@ -74,4 +78,7 @@ watch(() => props.sid, load, { immediate: true });
 .cell-late_and_short { background: rgba(239, 68, 68, .20); color: #ef4444; }
 .cell-absent { background: rgba(156, 163, 175, .18); color: #9ca3af; }
 .cell-on_leave { background: rgba(99, 102, 241, .18); color: #6366f1; }
+.cell-pledged { background: rgba(156, 163, 175, .10); color: #9ca3af; }
+.cell-unpledged { background: rgba(148, 163, 184, .05); color: #94a3b8; }
+.cell-in_progress { background: rgba(59, 130, 246, .15); color: #3b82f6; }
 </style>

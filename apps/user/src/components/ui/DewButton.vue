@@ -8,7 +8,7 @@
       `dew-btn--${size}`,
       { 'dew-btn--block': block, 'dew-btn--lit': active }
     ]"
-    :disabled="disabled"
+    :disabled="disabled || loading"
     :style="sizeStyle"
     @mouseenter="onEnter"
     @mousemove="onMove"
@@ -23,6 +23,7 @@
     </span>
     <!-- 可见内容层 -->
     <span class="dew-btn__content">
+      <span v-if="loading" class="dew-btn__spinner" aria-hidden="true"></span>
       <slot />
     </span>
   </button>
@@ -35,6 +36,7 @@ const props = defineProps({
   type: { type: String, default: 'glass' },
   size: { type: String, default: 'md' },
   disabled: { type: Boolean, default: false },
+  loading: { type: Boolean, default: false },
   block: { type: Boolean, default: false },
   active: { type: Boolean, default: false },
 })
@@ -155,6 +157,18 @@ const chromaticStyle = computed(() => {
   pointer-events: none;
   transition: text-shadow 0.25s ease;
 }
+
+/* loading 旋转指示（纯 CSS，不引图标） */
+.dew-btn__spinner {
+  width: 1em;
+  height: 1em;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  animation: dew-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes dew-spin { to { transform: rotate(360deg); } }
 
 .dew-btn__refraction {
   position: absolute;

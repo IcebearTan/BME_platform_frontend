@@ -48,10 +48,12 @@ const rows = computed(() =>
 const statusLabel = (s) => ({
   present: '出勤', late: '迟到', short_hours: '时长不足', late_and_short: '迟到+不足',
   absent: '缺勤', on_leave: '请假', pledged: '已承诺', unpledged: '未承诺',
+  in_progress: '进行中',
 }[s] || s);
 const badgeType = (s) => ({
   present: 'success', late: 'warning', short_hours: 'warning', late_and_short: 'danger',
   absent: 'danger', on_leave: 'primary', pledged: 'primary', unpledged: 'neutral',
+  in_progress: 'primary',
 }[s] || 'neutral');
 const pct = (r) => (r == null ? '—' : (r * 100).toFixed(0) + '%');
 const metaText = (c) => {
@@ -93,6 +95,7 @@ watch(() => props.sid, load, { immediate: true });
 .cell-late_and_short { background: rgba(245, 108, 108, .10); }
 .cell-absent { background: rgba(245, 108, 108, .10); }
 .cell-on_leave { background: rgba(64, 158, 255, .08); }
+.cell-in_progress { background: rgba(64, 158, 255, .07); }
 .cell-pledged { background: rgba(64, 158, 255, .05); }
 .cell-unpledged { background: transparent; }
 </style>

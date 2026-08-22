@@ -25,11 +25,12 @@ export function useNotifications() {
   const unreadCount = computed(() => notificationList.value.filter(n => !n.is_read).length)
   const totalCount = computed(() => notificationList.value.length)
 
-  /** 获取通知列表 */
+  /** 获取通知列表（默认拉 100 条：后端 per_page=20 会在客户端筛选/分页场景截断历史通知，
+   *  如营期 tab 里较早的审批结果；需要服务端分页时自行传 page/per_page 覆盖） */
   async function fetchNotifications(params = {}) {
     loading.value = true
     try {
-      const r = await notificationService.fetchList(params)
+      const r = await notificationService.fetchList({ per_page: 100, ...params })
       if (r.code === 200) {
         notificationList.value = r.data.notifications
       }
