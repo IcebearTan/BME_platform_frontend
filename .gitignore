@@ -24,6 +24,10 @@ dist-ssr
 test-results/
 playwright-report/
 
+# @bme/styles 生成的 public 副本（predev/prebuild 自动产出）
+apps/*/public/article-content.css
+apps/*/public/md-ext/
+
 # Claude Code 本地配置
 .claude
 .claude/settings.local.json
