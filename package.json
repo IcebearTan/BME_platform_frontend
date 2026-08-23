@@ -13,6 +13,10 @@
     "build:admin": "pnpm --filter @bme/admin build",
     "preview:user": "pnpm --filter @bme/user preview",
     "preview:admin": "pnpm --filter @bme/admin preview",
-    "release:user": "pnpm --filter @bme/user release"
+    "release:user": "pnpm --filter @bme/user release",
+    "test:e2e": "playwright test -c e2e/playwright.config.ts"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1"
   }
 }

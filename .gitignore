@@ -20,6 +20,10 @@ dist-ssr
 # pnpm
 .pnpm-store/
 
+# Playwright
+test-results/
+playwright-report/
+
 # Claude Code 本地配置
 .claude
 .claude/settings.local.json
