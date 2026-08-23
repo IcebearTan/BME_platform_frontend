@@ -69,10 +69,10 @@
 import { ref, reactive } from 'vue'
 import { ElForm, ElFormItem, ElUpload, ElIcon, ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
-import DewDialog from '../ui/DewDialog.vue'
-import DewButton from '../ui/DewButton.vue'
-import DewInput from '../ui/DewInput.vue'
-import { DewMessageBox } from '../ui/DewMessageBox.js'
+import DewDialog from '@bme/dew-ui/DewDialog.vue'
+import DewButton from '@bme/dew-ui/DewButton.vue'
+import DewInput from '@bme/dew-ui/DewInput.vue'
+import { DewMessageBox } from '@bme/dew-ui/DewMessageBox.js'
 import api from '../../api'
 
 // 响应式数据

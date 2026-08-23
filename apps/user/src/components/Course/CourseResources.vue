@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Download, Document, Files, Picture, VideoPlay, Headset } from '@element-plus/icons-vue'
 import api, { API_URL } from '../../api'
-import { DewButton, DewSkeleton } from '../ui'
+import { DewButton, DewSkeleton } from '@bme/dew-ui'
 
 const props = defineProps({
   courseId: {

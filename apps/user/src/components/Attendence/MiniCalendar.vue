@@ -42,8 +42,8 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useStore } from 'vuex'
 import api from '../../api'
-import DewCard from '../ui/DewCard.vue'
-import DewSkeleton from '../ui/DewSkeleton.vue'
+import DewCard from '@bme/dew-ui/DewCard.vue'
+import DewSkeleton from '@bme/dew-ui/DewSkeleton.vue'
 
 const router = useRouter()
 const store = useStore()

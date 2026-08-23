@@ -16,7 +16,7 @@ import { useRouter } from 'vue-router'
 import { useStore } from 'vuex'
 import { Upload } from '@element-plus/icons-vue'
 import api from '../../../api'
-import { DewButton, DewCard, DewInput, DewMessage } from '../../ui'
+import { DewButton, DewCard, DewInput, DewMessage } from '@bme/dew-ui'
 import { MdEditor, MdCatalog } from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
 import './md-setup' // 自托管 highlight.js（禁外网 CDN），与阅读页共享

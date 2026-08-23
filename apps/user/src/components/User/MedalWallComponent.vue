@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue';
 import { ElMessage } from 'element-plus'
 import { Check, Medal } from '@element-plus/icons-vue'
 import api from '../../api';
-import { DewCard, DewButton, DewButtonBar, DewSkeleton } from '../ui'
+import { DewCard, DewButton, DewButtonBar, DewSkeleton } from '@bme/dew-ui'
 import { useStore } from 'vuex'
 
 const store = useStore()

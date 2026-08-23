@@ -110,7 +110,7 @@ import { ref, computed } from 'vue'
 import { useStore } from 'vuex'
 import { ChatDotRound, View, Star, StarFilled, Delete } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { DewCard, DewTag, DewInput, DewButton, DewMessageBox } from '../ui'
+import { DewCard, DewTag, DewInput, DewButton, DewMessageBox } from '@bme/dew-ui'
 import api from '../../api'
 
 const props = defineProps({

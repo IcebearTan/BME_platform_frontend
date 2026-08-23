@@ -84,6 +84,9 @@ importers:
       '@bme/api':
         specifier: workspace:*
         version: link:../../packages/api
+      '@bme/dew-ui':
+        specifier: workspace:*
+        version: link:../../packages/dew-ui
       '@bme/styles':
         specifier: workspace:*
         version: link:../../packages/styles
@@ -145,6 +148,21 @@ importers:
       element-plus:
         specifier: '>=2.8.0'
         version: 2.14.5(vue@3.5.41)
+
+  packages/dew-ui:
+    dependencies:
+      '@bme/styles':
+        specifier: workspace:*
+        version: link:../styles
+      '@element-plus/icons-vue':
+        specifier: '>=2.3.0'
+        version: 2.3.2(vue@3.5.41)
+      element-plus:
+        specifier: '>=2.8.0'
+        version: 2.14.5(vue@3.5.41)
+      vue:
+        specifier: '>=3.4.0'
+        version: 3.5.41
 
   packages/styles: {}
 

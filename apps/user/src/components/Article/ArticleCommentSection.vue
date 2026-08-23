@@ -55,7 +55,7 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Star, StarFilled } from '@element-plus/icons-vue'
-import { DewInput, DewButton } from '../ui'
+import { DewInput, DewButton } from '@bme/dew-ui'
 import api from '../../api'
 
 const props = defineProps({

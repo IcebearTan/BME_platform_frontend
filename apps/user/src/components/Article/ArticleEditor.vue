@@ -13,7 +13,7 @@ import { useRouter } from 'vue-router'
 import { useStore } from 'vuex'
 import { View, EditPen, Upload } from '@element-plus/icons-vue'
 import api from '../../api'
-import { DewButton, DewCard, DewInput, DewMessage } from '../ui'
+import { DewButton, DewCard, DewInput, DewMessage } from '@bme/dew-ui'
 
 import Editor from '@tinymce/tinymce-vue'
 import tinymce from 'tinymce/tinymce'

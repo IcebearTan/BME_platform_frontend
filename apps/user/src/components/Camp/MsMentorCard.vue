@@ -42,7 +42,7 @@
 
 <script setup>
 import { computed } from 'vue';
-import { DewCard, DewButton, DewTag } from '../ui';
+import { DewCard, DewButton, DewTag } from '@bme/dew-ui';
 import { assetUrl } from '../../services/campService';
 
 const props = defineProps({

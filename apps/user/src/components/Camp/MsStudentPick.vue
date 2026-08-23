@@ -99,7 +99,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
 import { ElMessage } from 'element-plus';
-import { DewCard, DewButtonBar, DewTag } from '../ui';
+import { DewCard, DewButtonBar, DewTag } from '@bme/dew-ui';
 import MsPhaseBar from './MsPhaseBar.vue';
 import MsMentorCard from './MsMentorCard.vue';
 import MsPreferenceTray from './MsPreferenceTray.vue';

@@ -105,7 +105,7 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { useStore } from 'vuex';
 import { useRoute, useRouter } from 'vue-router';
 import MenuComponent from '../components/MenuComponent.vue';
-import { DewButtonBar, DewButton, DewCard, DewProgress, DewSkeleton } from '../components/ui';
+import { DewButtonBar, DewButton, DewCard, DewProgress, DewSkeleton } from '@bme/dew-ui';
 import { ElMessage } from 'element-plus';
 import { campService, MS_PHASE_LABEL } from '../services/campService';
 import CampOverview from '../components/Camp/CampOverview.vue';

@@ -69,9 +69,9 @@ import api from '../../api'
 import md5 from 'js-md5'
 import { ElMessage } from 'element-plus'
 import { User, Lock } from '@element-plus/icons-vue'
-import DewCard from '../ui/DewCard.vue'
-import DewButton from '../ui/DewButton.vue'
-import DewInput from '../ui/DewInput.vue'
+import DewCard from '@bme/dew-ui/DewCard.vue'
+import DewButton from '@bme/dew-ui/DewButton.vue'
+import DewInput from '@bme/dew-ui/DewInput.vue'
 
 const store = useStore()
 const router = useRouter()

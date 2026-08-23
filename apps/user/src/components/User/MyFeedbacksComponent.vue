@@ -139,7 +139,7 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Document } from '@element-plus/icons-vue'
-import { DewCard, DewTag, DewButton, DewDialog, DewMessageBox } from '../ui'
+import { DewCard, DewTag, DewButton, DewDialog, DewMessageBox } from '@bme/dew-ui'
 import api from '../../api'
 
 const feedbackList = ref([])

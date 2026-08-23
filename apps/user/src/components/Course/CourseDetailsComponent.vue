@@ -8,7 +8,7 @@ import { Star, StarFilled } from '@element-plus/icons-vue'
 
 import ChapterTree from './ChapterTree.vue'
 import CourseResources from './CourseResources.vue'
-import { DewButtonBar } from '../ui'
+import { DewButtonBar } from '@bme/dew-ui'
 
 const store = useStore()  // 获取 Vuex store
 const router = useRouter()  // 获取 Vue Router 实例

@@ -56,7 +56,7 @@
 import { computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { Bell, ArrowRight } from '@element-plus/icons-vue'
-import DewPopover from '../ui/DewPopover.vue'
+import DewPopover from '@bme/dew-ui/DewPopover.vue'
 import { useNotifications, formatRelativeTime } from '../../composables/useNotifications'
 
 const router = useRouter()

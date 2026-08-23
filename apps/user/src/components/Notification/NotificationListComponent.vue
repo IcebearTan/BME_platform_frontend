@@ -121,7 +121,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Bell } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { DewButton, DewButtonBar, DewCard, DewTag, DewDialog, DewSkeleton } from '../ui'
+import { DewButton, DewButtonBar, DewCard, DewTag, DewDialog, DewSkeleton } from '@bme/dew-ui'
 import { useNotifications, formatRelativeTime } from '../../composables/useNotifications'
 
 const router = useRouter()

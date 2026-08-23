@@ -22,7 +22,7 @@
 
 <script setup>
 import { ref, reactive, computed, watch } from 'vue';
-import { DewCard, DewButton, DewInput, DewSelect } from '../ui';
+import { DewCard, DewButton, DewInput, DewSelect } from '@bme/dew-ui';
 import { ElMessage } from 'element-plus';
 import { campService } from '../../services/campService';
 

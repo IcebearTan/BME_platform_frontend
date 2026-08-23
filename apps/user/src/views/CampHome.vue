@@ -97,7 +97,7 @@ import { ref, reactive, computed, onMounted, onUnmounted, watch, nextTick } from
 import { useStore } from 'vuex';
 import { useRouter } from 'vue-router';
 import MenuComponent from '../components/MenuComponent.vue';
-import { DewCard, DewButton, DewInput } from '../components/ui';
+import { DewCard, DewButton, DewInput } from '@bme/dew-ui';
 import { ElMessage } from 'element-plus';
 import { Calendar, Clock, User, Trophy, Check } from '@element-plus/icons-vue';
 import { campService } from '../services/campService';

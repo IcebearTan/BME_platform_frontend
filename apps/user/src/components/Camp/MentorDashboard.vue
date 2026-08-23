@@ -30,7 +30,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue';
-import { DewCard, DewBadge } from '../ui';
+import { DewCard, DewBadge } from '@bme/dew-ui';
 import { ElMessage } from 'element-plus';
 import { campService, campVisualKey, CAMP_STATUS_TEXT, todayLocal } from '../../services/campService';
 

@@ -107,7 +107,7 @@ import { ref, onMounted, nextTick, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { View, Star, StarFilled, ChatDotRound, Share, Collection } from '@element-plus/icons-vue'
-import { DewCard } from '../ui'
+import { DewCard } from '@bme/dew-ui'
 import api from '../../api'
 import ArticleCommentSection from './ArticleCommentSection.vue'
 

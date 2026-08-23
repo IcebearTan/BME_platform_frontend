@@ -66,9 +66,9 @@ import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { useStore } from 'vuex'
 import { Lock, Key, Message, Timer } from '@element-plus/icons-vue'
-import DewCard from '../ui/DewCard.vue'
-import DewButton from '../ui/DewButton.vue'
-import DewInput from '../ui/DewInput.vue'
+import DewCard from '@bme/dew-ui/DewCard.vue'
+import DewButton from '@bme/dew-ui/DewButton.vue'
+import DewInput from '@bme/dew-ui/DewInput.vue'
 
 const router = useRouter()
 const store = useStore()

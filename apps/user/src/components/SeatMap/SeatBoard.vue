@@ -25,7 +25,7 @@
 import { ref, computed } from 'vue'
 import { useStore } from 'vuex'
 import { Clock } from '@element-plus/icons-vue'
-import DewButtonBar from '../ui/DewButtonBar.vue'
+import DewButtonBar from '@bme/dew-ui/DewButtonBar.vue'
 import { rooms, defaultRoomId } from './RoomRegistry.js'
 
 const store = useStore()

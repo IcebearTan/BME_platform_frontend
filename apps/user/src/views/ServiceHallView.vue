@@ -5,7 +5,7 @@ import { useRouter } from 'vue-router';
 import MenuComponent from "../components/MenuComponent.vue";
 import PageFooterComponent from "../components/PageFooterComponent.vue";
 import MobileMenuComponent from "../components/MobileMenuComponent.vue";
-import { DewCard, DewTag } from '../components/ui';
+import { DewCard, DewTag } from '@bme/dew-ui';
 import { Menu as Expand, Printer, Monitor, MagicStick, ArrowRight } from '@element-plus/icons-vue';
 
 const store = useStore();

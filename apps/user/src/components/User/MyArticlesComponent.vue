@@ -9,7 +9,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Delete, EditPen, Plus } from '@element-plus/icons-vue'
-import { DewCard, DewButtonBar, DewButton, DewMessage, DewMessageBox, DewSkeleton } from '../ui'
+import { DewCard, DewButtonBar, DewButton, DewMessage, DewMessageBox, DewSkeleton } from '@bme/dew-ui'
 import api from '../../api'
 
 const router = useRouter()

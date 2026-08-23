@@ -105,7 +105,7 @@ import { ref, computed, watch } from 'vue';
 import { useStore } from 'vuex';
 import { ElMessage } from 'element-plus';
 import { Plus } from '@element-plus/icons-vue';
-import { DewCard, DewButton, DewInput } from '../ui';
+import { DewCard, DewButton, DewInput } from '@bme/dew-ui';
 import MsMentorCard from './MsMentorCard.vue';
 import { campService, assetUrl } from '../../services/campService';
 

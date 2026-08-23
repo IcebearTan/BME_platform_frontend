@@ -81,9 +81,9 @@ import { ElCarousel, ElCarouselItem, ElIcon } from 'element-plus'
 import {
   Reading, EditPen, School, Select, Files, Box, MagicStick,
 } from '@element-plus/icons-vue'
-import DewButtonBar from '../ui/DewButtonBar.vue'
-import DewCard from '../ui/DewCard.vue'
-import DewPostCard from '../ui/DewPostCard.vue'
+import DewButtonBar from '@bme/dew-ui/DewButtonBar.vue'
+import DewCard from '@bme/dew-ui/DewCard.vue'
+import DewPostCard from '@bme/dew-ui/DewPostCard.vue'
 import SeatBoard from '../SeatMap/SeatBoard.vue'
 import api from '../../api'
 

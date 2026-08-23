@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@bme/api": "workspace:*",
+    "@bme/dew-ui": "workspace:*",
     "@bme/styles": "workspace:*",
     "@element-plus/icons-vue": "^2.3.1",
     "@tailwindcss/vite": "^4.3.0",

@@ -318,7 +318,7 @@ import MenuComponent from '../components/MenuComponent.vue'
 import MobileMenuComponent from '../components/MobileMenuComponent.vue'
 import DiscussionCard from '../components/Community/DiscussionCard.vue'
 import ArticleCard from '../components/Community/ArticleCard.vue'
-import { DewButtonBar, DewCard, DewInput, DewButton, DewSkeleton } from '../components/ui'
+import { DewButtonBar, DewCard, DewInput, DewButton, DewSkeleton } from '@bme/dew-ui'
 import api from '../api'
 import {
   Grid, Collection, ChatDotRound, User, TrendCharts, ArrowRight

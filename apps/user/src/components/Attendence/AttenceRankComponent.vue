@@ -39,8 +39,8 @@ import { defineComponent } from 'vue'
 import { reactive, ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '../../api';
-import DewCard from '../ui/DewCard.vue';
-import DewSkeleton from '../ui/DewSkeleton.vue';
+import DewCard from '@bme/dew-ui/DewCard.vue';
+import DewSkeleton from '@bme/dew-ui/DewSkeleton.vue';
 
 // 前三名奖牌样式：金 / 银 / 铜
 function medalClass(index) {

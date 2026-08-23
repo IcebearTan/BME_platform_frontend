@@ -26,7 +26,7 @@
 
 <script setup>
 import { ref, watch } from 'vue';
-import { DewCard, DewBadge, DewButton } from '../ui';
+import { DewCard, DewBadge, DewButton } from '@bme/dew-ui';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { campService } from '../../services/campService';
 

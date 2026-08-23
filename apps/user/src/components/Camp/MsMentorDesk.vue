@@ -114,7 +114,7 @@
 import { ref, computed, watch } from 'vue';
 import { useStore } from 'vuex';
 import { ElMessage } from 'element-plus';
-import { DewCard, DewButton, DewTag } from '../ui';
+import { DewCard, DewButton, DewTag } from '@bme/dew-ui';
 import MsPhaseBar from './MsPhaseBar.vue';
 import MsMentorProfile from './MsMentorProfile.vue';
 import { campService, assetUrl } from '../../services/campService';

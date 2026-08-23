@@ -9,7 +9,7 @@ import api from '../../api'
 import CalendarComponent from './CalendarComponent.vue'
 import MedalShowcase from './MedalShowcase.vue'
 import ArticleCard from '../Community/ArticleCard.vue'
-import { DewCard, DewTag, DewButton, DewMessage, DewMessageBox, DewSkeleton } from '../ui'
+import { DewCard, DewTag, DewButton, DewMessage, DewMessageBox, DewSkeleton } from '@bme/dew-ui'
 
 // 可选 userId：查看他人主页时传对方 id；不传（自己的 /user 页）则取自己
 const props = defineProps({

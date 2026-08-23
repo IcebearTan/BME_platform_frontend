@@ -6,7 +6,7 @@ import { ElMessage } from 'element-plus'
 import { useRouter, useRoute } from 'vue-router'
 import { useStore } from 'vuex';
 import { Message, User, Calendar, Collection, EditPen, Document } from '@element-plus/icons-vue';
-import { DewCard, DewSidebar } from '../ui'
+import { DewCard, DewSidebar } from '@bme/dew-ui'
 
 const User_Info = ref({})
 const User_Avatar = ref('');

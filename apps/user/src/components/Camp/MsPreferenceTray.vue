@@ -42,7 +42,7 @@
 
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue';
-import { DewCard, DewButton, DewInput } from '../ui';
+import { DewCard, DewButton, DewInput } from '@bme/dew-ui';
 
 const props = defineProps({
   picks: { type: Array, default: () => [] },        // [{mentor_id, note}]

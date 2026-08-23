@@ -48,7 +48,7 @@
 <script setup>
 import { computed } from 'vue'
 import { Document, ChatDotRound, ArrowRight } from '@element-plus/icons-vue'
-import { DewCard } from '../ui'
+import { DewCard } from '@bme/dew-ui'
 
 const props = defineProps({
   /** 聚合信息流中的文章项（/community/feed 返回，type==='article'） */

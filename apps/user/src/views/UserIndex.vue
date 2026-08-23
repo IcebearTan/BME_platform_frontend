@@ -3,7 +3,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useStore } from 'vuex'
 import api from '../api'
-import { DewSkeleton } from '../components/ui'
+import { DewSkeleton } from '@bme/dew-ui'
 
 import UserIndexComponent from '../components/User/UserIndexComponent.vue'
 import PageFooterComponent from '../components/PageFooterComponent.vue'

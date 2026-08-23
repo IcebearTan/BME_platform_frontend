@@ -58,7 +58,7 @@ import { Calendar } from '@element-plus/icons-vue'
 import api from '../api'
 import NotificationBell from './Notification/NotificationBell.vue'
 import campLogo from '../assets/暑期训练营.png'
-import DewPopover from './ui/DewPopover.vue'
+import DewPopover from '@bme/dew-ui/DewPopover.vue'
 
 const buttonRef = ref()
 const popoverRef = ref()

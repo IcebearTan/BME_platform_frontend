@@ -99,7 +99,7 @@
 import { ref, computed, watch } from 'vue';
 import { useStore } from 'vuex';
 import { ElMessage } from 'element-plus';
-import { DewCard } from '../ui';
+import { DewCard } from '@bme/dew-ui';
 import { campService, campVisualKey, CAMP_STATUS_TEXT } from '../../services/campService';
 
 const props = defineProps({

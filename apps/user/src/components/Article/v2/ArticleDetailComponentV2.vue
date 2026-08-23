@@ -13,7 +13,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useStore } from 'vuex'
 import { ElMessage } from 'element-plus'
 import { Share, Star, StarFilled, ChatDotRound, Collection, View } from '@element-plus/icons-vue'
-import { DewCard, DewSkeleton } from '../../ui'
+import { DewCard, DewSkeleton } from '@bme/dew-ui'
 import { MdPreview, MdCatalog } from 'md-editor-v3'
 import 'md-editor-v3/lib/preview.css'
 import './md-setup' // 自托管 highlight.js（与编辑器共享）

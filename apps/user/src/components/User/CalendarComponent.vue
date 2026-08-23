@@ -7,8 +7,8 @@ import { computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { useStore } from 'vuex';
-import { DewCard } from '../ui';
-import { DewSkeleton } from '../ui';
+import { DewCard } from '@bme/dew-ui';
+import { DewSkeleton } from '@bme/dew-ui';
 
 const store = useStore();
 const isDarkMode = computed(() => store.getters.isDarkMode);

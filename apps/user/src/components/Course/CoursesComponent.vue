@@ -5,7 +5,7 @@ import { useStore } from 'vuex'
 import { ArrowDown } from '@element-plus/icons-vue'
 import api from '../../api';
 import LearningPathComponent from './LearningPathComponent.vue'
-import { DewButtonBar } from '../ui'
+import { DewButtonBar } from '@bme/dew-ui'
 
 const router = useRouter()
 const store = useStore()

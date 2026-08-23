@@ -5,7 +5,7 @@ import { ref, reactive, computed, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { useStore } from 'vuex';
-import { DewCard, DewInput, DewButton, DewTag, DewButtonBar } from '../ui'
+import { DewCard, DewInput, DewButton, DewTag, DewButtonBar } from '@bme/dew-ui'
 
 const store = useStore()
 

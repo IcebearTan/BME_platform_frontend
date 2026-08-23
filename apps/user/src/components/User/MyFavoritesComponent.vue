@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Star } from '@element-plus/icons-vue'
-import { DewCard } from '../ui'
+import { DewCard } from '@bme/dew-ui'
 import api from '../../api'
 
 const router = useRouter()

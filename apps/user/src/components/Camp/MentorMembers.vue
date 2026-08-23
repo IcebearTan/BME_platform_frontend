@@ -16,7 +16,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue';
-import { DewCard } from '../ui';
+import { DewCard } from '@bme/dew-ui';
 import { ElMessage } from 'element-plus';
 import { campService } from '../../services/campService';
 

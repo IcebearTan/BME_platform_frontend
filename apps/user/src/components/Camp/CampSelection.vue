@@ -80,7 +80,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { DewCard, DewButton } from '../ui';
+import { DewCard, DewButton } from '@bme/dew-ui';
 import { ElMessage } from 'element-plus';
 import { Select, Collection, CircleCheckFilled, StarFilled } from '@element-plus/icons-vue';
 import { campService } from '../../services/campService';

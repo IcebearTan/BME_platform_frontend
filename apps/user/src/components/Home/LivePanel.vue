@@ -66,9 +66,9 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useStore } from 'vuex'
 import api from '../../api'
-import DewButton from '../ui/DewButton.vue'
-import DewIslandGroup from '../ui/DewIslandGroup.vue'
-import DewSkeleton from '../ui/DewSkeleton.vue'
+import DewButton from '@bme/dew-ui/DewButton.vue'
+import DewIslandGroup from '@bme/dew-ui/DewIslandGroup.vue'
+import DewSkeleton from '@bme/dew-ui/DewSkeleton.vue'
 
 const store = useStore()
 
