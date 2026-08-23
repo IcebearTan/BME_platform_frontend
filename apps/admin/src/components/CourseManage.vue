@@ -2,7 +2,7 @@
 import api from '../api';
 import { ref, reactive, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { Upload } from '@element-plus/icons-vue';
+import { Upload, Top, Bottom } from '@element-plus/icons-vue';
 import router from '../router';
 
 const formInline = reactive({
@@ -183,6 +183,107 @@ const handleEdit = (course) => {
   router.push({ path: `/course/edit/${course.Course_Id}` });
 };
 
+// ── 课程资源管理 ──
+const resourceDialogVisible = ref(false);
+const resourceCourse = ref(null);   // 当前管理的课程
+const resourceList = ref([]);
+const resourceLoading = ref(false);
+const resourceUploading = ref(false);
+const pendingFiles = ref([]);       // 待上传文件
+
+const formatSize = (bytes) => {
+  if (bytes == null) return '';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  if (bytes < 1024 * 1024 * 1024) return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+  return (bytes / 1024 / 1024 / 1024).toFixed(2) + ' GB';
+};
+
+const handleResources = (course) => {
+  resourceCourse.value = course;
+  resourceDialogVisible.value = true;
+  pendingFiles.value = [];
+  fetchResources();
+};
+
+const fetchResources = async () => {
+  if (!resourceCourse.value) return;
+  resourceLoading.value = true;
+  try {
+    const res = await api.get('/course/resources', {
+      params: { Course_Id: resourceCourse.value.Course_Id }
+    });
+    resourceList.value = res.data.data || [];
+  } catch (error) {
+    console.error('Error fetching resources:', error);
+    ElMessage.error('获取资源列表失败');
+  } finally {
+    resourceLoading.value = false;
+  }
+};
+
+const submitResources = async () => {
+  if (!pendingFiles.value.length) {
+    ElMessage.warning('请先选择要上传的文件');
+    return;
+  }
+  resourceUploading.value = true;
+  try {
+    const fd = new FormData();
+    fd.append('Course_Id', resourceCourse.value.Course_Id);
+    pendingFiles.value.forEach(f => fd.append('Files', f.raw));
+    const res = await api.post('/course/resource_add', fd);
+    if (res.data.code === 200) {
+      ElMessage.success(`成功上传 ${res.data.data.length} 个文件`);
+      pendingFiles.value = [];
+      fetchResources();
+    } else {
+      ElMessage.error(res.data.message || '上传失败');
+    }
+  } catch (error) {
+    console.error('Error uploading resources:', error);
+    ElMessage.error('上传失败');
+  } finally {
+    resourceUploading.value = false;
+  }
+};
+
+// 上移/下移：先本地换位再提交完整顺序，失败则回拉
+const moveResource = async (index, dir) => {
+  const j = index + dir;
+  if (j < 0 || j >= resourceList.value.length) return;
+  const list = [...resourceList.value];
+  [list[index], list[j]] = [list[j], list[index]];
+  resourceList.value = list;
+  try {
+    await api.post('/course/resource_sort', {
+      Course_Id: resourceCourse.value.Course_Id,
+      Resource_Ids: list.map(r => r.id)
+    });
+  } catch (error) {
+    console.error('Error sorting resources:', error);
+    ElMessage.error('排序失败');
+    fetchResources();
+  }
+};
+
+const deleteResource = (row) => {
+  ElMessageBox.confirm(`确定要删除资源「${row.name}」吗？`, '提示', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning'
+  }).then(async () => {
+    try {
+      await api.post('/course/resource_del', { Resource_Id: row.id });
+      ElMessage.success('删除成功');
+      fetchResources();
+    } catch (error) {
+      console.error('Error deleting resource:', error);
+      ElMessage.error('删除失败');
+    }
+  }).catch(() => {});
+};
+
 const handleDelete = (course) => {
   ElMessageBox.confirm('确定要删除该课程吗？', '提示', {
     confirmButtonText: '确定',
@@ -257,8 +358,9 @@ const handleDelete = (course) => {
             :show-overflow-tooltip="item.showOverflowTooltip || false"
             :align="item.align || 'left'"
           />
-          <el-table-column fixed="right" label="操作" min-width="150">
+          <el-table-column fixed="right" label="操作" min-width="220">
             <template #="scoped">
+              <el-button type="success" size="small" @click="handleResources(scoped.row)">资源</el-button>
               <el-button type="primary" size="small" @click="handleEdit(scoped.row)">编辑</el-button>
               <el-button type="danger" size="small" @click="handleDelete(scoped.row)">删除</el-button>
             </template>
@@ -326,6 +428,59 @@ const handleDelete = (course) => {
           确认导入
         </el-button>
       </template>
+    </el-dialog>
+
+    <!-- 课程资源管理弹窗 -->
+    <el-dialog
+      v-model="resourceDialogVisible"
+      :title="`课程资源 - ${resourceCourse?.Course_title || ''}`"
+      width="720px"
+      destroy-on-close
+    >
+      <!-- 上传区 -->
+      <el-upload
+        drag
+        multiple
+        :auto-upload="false"
+        v-model:file-list="pendingFiles"
+      >
+        <el-icon style="font-size: 40px; color: #909399;"><Upload /></el-icon>
+        <div style="margin-top: 6px;">将文件拖拽到此处，或 <em>点击选择</em>（可多选）</div>
+        <template #tip>
+          <div class="el-upload__tip">资源将上传到对象存储，学生在课程详情页「相关资源」中下载</div>
+        </template>
+      </el-upload>
+      <div style="margin-bottom: 16px;">
+        <el-button type="primary" @click="submitResources" :loading="resourceUploading" :disabled="!pendingFiles.length">
+          上传所选文件
+        </el-button>
+      </div>
+
+      <!-- 资源列表 -->
+      <el-table :data="resourceList" v-loading="resourceLoading" style="width: 100%;" max-height="360">
+        <el-table-column prop="name" label="文件名" min-width="220" show-overflow-tooltip />
+        <el-table-column label="大小" width="100">
+          <template #="scoped">{{ formatSize(scoped.row.size) }}</template>
+        </el-table-column>
+        <el-table-column prop="created_at" label="上传时间" width="150" />
+        <el-table-column label="操作" width="170" fixed="right">
+          <template #="scoped">
+            <el-button
+              size="small"
+              :icon="Top"
+              :disabled="scoped.$index === 0"
+              @click="moveResource(scoped.$index, -1)"
+            />
+            <el-button
+              size="small"
+              :icon="Bottom"
+              :disabled="scoped.$index === resourceList.length - 1"
+              @click="moveResource(scoped.$index, 1)"
+            />
+            <el-button type="danger" size="small" @click="deleteResource(scoped.row)">删除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
     </el-dialog>
   </div>
 </template>
