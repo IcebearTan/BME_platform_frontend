@@ -7,19 +7,25 @@ import { test, expect } from '@playwright/test'
 const BASE = 'http://localhost:5173/admin'
 
 async function loginAsStaff(page) {
-  // store 初始 token 读 localStorage；vuex-persistedstate 从 my-app 恢复 state，两处都预置
+  // store 初始 token 读 localStorage；vuex-persistedstate 从 bme-admin-state 恢复 state，两处都预置
+  // 键名与批次 3 键分离后的 apps/admin 保持一致
   await page.addInitScript(() => {
-    localStorage.setItem('token', 'e2e-mock-token')
+    localStorage.setItem('bme-admin-token', 'e2e-mock-token')
     localStorage.setItem(
-      'my-app',
+      'bme-admin-state',
       JSON.stringify({ token: 'e2e-mock-token', isLogin: true, isDarkMode: false })
     )
   })
-  await page.route('**/user/user_index*', (route) =>
-    route.fulfill({
-      json: { code: 200, role: 'super_admin', permissions: [], data: { username: 'e2e' } },
-    })
-  )
+  // 拦截全部后端请求：user_index 提供角色；其余统一 200 空数据，
+  // 避免假 token 触发批次 3 新增的 401 拦截把页面踢回登录页
+  await page.route('http://127.0.0.1:5001/**', (route) => {
+    if (route.request().url().includes('/user/user_index')) {
+      return route.fulfill({
+        json: { code: 200, role: 'super_admin', permissions: [], data: { username: 'e2e' } },
+      })
+    }
+    return route.fulfill({ json: { code: 200, message: 'ok', data: {} } })
+  })
 }
 
 test('登录页正常渲染', async ({ page }) => {

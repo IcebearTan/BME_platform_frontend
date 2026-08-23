@@ -6,7 +6,7 @@ import { useRouter } from 'vue-router';
 export default new Vuex.Store({
     state: {
         user: null,
-        token: localStorage.getItem('token') || null,
+        token: localStorage.getItem('bme-user-token') || null,
         isLogin: false,
         avatar: null,
         // 添加打卡状态管理
@@ -72,15 +72,7 @@ export default new Vuex.Store({
 
     },
     actions: {
-        async login({ commit }, credentials) {
-            try {
-                const response = await api.post('/login', credentials);
-                const token = response.data.token; // 假设 token 在响应中
-                commit('setToken', token);
-            } catch (error) {
-                console.error('Login failed:', error);
-            }
-        },
+        // 原 login action 引用了未 import 的 api 且全仓无 dispatch 调用（登录组件直接调 api），已删除
         setUser({ commit }, user, avatar) {
             commit('setUser', user)
             commit('setAvatar', avatar)
@@ -105,7 +97,7 @@ export default new Vuex.Store({
     },
     plugins: [
         VuexPersist({
-            key: 'my-app',  // 本地存储的键名
+            key: 'bme-user-state',  // 本地存储的键名
             storage: window.localStorage,  // 使用 localStorage，也可以使用 sessionStorage
         })
     ]

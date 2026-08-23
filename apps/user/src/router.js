@@ -273,7 +273,7 @@ const router = createRouter({
 })
 
 router.beforeEach((to, from, next) => {
-    const token = localStorage.getItem('token')
+    const token = localStorage.getItem('bme-user-token')
 
     if (to.meta.requiresAuth && !token) {
         // 未登录，重定向到登录页，并记录原目标以便登录后跳回

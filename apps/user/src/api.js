@@ -13,7 +13,7 @@ const api = axios.create({
 });
 
 api.interceptors.request.use(config => {
-    const token = localStorage.getItem('token'); // 从 localStorage 获取 token
+    const token = localStorage.getItem('bme-user-token'); // 从 localStorage 获取 token
     if (token) {
         config.headers['Authorization'] = `Bearer ${token}`; // 在请求头中添加 token
     }
@@ -32,7 +32,7 @@ api.interceptors.response.use(
                 import('element-plus').then(({ ElMessage }) => {
                     ElMessage.error('登录失效，请重新登录');
                 });
-                localStorage.removeItem('token');
+                localStorage.removeItem('bme-user-token');
                 // 延迟跳转，保证提示能完整显示
                 setTimeout(() => {
                     // base 相对：BASE_URL 为 `/AMEII/` 时跳 /AMEII/login，为 `/` 时跳 /login

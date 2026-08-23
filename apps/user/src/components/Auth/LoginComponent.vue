@@ -130,7 +130,7 @@ async function submitForm() {
       },
     })
     if (res.data.code === 200) {
-      localStorage.setItem('token', res.data.token)
+      localStorage.setItem('bme-user-token', res.data.token)
       store.commit('setUser', res.data)
       await fetchAvatar()
       router.push('/home')

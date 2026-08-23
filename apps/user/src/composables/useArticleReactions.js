@@ -14,7 +14,7 @@ export function useArticleReactions(articleIdRef, version = 1) {
   const isLiked = ref(false)
   const isFavorited = ref(false)
 
-  const isLoggedIn = () => !!localStorage.getItem('token')
+  const isLoggedIn = () => !!localStorage.getItem('bme-user-token')
 
   // 由外部（详情接口）回填初始计数：匿名阅读页也能直接显示真实点赞 / 评论 / 浏览权
   const initCounts = (lc = 0, rc = 0, vc = 0) => {

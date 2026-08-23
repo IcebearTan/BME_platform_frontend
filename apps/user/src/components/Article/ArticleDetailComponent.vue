@@ -206,7 +206,7 @@ const getArticle = async () => {
 
 const fetchStatistic = async () => {
   try {
-    const token = localStorage.getItem('token')
+    const token = localStorage.getItem('bme-user-token')
     const user = token ? 'loginUser' : ''
     const res = await api({ method: 'get', url: '/article/statistic', params: { Article_Id: articleId, user } })
     likeCount.value = res.data?.like_count ?? 0
@@ -219,7 +219,7 @@ const fetchStatistic = async () => {
 
 const postStatistic = async (like = false, view = false) => {
   try {
-    const token = localStorage.getItem('token')
+    const token = localStorage.getItem('bme-user-token')
     const user = token ? 'loginUser' : ''
     await api({ method: 'post', url: '/article/statistic', data: { Article_Id: articleId, like, view, user } })
   } catch (e) {
@@ -228,7 +228,7 @@ const postStatistic = async (like = false, view = false) => {
 }
 
 const handleLike = async () => {
-  const token = localStorage.getItem('token')
+  const token = localStorage.getItem('bme-user-token')
   if (!token) { ElMessage.warning('请先登录后再点赞'); return }
   const shouldLike = !isLiked.value
   await postStatistic(shouldLike, true)
@@ -259,7 +259,7 @@ const fetchFavorite = async () => {
 }
 
 const toggleFavorite = async () => {
-  const token = localStorage.getItem('token')
+  const token = localStorage.getItem('bme-user-token')
   if (!token) { ElMessage.warning('请先登录后再收藏'); return }
   if (!threadId.value) { ElMessage.error('操作失败，请稍后重试'); return }
   isFavorited.value = !isFavorited.value  // 乐观更新

@@ -70,7 +70,7 @@ const newComment = ref('')
 const loading = ref(true)
 const submitting = ref(false)
 
-const isLoggedIn = () => !!localStorage.getItem('token')
+const isLoggedIn = () => !!localStorage.getItem('bme-user-token')
 
 // 绝对时间 → 相对时间
 const formatTime = (t) => {

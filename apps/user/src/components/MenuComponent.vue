@@ -69,7 +69,7 @@ const route = useRoute()
 const DEFAULT_AVATAR = 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png'
 
 // 登录态：直接读取本地 token（与 api 拦截器 / 路由守卫一致的真相源），同步判定，无闪烁
-const isLogin = !!localStorage.getItem('token')
+const isLogin = !!localStorage.getItem('bme-user-token')
 // 鉴权类页面（登录 / 注册 / 找回密码）隐藏头像与登录注册入口，由路由 meta 驱动
 const isAuthRoute = computed(() => !!route.meta.authPage)
 // 头像：优先取持久化的 store 头像，同步渲染无闪烁
@@ -146,7 +146,7 @@ const onClickOutside = () => {
 
 const logOut = () => {
     store.dispatch('logout')
-    localStorage.removeItem('token')
+    localStorage.removeItem('bme-user-token')
     window.location.reload()
 }
 

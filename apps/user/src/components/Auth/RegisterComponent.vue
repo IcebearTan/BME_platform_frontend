@@ -147,7 +147,7 @@ const submitEmail = async () => {
       data: { User_Email: registerForm.email },
     })
     if (res.data.code === 200) {
-      localStorage.setItem('token', res.data.token)
+      localStorage.setItem('bme-user-token', res.data.token)
       ElMessage.success('验证码已发送到您的邮箱，请查收')
       if (timer) clearInterval(timer)
       count.value = 60
@@ -192,7 +192,7 @@ const submitForm = async () => {
       },
     })
     if (res.data.code === 200) {
-      localStorage.setItem('token', res.data.token)
+      localStorage.setItem('bme-user-token', res.data.token)
       ElMessage.success('注册成功')
       setTimeout(() => router.push('/login'), 500)
     } else {

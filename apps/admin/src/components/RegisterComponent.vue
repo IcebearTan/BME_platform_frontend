@@ -95,9 +95,9 @@ export default {
                 },
             }).then((res) => {
                 if (res.data.code == 200) {
-                    console.log(res.data.token, 'token')
+                    console.log(res.data.token, 'bme-admin-token')
                     // 将数据存入浏览器
-                    localStorage.setItem("token", res.data.token)
+                    localStorage.setItem("bme-admin-token", res.data.token)
                 }
             })
 
@@ -143,9 +143,9 @@ export default {
                 },
             }).then((res) => {
                 if (res.data.code == 200) {
-                    console.log(res.data.token, 'token')
+                    console.log(res.data.token, 'bme-admin-token')
                     // 将数据存入浏览器
-                    localStorage.setItem("token", res.data.token)
+                    localStorage.setItem("bme-admin-token", res.data.token)
 
                     this.$router.push('/login')
                     

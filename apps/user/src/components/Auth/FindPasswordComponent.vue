@@ -128,7 +128,7 @@ const submitEmail = async () => {
       data: { User_Email: findPasswordForm.email },
     })
     if (res.data.code == 200) {
-      localStorage.setItem('token', res.data.token)
+      localStorage.setItem('bme-user-token', res.data.token)
     }
 
     ElMessage.success('验证码已发送到您的邮箱，请查收')
@@ -167,7 +167,7 @@ const submitForm = async () => {
       },
     })
     if (res.data.code == 200) {
-      localStorage.setItem('token', res.data.token)
+      localStorage.setItem('bme-user-token', res.data.token)
       ElMessage.success('重置密码成功')
       router.push('/login')
     } else {

@@ -168,7 +168,7 @@ const todayHoursNum = computed(() => {
 const todayProgress = computed(() => Math.min(100, Math.round((todayHoursNum.value / 4) * 100)))
 
 // 登录检查
-const checkLogin = () => !!localStorage.getItem('token')
+const checkLogin = () => !!localStorage.getItem('bme-user-token')
 
 // 获取最新打卡状态
 async function getLatestCheckStatus() {

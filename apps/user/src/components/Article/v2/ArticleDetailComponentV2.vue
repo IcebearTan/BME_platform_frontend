@@ -45,7 +45,7 @@ const {
   initCounts, ensureThread, fetchMe, recordView, toggleLike, toggleFav,
 } = useArticleReactions(articleId, 2)
 
-const isLoggedIn = () => !!localStorage.getItem('token')
+const isLoggedIn = () => !!localStorage.getItem('bme-user-token')
 
 // 阅读页正文随页面流滚动 → 目录跟随 documentElement
 const scrollEl = typeof document !== 'undefined' ? document.documentElement : undefined
