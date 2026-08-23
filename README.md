@@ -45,5 +45,7 @@ echo "VITE_API_BASE_URL=http://127.0.0.1:5001" > apps/admin/.env.development
 
 ## 分支
 
-- `develop` — 主开发线（合并了两仓 develop 历史）
-- `legacy/admin-master` — 原 BME_backend 仓 master 线只读存档（2025-11 审计日志/权限分配/token_backend 改名，未合入主线，批次 3 处理 localStorage 键冲突时参考）
+- `master` — 稳定主线
+- `Icebear_develop` — 日常开发分支，稳定后合回 master
+
+（2026-08 清债批次 1–6 历史为线性提交，全部包含于 master；原 debt/N-* 中间分支与 legacy/admin-master 存档线已清理，后者头部提交为 86b48b9，如需找回见本地 reflog。）
