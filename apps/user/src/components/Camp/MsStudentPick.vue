@@ -10,20 +10,27 @@
         <div class="phase-caption">{{ phaseCaption }}</div>
       </DewCard>
 
-      <!-- 已有归属 / 已出结果 -->
+      <!-- 已有归属 / 已出结果：海报式结果卡（照片 + 标签 + 我的志愿留言回显） -->
       <DewCard
         v-if="phaseInfo.me.my_mentor"
         variant="default" size="lg" :no-hover="true" tinted accent="success" class="section-card"
       >
-        <div class="result-row">
-          <div>
+        <div class="result-poster-row">
+          <div class="result-poster">
+            <img v-if="myMentorAvatar" :src="myMentorAvatar" :alt="`${phaseInfo.me.my_mentor.username} 的照片`" />
+            <span v-else class="result-poster-fallback">
+              {{ (phaseInfo.me.my_mentor.username || '?').charAt(0) }}
+            </span>
+          </div>
+          <div class="result-body">
             <div class="result-label">我的导生</div>
             <div class="result-name">{{ phaseInfo.me.my_mentor.username }}</div>
+            <div v-if="myMentorTags.length" class="result-tags">
+              <DewTag v-for="t in myMentorTags" :key="t" size="sm" round>{{ t }}</DewTag>
+            </div>
+            <p v-if="myMentorNote" class="result-note">“{{ myMentorNote }}”</p>
             <div class="result-hint">导生同样能看到你的信息，营期内可在「请假」等页面协作</div>
           </div>
-          <el-avatar :size="56" :src="myMentorAvatar">
-            {{ (phaseInfo.me.my_mentor.username || '?').charAt(0) }}
-          </el-avatar>
         </div>
       </DewCard>
       <DewCard
@@ -38,7 +45,7 @@
       <DewCard v-else-if="phaseInfo.phase === 'round1'" variant="default" size="lg" :no-hover="true" class="section-card">
         <div class="result-label">导生正在挑选</div>
         <div class="result-hint">
-          你提交了 {{ meRound1.length }} 个志愿，导生正按顺序收人。
+          {{ submittedText ? `${submittedText}，` : '' }}你提交了 {{ meRound1.length }} 个志愿，导生正按顺序收人。
           {{ phaseInfo.round2_enabled ? `若一轮未被选中，${phaseInfo.deadlines.round2_deadline || ''} 前可参加二轮互选。` : '本轮未选中将由老师指派。' }}
         </div>
       </DewCard>
@@ -56,11 +63,12 @@
         </div>
         <div v-else class="mentor-grid">
           <MsMentorCard
-            v-for="m in filteredMentors"
+            v-for="(m, i) in filteredMentors"
             :key="m.user_id"
             :mentor="m"
             :picked-rank="rankOf(m.user_id)"
             :selectable="true"
+            :index="i"
             @toggle="togglePick(m)"
           />
         </div>
@@ -91,7 +99,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
 import { ElMessage } from 'element-plus';
-import { DewCard, DewButtonBar } from '../ui';
+import { DewCard, DewButtonBar, DewTag } from '../ui';
 import MsPhaseBar from './MsPhaseBar.vue';
 import MsMentorCard from './MsMentorCard.vue';
 import MsPreferenceTray from './MsPreferenceTray.vue';
@@ -143,10 +151,33 @@ const myMentorAvatar = computed(() => {
   return m ? assetUrl(m.photo_url || m.avatar || '') : '';
 });
 
+// 我的导生的标签（从 mentors 列表查，phase 只回 user_id/username）
+const myMentorTags = computed(() => {
+  const mine = phaseInfo.value?.me?.my_mentor;
+  if (!mine) return [];
+  return mentors.value.find((x) => x.user_id === mine.user_id)?.tags || [];
+});
+
+// 留言回显：匹配成功的那条志愿（一轮/二轮）里的 note
+const myMentorNote = computed(() => {
+  const me = phaseInfo.value?.me;
+  if (!me?.my_mentor) return '';
+  const prefs = [...(me.round1 || []), ...(me.round2 || [])];
+  return prefs.find((p) => p.mentor_id === me.my_mentor.user_id)?.note || '';
+});
+
+// 从众信号：本轮已交志愿的去重学员数 / 营内学员总数（后端 phase.stats）
+const submittedText = computed(() => {
+  const s = phaseInfo.value?.stats;
+  if (!s || !s.students) return '';
+  return `已有 ${s.submitted}/${s.students} 位同学提交志愿`;
+});
+
 const phaseCaption = computed(() => {
   const p = phaseInfo.value;
   if (!p) return '';
-  if (p.phase === 'collecting') return `浏览导生名片，提交 3 个有序志愿 · ${p.deadlines.preference_deadline || ''} 截止`;
+  if (p.phase === 'collecting')
+    return `浏览导生名片，提交 3 个有序志愿 · ${p.deadlines.preference_deadline || ''} 截止${submittedText.value ? ` · ${submittedText.value}` : ''}`;
   if (p.phase === 'round1') return '志愿收集完毕，导生正在挑选';
   if (p.phase === 'round2') return `二轮互选进行中 · ${p.deadlines.round2_deadline || ''} 截止`;
   if (p.phase === 'done') return '选导生结束，结果已公布';
@@ -248,7 +279,7 @@ watch(() => props.sid, load, { immediate: true });
 
 .mentor-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(224px, 1fr));
   gap: 14px;
   margin-bottom: 16px;
 }
@@ -260,13 +291,34 @@ watch(() => props.sid, load, { immediate: true });
   color: var(--dew-text-muted);
 }
 
-.result-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+/* 海报式结果卡：左海报右信息 */
+.result-poster-row { display: flex; gap: 20px; align-items: stretch; }
+.result-poster {
+  flex-shrink: 0;
+  width: 148px;
+  aspect-ratio: 4 / 5;
+  border-radius: var(--radius-md, 12px);
+  overflow: hidden;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-info));
 }
+.result-poster img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.result-poster-fallback {
+  display: flex; align-items: center; justify-content: center;
+  height: 100%;
+  font-size: 44px; font-weight: 700; color: rgba(255, 255, 255, 0.95);
+}
+.result-body { min-width: 0; flex: 1; }
 .result-label { font-size: 12px; letter-spacing: 1px; color: var(--dew-text-faint); margin-bottom: 6px; }
-.result-name { font-size: 22px; font-weight: 700; color: var(--dew-text-heading); }
-.result-hint { margin-top: 8px; font-size: 13px; color: var(--dew-text-muted); line-height: 1.6; }
+.result-name { font-size: 24px; font-weight: 700; color: var(--dew-text-heading); }
+.result-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.result-note {
+  margin: 12px 0 0;
+  padding: 8px 12px;
+  border-left: 2px solid color-mix(in srgb, var(--color-success) 55%, transparent);
+  font-size: 13px; line-height: 1.6;
+  color: var(--dew-text-muted);
+  background: color-mix(in srgb, var(--color-success) 6%, transparent);
+  border-radius: 0 var(--radius-md, 12px) var(--radius-md, 12px) 0;
+}
+.result-hint { margin-top: 12px; font-size: 13px; color: var(--dew-text-muted); line-height: 1.6; }
 </style>

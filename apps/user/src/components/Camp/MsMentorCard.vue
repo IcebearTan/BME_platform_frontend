@@ -1,6 +1,7 @@
 <template>
-  <DewCard variant="inset" size="sm" class="mentor-card" :class="{ picked: pickedRank > 0, full }">
-    <!-- 封面：照片（无照片 → 姓名首字色块，同课程卡哈希色） -->
+  <DewCard variant="inset" size="sm" class="mentor-card" :class="{ picked: pickedRank > 0, full }"
+           :style="{ '--reveal-index': index }">
+    <!-- 封面：海报比例照片（无照片 → 姓名首字色块，同课程卡哈希色） -->
     <div class="card-photo">
       <img v-if="photoSrc" :src="photoSrc" alt="" loading="lazy" />
       <div v-else class="photo-fallback" :style="{ background: fallbackColor }">
@@ -48,6 +49,7 @@ const props = defineProps({
   mentor: { type: Object, required: true },
   pickedRank: { type: Number, default: 0 },   // 0 = 未在志愿中
   selectable: { type: Boolean, default: false },
+  index: { type: Number, default: 0 },        // 网格内序号：入场 stagger 动画用
 });
 defineEmits(['toggle']);
 
@@ -66,30 +68,45 @@ const fallbackColor = computed(() => {
 </script>
 
 <style scoped>
-.mentor-card { transition: transform 0.3s var(--dew-bounce, ease); }
+/* 入场 stagger：按网格序号轻微上浮淡入（delay 封顶 8 档，长列表不拖沓） */
+.mentor-card {
+  transition: transform 0.3s var(--dew-bounce, ease);
+  animation: card-reveal 0.45s var(--dew-bounce, ease) both;
+  animation-delay: calc(min(var(--reveal-index, 0), 8) * 45ms);
+}
+@keyframes card-reveal {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mentor-card { animation: none; }
+}
 .mentor-card:hover { transform: translateY(-3px); }
 .mentor-card.picked { outline: 1.5px solid color-mix(in srgb, var(--color-primary) 55%, transparent); }
 .mentor-card.full { opacity: 0.72; }
 .mentor-card :deep(.dew-card__body) { padding: 0; }
 
+/* 海报式封面：4:5 比例，hover 照片轻微放大（克制） */
 .card-photo {
   position: relative;
-  min-height: 128px;
+  aspect-ratio: 4 / 5;
   overflow: hidden;
   border-radius: var(--radius-md, 12px) var(--radius-md, 12px) 0 0;
 }
 .card-photo img {
   width: 100%;
-  height: 128px;
+  height: 100%;
   object-fit: cover;
   display: block;
+  transition: transform 0.4s var(--dew-bounce, ease);
 }
+.mentor-card:hover .card-photo img { transform: scale(1.05); }
 .photo-fallback {
-  height: 128px;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 40px;
+  font-size: 56px;
   font-weight: 700;
   color: rgba(255, 255, 255, 0.95);
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
