@@ -14,6 +14,9 @@ importers:
 
   apps/admin:
     dependencies:
+      '@bme/api':
+        specifier: workspace:*
+        version: link:../../packages/api
       '@bme/styles':
         specifier: workspace:*
         version: link:../../packages/styles
@@ -78,6 +81,9 @@ importers:
 
   apps/user:
     dependencies:
+      '@bme/api':
+        specifier: workspace:*
+        version: link:../../packages/api
       '@bme/styles':
         specifier: workspace:*
         version: link:../../packages/styles
@@ -130,6 +136,15 @@ importers:
       vite:
         specifier: ^5.4.1
         version: 5.4.21(lightningcss@1.32.0)
+
+  packages/api:
+    dependencies:
+      axios:
+        specifier: ^1.7.7
+        version: 1.19.0(debug@4.4.3)
+      element-plus:
+        specifier: '>=2.8.0'
+        version: 2.14.5(vue@3.5.41)
 
   packages/styles: {}
 

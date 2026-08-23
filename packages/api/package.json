@@ -1,0 +1,17 @@
+{
+  "name": "@bme/api",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "BME 共享 axios 客户端工厂：统一 baseURL / token 注入 / 401 处理",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.7"
+  },
+  "peerDependencies": {
+    "element-plus": ">=2.8.0"
+  }
+}

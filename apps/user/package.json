@@ -15,6 +15,7 @@
     "version:major": "npm version major --no-git-tag-version && node release.js"
   },
   "dependencies": {
+    "@bme/api": "workspace:*",
     "@bme/styles": "workspace:*",
     "@element-plus/icons-vue": "^2.3.1",
     "@tailwindcss/vite": "^4.3.0",

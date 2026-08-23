@@ -11,6 +11,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@bme/api": "workspace:*",
     "@bme/styles": "workspace:*",
     "@element-plus/icons-vue": "^2.3.1",
     "@tinymce/tinymce-vue": "^6.1.0",
