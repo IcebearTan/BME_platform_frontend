@@ -1,6 +1,6 @@
 /* Admin 设计系统变量 —— 克制版液态玻璃
    通用结构变量（功能色/语义色/文字/背景/边框/阴影/圆角/间距/字体/字号/过渡）由此文件主导；
-   玻璃配方 --dew-* 与极光色值见 tokens.css（main.js import 顺序：tokens → variables → global → glass）。
+   玻璃配方 --dew-* 与极光色值见 @bme/styles/tokens.css（main.js import 顺序：tokens → variables → global）。
    功能强调色统一 #3b82f6（呼应极光蓝，是 UI 操作色，非品牌主色；品牌色为流动极光衬底）。 */
 
 :root {

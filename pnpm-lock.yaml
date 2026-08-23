@@ -17,6 +17,9 @@ importers:
       '@bme/api':
         specifier: workspace:*
         version: link:../../packages/api
+      '@bme/dew-ui':
+        specifier: workspace:*
+        version: link:../../packages/dew-ui
       '@bme/editor':
         specifier: workspace:*
         version: link:../../packages/editor

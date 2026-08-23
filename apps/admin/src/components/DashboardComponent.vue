@@ -16,7 +16,7 @@
 
     <!-- 统计卡片（真实数据） -->
     <div class="stats-grid">
-      <div class="stat-card glass-surface" v-for="stat in statCards" :key="stat.key">
+      <DewCard class="stat-card" v-for="stat in statCards" :key="stat.key">
         <div class="stat-icon" :style="{ background: stat.bg, color: stat.color }">
           <el-icon :size="22"><component :is="stat.icon" /></el-icon>
         </div>
@@ -24,13 +24,13 @@
           <div class="stat-number">{{ stat.value }}</div>
           <div class="stat-title">{{ stat.title }}</div>
         </div>
-      </div>
+      </DewCard>
     </div>
 
     <!-- 主要内容区域 -->
     <div class="content-grid">
       <!-- 最近操作（真实审计日志） -->
-      <div class="panel-card glass-surface">
+      <DewCard class="panel-card">
         <div class="card-header">
           <h3>最近操作</h3>
           <el-icon class="header-icon"><Clock /></el-icon>
@@ -45,10 +45,10 @@
             </div>
           </div>
         </div>
-      </div>
+      </DewCard>
 
       <!-- 快速操作 -->
-      <div class="panel-card glass-surface">
+      <DewCard class="panel-card">
         <div class="card-header">
           <h3>快速操作</h3>
           <el-icon class="header-icon"><Lightning /></el-icon>
@@ -70,13 +70,14 @@
             <el-icon class="action-arrow"><ArrowRight /></el-icon>
           </div>
         </div>
-      </div>
+      </DewCard>
     </div>
   </div>
 </template>
 
 <script>
 import api from '../api';
+import { DewCard } from '@bme/dew-ui';
 import {
   User, Document, Trophy, ChatLineRound, Clock, Lightning,
   ArrowRight, Edit, Reading
@@ -84,6 +85,7 @@ import {
 
 export default {
   name: 'DashboardComponent',
+  components: { DewCard },
   data() {
     return {
       stats: {
@@ -243,6 +245,12 @@ export default {
   align-items: center;
   gap: 14px;
   transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+/* DewCard 接管玻璃配方后，清零其内部 body padding，沿用本组件原 padding */
+.stat-card :deep(.dew-card__body),
+.panel-card :deep(.dew-card__body) {
+  padding: 0;
 }
 
 .stat-card:hover {

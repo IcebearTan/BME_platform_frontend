@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@bme/api": "workspace:*",
+    "@bme/dew-ui": "workspace:*",
     "@bme/editor": "workspace:*",
     "@bme/styles": "workspace:*",
     "@element-plus/icons-vue": "^2.3.1",
