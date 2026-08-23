@@ -1,3 +1,7 @@
+/* Admin 全局样式 —— 仅保留活样式：EP 变量桥接、reset、滚动条、极光衬底、EP 壳组件覆盖。
+   原「通用工具类/特效类/.card/.btn」经排查（2026-08 批次 5）在 admin 全部零使用，已删；
+   卡片与按钮统一走 @bme/dew-ui（DewCard/DewButton），ElementPlus 壳组件由下方覆盖层桥接。 */
+
 /* Element Plus 主题变量桥接：让 EP 组件跟随本设计系统（--primary-color）与 .theme-dark 深色模式 */
 :root {
     --el-color-primary: var(--primary-color);
@@ -72,204 +76,19 @@ body {
     background: var(--text-tertiary);
 }
 
-/* 通用工具类 */
-.flex {
-    display: flex;
+/* 极光衬底（单源）：后台布局（HomeView）与登录/注册页共用，玻璃卡片依赖它出彩 */
+.aurora-bg {
+    background:
+        radial-gradient(ellipse 55% 50% at 12% 18%, rgba(96, 165, 250, 0.15), transparent 60%),
+        radial-gradient(ellipse 60% 55% at 88% 88%, rgba(52, 211, 153, 0.13), transparent 60%),
+        linear-gradient(135deg, #f0f4ff 0%, #fdf2f8 50%, #f0fdf4 100%);
 }
 
-.flex-col {
-    flex-direction: column;
-}
-
-.items-center {
-    align-items: center;
-}
-
-.justify-center {
-    justify-content: center;
-}
-
-.justify-between {
-    justify-content: space-between;
-}
-
-.gap-2 {
-    gap: var(--spacing-sm);
-}
-
-.gap-4 {
-    gap: var(--spacing-md);
-}
-
-.gap-6 {
-    gap: var(--spacing-lg);
-}
-
-.rounded {
-    border-radius: var(--radius-md);
-}
-
-.rounded-lg {
-    border-radius: var(--radius-lg);
-}
-
-.rounded-xl {
-    border-radius: var(--radius-xl);
-}
-
-.shadow-sm {
-    box-shadow: var(--shadow-sm);
-}
-
-.shadow {
-    box-shadow: var(--shadow-md);
-}
-
-.shadow-lg {
-    box-shadow: var(--shadow-lg);
-}
-
-.text-sm {
-    font-size: var(--text-sm);
-}
-
-.text-base {
-    font-size: var(--text-base);
-}
-
-.text-lg {
-    font-size: var(--text-lg);
-}
-
-.text-xl {
-    font-size: var(--text-xl);
-}
-
-.font-medium {
-    font-weight: 500;
-}
-
-.font-semibold {
-    font-weight: 600;
-}
-
-.font-bold {
-    font-weight: 700;
-}
-
-.text-primary {
-    color: var(--text-primary);
-}
-
-.text-secondary {
-    color: var(--text-secondary);
-}
-
-.text-tertiary {
-    color: var(--text-tertiary);
-}
-
-.bg-white {
-    background-color: var(--bg-primary);
-}
-
-.bg-gray-50 {
-    background-color: var(--bg-secondary);
-}
-
-.bg-gray-100 {
-    background-color: var(--bg-tertiary);
-}
-
-.border {
-    border: 1px solid var(--border-light);
-}
-
-.border-gray-200 {
-    border-color: var(--border-light);
-}
-
-.border-gray-300 {
-    border-color: var(--border-medium);
-}
-
-/* 动画类 */
-.transition {
-    transition: all var(--transition-normal);
-}
-
-.transition-fast {
-    transition: all var(--transition-fast);
-}
-
-.hover-lift:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-lg);
-}
-
-.hover-scale:hover {
-    transform: scale(1.02);
-}
-
-/* 特效类 */
-.glass-effect {
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.gradient-primary {
-    background: var(--primary-color);
-}
-
-.gradient-text {
-    color: var(--primary-color);
-}
-
-/* 卡片样式 */
-.card {
-    background: var(--bg-primary);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-sm);
-    border: 1px solid var(--border-light);
-    transition: all var(--transition-normal);
-}
-
-.card:hover {
-    box-shadow: var(--shadow-md);
-    border-color: var(--border-medium);
-}
-
-.card-elevated {
-    box-shadow: var(--shadow-lg);
-}
-
-/* 按钮基础样式增强 */
-.btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--spacing-sm);
-    padding: var(--spacing-sm) var(--spacing-md);
-    border-radius: var(--radius-md);
-    font-weight: 500;
-    font-size: var(--text-sm);
-    transition: all var(--transition-fast);
-    cursor: pointer;
-    border: none;
-    outline: none;
-    position: relative;
-    overflow: hidden;
-}
-
-.btn-primary {
-    background: var(--primary-color);
-    color: var(--text-inverse);
-}
-
-.btn-primary:hover {
-    background: var(--primary-dark);
-    box-shadow: var(--shadow-md);
+.theme-dark .aurora-bg {
+    background:
+        radial-gradient(ellipse 55% 50% at 12% 18%, rgba(59, 130, 246, 0.10), transparent 60%),
+        radial-gradient(ellipse 60% 55% at 88% 88%, rgba(16, 185, 129, 0.09), transparent 60%),
+        linear-gradient(160deg, #16161a 0%, #0f0f12 100%);
 }
 
 /* Element Plus 组件样式覆盖 */
@@ -293,18 +112,6 @@ body {
 .el-menu-item.is-active {
     color: var(--primary-color) !important;
     background: rgba(var(--primary-color-rgb), 0.1) !important;
-}
-
-.el-card {
-    border-radius: var(--radius-lg) !important;
-    box-shadow: var(--shadow-sm) !important;
-    border: 1px solid var(--border-light) !important;
-    transition: all var(--transition-normal) !important;
-}
-
-.el-card:hover {
-    box-shadow: var(--shadow-md) !important;
-    border-color: var(--border-medium) !important;
 }
 
 .el-button {
@@ -336,7 +143,6 @@ body {
     color: var(--text-inverse) !important;
 }
 
-
 .el-input__wrapper {
     border-radius: var(--radius-md) !important;
     transition: all var(--transition-fast) !important;
@@ -355,18 +161,6 @@ body {
     :root {
         --sidebar-width: 240px;
     }
-
-    .text-lg {
-        font-size: var(--text-base);
-    }
-
-    .text-xl {
-        font-size: var(--text-lg);
-    }
-
-    .text-2xl {
-        font-size: var(--text-xl);
-    }
 }
 
 /* ===== 液态玻璃：Element Plus 壳组件玻璃化 + 内容实心台子 =====
@@ -380,6 +174,13 @@ body {
     backdrop-filter: blur(20px) saturate(1.4);
     -webkit-backdrop-filter: blur(20px) saturate(1.4);
     border: 1px solid var(--dew-card-border) !important;
+    border-radius: var(--radius-lg) !important;
+    box-shadow: var(--shadow-sm) !important;
+    transition: all var(--transition-normal) !important;
+}
+
+.el-card:hover {
+    box-shadow: var(--shadow-md) !important;
 }
 
 .el-table {

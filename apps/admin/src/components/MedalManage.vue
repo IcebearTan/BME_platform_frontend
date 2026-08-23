@@ -4,6 +4,7 @@ import api from '../api';
 import { ref, reactive, onMounted, computed } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Close } from '@element-plus/icons-vue';
+import { DewCard } from '@bme/dew-ui';
 
 // 搜索表单数据（用于关键字搜索）
 const formInline = reactive({
@@ -15,7 +16,6 @@ const medals = ref([]);
 const allMedals = ref([]);
 const filteredMedals = ref([]);
 const action = ref('edit');// 当前操作类型（新增/编辑）
-//const formLabelWidth = '120px';
 const grantDialogVisible = ref(false);
 const grantStudentId = ref('');
 const grantMedal = ref(null);
@@ -80,7 +80,6 @@ const fetchMedals = async () => {
       url: 'medal/medal_list',
       method: 'get',
     });
-    console.log('@', response.data);
     if (response.data.code === 200) {
       allMedals.value = response.data.medal;
       filteredMedals.value = allMedals.value;
@@ -393,21 +392,22 @@ onMounted(() => {
 
 <template>
   <div style="width: 100%; height: 100%; position: relative; overflow: hidden;">
-    <div class="header-container">
-      <div class="l-container">勋章管理
+    <div class="page-header">
+      <div class="title-group">
+        <div class="page-title">勋章管理</div>
         <el-button class="config" size="large" @click="handleAdd">新增勋章</el-button>
       </div>
-      <div class="r-container">
+      <div class="header-actions">
         <el-form :inline="true" class="form-inline" :model="formInline" @submit.prevent>
-          <el-form-item label="勋章查询" style="margin: 0; align-items: center;">
-            <el-input 
-              placeholder="输入勋章名称、描述或类型" 
-              v-model="formInline.key" 
+          <el-form-item label="勋章查询">
+            <el-input
+              placeholder="输入勋章名称、描述或类型"
+              v-model="formInline.key"
               @keyup.enter="handleSearch"
               clearable
             ></el-input>
           </el-form-item>
-          <el-form-item style="margin: 0; align-items: center; margin-right: 20px; margin-left: 10px;">
+          <el-form-item>
             <el-button type="primary" @click="handleSearch">
               <el-icon>
                 <Search />
@@ -437,9 +437,9 @@ onMounted(() => {
 
     <!-- 勋章墙网格 -->
     <div class="medals-grid" v-if="filteredWallMedals.length > 0">
-      <div 
-        class="medal-card" 
-        v-for="medal in filteredWallMedals" 
+      <DewCard
+        class="medal-card"
+        v-for="medal in filteredWallMedals"
         :key="medal.medal_id || medal.Medal_Id"
       >
         <div class="medal-image-wrapper">
@@ -452,9 +452,9 @@ onMounted(() => {
             :icon="Close"
             circle
           />
-          <img 
-            :src="`/admin/medals/${medal.Medal_Id}.png`" 
-            :alt="medal.Medal_Name_CN" 
+          <img
+            :src="`/admin/medals/${medal.Medal_Id}.png`"
+            :alt="medal.Medal_Name_CN"
             class="medal-image_2"
           />
         </div>
@@ -468,7 +468,7 @@ onMounted(() => {
           <el-button type="primary" size="small" @click="handleEdit(medal)">编辑</el-button>
           <el-button type="warning" size="small" @click="openRevokeDialog(medal)">剥夺</el-button>
         </div>
-      </div>
+      </DewCard>
     </div>
     <div v-else class="empty-state">
       <div class="empty-icon"><el-icon><Trophy /></el-icon></div>
@@ -574,48 +574,11 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.header-container {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px;
-  background-color: #fff;
-  border-bottom: 1px solid #e4e7ed;
-  box-sizing: border-box;
-  width: 100%;
-}
-
-.l-container {
-  display: inline-block;
-  font-size: 30px;
-  font-weight: 900;
-  margin-left: 20px;
-  color: #3b5cd5;
-}
-
-.r-container {
+/* 页头/筛选样式由 styles/pages.css 统一提供 */
+.title-group {
   display: flex;
   align-items: center;
-}
-
-.form-inline {
-  display: flex;
-  align-items: center;
-}
-
-.table {
-  background-color: #fff;
-  border-radius: 4px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.pagination-wrapper {
-  display: flex;
-  justify-content: center;
-  margin-top: 0px;
-  padding: 20px 0;
-  box-sizing: border-box;
-  width: 100%;
+  gap: 16px;
 }
 
 /* 分类导航 */
@@ -631,28 +594,28 @@ onMounted(() => {
 }
 .category-btn {
   padding: 10px 22px;
-  border: 2px solid #e2e8f0;
+  border: 2px solid var(--border-light);
   border-radius: 50px;
-  background: white;
-  color: #4a5568;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
   font-size: 15px;
 }
 .category-btn:hover {
-  border-color: #4299e1;
-  color: #2b6cb0;
+  border-color: var(--primary-color);
+  color: var(--primary-dark);
   transform: translateY(-1px);
 }
 .category-btn.active {
-  background: #4299e1;
-  border-color: #4299e1;
-  color: white;
-  box-shadow: 0 4px 12px rgba(66, 153, 225, 0.3);
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+  color: var(--text-inverse);
+  box-shadow: 0 4px 12px rgba(var(--primary-color-rgb), 0.3);
 }
 
-/* 勋章墙网格 */
+/* 勋章墙网格（卡片容器由 DewCard 提供） */
 .medal-image_2 {
   width: 120px;
   height: 120px;
@@ -673,22 +636,13 @@ onMounted(() => {
   box-sizing: border-box;
 }
 .medal-card {
-  background: white;
-  border-radius: 16px;
-  padding: 18px 8px 12px;
+  width: 100%;
   text-align: center;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-  transition: all 0.3s ease;
-  border: 1px solid #f7fafc;
+}
+.medal-card :deep(.dew-card__body) {
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 100%;
-  box-sizing: border-box;
-}
-.medal-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 25px rgba(0, 0, 0, 0.1);
 }
 .medal-image-wrapper {
   position: relative;
@@ -706,7 +660,7 @@ onMounted(() => {
   width: 28px !important;
   height: 28px !important;
   padding: 0 !important;
-  border: 2px solid #fff !important;
+  border: 2px solid var(--bg-primary) !important;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
   transition: all 0.3s ease !important;
 }
@@ -714,13 +668,6 @@ onMounted(() => {
 .delete-btn:hover {
   transform: scale(1.1) !important;
   box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3) !important;
-}
-.medal-image {
-  width: 100px;
-  height: 100px;
-  border-radius: 50%;
-  object-fit: cover;
-  transition: all 0.3s ease;
 }
 .medal-details {
   margin-bottom: 10px;
@@ -730,19 +677,19 @@ onMounted(() => {
 .medal-name {
   font-size: 18px;
   font-weight: 600;
-  color: #333;
+  color: var(--text-primary);
   margin: 0;
   word-break: break-all;
 }
 .medal-desc {
   font-size: 13px;
-  color: #666;
+  color: var(--text-secondary);
   margin: 4px 0 0 0;
   word-break: break-all;
 }
 .medal-tag {
   font-size: 12px;
-  color: #888;
+  color: var(--text-tertiary);
   margin: 2px 0 0 0;
   word-break: break-all;
 }
@@ -754,7 +701,7 @@ onMounted(() => {
 }
 .empty-state {
   text-align: center;
-  color: #888;
+  color: var(--text-tertiary);
   margin: 40px 0;
   width: 100%;
   padding: 0 20px;
@@ -770,16 +717,7 @@ onMounted(() => {
 }
 .empty-hint {
   font-size: 14px;
-  color: #aaa;
-}
-
-body, html, #app {
-  width: 100%;
-  min-height: 100vh;
-  margin: 0;
-  padding: 0;
-  overflow-x: hidden;
-  box-sizing: border-box;
+  color: var(--text-tertiary);
 }
 
 @media (max-width: 900px) {
@@ -793,7 +731,7 @@ body, html, #app {
     height: 70px;
     max-height: 18vw;
   }
-  .medal-card {
+  .medal-card :deep(.dew-card__body) {
     padding: 8px 2px 6px;
   }
   .medal-name {
@@ -802,7 +740,7 @@ body, html, #app {
   .category-nav {
     padding: 0 10px;
   }
-  
+
   /* 移动端删除按钮样式调整 */
   .delete-btn {
     width: 24px !important;
@@ -833,12 +771,4 @@ body, html, #app {
     background-color: #f898e5;
   }
 }
-.batch-grant-dialog >>> .el-dialog__body {
-  padding-top: 10px;
-  background: #fafdff;
-}
-.batch-grant-dialog >>> .el-table {
-  border-radius: 8px;
-  overflow: hidden;
-}
-</style> 
+</style>

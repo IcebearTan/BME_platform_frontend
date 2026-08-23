@@ -97,9 +97,6 @@
             <!-- 用户名称 -->
             <div class="user-header">
               <span class="user-name">{{ user.name }}</span>
-              <!-- <el-button type="primary" size="small" @click="pendCourse(user)">
-                <el-icon><Plus /></el-icon> 新增记录
-              </el-button> -->
             </div>
 
             <!-- 课程进度列表 -->
@@ -192,26 +189,26 @@
         </span>
       </template>
     </el-dialog>
-        <div class="header-container selectable">
-        <div class="l-container">学习进度（按小组分类）列表
+        <div class="page-header selectable">
+        <div class="page-title">学习进度（按小组分类）列表
         </div>
-        <div class="r-container">
+        <div class="header-actions">
           <el-form :inline="true" class="form-inline" @submit.prevent>
-            <el-form-item label="小组查询" style="margin: 0; align-items: center;">
-              <el-input 
+            <el-form-item label="小组查询">
+              <el-input
               @focus="showHint = true"
-              @blur="showHint = false" 
+              @blur="showHint = false"
               v-model="searchQuery" @keyup.enter="search" placeholder="搜索框">
               </el-input>
               <div
               v-if="showHint"
               class="input-hint"
-              style="position: absolute; top: 100%; left: 0; margin-top: 5px; color: #888; font-size: 12px;" 
+              style="position: absolute; top: 100%; left: 0; margin-top: 5px; color: #888; font-size: 12px;"
               >
               输入小组名称或老师、组员编号进行搜索，不同编号间用空格隔开
               </div>
             </el-form-item>
-            <el-form-item style="margin: 0; align-items: center; margin-right: 20px; margin-left: 10px;">
+            <el-form-item>
               <el-button @click="search" type="primary" >
                 <el-icon>
                   <Search />
@@ -221,9 +218,9 @@
           </el-form>
         </div>
       </div>
-  
+
       <div class="selectable" style="margin: 20px;">
-        <div class="table">
+        <DewCard no-hover class="table-card">
           <el-table :data="Groups" style="width: 100%; max-height: 500px; overflow-y: auto;">
             <el-table-column v-for="item in tableLabel" :key="item.prop" :prop="item.prop" :label="item.label"
               :width="item.width ? item.width : 125" :align="item.align" />
@@ -233,18 +230,19 @@
               </template>
             </el-table-column>
           </el-table>
-        </div>
+        </DewCard>
       </div>
     </div>
   </template>
 
   <script setup>
   import api from '../api';
-  import { onBeforeMount, computed } from 'vue';
+  import { onBeforeMount } from 'vue';
   import { ref } from 'vue';
-  import { ElDialog, ElMessage, ElMessageBox} from 'element-plus';
+  import { ElMessage } from 'element-plus';
   import { useStore } from 'vuex'; // 添加store引入
-  import { Plus, Loading } from '@element-plus/icons-vue'; // 导入图标
+  import { DewCard } from '@bme/dew-ui';
+  import { Loading } from '@element-plus/icons-vue'; // 导入图标
 
   const store = useStore(); // 初始化store
 
@@ -313,7 +311,6 @@
   // 获取小组进度数据
   async function getGroupProgress() {
     isloading.value = true;
-    console.log('Fetching Progress data...');
     try {
       const res = await api.get(`/learningProgress/group?Group_Id=${selectedGroupid.value}`);
 
@@ -450,8 +447,6 @@
 
   // 处理章节选择变化的逻辑
   const handleChapterChange = (user, course) => {
-    console.log(`用户 ${user.name} 的课程 ${course.course_name} 选择了章节 ${course.currentChapter}`);
-
     // 只有在选择了具体的节时才更新记录
     if (course.currentChapter) {
       // 创建新的记录对象
@@ -474,13 +469,10 @@
         // 如果不存在记录，则添加新记录
         records.value.push(newRecord);
       }
-
-      console.log('更新后的 records:', records.value);
     }
   };
 
   async function getGroupList() {
-    console.log('Fetching Groups...');
     try {
       Groups.value.length = 0; // 清空之前的组数据
       const res = await api.get(`/user/group/list`);
@@ -548,7 +540,6 @@
       const returndata = {
         Records: [...records.value]
       }
-      console.log(returndata);
       try {
         await api.post('/learningProgress/update', returndata);
         ElMessage.success('更新成功');
@@ -580,7 +571,6 @@
           // 如果 key1Value 是数字，直接使用
           key1Ids = [String(key1Value)];
         } else {
-          console.warn(`Unsupported key1Value type:`, key1Value);
           return false; // 跳过不支持的类型
         }
   
@@ -608,7 +598,6 @@
     const searchString = searchQuery.value.trim(); // 获取用户输入的搜索字符串
     if (!searchString) {
       await getGroupList(); // 如果输入为空，重置列表
-      console.log("reset");
       return;
     }
   
@@ -636,9 +625,7 @@
       // 将 Set 转换为数组并赋值给 Groups
       Groups.value = Array.from(uniqueResults);
     }
-  
-    // console.log(Groups.value);
-  
+
     searchQuery.value = ''; // 清空搜索框
   }
   
@@ -677,10 +664,8 @@
   async function pendCourse(user){
       pendcourseVisible.value = true;
       isloading_pendcourse.value = true;
-      console.log('Fetching Course data...');
       try {
         const res = (await api.get(`/course/list`))['data'];
-        // console.log(res);
         courses.value = res.map(course => {
           return {
             course_name: course.Course_title,
@@ -688,7 +673,6 @@
             course_id: course.Course_Id,
           }
         });
-        // console.log('Processed data:', courses.value);
         selectedUserId.value = user.id;
         isloading_pendcourse.value = false;
       }
@@ -932,15 +916,15 @@
   
 <style scoped>
 .progress-dialog {
-  --el-dialog-bg-color: #f5f7fa;
+  --el-dialog-bg-color: var(--bg-secondary);
   --el-dialog-box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
   border-radius: 8px;
 }
 
 .progress-dialog :deep(.el-dialog__header) {
   padding: 15px 20px;
-  border-bottom: 1px solid #ebeef5;
-  background-color: #f0f2f5;
+  border-bottom: 1px solid var(--border-light);
+  background-color: var(--bg-tertiary);
   border-radius: 8px 8px 0 0;
 }
 
@@ -950,58 +934,20 @@
 
 .progress-dialog :deep(.el-dialog__footer) {
   padding: 15px 20px;
-  border-top: 1px solid #ebeef5;
+  border-top: 1px solid var(--border-light);
   text-align: right;
 }
 
 .custom-select :deep(.el-input__wrapper) {
-  background-color: #fff;
+  background-color: var(--bg-primary);
 }
 
-  .header-container {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  
-    margin: 10px;
-    height: 40px;
-  
-    .l-container {
-      display: inline-block;
-  
-      font-size: 30px;
-      font-weight: 900;
-  
-      margin-left: 20px;
-  
-      color: #3b5cd5;
-    }
-  
-    .r-container {
-      display: flex;
-      align-items: center;
-  
-      .form-inline {
-        display: flex;
-        justify-content: center;
-  
-        .el-form-item {
-          text-align: center;
-        }
-  
-        margin: 0;
-      }
-    }
-  }
-  
-
-  
   .input-hint {
-    background-color: #f9f9f9;
-    border: 1px solid #ddd;
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-light);
     padding: 5px 10px;
     border-radius: 4px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-sm);
     z-index: 1000;
   }
   
@@ -1027,12 +973,12 @@
   }
 
   .scroll-container::-webkit-scrollbar-thumb {
-    background-color: #c0c4cc;
+    background-color: var(--border-dark);
     border-radius: 10px;
   }
 
   .scroll-container::-webkit-scrollbar-track {
-    background-color: #f5f7fa;
+    background-color: var(--bg-tertiary);
   }
 
   /* 每个用户项 */
@@ -1040,10 +986,10 @@
     display: flex;
     flex-direction: column; /* 用户内部内容垂直排列 */
     margin-bottom: 16px;
-    background-color: #fff;
+    background-color: var(--bg-primary);
     border-radius: 8px;
     padding: 15px;
-    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+    box-shadow: var(--shadow-sm);
   }
 
   /* 用户标题 */
@@ -1053,13 +999,13 @@
     justify-content: space-between;
     margin-bottom: 12px;
     padding-bottom: 8px;
-    border-bottom: 1px dashed #ebeef5;
+    border-bottom: 1px dashed var(--border-light);
   }
 
   .user-name {
     font-size: 16px;
     font-weight: bold;
-    color: #303133;
+    color: var(--text-primary);
   }
 
   /* 进度条容器 */
@@ -1067,7 +1013,7 @@
     padding: 10px;
     border-radius: 6px;
     margin-bottom: 10px;
-    background-color: #f8f9fb;
+    background-color: var(--bg-secondary);
   }
 
   .progress-title {
@@ -1076,7 +1022,7 @@
 
   .course-name {
     font-weight: 600;
-    color: #409eff;
+    color: var(--primary-color);
     font-size: 14px;
   }
 
@@ -1084,25 +1030,25 @@
   .chapter-info {
     margin: 10px 0;
     padding: 8px;
-    background-color: #f0f7ff;
+    background-color: var(--bg-tertiary);
     border-radius: 6px;
   }
 
   .chapter-header {
     font-size: 14px;
-    color: #606266;
+    color: var(--text-secondary);
     margin-bottom: 5px;
   }
 
   .chapter-num, .section-num {
     font-weight: 600;
-    color: #409eff;
+    color: var(--primary-color);
     margin-right: 5px;
   }
 
   .chapter-name {
     font-size: 13px;
-    color: #606266;
+    color: var(--text-secondary);
     font-style: italic;
   }
 
@@ -1114,7 +1060,7 @@
   .progress-track {
     width: 100%;
     height: 8px;
-    background-color: #e4e7ed;
+    background-color: var(--border-light);
     border-radius: 4px;
     position: relative;
     overflow: hidden;
@@ -1122,7 +1068,7 @@
 
   .progress-bar {
     height: 100%;
-    background-color: #409eff;
+    background-color: var(--primary-color);
     background-image: linear-gradient(45deg, rgba(255,255,255,.15) 25%, transparent 25%, transparent 50%, rgba(255,255,255,.15) 50%, rgba(255,255,255,.15) 75%, transparent 75%, transparent);
     background-size: 1rem 1rem;
     position: absolute;
@@ -1148,7 +1094,7 @@
     text-align: center;
     padding: 30px;
     font-size: 16px;
-    color: #909399;
+    color: var(--text-tertiary);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1158,17 +1104,22 @@
   .user-separator {
     height: 1px;
     width: 100%;
-    background-color: #ebeef5;
+    background-color: var(--border-light);
     margin: 10px 0;
   }
 
   .no-progress {
     padding: 15px;
     text-align: center;
-    color: #909399;
+    color: var(--text-tertiary);
     font-style: italic;
-    background-color: #f8f9fb;
+    background-color: var(--bg-secondary);
     border-radius: 6px;
+  }
+
+  /* 表格容器(DewCard) */
+  .table-card :deep(.dew-card__body) {
+    padding: 0;
   }
 </style>
   

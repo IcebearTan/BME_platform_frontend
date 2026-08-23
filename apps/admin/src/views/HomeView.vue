@@ -1,11 +1,12 @@
 <script>
-import { RouterView } from "vue-router";
 import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import api from '../api';
 import {
-  Document, User, ChatLineRound, Trophy, Setting, Location,
-  Grid, Fold, Bell, ArrowDown, Clock, EditPen, TrendCharts,
-  HomeFilled, Picture, Search, List, Plus, Cpu, DataLine, Key, Tickets,
+  Document, User, ChatLineRound, Trophy, Setting,
+  Grid, Fold, Bell, ArrowDown, Clock, TrendCharts,
+  List, Plus, Cpu, DataLine, Key, Tickets,
   Sunny, Moon, Collection, Folder, School
 } from '@element-plus/icons-vue';
 
@@ -31,7 +32,6 @@ export default {
         '/dashboard': '仪表盘',
         '/user-manage/users': '用户管理',
         '/article/manage': '文章管理',
-        '/article/create': '创建文章',
         '/group/manage': '小组管理',
         '/course/manage': '课程管理',
         '/course/create': '发布课程',
@@ -116,32 +116,14 @@ export default {
     else {
       this.activeIndex = this.$route.path
     }
-    console.log(this.activeIndex)
   }
 };
-</script>
-
-<script setup>
-import api from '../api';
-import { onMounted } from 'vue'
-import { ref } from 'vue'
-import { ElMessage } from 'element-plus'
-import { useStore } from 'vuex'
-
-
-const handleOpen = (key, keyPath) => {
-  
-}
-
-const handleClose = (key, keyPath) => {
-
-}
 </script>
 
 
 
 <template>
-  <div class="admin-layout">
+  <div class="admin-layout aurora-bg">
     <!-- 顶部导航栏 -->
     <div class="top-navbar">
       <div class="navbar-left">
@@ -207,8 +189,6 @@ const handleClose = (key, keyPath) => {
           class="modern-menu"
           :collapse="sidebarCollapsed"
           :collapse-transition="false"
-          @open="handleOpen"
-          @close="handleClose"
         >
           <!-- ① 用户与组织 -->
           <el-sub-menu index="1">
@@ -327,22 +307,11 @@ const handleClose = (key, keyPath) => {
 </template>
 
 <style>
-/* 全局样式 - 不使用scoped以确保优先级 */
+/* 全局样式 - 不使用scoped以确保优先级（极光衬底由 global.css 的 .aurora-bg 提供） */
 .admin-layout {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background:
-    radial-gradient(ellipse 55% 50% at 12% 18%, rgba(96, 165, 250, 0.15), transparent 60%),
-    radial-gradient(ellipse 60% 55% at 88% 88%, rgba(52, 211, 153, 0.13), transparent 60%),
-    linear-gradient(135deg, #f0f4ff 0%, #fdf2f8 50%, #f0fdf4 100%);
-}
-
-.theme-dark .admin-layout {
-  background:
-    radial-gradient(ellipse 55% 50% at 12% 18%, rgba(59, 130, 246, 0.10), transparent 60%),
-    radial-gradient(ellipse 60% 55% at 88% 88%, rgba(16, 185, 129, 0.09), transparent 60%),
-    linear-gradient(160deg, #16161a 0%, #0f0f12 100%);
 }
 
 /* 顶部导航栏 */
@@ -755,66 +724,6 @@ const handleClose = (key, keyPath) => {
   color: rgba(255, 255, 255, 0.4);
   padding: 4px 0;
   letter-spacing: 0.5px;
-}
-
-/* 设置项样式 - 不再使用el-menu */
-.admin-layout .settings-item {
-  display: flex;
-  align-items: center;
-  color: rgba(255, 255, 255, 0.8) !important;
-  background: transparent !important;
-  border-radius: var(--radius-md) !important;
-  padding: 0 16px !important;
-  height: 48px !important;
-  line-height: 48px !important;
-  transition: all var(--transition-fast) !important;
-  cursor: pointer;
-  user-select: none;
-  margin: 3px 0;
-  overflow: hidden; /* 防止内容溢出 */
-  white-space: nowrap; /* 防止文字换行 */
-}
-
-.admin-layout .settings-item:hover {
-  background: rgba(255, 255, 255, 0.15) !important;
-  color: #ffffff !important;
-  transform: translateX(4px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.admin-layout .settings-item .menu-icon {
-  margin-right: 12px !important;
-  font-size: 18px;
-  color: inherit !important;
-}
-
-.admin-layout .settings-item .menu-text {
-  font-weight: 500;
-  color: inherit !important;
-  transition: opacity 0.15s ease, transform 0.15s ease; /* 平滑过渡 */
-  overflow: hidden; /* 防止文字溢出 */
-  text-overflow: ellipsis; /* 超长文字显示省略号 */
-}
-
-/* 折叠状态下的设置项 */
-.admin-layout .sidebar-container.collapsed .settings-item {
-  width: 48px;
-  padding: 0 !important;
-  justify-content: center;
-  margin: 3px 8px !important;
-}
-
-.admin-layout .sidebar-container.collapsed .settings-item .menu-icon {
-  margin: 0 !important;
-  font-size: 20px;
-}
-
-/* 折叠状态下隐藏设置项文字 */
-.admin-layout .sidebar-container.collapsed .settings-item .menu-text {
-  opacity: 0;
-  transform: translateX(-10px);
-  width: 0; /* 完全隐藏，避免占用空间 */
-  overflow: hidden;
 }
 
 /* 主内容区域 */

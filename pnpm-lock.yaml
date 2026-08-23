@@ -29,9 +29,6 @@ importers:
       '@element-plus/icons-vue':
         specifier: ^2.3.1
         version: 2.3.2(vue@3.5.41)
-      '@tinymce/tinymce-vue':
-        specifier: ^6.1.0
-        version: 6.3.0(tinymce@5.10.9)(vue@3.5.41)
       '@vueup/vue-quill':
         specifier: ^1.2.0
         version: 1.5.5(vue@3.5.41)
@@ -56,9 +53,6 @@ importers:
       qrcode:
         specifier: ^1.5.4
         version: 1.5.4
-      tinymce:
-        specifier: ^5.10.3
-        version: 5.10.9
       turndown:
         specifier: ^7.2.1
         version: 7.2.4

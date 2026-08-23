@@ -38,7 +38,7 @@
           </template>
         </el-table-column>
         <template #empty>
-          <span style="color: #909399;">暂无收件人，点击右上角「添加收件人」</span>
+          <span style="color: var(--text-tertiary);">暂无收件人，点击右上角「添加收件人」</span>
         </template>
       </el-table>
     </el-card>
@@ -267,13 +267,7 @@ onMounted(() => {
   max-width: 1000px;
 }
 
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-}
-
+/* 页头由 styles/pages.css 的 .page-header 提供 */
 .page-header h2 {
   margin: 0;
   font-size: 22px;
@@ -286,7 +280,7 @@ onMounted(() => {
 }
 
 .hint {
-  color: #909399;
+  color: var(--text-tertiary);
   font-size: 13px;
   margin: 8px 0 0;
 }

@@ -2,6 +2,7 @@
 import api from '../api';
 import { ref, reactive, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { DewCard } from '@bme/dew-ui';
 
 const formInline = reactive({
   key: ''
@@ -202,20 +203,20 @@ onMounted(() => {
 
 <template>
   <div style="width: 100%; height: 100%; position: relative; overflow: hidden;">
-    <div class="header-container">
-      <div class="l-container">勋章授予</div>
-      <div class="r-container">
+    <div class="page-header">
+      <div class="page-title">勋章授予</div>
+      <div class="header-actions">
         <el-form :inline="true" class="form-inline" :model="formInline" @submit.prevent>
-          <el-form-item label="查询" style="margin: 0; align-items: center;">
-            <el-input 
-              placeholder="输入用户名、勋章名称或授予原因" 
-              v-model="formInline.key" 
+          <el-form-item label="查询">
+            <el-input
+              placeholder="输入用户名、勋章名称或授予原因"
+              v-model="formInline.key"
               @keyup.enter="handleSearch"
               clearable
             ></el-input>
           </el-form-item>
-          
-          <el-form-item style="margin: 0; align-items: center; margin-right: 20px; margin-left: 10px;">
+
+          <el-form-item>
             <el-button type="primary" @click="handleSearch">
               <el-icon>
                 <Search />
@@ -223,26 +224,37 @@ onMounted(() => {
             </el-button>
           </el-form-item>
         </el-form>
-        
-        <el-button type="success" @click="handleGrant" style="margin-left: 10px;">
+
+        <el-button type="success" @click="handleGrant">
           授予勋章
         </el-button>
       </div>
     </div>
 
     <div style="margin: 20px;">
-      <div class="table">
+      <DewCard no-hover class="table-card">
         <el-table :data="userMedals" style="width: 100%; max-height: 800px; overflow-y: auto;">
-          <el-table-column v-for="item in tableLabel" :key="item.prop" :prop="item.prop" :label="item.label" 
+          <el-table-column v-for="item in tableLabel" :key="item.prop" :prop="item.prop" :label="item.label"
             :width="item.width ? item.width : 125" />
-          
+
           <el-table-column fixed="right" label="操作" min-width="120">
             <template #default="scoped">
               <el-button type="danger" size="small" @click="handleRevoke(scoped.row)">撤销</el-button>
             </template>
           </el-table-column>
         </el-table>
-      </div>
+
+        <div class="pagination-wrapper">
+          <el-pagination
+            @current-change="handlePageChange"
+            :page-size="pageSize"
+            :pager-count="11"
+            layout="prev, pager, next"
+            :total="totalItems"
+            :current-page="currentPage"
+          />
+        </div>
+      </DewCard>
     </div>
 
     <el-dialog v-model="dialogFormVisible" title="授予勋章" width="600">
@@ -282,55 +294,11 @@ onMounted(() => {
       </template>
     </el-dialog>
   </div>
-
-  <div class="pagination-wrapper">
-    <el-pagination
-      @current-change="handlePageChange"
-      :page-size="pageSize"
-      :pager-count="11"
-      layout="prev, pager, next"
-      :total="totalItems"
-      :current-page="currentPage"
-    />
-  </div>
 </template>
 
 <style scoped>
-.header-container {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px;
-  background-color: #fff;
-  border-bottom: 1px solid #e4e7ed;
+/* 页头/筛选/分页样式由 styles/pages.css 统一提供 */
+.table-card :deep(.dew-card__body) {
+  padding: 0;
 }
-
-.l-container {
-  font-size: 20px;
-  font-weight: bold;
-  color: #303133;
-}
-
-.r-container {
-  display: flex;
-  align-items: center;
-}
-
-.form-inline {
-  display: flex;
-  align-items: center;
-}
-
-.table {
-  background-color: #fff;
-  border-radius: 4px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.pagination-wrapper {
-  display: flex;
-  justify-content: center;
-  margin-top: 20px;
-  padding: 20px;
-}
-</style> 
+</style>

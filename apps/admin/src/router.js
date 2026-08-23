@@ -7,11 +7,8 @@ import RegisterView from './views/RegisterView.vue'
 import DashboardComponent from './components/DashboardComponent.vue'
 import UserManage from './components/UserManage.vue'
 import ArticleManage from './components/ArticleManage.vue'
-import ArticleCreate from './components/ArticleCreate.vue'
 import ArticleEditorV2 from './components/ArticleEditorV2.vue';
 
-import EditorComponent from './components/EditorComponent.vue';
-import EditorCreateComponent from './components/EditorCreateComponent.vue';
 import GroupManage from './components/GroupManage.vue';
 import LearningProgress from './components/LearningProgress.vue';
 import MedalManage from './components/MedalManage.vue';
@@ -57,11 +54,6 @@ const router = createRouter({
                     path: '/article/manage',
                     name: 'article_manage',
                     component: ArticleManage
-                },
-                {
-                    path: '/article/create',
-                    name: 'article_create',
-                    component: ArticleCreate
                 },
                 {
                     path: '/group/manage', // 修复路径，确保以 '/' 开头

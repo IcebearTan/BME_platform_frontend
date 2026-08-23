@@ -1,8 +1,11 @@
 <script>
 import api from '../api';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { DewCard } from '@bme/dew-ui';
 
 export default {
+  components: { DewCard },
+
   data() {
     return {
       articles: [],          // 当前页
@@ -105,11 +108,11 @@ export default {
 
 <template>
   <div class="selectable" style="width: 100%;">
-    <div class="header-container">
-      <div class="l-container">文章列表
+    <div class="page-header">
+      <div class="page-title">文章列表
         <el-button type="warning" @click="handleAdd" size="large" style="margin-left: 10px;">添加文章</el-button>
       </div>
-      <div class="r-container">
+      <div class="header-actions">
         <el-select v-model="statusFilter" placeholder="状态" style="width: 120px;" @change="handleStatusFilter">
           <el-option label="全部" value="all" />
           <el-option label="已发布" value="published" />
@@ -134,8 +137,8 @@ export default {
       </div>
     </div>
 
-    <div class="selectable" style="box-shadow: 0px 5px 10px 1px#e3e3e3; margin: 20px;">
-      <div class="table">
+    <div style="margin: 20px;">
+      <DewCard no-hover class="table-card">
         <el-table
           :data="articles"
           style="width: 100%; overflow: auto; height: calc(100% - 40px); border-radius: 10px;"
@@ -173,7 +176,6 @@ export default {
         </el-table>
         <div class="pagination-wrapper">
           <el-pagination
-            class="selectable"
             @current-change="handlePageChange"
             :current-page="currentPage"
             :page-size="pageSize"
@@ -181,66 +183,23 @@ export default {
             layout="prev, pager, next"
           />
         </div>
-      </div>
+      </DewCard>
     </div>
   </div>
 </template>
 
 <style scoped>
-.header-container {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin: 10px;
-  height: 40px;
-
-  .l-container {
-    display: inline-block;
-    font-size: 30px;
-    font-weight: 900;
-    margin-left: 20px;
-    color: #3b5cd5;
-  }
-
-  .r-container {
-    display: flex;
-    align-items: center;
-
-    .form-inline {
-      display: flex;
-      justify-content: center;
-      .el-form-item {
-        text-align: center;
-      }
-      margin: 0;
-    }
-  }
-}
-
+/* 页头/筛选/分页样式由 styles/pages.css 统一提供 */
 .selectable {
   user-select: text;
 }
 
-.pagination-wrapper {
-  position: relative;
-  width: 100%;
-  background-color: white;
-  height: 40px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  border-radius: 0 0 10px 10px;
+.table-card {
+  max-height: 600px;
+  overflow: hidden;
 }
 
-.table {
-  width: 100%;
-  height: calc(100vh - 220px);
-  max-height: 600px;
-  border-radius: 10px;
-  border-width: 1px;
-  border-style: solid;
-  border-color: #C4C4C4;
-  box-shadow: 0px 5px 10px 1px#f7f7f7;
-  overflow: visible;
+.table-card :deep(.dew-card__body) {
+  padding: 0;
 }
 </style>

@@ -1,5 +1,5 @@
 <template>
-  <div class="admin-llm-page selectable">
+  <div class="admin-llm-page">
 
     <!-- 页面标题 -->
     <div class="page-hero">
@@ -584,94 +584,18 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* ===== Layout ===== */
-.admin-llm-page {
-  padding: 24px 28px;
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  background: #f5f7fb;
-  min-height: 100%;
-}
+/* 页面骨架/区块卡/活动趋势等家族样式由 styles/pages.css「LLM 家族页」统一提供 */
+/* 本文件独有:hero 的 flex 布局、服务接入信息区、项目表格专属单元格、紫色趋势主题 */
 
-/* ===== Hero ===== */
+/* Hero:横排布局(基础视觉在 pages.css) */
 .page-hero {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  background: linear-gradient(135deg, #eff6ff 0%, #f0fdf4 60%, #faf5ff 100%);
-  border: 1px solid #e4e7ef;
-  border-radius: 14px;
-  padding: 22px 28px;
 }
-.hero-eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #3b82f6;
-  margin-bottom: 6px;
-}
-.eyebrow-dot {
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  background: #3b82f6;
-}
-.hero-title {
-  font-size: 22px;
-  font-weight: 700;
-  margin: 0 0 4px;
-  background: linear-gradient(135deg, #1e40af, #7c3aed);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-.hero-sub {
-  font-size: 13px;
-  color: #64748b;
-  margin: 0;
-}
-.hero-btn { align-self: center; flex-shrink: 0; }
+.hero-btn { align-self: center; }
 
-/* ===== Section Card ===== */
-.section-card {
-  background: #fff;
-  border: 1px solid #e4e7ef;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 1px 4px rgba(0,0,0,.05);
-}
-.section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 20px;
-  border-bottom: 1px solid #f0f2f7;
-  background: #fafbff;
-}
-.section-title-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.section-icon {
-  width: 28px; height: 28px;
-  border-radius: 7px;
-  display: flex; align-items: center; justify-content: center;
-}
-.section-icon svg { width: 14px; height: 14px; }
-.section-icon-blue  { background: #dbeafe; color: #2563eb; }
-.section-icon-violet{ background: #ede9fe; color: #7c3aed; }
-.section-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #0f172a;
-}
 .count-badge {
   font-size: 11px;
   font-weight: 600;
@@ -822,18 +746,11 @@ onMounted(() => {
 .compat-openai { background: rgba(16,185,129,.1); color: #059669; border: 1px solid rgba(16,185,129,.3); }
 .compat-claude { background: rgba(217,119,6,.1);  color: #d97706; border: 1px solid rgba(217,119,6,.3); }
 
-/* ===== Main Table ===== */
-.main-table :deep(.el-table__header-wrapper th) {
-  background: #fafbff !important;
-  color: #64748b;
-  font-size: 12px;
-  font-weight: 600;
-}
+/* ===== Main Table(项目列表专属单元格) ===== */
 .project-name {
   font-weight: 600;
   color: #0f172a;
 }
-.muted-text { color: #94a3b8; font-size: 13px; }
 .model-tag {
   font-family: 'JetBrains Mono', monospace;
   font-size: 11px;
@@ -851,12 +768,6 @@ onMounted(() => {
   border-radius: 4px;
   border: 1px solid #e4e7ef;
 }
-.spend-value {
-  font-weight: 600;
-  color: #d97706;
-  font-size: 13px;
-}
-.action-btns { display: flex; gap: 4px; flex-wrap: wrap; }
 .abtn {
   display: inline-flex;
   align-items: center;
@@ -879,40 +790,11 @@ onMounted(() => {
 .abtn-activity { border: 1px solid #8b5cf6; background: #fff; color: #7c3aed; }
 .abtn-activity:hover { background: #f5f3ff; }
 
-/* ===== Activity Drawer ===== */
-.activity-drawer { display: flex; flex-direction: column; gap: 20px; padding: 4px 0; }
-.activity-toolbar { display: flex; align-items: center; gap: 10px; }
-.act-stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-.act-stat-card { background: #f8faff; border: 1px solid #e4e7ef; border-radius: 8px; padding: 12px 14px; }
-.act-stat-label { font-size: 11px; color: #64748b; margin-bottom: 4px; }
-.act-stat-val { font-size: 18px; font-weight: 700; }
-.act-blue   { color: #2563eb; }
-.act-violet { color: #7c3aed; }
-.act-emerald{ color: #059669; }
-.act-amber  { color: #d97706; }
-.act-red    { color: #dc2626; }
-.act-slate  { color: #475569; }
-.act-section { display: flex; flex-direction: column; gap: 12px; }
-.act-section-header { display: flex; align-items: center; justify-content: space-between; }
-.act-section-title { font-size: 14px; font-weight: 600; color: #0f172a; }
-.act-section-sub { font-size: 12px; color: #94a3b8; }
+/* ===== 趋势图(本项目用紫色主题) ===== */
 .chart-type-tabs { display: flex; gap: 4px; }
 .chart-tab { padding: 4px 10px; border-radius: 5px; border: 1px solid #e4e7ef; background: #fff; font-size: 12px; color: #64748b; cursor: pointer; transition: all 0.15s; }
 .chart-tab.active { background: #8b5cf6; color: #fff; border-color: #8b5cf6; }
-.chart-wrap { background: #f8faff; border: 1px solid #e4e7ef; border-radius: 8px; padding: 12px 12px 4px; }
-.trend-svg { width: 100%; height: 110px; display: block; }
-.chart-x-labels { display: flex; justify-content: space-between; font-size: 10px; color: #94a3b8; padding: 2px 0 0; }
-.model-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.model-table th { text-align: left; font-size: 11px; font-weight: 600; color: #64748b; padding: 6px 8px; border-bottom: 1px solid #e4e7ef; background: #f8faff; }
-.model-table td { padding: 8px; border-bottom: 1px solid #f0f2f7; color: #0f172a; vertical-align: middle; }
-.model-table tr:last-child td { border-bottom: none; }
-.num-col { text-align: right; }
 .model-name { font-family: monospace; font-size: 12px; color: #8b5cf6; }
-.spend-col { color: #d97706; font-weight: 600; }
-.rate-badge { display: inline-block; padding: 2px 7px; border-radius: 10px; font-size: 11px; font-weight: 600; }
-.rate-good { background: #d1fae5; color: #059669; }
-.rate-warn { background: #fef3c7; color: #d97706; }
-.rate-na   { background: #f1f5f9; color: #94a3b8; }
 
 /* ===== Form ===== */
 .form-hint {

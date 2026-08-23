@@ -1,11 +1,11 @@
 ﻿<template>
   <div class="audit-log-container">
     <!-- 页面标题和筛选区域 -->
-    <div class="header-container">
-      <div class="l-container">
-        <span>审计日志</span>
-        <el-button 
-          type="primary" 
+    <div class="page-header">
+      <div class="title-group">
+        <span class="page-title">审计日志</span>
+        <el-button
+          type="primary"
           @click="handleRefresh"
           :loading="loading"
         >
@@ -13,21 +13,21 @@
           刷新
         </el-button>
       </div>
-      <div class="r-container">
-        <el-form :inline="true" class="filter-form" :model="filterForm">
+      <div class="header-actions">
+        <el-form :inline="true" class="form-inline" :model="filterForm">
           <el-form-item label="用户名">
-            <el-input 
-              v-model="filterForm.username" 
+            <el-input
+              v-model="filterForm.username"
               placeholder="输入用户名"
               clearable
               @clear="handleSearch"
               style="width: 180px;"
             />
           </el-form-item>
-          
+
           <el-form-item label="操作类型">
-            <el-select 
-              v-model="filterForm.operation" 
+            <el-select
+              v-model="filterForm.operation"
               placeholder="选择操作类型"
               clearable
               @clear="handleSearch"
@@ -50,8 +50,8 @@
           </el-form-item>
 
           <el-form-item label="操作结果">
-            <el-select 
-              v-model="filterForm.result" 
+            <el-select
+              v-model="filterForm.result"
               placeholder="选择结果"
               clearable
               @clear="handleSearch"
@@ -91,52 +91,54 @@
     </div>
 
     <!-- 数据表格 -->
-    <div class="table-container">
-      <el-table 
-        :data="logs" 
-        v-loading="loading"
-        style="width: 100%"
-        height="calc(100vh - 320px)"
-        :row-style="{ height: '50px' }"
-      >
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="username" label="用户名" width="120" />
-        <el-table-column prop="operation" label="操作" width="150" />
-        <el-table-column prop="ip_address" label="IP地址" width="150" />
-        <el-table-column prop="operation_url" label="操作URL" min-width="200" show-overflow-tooltip />
-        <el-table-column prop="result" label="结果" width="100">
-          <template #default="{ row }">
-            <el-tag :type="row.result === '成功' ? 'success' : 'danger'" size="small">
-              {{ row.result }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="timestamp" label="操作时间" width="180">
-          <template #default="{ row }">
-            {{ formatDateTime(row.timestamp) }}
-          </template>
-        </el-table-column>
-        <el-table-column fixed="right" label="操作" width="120">
-          <template #default="{ row }">
-            <el-button type="primary" size="small" @click="handleViewDetail(row)">
-              查看详情
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+    <div style="margin: 20px;">
+      <DewCard no-hover class="table-card">
+        <el-table
+          :data="logs"
+          v-loading="loading"
+          style="width: 100%"
+          height="calc(100vh - 320px)"
+          :row-style="{ height: '50px' }"
+        >
+          <el-table-column prop="id" label="ID" width="80" />
+          <el-table-column prop="username" label="用户名" width="120" />
+          <el-table-column prop="operation" label="操作" width="150" />
+          <el-table-column prop="ip_address" label="IP地址" width="150" />
+          <el-table-column prop="operation_url" label="操作URL" min-width="200" show-overflow-tooltip />
+          <el-table-column prop="result" label="结果" width="100">
+            <template #default="{ row }">
+              <el-tag :type="row.result === '成功' ? 'success' : 'danger'" size="small">
+                {{ row.result }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="timestamp" label="操作时间" width="180">
+            <template #default="{ row }">
+              {{ formatDateTime(row.timestamp) }}
+            </template>
+          </el-table-column>
+          <el-table-column fixed="right" label="操作" width="120">
+            <template #default="{ row }">
+              <el-button type="primary" size="small" @click="handleViewDetail(row)">
+                查看详情
+              </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
 
-      <!-- 分页 -->
-      <div class="pagination-wrapper">
-        <el-pagination
-          @current-change="handlePageChange"
-          @size-change="handleSizeChange"
-          :current-page="currentPage"
-          :page-size="pageSize"
-          :page-sizes="[10, 20, 50, 100]"
-          :total="totalItems"
-          layout="total, sizes, prev, pager, next, jumper"
-        />
-      </div>
+        <!-- 分页 -->
+        <div class="pagination-wrapper">
+          <el-pagination
+            @current-change="handlePageChange"
+            @size-change="handleSizeChange"
+            :current-page="currentPage"
+            :page-size="pageSize"
+            :page-sizes="[10, 20, 50, 100]"
+            :total="totalItems"
+            layout="total, sizes, prev, pager, next, jumper"
+          />
+        </div>
+      </DewCard>
     </div>
 
     <!-- 详情对话框 -->
@@ -179,6 +181,7 @@
 import { ref, reactive, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import { Search, RefreshRight } from '@element-plus/icons-vue';
+import { DewCard } from '@bme/dew-ui';
 import api from '../api';
 
 const loading = ref(false);
@@ -309,76 +312,18 @@ onMounted(() => {
   position: relative;
 }
 
-.header-container {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin: 10px;
-  min-height: 60px;
-}
-
-.l-container {
-  font-size: 30px;
-  font-weight: 900;
-  margin-left: 20px;
-  color: #3b5cd5;
-  line-height: 40px;
+/* 页头/筛选/分页样式由 styles/pages.css 统一提供 */
+.title-group {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 16px;
 }
 
-.l-container .el-button {
-  font-size: 14px;
-  height: 36px;
-}
-
-.r-container {
-  flex: 1;
-  display: flex;
-  justify-content: flex-end;
-}
-
-.filter-form {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 10px;
-}
-
-.filter-form .el-form-item {
-  margin: 5px 0;
-}
-
-/* 确保输入框和下拉框内容正常显示 */
-.filter-form .el-input__wrapper {
-  width: 100%;
-}
-
-.filter-form .el-select {
-  width: 100%;
-}
-
-.filter-form .el-date-editor {
-  width: 100%;
-}
-
-.table-container {
-  margin: 20px;
-  border-radius: 10px;
-  border: 1px solid #C4C4C4;
-  box-shadow: 0px 5px 10px 1px #f7f7f7;
+.table-card {
   overflow: hidden;
-  background: white;
 }
 
-.pagination-wrapper {
-  width: 100%;
-  height: 60px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  border-top: 1px solid #eee;
-  background: white;
+.table-card :deep(.dew-card__body) {
+  padding: 0;
 }
 </style>

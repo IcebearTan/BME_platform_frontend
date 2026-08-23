@@ -2,6 +2,7 @@
 import api from '../api';
 import { ref, reactive, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { DewCard } from '@bme/dew-ui';
 import { Upload, Top, Bottom } from '@element-plus/icons-vue';
 import router from '../router';
 
@@ -310,19 +311,19 @@ const handleDelete = (course) => {
 
 <template>
   <div class="course-manage" style="width: 100%;">
-    <div class="header-container">
-      <div class="l-container">
-        课程管理
-        <el-button type="warning" @click="handleAdd" size="large" style="margin-left: 10px;">
+    <div class="page-header">
+      <div class="header-actions">
+        <span class="page-title">课程管理</span>
+        <el-button type="warning" @click="handleAdd" size="large">
           添加课程
         </el-button>
-        <el-button type="success" @click="handleImport" size="large" style="margin-left: 10px;">
+        <el-button type="success" @click="handleImport" size="large">
           导入课程
         </el-button>
       </div>
-      <div class="r-container">
+      <div class="header-actions">
         <el-form :inline="true" class="form-inline" :model="formInline" @submit.prevent>
-          <el-form-item label="课程搜索" style="margin: 0; align-items: center;">
+          <el-form-item label="课程搜索">
             <el-input
               placeholder="输入课程标题"
               v-model="formInline.key"
@@ -330,7 +331,7 @@ const handleDelete = (course) => {
               clearable
             ></el-input>
           </el-form-item>
-          <el-form-item style="margin: 0; align-items: center; margin-right: 20px; margin-left: 10px;">
+          <el-form-item>
             <el-button type="primary" @click="handleSearch">
               <el-icon>
                 <Search />
@@ -341,11 +342,11 @@ const handleDelete = (course) => {
       </div>
     </div>
 
-    <div class="selectable" style="box-shadow: 0px 5px 10px 1px#e3e3e3; margin: 20px;">
-      <div class="table">
+    <div class="selectable" style="margin: 20px;">
+      <DewCard no-hover class="table-card">
         <el-table
           :data="courses"
-          style="width: 100%; overflow: auto; height: calc(100% - 40px); border-radius: 10px;"
+          style="width: 100%; overflow: auto; height: calc(100% - 40px);"
           :row-style="{ height: '50px' }"
           v-loading="loading"
         >
@@ -376,7 +377,7 @@ const handleDelete = (course) => {
           >
           </el-pagination>
         </div>
-      </div>
+      </DewCard>
     </div>
 
     <!-- 批量导入弹窗 -->
@@ -486,62 +487,18 @@ const handleDelete = (course) => {
 </template>
 
 <style scoped>
-.header-container {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin: 10px;
-  height: 40px;
-}
-
-.l-container {
-  display: inline-block;
-  font-size: 30px;
-  font-weight: 900;
-  margin-left: 20px;
-  color: #3b5cd5;
-}
-
-.r-container {
-  display: flex;
-  align-items: center;
-}
-
-.form-inline {
-  display: flex;
-  justify-content: center;
-}
-
-.form-inline .el-form-item {
-  text-align: center;
-  margin: 0;
-}
-
+/* 页头/筛选/分页样式由 styles/pages.css 统一提供 */
 .selectable {
   user-select: text;
 }
 
-.pagination-wrapper {
-  position: relative;
-  width: 100%;
-  background-color: white;
-  height: 40px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  border-radius: 0 0 10px 10px;
-}
-
-.table {
-  width: 100%;
+.table-card {
   height: calc(100vh - 220px);
   max-height: 600px;
-  border-radius: 10px;
-  border-width: 1px;
-  border-style: solid;
-  border-color: #C4C4C4;
-  box-shadow: 0px 5px 10px 1px#f7f7f7;
-  overflow: visible;
+}
+
+.table-card :deep(.dew-card__body) {
+  padding: 0;
 }
 
 /* 表格内容样式 */
@@ -550,8 +507,8 @@ const handleDelete = (course) => {
 }
 
 :deep(.el-table__header-wrapper th) {
-  background-color: #f5f7fa;
-  color: #606266;
+  background-color: var(--bg-tertiary);
+  color: var(--text-secondary);
   font-weight: 600;
 }
 

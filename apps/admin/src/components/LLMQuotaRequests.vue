@@ -1,5 +1,5 @@
 <template>
-  <div class="admin-llm-page selectable">
+  <div class="admin-llm-page">
 
     <!-- 页面标题 + 筛选 -->
     <div class="page-hero">
@@ -196,45 +196,8 @@ onMounted(fetchRequests);
 </script>
 
 <style scoped>
-.admin-llm-page {
-  padding: 24px 28px;
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  background: #f5f7fb;
-  min-height: 100%;
-}
-
-/* ===== Hero ===== */
-.page-hero {
-  background: linear-gradient(135deg, #eff6ff 0%, #f0fdf4 60%, #faf5ff 100%);
-  border: 1px solid #e4e7ef;
-  border-radius: 14px;
-  padding: 22px 28px;
-}
-.hero-eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #3b82f6;
-  margin-bottom: 6px;
-}
-.eyebrow-dot { width: 6px; height: 6px; border-radius: 50%; background: #3b82f6; }
-.hero-title {
-  font-size: 22px;
-  font-weight: 700;
-  margin: 0 0 4px;
-  background: linear-gradient(135deg, #1e40af, #7c3aed);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-.hero-sub { font-size: 13px; color: #64748b; margin: 0; }
+/* 页面骨架/Hero/区块卡/用户单元格等家族样式由 styles/pages.css「LLM 家族页」统一提供 */
+/* 本文件独有:hero 顶部行与筛选栏、待审批提醒、状态徽章、金额/理由单元格 */
 
 .hero-top {
   display: flex;
@@ -265,23 +228,6 @@ onMounted(fetchRequests);
   color: #92400e;
 }
 .pending-alert svg { width: 15px; height: 15px; color: #d97706; flex-shrink: 0; }
-
-/* ===== Section Card ===== */
-.section-card {
-  background: #fff;
-  border: 1px solid #e4e7ef;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 1px 4px rgba(0,0,0,.05);
-}
-.section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 20px;
-  border-bottom: 1px solid #f0f2f7;
-  background: #fafbff;
-}
 
 /* ===== Filter Tabs ===== */
 .filter-tabs {
@@ -323,31 +269,10 @@ onMounted(fetchRequests);
   font-weight: 700;
 }
 
-/* ===== Main Table ===== */
-.main-table :deep(.el-table__header-wrapper th) {
-  background: #fafbff !important;
-  color: #64748b;
-  font-size: 12px;
-  font-weight: 600;
-}
-.user-cell { display: flex; align-items: center; gap: 10px; }
-.user-avatar {
-  width: 32px; height: 32px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #3b82f6, #7c3aed);
-  color: #fff;
-  font-size: 13px;
-  font-weight: 700;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-}
-.user-name { font-size: 13px; font-weight: 600; color: #0f172a; }
-.user-email { font-size: 11px; color: #94a3b8; }
-
+/* ===== Main Table(专属单元格) ===== */
 .money-cur { font-size: 13px; color: #64748b; font-weight: 500; }
 .money-req { font-size: 13px; font-weight: 700; color: #2563eb; }
 .reason-text { font-size: 13px; color: #475569; }
-.muted-text { font-size: 12px; color: #94a3b8; }
 .expires-text { font-size: 12px; color: #d97706; font-weight: 500; }
 .comment-text { font-size: 12px; color: #94a3b8; font-style: italic; }
 
@@ -372,15 +297,4 @@ onMounted(fetchRequests);
 .status-approved .status-dot { background: #10b981; }
 .status-rejected { background: #fee2e2; color: #7f1d1d; }
 .status-rejected .status-dot { background: #ef4444; }
-
-/* ===== Action Buttons ===== */
-.action-btns { display: flex; gap: 6px; }
-
-/* ===== Table Footer ===== */
-.table-footer {
-  padding: 12px 20px;
-  display: flex;
-  justify-content: flex-end;
-  border-top: 1px solid #f0f2f7;
-}
 </style>

@@ -852,7 +852,7 @@ const goBack = () => {
 .title {
   font-size: 24px;
   font-weight: bold;
-  color: #3b5cd5;
+  color: var(--primary-color);
 }
 
 .course-tabs {

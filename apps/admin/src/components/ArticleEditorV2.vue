@@ -199,7 +199,7 @@ onMounted(() => {
   align-items: center;
   margin-bottom: 14px;
 }
-.ae2-title { margin: 0; font-size: 20px; font-weight: 700; color: #303133; }
+.ae2-title { margin: 0; font-size: 20px; font-weight: 700; color: var(--text-primary); }
 .ae2-actions { display: flex; gap: 8px; }
 
 .ae2-body {
@@ -209,15 +209,15 @@ onMounted(() => {
   align-items: start;
 }
 .ae2-panel {
-  background: #fff;
-  border: 1px solid #ebeef5;
-  border-radius: 8px;
+  background: var(--surface-solid);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
   padding: 14px;
 }
-.ae2-panel h3 { margin: 0 0 10px; font-size: 14px; font-weight: 600; color: #606266; }
+.ae2-panel h3 { margin: 0 0 10px; font-size: 14px; font-weight: 600; color: var(--text-secondary); }
 .ae2-catalog-scroll { max-height: calc(100vh - 240px); overflow: auto; }
 .ae2-field { margin-bottom: 14px; }
-.ae2-field label { display: block; font-size: 13px; color: #606266; margin-bottom: 6px; }
+.ae2-field label { display: block; font-size: 13px; color: var(--text-secondary); margin-bottom: 6px; }
 
 /* 窄屏：隐藏目录列 */
 @media (max-width: 1100px) {

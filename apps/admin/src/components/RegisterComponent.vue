@@ -1,8 +1,11 @@
 <script>
 import api from '../api';
-import md5 from 'js-md5'
+import md5 from 'js-md5';
+import { DewCard, DewInput, DewButton } from '@bme/dew-ui';
 
 export default {
+    name: 'RegisterComponent',
+    components: { DewCard, DewInput, DewButton },
 
     data() {
         return {
@@ -19,7 +22,6 @@ export default {
             isGeting: false,
             count: 60,
             disable: false,
-
 
             rules: {
                 username: [
@@ -57,32 +59,9 @@ export default {
     },
 
     methods: {
-        validateForm() {
-            if (!this.registerForm.username) {
-                alert('请填写用户名');
-                return false;
-            }
-
-            if (!this.registerForm.password) {
-                alert('请填写密码');
-                return false;
-            }
-
-            if (!this.registerForm.confirmPassword) {
-                alert('请再次输入密码');
-                return false;
-            }
-
-            if (!this.registerForm.email) {
-                alert('请填写邮箱');
-                return false;
-            }
-
-            return true;
-        },
-
         async submitEmail() {
-            if (!this.validateForm()) {
+            const valid = await this.$refs.registerFormRef.validateField(['email']).catch(() => false);
+            if (!valid) {
                 return;
             }
 
@@ -95,7 +74,6 @@ export default {
                 },
             }).then((res) => {
                 if (res.data.code == 200) {
-                    console.log(res.data.token, 'bme-admin-token')
                     // 将数据存入浏览器
                     localStorage.setItem("bme-admin-token", res.data.token)
                 }
@@ -116,7 +94,6 @@ export default {
                 }
             }, 1000)
 
-
             this.$message({
                 message: '验证码已发送到您的邮箱，请查收',
                 type: 'success'
@@ -124,14 +101,14 @@ export default {
         },
 
         async submitForm() {
-
-            if (!this.validateForm()) {
+            const valid = await this.$refs.registerFormRef.validate().catch(() => false);
+            if (!valid) {
                 return;
             }
 
             const User_Password = md5(this.registerForm.password)
 
-            // 向后端发送注册信息，暂时打印至控制台
+            // 向后端发送注册信息
             api({
                 url: "/auth/register",
                 method: "post",
@@ -143,12 +120,11 @@ export default {
                 },
             }).then((res) => {
                 if (res.data.code == 200) {
-                    console.log(res.data.token, 'bme-admin-token')
                     // 将数据存入浏览器
                     localStorage.setItem("bme-admin-token", res.data.token)
 
                     this.$router.push('/login')
-                    
+
                     this.$message({
                         message: '注册成功',
                         type: 'success'
@@ -161,60 +137,103 @@ export default {
                     })
                 }
             })
-
-            
-
-            
-
-
         }
     }
 };
 </script>
 
 <template>
-    <div>
-        <el-container>
-            <el-header>
-                <h1>注册账号</h1>
-            </el-header>
-            <el-main>
-                <el-form ref="registerForm" style="max-width: 600px" :model="registerForm" status-icon :rules="rules"
-                    label-width="auto" class="demo-ruleForm">
-                    <el-form-item label="账号" prop="username">
-                        <el-input v-model="registerForm.username" type="text" autocomplete="off" />
-                    </el-form-item>
-                    <el-form-item label="密码" prop="password">
-                        <el-input v-model="registerForm.password" type="password" autocomplete="off" />
-                    </el-form-item>
-                    <el-form-item label="确认密码" prop="confirmPassword">
-                        <el-input v-model="registerForm.confirmPassword" type="password" autocomplete="off" />
-                    </el-form-item>
-                    <el-form-item label="邮箱" prop="email">
-                        <el-input v-model="registerForm.email" type="email" autocomplete="off" />
-                    </el-form-item>
-                    <el-form-item label="验证码" prop="code">
-                        <div style="display: flex;">
-                            <el-input v-model="registerForm.code" type="text" autocomplete="off" />
-                            <!-- <el-button type="primary" @click="submitEmail(registerForm.email)">
-                                获取邮箱验证码
-                            </el-button> -->
-                            <el-button type="primary" :disabled="disable" :class="{ codeGeting: isGeting }"
-                                @click="submitEmail" style="margin-left: 10px;">{{ getCode }}</el-button>
-                        </div>
+    <DewCard :glass="true" :divided="true" size="lg" class="register-card">
+        <template #header>
+            <div class="register-header">
+                <h2 class="register-title">注册账号</h2>
+                <p class="register-subtitle">申请训练营后台管理账号</p>
+            </div>
+        </template>
 
-                    </el-form-item>
-                    <el-form-item>
-                        <el-button type="primary" @click="submitForm(registerForm)">
-                            注册
-                        </el-button>
-                    </el-form-item>
-                </el-form>
+        <el-form ref="registerFormRef" :model="registerForm" status-icon :rules="rules" class="register-form"
+            label-position="top">
+            <el-form-item label="账号" prop="username">
+                <DewInput v-model="registerForm.username" type="text" autocomplete="off" placeholder="3-15 个字符" />
+            </el-form-item>
+            <el-form-item label="密码" prop="password">
+                <DewInput v-model="registerForm.password" type="password" autocomplete="off" />
+            </el-form-item>
+            <el-form-item label="确认密码" prop="confirmPassword">
+                <DewInput v-model="registerForm.confirmPassword" type="password" autocomplete="off" />
+            </el-form-item>
+            <el-form-item label="邮箱" prop="email">
+                <DewInput v-model="registerForm.email" type="email" autocomplete="off" />
+            </el-form-item>
+            <el-form-item label="验证码" prop="code">
+                <div class="code-row">
+                    <DewInput v-model="registerForm.code" type="text" autocomplete="off" />
+                    <DewButton type="ghost" :disabled="disable" @click="submitEmail">{{ getCode }}</DewButton>
+                </div>
+            </el-form-item>
+            <el-form-item>
+                <DewButton :block="true" size="lg" @click="submitForm">注册</DewButton>
+            </el-form-item>
+        </el-form>
 
-                <el-link href="/login" type="primary">已有账户，前去登录</el-link>
-            </el-main>
-        </el-container>
-    </div>
+        <div class="register-actions">
+            <DewButton type="ghost" size="sm" @click="$router.push('/login')">已有账户，前去登录</DewButton>
+        </div>
+    </DewCard>
 </template>
 
-<style scoped></style>
+<style scoped>
+.register-card {
+    width: 420px;
+    max-width: 100%;
+    animation: fadeInUp 0.6s ease-out;
+}
+
+.register-header {
+    text-align: center;
+    padding: 4px 0;
+}
+
+.register-title {
+    font-size: 24px;
+    font-weight: 700;
+    margin: 0 0 8px;
+    color: var(--dew-text-heading);
+    letter-spacing: 0.02em;
+}
+
+.register-subtitle {
+    font-size: 13px;
+    margin: 0;
+    color: var(--dew-text-faint);
+}
+
+.register-form :deep(.el-form-item) {
+    margin-bottom: 18px;
+}
+
+.register-form :deep(.el-form-item__label) {
+    color: var(--text-secondary);
+}
+
+.code-row {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+}
+
+.code-row .dew-input {
+    flex: 1;
+}
+
+.register-actions {
+    display: flex;
+    justify-content: center;
+    margin-top: 4px;
+}
+
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+</style>

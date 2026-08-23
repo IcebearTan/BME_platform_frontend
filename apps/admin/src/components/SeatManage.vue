@@ -2,6 +2,7 @@
 import api from '../api';
 import { ref, reactive, computed, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { DewCard } from '@bme/dew-ui';
 
 const rooms = ref([]);                 // [{Room_Id, Room_Name, Room_Description, Seat_Count}]
 const currentRoomName = ref('');
@@ -133,9 +134,9 @@ onMounted(() => {
 
 <template>
   <div style="width: 100%; height: 100%; position: relative; overflow: hidden;">
-    <div class="header-container">
-      <div class="l-container">座位管理</div>
-      <div class="r-container">
+    <div class="page-header">
+      <div class="page-title">座位管理</div>
+      <div class="header-actions">
         <el-select v-model="currentRoomName" placeholder="选择自习室" @change="onRoomChange" style="width: 150px; margin-right: 12px;">
           <el-option v-for="r in rooms" :key="r.Room_Id" :label="r.Room_Name" :value="r.Room_Name" />
         </el-select>
@@ -145,7 +146,7 @@ onMounted(() => {
     </div>
 
     <div style="margin: 20px;">
-      <div class="table">
+      <DewCard no-hover class="table-card">
         <el-table :data="seats" style="width: 100%; height: calc(100% - 0px);" :row-style="{ height: '44px' }">
           <el-table-column prop="Seat_Label" label="座位号" width="140" />
           <el-table-column label="绑定用户" width="200">
@@ -168,7 +169,7 @@ onMounted(() => {
             </template>
           </el-table-column>
         </el-table>
-      </div>
+      </DewCard>
     </div>
 
     <!-- 新建房间 -->
@@ -222,31 +223,13 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.header-container {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin: 10px;
-  height: 40px;
-}
-.header-container .l-container {
-  display: inline-block;
-  font-size: 30px;
-  font-weight: 900;
-  margin-left: 20px;
-  color: #3b5cd5;
-}
-.header-container .r-container {
-  display: flex;
-  align-items: center;
-}
-.table {
-  width: 100%;
-  height: calc(100vh - 220px);
+/* 页头样式由 styles/pages.css 统一提供 */
+.table-card {
   max-height: 600px;
-  border-radius: 10px;
-  border: 1px solid #C4C4C4;
-  box-shadow: 0px 5px 10px 1px #f7f7f7;
   overflow: hidden;
+}
+
+.table-card :deep(.dew-card__body) {
+  padding: 0;
 }
 </style>

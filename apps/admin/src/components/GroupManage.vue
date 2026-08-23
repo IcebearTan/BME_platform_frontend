@@ -73,59 +73,27 @@
     </template>
   </el-dialog>
 
-  <!-- <el-dialog v-model="appendMemberDialogVisible" title="添加组员" width="500">
-    <el-form :model="form" @submit.prevent>
-      <el-form-item class="GroupInput" label="组员信息" :label-width="140">
-        <el-input v-model="form.student" @keyup.enter="configAppendGroup" autocomplete="off" placeholder="请输入学生编号，不同编号间用空格隔开"/>
-      </el-form-item>
-    </el-form>
-    <template #footer>
-      <div class="dialog-footer">
-        <el-button @click="appendMemberDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="configAppendGroup">
-          应用
-        </el-button>
-      </div>
-    </template>
-  </el-dialog>
-
-  <el-dialog v-model="deleteMemberDialogVisible" title="删除组员" width="500">
-    <el-form :model="form" @submit.prevent>
-      <el-form-item class="GroupInput" label="组员信息" :label-width="140">
-        <el-input v-model="form.student" @keyup.enter="configDeleteGroup" autocomplete="off" placeholder="请输入学生编号，不同编号间用空格隔开"/>
-      </el-form-item>
-    </el-form>
-    <template #footer>
-      <div class="dialog-footer">
-        <el-button @click="deleteMemberDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="configDeleteGroup">
-          应用
-        </el-button>
-      </div>
-    </template>
-  </el-dialog> -->
-
-    <div class="header-container selectable">
-      <div class="l-container">小组列表
+    <div class="page-header selectable">
+      <div class="page-title">小组列表
       <el-button class="config" size="large" type="warning" @click="appendGruopDialogVisible = true" >新建小组</el-button>
      </div>
-      <div class="r-container">
+      <div class="header-actions">
         <el-form :inline="true" class="form-inline" @submit.prevent>
-          <el-form-item label="小组查询" style="margin: 0; align-items: center;">
-            <el-input 
+          <el-form-item label="小组查询">
+            <el-input
             @focus="showHint = true"
-            @blur="showHint = false" 
+            @blur="showHint = false"
             v-model="searchQuery" @keyup.enter="search" placeholder="搜索框">
             </el-input>
             <div
             v-if="showHint"
             class="input-hint"
-            style="position: absolute; top: 100%; left: 0; margin-top: 5px; color: #888; font-size: 12px;" 
+            style="position: absolute; top: 100%; left: 0; margin-top: 5px; color: #888; font-size: 12px;"
             >
             输入小组名称或老师、组员编号进行搜索，不同编号间用空格隔开
             </div>
           </el-form-item>
-          <el-form-item style="margin: 0; align-items: center; margin-right: 20px; margin-left: 10px;">
+          <el-form-item>
             <el-button @click="search" type="primary" >
               <el-icon>
                 <Search />
@@ -137,20 +105,18 @@
     </div>
 
     <div class="selectable" style="margin: 20px;">
-      <div class="table">
+      <DewCard no-hover class="table-card">
         <el-table :data="Groups" style="width: 100%; max-height: 500px; overflow-y: auto;">
           <el-table-column v-for="item in tableLabel" :key="item.prop" :prop="item.prop" :label="item.label"
             :width="item.width ? item.width : 125" :align="item.align" />
           <el-table-column fixed="right" label="Operations" min-width="120">
             <template #="scoped">
               <el-button type="primary" size="small"  @click ="configGroup(scoped.row)">编辑小组</el-button>
-              <!-- <el-button type="primary" size="small"  @click ="appendMember(scoped.row)">添加组员</el-button>
-              <el-button type="danger" size="small" @click ="deleteMember(scoped.row)">删除组员</el-button> -->
               <el-button type="danger" size="small" @click ="deleteGroup(scoped.row)">删除小组</el-button>
             </template>
           </el-table-column>
         </el-table>
-      </div>
+      </DewCard>
     </div>
   </div>
 </template>
@@ -160,13 +126,12 @@ import api from '../api';
 import { onBeforeMount } from 'vue';
 import { ref, reactive} from 'vue';
 import { ElDialog, ElMessage, ElMessageBox} from 'element-plus';
-import { useStore } from 'vuex'; // 添加store引入
+import { useStore } from 'vuex';
+import { DewCard } from '@bme/dew-ui';
 
-const store = useStore(); // 初始化store
+const store = useStore();
 
 const appendGruopDialogVisible = ref(false)
-const appendMemberDialogVisible = ref(false)
-const deleteMemberDialogVisible = ref(false)
 const configGruopDialogVisible = ref(false)
 
 let tableLabel = ref([
@@ -217,7 +182,6 @@ const courseList = ref([]);
 
 async function getGroupList()
 {
-  console.log('Fetching Groups...');
       try {
         Groups.value.length = 0; // 清空之前的组数据
         const res = await api.get(`/user/group/list`);
@@ -271,8 +235,6 @@ async function getGroupList()
           Groups.value.push(...res.data.study_groups);
         }
         
-        console.log(res);
-        console.log(Groups);
         
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -287,7 +249,6 @@ async function getCourseList() {
       value: parseInt(course.Course_Id), // 将ID转为数字
       label: course.Course_title
     }));
-    console.log('课程列表加载成功:', courseList.value);
   } catch (error) {
     console.error('获取课程列表失败:', error);
     ElMessage.error('获取课程列表失败');
@@ -307,12 +268,6 @@ const form = reactive({
   group_id: null // 添加group_id字段
 })
 
-const tempForm = reactive({
-  name: '',
-  type: '',
-  student:[]
-})
-
 function clearForm()
 {
   form.name = '';
@@ -320,12 +275,6 @@ function clearForm()
   form.student = '';
   form.course_id = null;
   form.group_id = null; // 清空group_id
-}
-function clearTempForm()
-{
-  tempForm.name = '';
-  tempForm.type = '';
-  tempForm.student = [];
 }
 
 async function BuildGroup()
@@ -346,11 +295,9 @@ async function BuildGroup()
     Course_Id: parseInt(form.course_id), // 确保Course_Id是整数类型
   };
 
-  console.log('提交的小组数据:', returnGroup);
 
   try{
     const response = await api.post('/user/group_add', returnGroup);
-    console.log(response);
     ElMessage.success('创建小组成功');
   }
   catch (error) {
@@ -364,93 +311,6 @@ async function configBuildGroup()
 {
   await BuildGroup();
   appendGruopDialogVisible.value = false;
-  clearForm(); // 清空表单
-  await getGroupList(); // 重新获取小组列表
-}
-
-function appendMember(group)
-{
-  // console.log(group);
-  
-  appendMemberDialogVisible.value = true;
-
-  tempForm.name = group.group_name,
-  tempForm.type = group.group_type,
-  tempForm.student.push(...group.group.map(item => ({student_id: item.Student_Id}))) // 将对象数组赋值给 Group_member
-
-}
-
-async function configAppendGroup()
-{
-  const studentString = form.student;
-  const studentArray = studentString.split(" ").map(id => ({ student_id: id }));
-
-  const returnGroup = {
-    Group_Name: tempForm.name,
-    Group_Type: tempForm.type,
-    Group_member: [...tempForm.student, ...studentArray], // 将对象数组赋值给 Group_member
-  };
-
-  try{
-    // console.log(returnGroup);
-    const response = await api.post('/user/group_add', returnGroup);
-    console.log(response);
-    ElMessage.success('添加组员成功');
-  }
-  catch (error) {
-    console.error('Failed to add member:', error);
-  }
-
-  appendMemberDialogVisible.value = false;
-  clearTempForm(); // 清空临时表单
-  clearForm(); // 清空表单
-  await getGroupList(); // 重新获取小组列表
-}
-
-function deleteMember(group)
-{
-  // console.log(group);
-  
-  deleteMemberDialogVisible.value = true;
-
-  tempForm.name = group.group_name,
-  tempForm.type = group.group_type,
-  tempForm.student.push(...group.group.map(item => ({student_id: item.Student_Id}))) // 将对象数组赋值给 Group_member
-}
-
-async function configDeleteGroup()
-{
-  const studentString = form.student;
-  const studentArray = studentString.split(" ").map(id => ({ student_id: id }));
-
-  tempForm.student = tempForm.student.filter(
-  tempStudent => !studentArray.some(
-    student => String(student.student_id) === String(tempStudent.student_id) // 确保比较的是 student_id 的值
-  )
-);
-
-  console.log('studentArray:', studentArray);
-  console.log(tempForm.student);
-  
-
-  const returnGroup = {
-    Group_Name: tempForm.name,
-    Group_Type: tempForm.type,
-    Group_member: [...tempForm.student], // 将对象数组赋值给 Group_member
-  };
-
-  try{
-    // console.log(returnGroup);
-    const response = await api.post('/user/group_add', returnGroup);
-    console.log("组员飞飞");
-    ElMessage.success('删除组员成功');
-  }
-  catch (error) {
-    console.error('Failed to delete member:', error);
-  }
-
-  deleteMemberDialogVisible.value = false;
-  clearTempForm(); // 清空临时表单
   clearForm(); // 清空表单
   await getGroupList(); // 重新获取小组列表
 }
@@ -501,13 +361,11 @@ async function configConfigGroup(){
 
   try {
     // 打印 returnGroup 以便调试
-    console.log("Sending group data to backend:", returnGroup);
 
     // 发送 POST 请求到后端
     const response = await api.post('/user/group_add', returnGroup);
 
     // 打印后端返回的响应
-    console.log("Response from backend:", response);
 
     // 显示成功消息
     ElMessage.success('小组信息提交成功');
@@ -541,7 +399,6 @@ async function deleteGroup(group)
     await api.post('/user/group/delete', {
       Group_Id: group.group_id, // 传递小组 ID
     });
-    console.log("小组飞飞");
     ElMessage.success('删除小组成功');
     await getGroupList(); // 重新获取小组列表
   }
@@ -596,7 +453,6 @@ async function search() {
   const searchString = searchQuery.value.trim(); // 获取用户输入的搜索字符串
   if (!searchString) {
     await getGroupList(); // 如果输入为空，重置列表
-    console.log("reset");
     return;
   }
 
@@ -625,7 +481,6 @@ async function search() {
     Groups.value = Array.from(uniqueResults);
   }
 
-  console.log(Groups.value);
 
   searchQuery.value = ''; // 清空搜索框
 }
@@ -635,6 +490,7 @@ async function search() {
 </script>
 
 <style scoped>
+/* 页头/筛选/分页/可选中样式由 styles/pages.css 统一提供 */
 
 .GroupInput {
   margin-top: 20px;
@@ -644,90 +500,26 @@ async function search() {
   right: 40px;
 }
 
-.header-container {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-
-  margin: 10px;
-  height: 40px;
-
-  .l-container {
-    display: inline-block;
-
-    font-size: 30px;
-    font-weight: 900;
-
-    margin-left: 20px;
-
-    color: #3b5cd5;
-  }
-
-  .r-container {
-    display: flex;
-    align-items: center;
-
-    .form-inline {
-      display: flex;
-      justify-content: center;
-
-      .el-form-item {
-        text-align: center;
-      }
-
-      margin: 0;
-    }
-  }
-}
-
-.default-card {
-  display: inline-block;
-  width: 350px;
-
-  margin: 20px;
-
-  cursor: pointer;
-}
-
-.default-card:hover {
-  transform: translateY(-10px);
-  box-shadow: #c4c4c4 0px 0px 10px;
-}
-
-.config{
-  animation: backgroundChange 100s infinite;
+.config {
   margin-left: 10px;
-  color: #fff;
-}
-@keyframes backgroundChange {
-  0% {
-    background-color: #fc8803bf; /* 粉色 */
-  }
-  25% {
-    background-color: #ffc400; /* 浅橙色 */
-  }
-  50% {
-    background-color: #a2ff00; /* 紫色 */
-  }
-  75% {
-    background-color: #6a95da; /* 蓝色 */
-  }
-  100% {
-    background-color: #f898e5; /* 回到粉色 */
-  }
+  vertical-align: middle;
 }
 
 .input-hint {
-  background-color: #f9f9f9;
-  border: 1px solid #ddd;
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-light);
   padding: 5px 10px;
-  border-radius: 4px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
   z-index: 1000;
 }
 
-.selectable {
-    user-select: text;
+.table-card {
+  max-height: 540px;
+  overflow: hidden;
 }
 
+.table-card :deep(.dew-card__body) {
+  padding: 0;
+}
 </style>

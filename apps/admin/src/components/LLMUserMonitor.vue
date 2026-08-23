@@ -1,5 +1,5 @@
 <template>
-  <div class="admin-llm-page selectable">
+  <div class="admin-llm-page">
 
     <!-- 页面标题 -->
     <div class="page-hero">
@@ -538,35 +538,11 @@ onMounted(fetchUsers);
 </script>
 
 <style scoped>
-.admin-llm-page {
-  padding: 24px 28px;
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  background: #f5f7fb;
-  min-height: 100%;
-}
+/* 页面骨架/Hero/区块卡/活动趋势/模型分布表等家族样式由 styles/pages.css「LLM 家族页」统一提供 */
+/* 本文件独有:统计卡行、hero 上下结构(eyebrow 在标题区上方,间距与家族默认不同)、用户表格专属单元格、蓝色趋势主题 */
 
-/* ===== Hero ===== */
-.page-hero {
-  background: linear-gradient(135deg, #eff6ff 0%, #f0fdf4 60%, #faf5ff 100%);
-  border: 1px solid #e4e7ef;
-  border-radius: 14px;
-  padding: 22px 28px;
-}
-.hero-eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #3b82f6;
-  margin-bottom: 10px;
-}
-.eyebrow-dot { width: 6px; height: 6px; border-radius: 50%; background: #3b82f6; }
+/* Hero:eyebrow 独占一行,与家族默认 6px 间距不同 */
+.hero-eyebrow { margin-bottom: 10px; }
 .hero-body {
   display: flex;
   align-items: flex-end;
@@ -574,17 +550,6 @@ onMounted(fetchUsers);
   gap: 16px;
   flex-wrap: wrap;
 }
-.hero-title {
-  font-size: 22px;
-  font-weight: 700;
-  margin: 0 0 4px;
-  background: linear-gradient(135deg, #1e40af, #7c3aed);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-.hero-sub { font-size: 13px; color: #64748b; margin: 0; }
-.hero-btn { flex-shrink: 0; }
 
 /* ===== Stat Row ===== */
 .stat-row {
@@ -620,53 +585,8 @@ onMounted(fetchUsers);
 .stat-val-emerald{ color: #059669; }
 .stat-val-red    { color: #dc2626; }
 
-/* ===== Section Card ===== */
-.section-card {
-  background: #fff;
-  border: 1px solid #e4e7ef;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 1px 4px rgba(0,0,0,.05);
-}
-.section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 20px;
-  border-bottom: 1px solid #f0f2f7;
-  background: #fafbff;
-}
-.section-title-row { display: flex; align-items: center; gap: 8px; }
-.section-icon {
-  width: 28px; height: 28px;
-  border-radius: 7px;
-  display: flex; align-items: center; justify-content: center;
-}
-.section-icon svg { width: 14px; height: 14px; }
-.section-icon-blue { background: #dbeafe; color: #2563eb; }
-.section-title { font-size: 14px; font-weight: 600; color: #0f172a; }
-
-/* ===== Main Table ===== */
-.main-table :deep(.el-table__header-wrapper th) {
-  background: #fafbff !important;
-  color: #64748b;
-  font-size: 12px;
-  font-weight: 600;
-}
+/* ===== Main Table(专属单元格) ===== */
 .uid-text { font-size: 12px; color: #94a3b8; font-family: monospace; }
-.user-cell { display: flex; align-items: center; gap: 10px; }
-.user-avatar {
-  width: 32px; height: 32px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #3b82f6, #7c3aed);
-  color: #fff;
-  font-size: 13px;
-  font-weight: 700;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-}
-.user-name { font-size: 13px; font-weight: 600; color: #0f172a; }
-.user-email { font-size: 11px; color: #94a3b8; }
 .key-count-chip {
   display: inline-flex;
   align-items: center;
@@ -707,40 +627,9 @@ onMounted(fetchUsers);
 }
 .action-btn-quota:hover { background: #eff6ff; }
 
-/* ===== Activity Drawer ===== */
-.activity-drawer { display: flex; flex-direction: column; gap: 20px; padding: 4px 0; }
-.activity-toolbar { display: flex; align-items: center; gap: 10px; }
 .activity-loading { padding: 20px 0; }
 
-.act-stat-row {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-}
-.act-stat-card {
-  background: #f8faff;
-  border: 1px solid #e4e7ef;
-  border-radius: 8px;
-  padding: 12px 14px;
-}
-.act-stat-label { font-size: 11px; color: #64748b; margin-bottom: 4px; }
-.act-stat-val { font-size: 18px; font-weight: 700; }
-.act-blue   { color: #2563eb; }
-.act-violet { color: #7c3aed; }
-.act-emerald{ color: #059669; }
-.act-amber  { color: #d97706; }
-.act-red    { color: #dc2626; }
-.act-slate  { color: #475569; }
-
-.act-section { display: flex; flex-direction: column; gap: 12px; }
-.act-section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.act-section-title { font-size: 14px; font-weight: 600; color: #0f172a; }
-.act-section-sub { font-size: 12px; color: #94a3b8; }
-
+/* 趋势图(本页用蓝色主题) */
 .chart-type-tabs { display: flex; gap: 4px; }
 .chart-tab {
   padding: 4px 10px;
@@ -753,58 +642,8 @@ onMounted(fetchUsers);
   transition: all 0.15s;
 }
 .chart-tab.active { background: #3b82f6; color: #fff; border-color: #3b82f6; }
-
-.chart-wrap {
-  background: #f8faff;
-  border: 1px solid #e4e7ef;
-  border-radius: 8px;
-  padding: 12px 12px 4px;
-}
-.trend-svg { width: 100%; height: 110px; display: block; }
-.chart-x-labels {
-  display: flex;
-  justify-content: space-between;
-  font-size: 10px;
-  color: #94a3b8;
-  padding: 2px 0 0;
-}
-
-.model-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-.model-table th {
-  text-align: left;
-  font-size: 11px;
-  font-weight: 600;
-  color: #64748b;
-  padding: 6px 8px;
-  border-bottom: 1px solid #e4e7ef;
-  background: #f8faff;
-}
-.model-table td {
-  padding: 8px 8px;
-  border-bottom: 1px solid #f0f2f7;
-  color: #0f172a;
-  vertical-align: middle;
-}
-.model-table tr:last-child td { border-bottom: none; }
-.num-col { text-align: right; }
 .model-name { font-family: monospace; font-size: 12px; color: #3b82f6; }
-.spend-col { color: #d97706; font-weight: 600; }
-.rate-badge {
-  display: inline-block;
-  padding: 2px 7px;
-  border-radius: 10px;
-  font-size: 11px;
-  font-weight: 600;
-}
-.rate-good { background: #d1fae5; color: #059669; }
-.rate-warn { background: #fef3c7; color: #d97706; }
-.rate-na   { background: #f1f5f9; color: #94a3b8; }
 
-.spend-value { font-weight: 600; color: #d97706; font-size: 13px; }
 .budget-value { font-size: 13px; color: #2563eb; font-weight: 600; }
 .progress-cell { display: flex; align-items: center; gap: 8px; }
 .progress-pct { font-size: 12px; font-weight: 600; width: 38px; text-align: right; flex-shrink: 0; }
@@ -818,13 +657,6 @@ onMounted(fetchUsers);
   padding: 2px 7px;
   border-radius: 4px;
   font-weight: 500;
-}
-
-.table-footer {
-  padding: 12px 20px;
-  display: flex;
-  justify-content: flex-end;
-  border-top: 1px solid #f0f2f7;
 }
 
 /* ===== Quota Dialog ===== */

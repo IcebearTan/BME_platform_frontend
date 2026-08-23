@@ -44,8 +44,8 @@ test('管理布局壳挂载（侧边栏 + 主区域）', async ({ page }) => {
 test('md-editor-v3 编辑器挂载', async ({ page }) => {
   await loginAsStaff(page)
   await page.goto(`${BASE}/editor`)
-  // /editor 路由挂的是 ArticleEditorV2（md-editor-v3）；TinyMCE 组件在 admin
-  // 是死代码（EditorView/CreateView 未挂路由），清债批次另行处置
+  // /editor 路由挂的是 ArticleEditorV2（md-editor-v3）；
+  // TinyMCE 系死代码（EditorComponent/EditorCreateComponent 等）已于批次 5 删除
   await expect(page.locator('.md-editor').first()).toBeVisible({ timeout: 15_000 })
   await expect(page.getByRole('button', { name: '保存草稿' })).toBeVisible()
 })
