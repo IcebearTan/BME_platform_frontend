@@ -17,12 +17,10 @@
 
     <!-- 汇总条 -->
     <div class="summary-bar" v-if="board.summary">
-      <el-tag type="success">出勤 {{ board.summary.present }}</el-tag>
-      <el-tag type="warning">迟到 {{ board.summary.late }}</el-tag>
-      <el-tag type="warning">时长不足 {{ board.summary.short_hours }}</el-tag>
-      <el-tag type="danger">迟到+不足 {{ board.summary.late_and_short }}</el-tag>
-      <el-tag type="info">缺勤 {{ board.summary.absent }}</el-tag>
-      <el-tag type="primary">请假 {{ board.summary.on_leave }}</el-tag>
+      <el-tag type="success">出勤 {{ (board.summary.present || 0) + (board.summary.late || 0) }}{{ board.summary.late ? `（迟到 ${board.summary.late}）` : '' }}</el-tag>
+      <el-tag type="warning">未达标 {{ (board.summary.short_hours || 0) + (board.summary.late_and_short || 0) }}{{ board.summary.late_and_short ? `（迟到 ${board.summary.late_and_short}）` : '' }}</el-tag>
+      <el-tag type="danger">缺勤 {{ board.summary.absent || 0 }}</el-tag>
+      <el-tag type="primary">请假 {{ board.summary.on_leave || 0 }}</el-tag>
       <el-tag>达标率 {{ pct(board.summary.attendance_rate) }}</el-tag>
     </div>
 
@@ -34,7 +32,7 @@
         min-width="56" align="center">
         <template #default="{ row }">
           <div v-if="row.daily && row.daily[d]"
-               :class="['cell', 'cell-' + row.daily[d].status]"
+               :class="['cell', 'cell-' + visualKey(row.daily[d].status, d === todayIso), { 'is-late': !!row.daily[d].is_late }]"
                :title="tip(row.daily[d])">
             {{ glyph(row.daily[d].status) }}
           </div>
@@ -60,14 +58,34 @@ const board = ref({});
 const loading = ref(false);
 
 const GLYPH = {
-  present: '✓', late: '迟', short_hours: '短', late_and_short: '!',
-  absent: '✗', on_leave: '假', pledged: '·', unpledged: '', in_progress: '…',
+  present: '✓', late: '✓', short_hours: '短', late_and_short: '短',
+  absent: '✗', on_leave: '休', pledged: '·', unpledged: '', in_progress: '…',
 };
 const STATUS_TEXT = {
-  present: '出勤', late: '迟到·时长达标', short_hours: '时长不足', late_and_short: '迟到+时长不足',
-  absent: '缺勤', on_leave: '请假', pledged: '已承诺·待考勤', unpledged: '未承诺', in_progress: '考勤进行中',
+  present: '出勤', late: '出勤·迟到',
+  short_hours: '未达标', late_and_short: '未达标·迟到',
+  absent: '缺勤', on_leave: '请假',
+  pledged: '待考勤', in_progress: '进行中', unpledged: '未承诺',
 };
 const glyph = (s) => GLYPH[s] || '';
+// 本地时区今天（toISOString 是 UTC，凌晨会差一天；与 onSessionChange 的取法一致）
+const _now = new Date();
+const todayIso = `${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, '0')}-${String(_now.getDate()).padStart(2, '0')}`;
+
+// 渲染归类：与 BME_frontend/src/services/campService.js 的 campVisualKey 保持同步
+// 后端 9 态细分保留，视觉收敛为 出勤/未达标/缺勤/请假 + 待考勤/未承诺；迟到=角标
+// 今天还没打卡时后端判 absent，前端不下结论 → 归为待考勤
+function visualKey(status, isToday = false) {
+  if (status === 'absent' && isToday) return 'pending';
+  switch (status) {
+    case 'present': case 'late': return 'present';
+    case 'short_hours': case 'late_and_short': return 'insufficient';
+    case 'absent': return 'absent';
+    case 'on_leave': return 'on_leave';
+    case 'pledged': case 'in_progress': return 'pending';
+    default: return 'unpledged';
+  }
+}
 
 const label = (d) => {              // 'YYYY-MM-DD' → 'M/D'
   const [, m, day] = d.split('-');
@@ -77,6 +95,7 @@ const label = (d) => {              // 'YYYY-MM-DD' → 'M/D'
 const tip = (c) => {
   if (!c) return '';
   const parts = [STATUS_TEXT[c.status] || c.status];
+  if (c.is_late) parts.push('迟到');
   if (c.first_check_in) parts.push(`签到 ${c.first_check_in.slice(11, 16)}`);
   if (c.total_hours != null) parts.push(`时长 ${c.total_hours}h`);
   if (c.in_progress) parts.push('未签退');
@@ -144,14 +163,16 @@ onMounted(fetchSessions);
 .cell {
   width: 100%; height: 28px; line-height: 28px; text-align: center;
   border-radius: 4px; font-size: 12px; font-weight: 600; cursor: default;
+  position: relative;
 }
 .cell-present { background: #f0f9eb; color: #67c23a; }
-.cell-late { background: #fdf6ec; color: #e6a23c; }
-.cell-short_hours { background: #fef0f0; color: #f56c6c; }
-.cell-late_and_short { background: #fde2e2; color: #f56c6c; }
-.cell-absent { background: #f4f4f5; color: #bbb; }
+.cell-insufficient { background: #fdf6ec; color: #e6a23c; }
+.cell-absent { background: #fef0f0; color: #f56c6c; }
 .cell-on_leave { background: #ecf5ff; color: #409eff; }
-.cell-pledged { background: #f9fbff; color: #a0cfff; }
+.cell-pending { background: #f4f4f5; color: #a8abb2; }
 .cell-unpledged { background: transparent; color: #dcdfe6; }
-.cell-in_progress { background: #e8f4ff; color: #409eff; }
+.cell.is-late::after {
+  content: ''; position: absolute; top: 3px; right: 4px;
+  width: 4px; height: 4px; border-radius: 50%; background: #e6a23c;
+}
 </style>

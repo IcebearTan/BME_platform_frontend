@@ -154,32 +154,112 @@
           </el-table-column>
         </el-table>
       </el-tab-pane>
+
+      <!-- ⑧ 选导生（启用且老师/超管可见） -->
+      <el-tab-pane v-if="canManage && session.mentor_selection_enabled" label="选导生" name="ms">
+        <!-- 阶段状态 + 手动推进（复用 session_update 改 deadline = 提前截止） -->
+        <el-alert
+          :type="msPhaseAlertType"
+          :closable="false"
+          :title="`当前阶段：${msPhaseLabel} · 志愿 ${msOverview?.deadlines?.preference_deadline || '—'} 截止 / 一轮 ${msOverview?.deadlines?.round1_deadline || '—'} 截止${msOverview?.deadlines?.round2_deadline ? ' / 二轮 ' + msOverview.deadlines.round2_deadline + ' 截止' : '（无二轮）'}`"
+        />
+        <el-alert v-if="msOverview?.config_error" type="error" :closable="false" title="配置不完整：启用但缺少时间点，请到「营期列表 → 编辑」补齐" style="margin-top:8px" />
+        <div v-if="manageWritable" style="margin: 12px 0;">
+          <el-button v-if="msOverview?.phase === 'collecting'" size="small" @click="advanceMs('pd')">立即截止志愿（进入挑选）</el-button>
+          <el-button v-if="msOverview?.phase === 'round1'" size="small" @click="advanceMs('r1')">立即截止一轮</el-button>
+          <el-button v-if="msOverview?.phase === 'round1' || msOverview?.phase === 'round2'" size="small" @click="skipRound2">跳过二轮</el-button>
+          <span class="hint">推进即把对应截止时间改为当前时刻；也可在「营期列表 → 编辑」调整时间线</span>
+        </div>
+
+        <!-- 导生概览 -->
+        <h4 class="ms-sec-title">导生概览</h4>
+        <el-table :data="msOverview?.mentors || []" border size="small">
+          <el-table-column label="导生" prop="username" min-width="110" />
+          <el-table-column label="名片" width="80" align="center">
+            <template #default="{ row }">
+              <el-tag v-if="row.has_profile" type="success" size="small">已发布</el-tag>
+              <el-tag v-else type="warning" size="small">无名片</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="容量" prop="capacity" width="70" align="center" />
+          <el-table-column label="一轮志愿数" prop="chose_r1" width="100" align="center" />
+          <el-table-column label="二轮志愿数" prop="chose_r2" width="100" align="center" />
+          <el-table-column label="已收" prop="matched" width="70" align="center" />
+          <el-table-column label="剩余" width="70" align="center">
+            <template #default="{ row }">
+              <span :style="row.remaining === 0 ? 'color:#e6a23c' : ''">{{ row.remaining }}</span>
+            </template>
+          </el-table-column>
+        </el-table>
+
+        <!-- 学员配对（含未匹配指派） -->
+        <h4 class="ms-sec-title">学员配对（{{ msOverview?.stats?.matched ?? 0 }} / {{ msOverview?.stats?.students ?? 0 }}）</h4>
+        <el-table :data="msOverview?.students || []" border size="small">
+          <el-table-column label="学员" prop="username" min-width="110" />
+          <el-table-column label="归属导生" width="120">
+            <template #default="{ row }">
+              <el-tag v-if="row.matched" type="success" size="small">{{ row.mentor_name }}</el-tag>
+              <span v-else style="color:#e6a23c">未匹配</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="一轮志愿" width="90" align="center">
+            <template #default="{ row }">
+              <el-tag :type="row.submitted_r1 ? 'info' : 'danger'" size="small" effect="plain">
+                {{ row.submitted_r1 ? '已交' : '未交' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="二轮志愿" width="90" align="center">
+            <template #default="{ row }">
+              <el-tag v-if="msOverview?.stats?.r2_enabled" :type="row.submitted_r2 ? 'info' : 'danger'" size="small" effect="plain">
+                {{ row.submitted_r2 ? '已交' : '未交' }}
+              </el-tag>
+              <span v-else>—</span>
+            </template>
+          </el-table-column>
+          <el-table-column v-if="manageWritable" label="手动指派" min-width="200">
+            <template #default="{ row }">
+              <el-select v-if="!row.matched" :model-value="null" size="small" placeholder="指派给导生"
+                style="width:150px" @change="(v) => assignStudent(row, v)">
+                <el-option v-for="m in msOverview?.mentors || []" :key="m.user_id"
+                  :label="`${m.username}（余 ${m.remaining}）`" :value="m.user_id" />
+              </el-select>
+              <span v-else class="hint">改派请到「成员」Tab</span>
+            </template>
+          </el-table-column>
+        </el-table>
+      </el-tab-pane>
     </el-tabs>
 
-    <!-- 加成员 -->
-    <el-dialog v-model="memberDlg.visible" title="加成员" width="460px">
+    <!-- 加成员（多选批量） -->
+    <el-dialog v-model="memberDlg.visible" title="加成员" width="520px">
       <el-form :model="memberDlg.form" label-width="80px">
         <el-form-item label="用户" required>
-          <el-select v-model="memberDlg.form.user_id" filterable placeholder="搜索选择用户" style="width: 100%;" @change="onUserPicked">
+          <el-select v-model="memberDlg.form.user_ids" multiple collapse-tags collapse-tags-tooltip filterable
+            placeholder="搜索选择用户（可多选）" style="width: 100%;">
             <el-option v-for="u in selectableUsers" :key="u.User_Id" :label="`${u.User_Name}（${roleLabel(u.role)}）`" :value="u.User_Id" />
           </el-select>
           <el-checkbox v-model="showAllUsers" style="margin-top: 6px; font-size: 12px;">显示教师/超管（不可加入）</el-checkbox>
         </el-form-item>
-        <el-form-item label="角色">
-          <el-tag v-if="memberDlg.form.role" :type="memberDlg.form.role === 'mentor' ? 'warning' : 'success'" effect="light">
-            {{ roleLabel(memberDlg.form.role) }}
-          </el-tag>
-          <span v-else style="color: #909399; font-size: 12px;">选择用户后按其身份自动确定</span>
+        <el-form-item label="已选">
+          <template v-if="selectedRoles.total">
+            <el-tag type="warning" size="small">导生 × {{ selectedRoles.mentor }}</el-tag>
+            <el-tag v-if="selectedRoles.student" type="success" size="small" style="margin-left: 6px;">学员 × {{ selectedRoles.student }}</el-tag>
+          </template>
+          <span v-else style="color: #909399; font-size: 12px;">选择后按各自身份自动确定角色</span>
         </el-form-item>
-        <el-form-item v-if="memberDlg.form.role === 'student'" label="归属导生">
-          <el-select v-model="memberDlg.form.team_mentor_id" clearable placeholder="选该学员的导生" style="width: 100%;">
+        <el-form-item v-if="selectedRoles.total && selectedRoles.mentor === 0" label="归属导生">
+          <el-select v-model="memberDlg.form.team_mentor_id" clearable placeholder="统一指定（可选）" style="width: 100%;">
             <el-option v-for="m in mentorMembers" :key="m.user_id" :label="m.username" :value="m.user_id" />
           </el-select>
+          <div style="width: 100%; color: #909399; font-size: 12px; line-height: 1.5;">将应用到本次全部学员；混选导生时不指定，加入后可在成员列表改派</div>
         </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="memberDlg.visible = false">取消</el-button>
-        <el-button type="primary" @click="submitAddMember">加入</el-button>
+        <el-button type="primary" :loading="memberDlg.submitting" @click="submitAddMember">
+          加入{{ selectedRoles.total ? `（${selectedRoles.total}）` : '' }}
+        </el-button>
       </template>
     </el-dialog>
 
@@ -246,7 +326,7 @@ const allCourses = ref([]);
 const medals = ref([]);
 const physicalSeats = ref([]);
 
-const memberDlg = reactive({ visible: false, form: { user_id: null, role: null, team_mentor_id: null } });
+const memberDlg = reactive({ visible: false, form: { user_ids: [], team_mentor_id: null }, submitting: false });
 const courseDlg = reactive({ visible: false, course_id: null });
 const seatDlg = reactive({ visible: false, form: { seat_id: null, user_id: null } });
 const rewardForm = reactive({ user_id: null, medal_id: null, description: '' });
@@ -261,11 +341,17 @@ const roleLabel = (r) => ({ student: '学员', mentor: '导生', teacher: '教�
 const selectableUsers = computed(() =>
   showAllUsers.value ? users.value : users.value.filter((u) => u.role === 'student' || u.role === 'mentor')
 );
-function onUserPicked(uid) {
-  const u = users.value.find((x) => x.User_Id === uid);
-  memberDlg.form.role = u ? u.role : null;
-  if (memberDlg.form.role !== 'student') memberDlg.form.team_mentor_id = null;
-}
+// 已选用户的身份汇总：驱动「已选」标签展示，及「全学员才可统一归属导生」
+const selectedRoles = computed(() => {
+  const c = { mentor: 0, student: 0, total: 0 };
+  for (const id of memberDlg.form.user_ids || []) {
+    const u = users.value.find((x) => x.User_Id === id);
+    if (!u) continue;
+    if (u.role === 'mentor') { c.mentor += 1; c.total += 1; }
+    else if (u.role === 'student') { c.student += 1; c.total += 1; }
+  }
+  return c;
+});
 const studentMembers = computed(() => members.value.filter((m) => m.role === 'student'));
 const availableCourses = computed(() => {
   // /camp/.../courses 返回 int id 而 /course/list 返回字符串 id，统一转 String 再比对
@@ -322,20 +408,35 @@ async function fetchOptions() {
 
 // ── 成员 ──
 function openAddMember() {
-  memberDlg.form = { user_id: null, role: null, team_mentor_id: null };
+  memberDlg.form = { user_ids: [], team_mentor_id: null };
   memberDlg.visible = true;
 }
 async function submitAddMember() {
-  if (!memberDlg.form.user_id) { ElMessage.warning('请选择用户'); return; }
-  if (!memberDlg.form.role) { ElMessage.warning('该用户不是学员/导生，不能加入营期'); return; }
-  try {
-    await api.post(`/camp/sessions/${campId}/members`, memberDlg.form);
-    ElMessage.success('已加入');
+  const ids = memberDlg.form.user_ids || [];
+  if (!ids.length) { ElMessage.warning('请选择用户'); return; }
+  const picked = ids.map((id) => users.value.find((u) => u.User_Id === id)).filter(Boolean);
+  const invalid = picked.filter((u) => u.role !== 'student' && u.role !== 'mentor');
+  if (invalid.length) {
+    ElMessage.warning(`「${invalid.map((u) => u.User_Name).join('、')}」不是学员/导生，不能加入营期`);
+    return;
+  }
+  // 仅全部为学员时可统一归属导生；混选导生时学员不带归属（加入后在成员列表改派）
+  const teamMentorId = picked.every((u) => u.role === 'student') ? memberDlg.form.team_mentor_id : null;
+  memberDlg.submitting = true;
+  const results = await Promise.allSettled(picked.map((u) =>
+    api.post(`/camp/sessions/${campId}/members`, { user_id: u.User_Id, team_mentor_id: teamMentorId })));
+  memberDlg.submitting = false;
+  const fails = [];
+  results.forEach((r, i) => {
+    if (r.status === 'rejected') fails.push(`${picked[i].User_Name}：${r.reason?.response?.data?.message || '失败'}`);
+  });
+  const ok = results.length - fails.length;
+  if (ok) {
+    ElMessage.success(`已加入 ${ok} 人`);
     memberDlg.visible = false;
     fetchAll();
-  } catch (e) {
-    ElMessage.error(e.response?.data?.message || '加入失败');
   }
+  if (fails.length) ElMessage.error(`加入失败 ${fails.length} 人 —— ${fails.join('；')}`);
 }
 function removeMember(row) {
   ElMessageBox.confirm(`确定移除「${row.username}」吗？（其承诺出勤日一并删除）`, '提示', {
@@ -520,7 +621,95 @@ async function updateMentor(row, mentorId) {
   }
 }
 
-onMounted(() => { fetchAll(); fetchOptions(); if (canManage.value) fetchJoinRequests(); });
+// ── 选导生（overview / 阶段推进 / 手动指派）──
+const msOverview = ref(null);
+const MS_PHASE_LABELS = {
+  disabled: '未启用', upcoming: '即将开始', collecting: '志愿提交中',
+  round1: '一轮挑选中', round2: '二轮互选中', done: '已结束',
+};
+const msPhaseLabel = computed(() => MS_PHASE_LABELS[msOverview.value?.phase] || '—');
+const msPhaseAlertType = computed(() => ({
+  collecting: 'info', upcoming: 'info', round1: 'warning', round2: 'warning', done: 'success',
+}[msOverview.value?.phase] || 'info'));
+
+async function fetchMsOverview() {
+  try {
+    const res = await api.get(`/camp/ms/${campId}/overview`);
+    msOverview.value = res.data;
+  } catch { /* 非管理角色或未启用，忽略 */ }
+}
+
+function nowStr() {
+  const d = new Date();
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+async function advanceMs(which) {
+  const field = which === 'pd' ? 'ms_preference_deadline' : 'ms_round1_deadline';
+  const label = which === 'pd' ? '立即截止志愿' : '立即截止一轮';
+  try {
+    await ElMessageBox.confirm(`${label}？对应截止时间将改为当前时刻，进入下一阶段。`, '阶段推进', {
+      confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning',
+    });
+  } catch { return; }
+  try {
+    await api.put(`/camp/sessions/${campId}`, { [field]: nowStr() });
+    ElMessage.success('已推进');
+    fetchAll();
+    fetchMsOverview();
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '推进失败');
+  }
+}
+
+async function skipRound2() {
+  try {
+    await ElMessageBox.confirm('跳过二轮？未匹配学员将只能由你手动指派。', '跳过二轮', {
+      confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning',
+    });
+  } catch { return; }
+  try {
+    await api.put(`/camp/sessions/${campId}`, { ms_round2_deadline: null });
+    ElMessage.success('已跳过二轮');
+    fetchAll();
+    fetchMsOverview();
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '操作失败');
+  }
+}
+
+async function assignStudent(row, mentorId) {
+  if (!mentorId) return;
+  const doAssign = async (allowOver) => {
+    try {
+      await api.post(`/camp/ms/${campId}/assign`, {
+        student_id: row.user_id, mentor_id: mentorId, allow_over: allowOver,
+      });
+      const mn = (msOverview.value?.mentors || []).find((m) => m.user_id === mentorId);
+      ElMessage.success(`已指派给 ${mn?.username || '导生'}`);
+      fetchMsOverview();
+      fetchAll();
+    } catch (e) {
+      const msg = e.response?.data?.message || '指派失败';
+      // 满员：询问是否越过容量
+      if (e.response?.status === 409 && msg.includes('allow_over')) {
+        try {
+          await ElMessageBox.confirm(`${msg}。仍要指派吗？`, '名额已满', {
+            confirmButtonText: '仍要指派', cancelButtonText: '取消', type: 'warning',
+          });
+          doAssign(true);
+        } catch { /* 取消 */ }
+        return;
+      }
+      ElMessage.error(msg);
+    }
+  };
+  doAssign(false);
+}
+
+// overview 不依赖 session 先加载：未启用时后端 400 被 catch 吞掉，无副作用
+onMounted(() => { fetchAll(); fetchOptions(); if (canManage.value) { fetchJoinRequests(); fetchMsOverview(); } });
 </script>
 
 <style scoped>
@@ -528,4 +717,5 @@ onMounted(() => { fetchAll(); fetchOptions(); if (canManage.value) fetchJoinRequ
 .header { margin-bottom: 12px; display: flex; align-items: center; gap: 12px; }
 .header .title { font-size: 18px; font-weight: 600; }
 .hint { margin-left: 12px; color: #909399; font-size: 12px; }
+.ms-sec-title { margin: 16px 0 8px; font-size: 14px; font-weight: 600; }
 </style>

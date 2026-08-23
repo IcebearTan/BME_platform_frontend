@@ -370,12 +370,12 @@ body {
 }
 
 /* ===== 液态玻璃：Element Plus 壳组件玻璃化 + 内容实心台子 =====
-   壳（卡片/对话框/抽屉/表格头）走玻璃，依赖父层极光衬底出彩；
-   表格行/单元格走实心台子，保证密集数据可读。 */
+   卡片/表格头走玻璃，依赖父层衬底出彩；
+   表格行/单元格走实心台子，保证密集数据可读。
+   对话框/抽屉不走玻璃：浮层直接叠在页面内容上，无极光衬底可借，
+   半透明+blur 会透出底层文字（2026-08-23 反馈观感差），保持 EP 默认实心底。 */
 
-.el-card,
-.el-dialog,
-.el-drawer__inner {
+.el-card {
     background: var(--dew-card-bg) !important;
     backdrop-filter: blur(20px) saturate(1.4);
     -webkit-backdrop-filter: blur(20px) saturate(1.4);

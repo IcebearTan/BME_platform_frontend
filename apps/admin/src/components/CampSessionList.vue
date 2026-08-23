@@ -66,6 +66,36 @@
         <el-form-item label="仅工作日">
           <el-switch v-model="dlg.form.weekdays_only" />
         </el-form-item>
+
+        <el-divider content-position="left">选导生（开营前置 · 可选）</el-divider>
+        <el-form-item label="启用选导生">
+          <el-switch v-model="dlg.form.mentor_selection_enabled" />
+          <span class="ms-tip">导生发名片，学员交 3 志愿，双方互选后开营</span>
+        </el-form-item>
+        <template v-if="dlg.form.mentor_selection_enabled">
+          <el-form-item label="志愿开始" required>
+            <el-date-picker v-model="dlg.form.ms_preference_start" type="datetime"
+              value-format="YYYY-MM-DD HH:mm" format="MM-DD HH:mm" placeholder="选导生开始" style="width:100%" />
+          </el-form-item>
+          <el-form-item label="志愿截止" required>
+            <el-date-picker v-model="dlg.form.ms_preference_deadline" type="datetime"
+              value-format="YYYY-MM-DD HH:mm" format="MM-DD HH:mm" placeholder="截止后进入挑选" style="width:100%" />
+          </el-form-item>
+          <el-form-item label="一轮截止" required>
+            <el-date-picker v-model="dlg.form.ms_round1_deadline" type="datetime"
+              value-format="YYYY-MM-DD HH:mm" format="MM-DD HH:mm" placeholder="导生挑选截止" style="width:100%" />
+          </el-form-item>
+          <el-form-item label="二轮截止">
+            <el-date-picker v-model="dlg.form.ms_round2_deadline" type="datetime"
+              value-format="YYYY-MM-DD HH:mm" format="MM-DD HH:mm" placeholder="留空 = 不设二轮" style="width:100%" />
+          </el-form-item>
+          <el-form-item label="分类标签">
+            <el-select v-model="dlg.form.ms_tags" multiple filterable allow-create default-first-option
+              placeholder="导生名片的可选分类，可输入自定义" style="width:100%">
+              <el-option v-for="t in MS_TAG_PRESETS" :key="t" :label="t" :value="t" />
+            </el-select>
+          </el-form-item>
+        </template>
       </el-form>
       <template #footer>
         <el-button @click="dlg.visible = false">取消</el-button>
@@ -99,6 +129,18 @@ const typeLabel = (t) => ({ short_term: '短期营', semester: '学期营', wint
 const statusLabel = (s) => ({ draft: '草稿', active: '进行中', archived: '已归档' }[s] || s);
 const statusType = (s) => ({ draft: 'info', active: 'success', archived: 'warning' }[s] || 'info');
 
+// 选导生默认标签（后端 MS_DEFAULT_TAGS 同款；营级可改）
+const MS_TAG_PRESETS = ['硬件组', '软件组', '深度学习', '机械设计', '其他'];
+
+function msEmptyForm() {
+  return {
+    mentor_selection_enabled: false,
+    ms_preference_start: null, ms_preference_deadline: null,
+    ms_round1_deadline: null, ms_round2_deadline: null,
+    ms_tags: [...MS_TAG_PRESETS],
+  };
+}
+
 async function fetchList() {
   loading.value = true;
   try {
@@ -113,7 +155,7 @@ async function fetchList() {
 
 function openCreate() {
   dlg.editId = null;
-  dlg.form = { name: '', camp_type: 'short_term', status: 'draft', expected_check_in: null, min_daily_hours: 6, weekdays_only: true };
+  dlg.form = { name: '', camp_type: 'short_term', status: 'draft', expected_check_in: null, min_daily_hours: 6, weekdays_only: true, ...msEmptyForm() };
   dateRange.value = null;
   dlg.visible = true;
 }
@@ -125,6 +167,12 @@ function openEdit(row) {
     expected_check_in: row.expected_check_in ? String(row.expected_check_in).slice(0, 5) : null,
     min_daily_hours: row.min_daily_hours,
     weekdays_only: row.weekdays_only,
+    mentor_selection_enabled: !!row.mentor_selection_enabled,
+    ms_preference_start: row.ms_preference_start || null,
+    ms_preference_deadline: row.ms_preference_deadline || null,
+    ms_round1_deadline: row.ms_round1_deadline || null,
+    ms_round2_deadline: row.ms_round2_deadline || null,
+    ms_tags: (row.ms_tags && row.ms_tags.length) ? [...row.ms_tags] : [...MS_TAG_PRESETS],
   };
   dateRange.value = [row.start_date, row.end_date];
   dlg.visible = true;
@@ -133,6 +181,11 @@ function openEdit(row) {
 async function submit() {
   if (!dlg.form.name || !dateRange.value || dateRange.value.length !== 2) {
     ElMessage.warning('请填写营期名称和起止日期');
+    return;
+  }
+  if (dlg.form.mentor_selection_enabled
+    && (!dlg.form.ms_preference_start || !dlg.form.ms_preference_deadline || !dlg.form.ms_round1_deadline)) {
+    ElMessage.warning('启用选导生需设置：志愿开始 / 志愿截止 / 一轮截止');
     return;
   }
   dlg.submitting = true;
@@ -185,4 +238,5 @@ onMounted(fetchList);
 <style scoped>
 .camp-session-list { padding: 16px; }
 .header-bar { margin-bottom: 12px; }
+.ms-tip { margin-left: 10px; font-size: 12px; color: var(--el-text-color-secondary, #909399); }
 </style>
