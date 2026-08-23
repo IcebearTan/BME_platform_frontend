@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { VideoPlay, Document, Link, Reading, CircleCheck } from '@element-plus/icons-vue'
 
+// 只读目录树：展示章节/课时结构与进度，暂不支持点击进入
 const props = defineProps({
   chapters: {
     type: Array,
@@ -15,18 +16,6 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
-  parentIndex: {
-    type: String,
-    default: ''
-  },
-  chapterNum: {
-    type: Number,
-    default: 0
-  },
-  totalChapters: {
-    type: Number,
-    default: 0
-  },
   completedLessons: {
     type: Array,
     default: () => []
@@ -36,14 +25,6 @@ const props = defineProps({
     default: 'theme-light'
   }
 })
-
-const emit = defineEmits(['chapter-click', 'lesson-click'])
-
-// 处理课时点击
-const handleLessonClick = (lesson, chapter, chapterIndex) => {
-  const currentIndex = props.parentIndex ? `${props.parentIndex}-${chapterIndex + 1}` : String(chapterIndex + 1)
-  emit('lesson-click', lesson, chapter, currentIndex)
-}
 
 // 计算缩进层级样式
 const getLevelStyle = (level) => {
@@ -170,12 +151,10 @@ const isDark = computed(() => props.themeClass === 'theme-dark')
       :key="chapter.id"
       class="chapter-node"
     >
-      <!-- 章节项 -->
+      <!-- 章节项（只读，不可点击） -->
       <div
         class="chapter-item"
         :class="{
-          'clickable': true,
-          'locked': false,
           'level-1': level === 1,
           'level-2': level === 2,
           'level-3': level >= 3
@@ -219,14 +198,9 @@ const isDark = computed(() => props.themeClass === 'theme-dark')
         class="lesson-list"
       >
         <div
-          v-for="(lesson, lessonIndex) in chapter.lessons"
+          v-for="lesson in chapter.lessons"
           :key="lesson.id"
           class="lesson-item"
-          :class="{
-            'clickable': true,
-            'locked': false
-          }"
-          @click="handleLessonClick(lesson, chapter, index)"
         >
           <!-- 课时类型图标 -->
           <el-icon
@@ -270,13 +244,8 @@ const isDark = computed(() => props.themeClass === 'theme-dark')
         :chapters="chapter.children"
         :level="level + 1"
         :is-enrolled="isEnrolled"
-        :parent-index="parentIndex ? `${parentIndex}-${index + 1}` : String(index + 1)"
-        :chapter-num="chapterNum"
-        :total-chapters="totalChapters"
         :completed-lessons="completedLessons"
         :theme-class="themeClass"
-        @chapter-click="(ch, idx) => $emit('chapter-click', ch, idx)"
-        @lesson-click="(ls, ch, idx) => $emit('lesson-click', ls, ch, idx)"
       />
     </div>
   </div>
@@ -299,8 +268,6 @@ const isDark = computed(() => props.themeClass === 'theme-dark')
   padding: 10px 15px;
   margin: 5px 0;
   border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s ease;
 }
 
 /* 一级章节样式 */
@@ -321,12 +288,12 @@ const isDark = computed(() => props.themeClass === 'theme-dark')
   left: 20px;
   right: 20px;
   height: 1px;
-  background-color: #e0e0e0;
+  background-color: rgba(0, 0, 0, 0.08);
 }
 
 /* 暗色主题分隔线 */
 .chapter-tree.theme-dark .chapter-item.level-1::after {
-  background-color: #404040;
+  background-color: rgba(255, 255, 255, 0.1);
 }
 
 /* 二级章节样式 */
@@ -346,15 +313,6 @@ const isDark = computed(() => props.themeClass === 'theme-dark')
   color: #555;
 }
 
-.chapter-tree.theme-light .chapter-item:hover {
-  /* 移除悬停变色效果 */
-  background-color: transparent;
-}
-
-.chapter-tree.theme-light .chapter-item.locked {
-  color: #ccc;
-}
-
 .chapter-tree.theme-light .chapter-item.level-1 {
   color: #333;
 }
@@ -364,27 +322,8 @@ const isDark = computed(() => props.themeClass === 'theme-dark')
   color: #cccccc;
 }
 
-.chapter-tree.theme-dark .chapter-item:hover {
-  /* 移除悬停变色效果 */
-  background-color: transparent;
-}
-
-.chapter-tree.theme-dark .chapter-item.locked {
-  color: #666;
-}
-
 .chapter-tree.theme-dark .chapter-item.level-1 {
   color: #fff;
-}
-
-/* 点击状态 */
-.chapter-item.clickable {
-  cursor: pointer;
-}
-
-.chapter-item.clickable:hover {
-  /* 移除悬停变色效果 */
-  background-color: transparent;
 }
 
 /* 序号圆角矩形 - 仅一级章节显示 */
@@ -426,20 +365,6 @@ const isDark = computed(() => props.themeClass === 'theme-dark')
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-/* 箭头图标 */
-.chapter-arrow {
-  font-size: 16px;
-  color: #a0a0a0;
-  opacity: 1;
-  transition: all 0.3s ease;
-  margin-left: 10px;
-  flex-shrink: 0;
-}
-
-.chapter-item.clickable:hover .chapter-arrow {
-  color: #667eea;
 }
 
 /* 章节进度圆环 */
@@ -496,28 +421,9 @@ const isDark = computed(() => props.themeClass === 'theme-dark')
   margin: 4px 0;
   margin-right: 10px;
   border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s ease;
   background-color: transparent;
   overflow: hidden;
   box-sizing: border-box;
-}
-
-.lesson-item.clickable {
-  cursor: pointer;
-}
-
-.lesson-item.clickable:hover {
-  background-color: rgba(0, 0, 0, 0.05);
-}
-
-.chapter-tree.theme-dark .lesson-item.clickable:hover {
-  background-color: rgba(255, 255, 255, 0.08);
-}
-
-.lesson-item.locked {
-  opacity: 0.6;
-  cursor: not-allowed;
 }
 
 /* 课时类型图标 */
@@ -566,18 +472,5 @@ const isDark = computed(() => props.themeClass === 'theme-dark')
 
 .chapter-tree.theme-dark .lesson-duration {
   color: #777;
-}
-
-/* 锁定图标 */
-.lock-icon {
-  font-size: 14px;
-  color: #ccc;
-  margin-left: 10px;
-  margin-right: 10px;
-  flex-shrink: 0;
-}
-
-.chapter-tree.theme-dark .lock-icon {
-  color: #555;
 }
 </style>

@@ -4,10 +4,11 @@ import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import api from '../../api'
-import { API_URL } from '../../api'
 import { Star, StarFilled } from '@element-plus/icons-vue'
 
 import ChapterTree from './ChapterTree.vue'
+import CourseResources from './CourseResources.vue'
+import { DewButtonBar } from '../ui'
 
 const store = useStore()  // 获取 Vuex store
 const router = useRouter()  // 获取 Vue Router 实例
@@ -199,36 +200,12 @@ const formatChapters = (chapters, lessonsData = {}) => {
   return rootNodes;
 }
 
-const fetchDownloadUrl = async () => {
-  try {
-    const res = await api({
-      url: '/course/book_down',
-      method: 'get',
-      params: {
-        Course_Id: courseId.value
-      }
-    })
-
-    if (res.data.code === 200) {
-      console.log(res)
-      await downloadBook(res)
-    }
-  } catch (error) {
-    console.error(error)
-  }
-}
-
-const downloadBook = async (res) => {
-  console.log(API_URL)
-  const downCode = res.data.Down_Code;
-  const url = `${API_URL}/course/book_download?Down_Code=${encodeURIComponent(downCode)}`
-  const URL = String(url)
-  window.open(URL, '_blank')
-}
-
-const handleDownload = () => {
-  fetchDownloadUrl()
-}
+// 内容区 tab：目录 / 相关资源（DewButtonBar 切换）
+const activeTab = ref('toc')
+const contentTabs = [
+  { value: 'toc', label: '目录' },
+  { value: 'resources', label: '相关资源' }
+]
 
 const coverColor = computed(() => {
   // 如果没有标题，使用默认色
@@ -330,12 +307,6 @@ const userProgress = ref({
   progress: 0,
 }) //个人进度
 
-
-const checkUnlock = (chapterOrder) => {
-  // 解锁条件：小节序号 ≤ 已完成章节数 + 1
-  return chapterOrder <= userProgress.value.chapter_num + 1;
-}
-
 // 在组件挂载后执行
 onMounted(() => {
   fetchCourseDetails()
@@ -343,11 +314,6 @@ onMounted(() => {
 
   checkEnrollment()
 })
-
-// 方法：警告提示
-const caution = () => {
-  ElMessage.error('前面的内容以后再来探索吧！')
-}
 
 const difficultyMap = {
   1: '简单',
@@ -389,118 +355,6 @@ const goBack = () => {
   // 从营期选课跳来时，返回回到营期选课 Tab
   const from = router.currentRoute.value.query.from
   router.push(from === 'camp' ? '/camp?tab=selection' : '/study')
-}
-
-// 跳转到章节详情页面
-const handleChapterClick = (chapterIndex, subChapterIndex = null) => {
-  // 检查是否已报名且章节已解锁
-  if (!isEnrolled.value || !checkUnlock(chapterIndex + 1)) {
-    ElMessage.warning('请先报名课程或完成前置章节')
-    return
-  }
-  
-  const chapter = formatedCourseDetails.value[chapterIndex]
-  if (!chapter) {
-    console.warn('章节不存在:', chapterIndex)
-    return
-  }
-  
-  // 构造章节ID，这里可以根据实际数据结构调整
-  let chapterId = chapter.order || (chapterIndex + 1)
-  let chapterTitle = chapter.name
-  
-  // 如果点击的是子章节，可以进一步处理
-  if (subChapterIndex !== null && chapter.subChapters[subChapterIndex]) {
-    const subChapter = chapter.subChapters[subChapterIndex]
-    // 可以使用子章节的ID或者组合ID
-    chapterId = `${chapterId}-${subChapterIndex + 1}`
-    chapterTitle = `${chapter.name} - ${subChapter.name}`
-    console.log('点击子章节:', subChapter.name)
-  } else if (subChapterIndex === null) {
-    console.log('点击主章节:', chapter.name)
-  }
-  
-  console.log('跳转参数:', {
-    courseId: courseId.value,
-    chapterId: chapterId,
-    chapterTitle: chapterTitle
-  })
-  
-  // 显示跳转提示
-  ElMessage.success(`正在进入章节：${chapterTitle}`)
-  
-  // 跳转到课程章节页面
-  router.push({
-    name: 'course-chapter',
-    params: { courseId: courseId.value },
-    query: {
-      chapterId: chapterId,
-      chapterTitle: chapterTitle
-    }
-  })
-}
-
-// 处理树形章节组件的点击事件
-const handleTreeChapterClick = (chapter, indexPath) => {
-  // 检查是否已报名且章节已解锁
-  if (!isEnrolled.value || !checkUnlock(chapter.order)) {
-    ElMessage.warning('请先报名课程或完成前置章节')
-    return
-  }
-
-  // indexPath 格式: "1" 或 "1-2" 或 "1-2-3"
-  const chapterId = indexPath
-  const chapterTitle = chapter.name
-
-  console.log('跳转参数:', {
-    courseId: courseId.value,
-    chapterId: chapterId,
-    chapterTitle: chapterTitle
-  })
-
-  // 显示跳转提示
-  ElMessage.success(`正在进入章节：${chapterTitle}`)
-
-  // 跳转到课程章节页面
-  router.push({
-    name: 'course-chapter',
-    params: { courseId: courseId.value },
-    query: {
-      chapterId: chapterId,
-      chapterTitle: chapterTitle
-    }
-  })
-}
-
-// 处理课时点击事件
-const handleLessonClick = (lesson, chapter, indexPath) => {
-  // 检查是否已报名且章节已解锁
-  if (!isEnrolled.value || !checkUnlock(chapter.order)) {
-    ElMessage.warning('请先报名课程或完成前置章节')
-    return
-  }
-
-  console.log('点击课时:', {
-    courseId: courseId.value,
-    lessonId: lesson.id,
-    chapterId: indexPath,
-    lessonTitle: lesson.title,
-    lessonType: lesson.type
-  })
-
-  // 显示跳转提示
-  ElMessage.success(`正在进入课时：${lesson.title}`)
-
-  // 跳转到课程章节页面，传递课时ID
-  router.push({
-    name: 'course-chapter',
-    params: { courseId: courseId.value },
-    query: {
-      chapterId: indexPath,
-      chapterTitle: chapter.name,
-      lessonId: lesson.id
-    }
-  })
 }
 </script>
 
@@ -547,29 +401,32 @@ const handleLessonClick = (lesson, chapter, indexPath) => {
               </div>
               <div class="course-bottom">
                 <el-button :class="['enrolled-btn', { 'is-enrolled': isEnrolled }]" type="primary" plain size="large" @click="debugEnroll()">{{ isEnrolled ? '正在学习' : '加入学习' }}</el-button>
-                <el-button type="primary" size="large" @click="handleDownload()">下载内容</el-button>
               </div>
             </div>
           </div>
 
           <div class="course-contents">
             <div class="course-contents-header" :class="themeClass">
-              <span class="course-contents-title" :class="themeClass">目录</span>
+              <DewButtonBar v-model="activeTab" :items="contentTabs" />
             </div>
-            <div class="course-content-card">
+            <!-- 目录：暂时只读展示（章节/课时不可点击进入） -->
+            <div class="course-content-card" v-show="activeTab === 'toc'">
               <ChapterTree
                 :chapters="formatedCourseDetails"
                 :is-enrolled="isEnrolled"
-                :chapter-num="userProgress.chapter_num"
-                :total-chapters="courseInfo.Chapters"
                 :completed-lessons="completedLessons"
                 :theme-class="themeClass"
-                @chapter-click="handleTreeChapterClick"
-                @lesson-click="handleLessonClick"
               />
               <div class="no-more-content" :class="themeClass">
                 没有更多内容啦~
               </div>
+            </div>
+            <!-- 相关资源 -->
+            <div class="course-content-card" v-show="activeTab === 'resources'">
+              <CourseResources
+                :course-id="courseId"
+                :theme-class="themeClass"
+              />
             </div>
           </div>
         </div>
@@ -733,10 +590,8 @@ const handleLessonClick = (lesson, chapter, indexPath) => {
 
 /* 课程内容标题主题适配 */
 .course-contents-header {
-  height: 50px;
   width: 100%;
-  padding-bottom: 20px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .theme-light .course-contents-header {
@@ -745,23 +600,6 @@ const handleLessonClick = (lesson, chapter, indexPath) => {
 
 .theme-dark .course-contents-header {
   border-color: #333;
-}
-
-.course-contents-title {
-  font-size: 25px;
-  font-weight: bold;
-  padding-bottom: 19px;
-  border-bottom: 3px solid;
-}
-
-.theme-light .course-contents-title {
-  border-color: #333;
-  color: #333;
-}
-
-.theme-dark .course-contents-title {
-  border-color: #fff;
-  color: #fff;
 }
 
 /* 难度和时长信息主题适配 */
@@ -1260,25 +1098,15 @@ const handleLessonClick = (lesson, chapter, indexPath) => {
   justify-content: space-between;
 }
 
+/* 内容卡片：DewCard 同款玻璃配方（token 随 .theme-dark 自动切亮暗） */
 .course-content-card {
   width: 100%;
-  border-radius: 12px;
-  border: 1px solid;
-  margin-top: 20px;
-  transition: all 0.3s ease;
-}
-
-/* 主题适配 - 课程内容卡片 */
-.theme-light .course-content-card {
-  background-color: #ffffff;
-  border-color: #eee;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-}
-
-.theme-dark .course-content-card {
-  background-color: #2d2d2d;
-  border-color: #333;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  border-radius: var(--radius-lg);
+  background: var(--dew-card-bg);
+  border: 1px solid var(--dew-card-border);
+  box-shadow: var(--dew-card-shadow);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
 }
 
 .course-content-item {
@@ -1448,11 +1276,6 @@ const handleLessonClick = (lesson, chapter, indexPath) => {
 
 .theme-dark .course-description {
   color: #bbb;
-}
-
-/* 主题过渡效果 */
-.course-wrapper * {
-  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 /* 全局主题适配 */

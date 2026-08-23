@@ -30,7 +30,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onUpdated, nextTick, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onUpdated, onBeforeUnmount, nextTick, watch } from 'vue'
 
 const props = defineProps({
   type: { type: String, default: 'glass' },
@@ -47,16 +47,28 @@ const btnRef = ref(null)
 const measureRef = ref(null)
 const state = reactive({ hovering: false, x: 0.5, y: 0.5 })
 const currentWidth = ref(null)
+let ro = null
 
 // 测量内容真实宽度
 function measureWidth() {
   if (!measureRef.value || props.block) return
-  currentWidth.value = measureRef.value.offsetWidth
+  const w = measureRef.value.offsetWidth
+  // 祖先 display:none（如 v-show 隐藏的 tab）时测得 0，跳过；
+  // 变可见后由 ResizeObserver 补测
+  if (w > 0) currentWidth.value = w
 }
 
 // 挂载和每次更新后都重新测量
-onMounted(() => nextTick(measureWidth))
+onMounted(() => {
+  nextTick(measureWidth)
+  // 在 v-show 隐藏容器中挂载时初次测量为 0，可见后测量层尺寸变化触发补测
+  if (typeof ResizeObserver !== 'undefined' && measureRef.value) {
+    ro = new ResizeObserver(() => measureWidth())
+    ro.observe(measureRef.value)
+  }
+})
 onUpdated(() => nextTick(measureWidth))
+onBeforeUnmount(() => { if (ro) ro.disconnect() })
 
 // 主动测量触发点：slot 内容变化时
 watch(() => props.active, () => nextTick(measureWidth))
