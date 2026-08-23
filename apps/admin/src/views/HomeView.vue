@@ -98,17 +98,18 @@ export default {
   },
 
   async created() {
-    api({
-      url: "/user/user_index",
-      method: "get",
-    }).catch((error) => {
-      ElMessage.error('登录失效，请重新登录')
-      this.router.push('/login')
-    }).then((res) => {
+    try {
+      const res = await api({
+        url: "/user/user_index",
+        method: "get",
+      })
       if (res.data.code == 200) {
         this.store.dispatch('setUser', res.data)
       }
-    })
+    } catch (error) {
+      ElMessage.error('登录失效，请重新登录')
+      this.router.push('/login')
+    }
 
     if (this.$route.path === '/') {
       this.activeIndex = '/dashboard'

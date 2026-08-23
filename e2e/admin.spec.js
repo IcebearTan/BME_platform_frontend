@@ -41,6 +41,34 @@ test('管理布局壳挂载（侧边栏 + 主区域）', async ({ page }) => {
   await expect(page.locator('.sidebar-container')).toBeVisible()
 })
 
+test('用户管理页只读表格渲染 + 前端搜索', async ({ page }) => {
+  await loginAsStaff(page)
+  // mock 用户列表数据（loginAsStaff 的统一拦截返回空 data，这里覆盖）
+  await page.route('http://127.0.0.1:5001/user/user_list', (route) =>
+    route.fulfill({
+      json: [
+        { User_Id: 1, User_Name: 'alice', User_Mode: 'super_admin', join_time: '2026-08-01', User_Email: 'a@b.c' },
+        { User_Id: 2, User_Name: 'bob', User_Mode: 'student', join_time: '2026-08-02', User_Email: 'd@e.f' },
+      ],
+    })
+  )
+  // 批次 6 前该页模板引用 7 个不存在的绑定（handleEdit 等），pageerror 监听防回归
+  const pageErrors = []
+  page.on('pageerror', (e) => pageErrors.push(e.message))
+
+  await page.goto(`${BASE}/user-manage/users`)
+  await expect(page.getByRole('cell', { name: 'alice' })).toBeVisible()
+  await expect(page.getByRole('cell', { name: 'bob' })).toBeVisible()
+
+  // 前端搜索交互：过滤后 alice 行消失
+  await page.getByPlaceholder(' 输入用户名&权限&id').fill('bob')
+  await page.getByPlaceholder(' 输入用户名&权限&id').press('Enter')
+  await expect(page.getByRole('cell', { name: 'bob' })).toBeVisible()
+  await expect(page.getByRole('cell', { name: 'alice' })).toHaveCount(0)
+
+  expect(pageErrors).toEqual([])
+})
+
 test('md-editor-v3 编辑器挂载', async ({ page }) => {
   await loginAsStaff(page)
   await page.goto(`${BASE}/editor`)

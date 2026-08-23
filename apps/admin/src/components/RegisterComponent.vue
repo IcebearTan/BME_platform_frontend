@@ -30,7 +30,7 @@ export default {
                 ],
                 password: [
                     { required: true, message: "请输入用户密码", trigger: "blur" },
-                    { min: 6, message: "用户密码长度需要至少8个字符", trigger: "blur" },
+                    { min: 6, message: "用户密码长度需要至少6个字符", trigger: "blur" },
                 ],
                 confirmPassword: [
                     { required: true, message: '请再次输入密码', trigger: 'blur' },
@@ -65,27 +65,31 @@ export default {
                 return;
             }
 
-            // 向后端请求验证码发送
-            api({
-                url: "/auth/captcha/email",
-                method: "post",
-                data: {
-                    User_Email: this.registerForm.email,
-                },
-            }).then((res) => {
-                if (res.data.code == 200) {
-                    // 将数据存入浏览器
-                    localStorage.setItem("bme-admin-token", res.data.token)
+            // 向后端请求验证码发送（后端仅返回 code/message，无 token）
+            try {
+                const res = await api({
+                    url: "/auth/captcha/email",
+                    method: "post",
+                    data: {
+                        User_Email: this.registerForm.email,
+                    },
+                })
+                if (res.data.code != 200) {
+                    this.$message.error(res.data.message || '验证码发送失败');
+                    return;
                 }
-            })
+            } catch (error) {
+                this.$message.error(error.response?.data?.message || '验证码发送失败，请稍后重试');
+                return;
+            }
 
-            // 按钮倒数
-            var countDown = setInterval(() => {
+            // 发送成功才启动按钮倒数
+            const countDown = setInterval(() => {
                 if (this.count < 1) {
                     this.isGeting = false
                     this.disable = false
                     this.getCode = '获取验证码'
-                    this.count = 61
+                    this.count = 60
                     clearInterval(countDown)
                 } else {
                     this.isGeting = true
@@ -120,9 +124,7 @@ export default {
                 },
             }).then((res) => {
                 if (res.data.code == 200) {
-                    // 将数据存入浏览器
-                    localStorage.setItem("bme-admin-token", res.data.token)
-
+                    // 注册成功即跳登录页自行登录，不在注册流程残留登录态 token
                     this.$router.push('/login')
 
                     this.$message({

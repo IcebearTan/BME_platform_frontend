@@ -1,19 +1,17 @@
 <script setup>
 import api from '../api';
 import { ref, reactive, onMounted } from 'vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage } from 'element-plus';
 import { DewCard } from '@bme/dew-ui';
 
 const formInline = reactive({
   key: ''
 });
-const dialogFormVisible = ref(false);
 const users = ref([]);
 const allUsers = ref([]);
 const filteredUsers = ref([]); // 新增：用于存储当前筛选后的用户列表
 const currentPage = ref(1);//当前页面
 const pageSize = ref(16);//每页显示的条数
-const action = ref('edit');
 const totalItems = ref(0);//总条数
 
 const handleSearch = () => {//搜索框逻辑，前端搜索
@@ -131,12 +129,6 @@ onMounted(() => {
         >
           <el-table-column v-for="item in tableLabel" :key="item.prop" :prop="item.prop" :label="item.label"
             :width="item.width ? item.width : 125" />
-          <el-table-column fixed="right" label="Operations" min-width="120">
-            <template #="scoped">
-              <el-button type="primary" size="small" @click="handleEdit(scoped.row)">编辑</el-button>
-              <el-button type="danger" size="small" @click="handleDelete(scoped.row)">删除</el-button>
-            </template>
-          </el-table-column>
         </el-table>
         <div class="pagination-wrapper">
           <el-pagination
@@ -150,23 +142,6 @@ onMounted(() => {
         </div>
       </DewCard>
     </div>
-
-    <el-dialog v-model="dialogFormVisible" :title="action == 'add' ? '新增课程' : '编辑用户'" width="500">
-      <el-form :model="form" :rules="rules" ref="formRef">
-        <el-form-item label="用户名" :label-width="formLabelWidth" prop="username">
-          <el-input v-model="form.username" autocomplete="off" />
-        </el-form-item>
-        <el-form-item label="用户密码" :label-width="formLabelWidth" prop="password">
-          <el-input v-model="form.password" autocomplete="off" type="password" show-password />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <div class="dialog-footer">
-          <el-button @click="handleCancle">取消</el-button>
-          <el-button type="primary" @click="handleSubmit">确认</el-button>
-        </div>
-      </template>
-    </el-dialog>
     
   </div>
 
