@@ -17,10 +17,10 @@
         </template>
       </el-table-column>
       <el-table-column label="成员数" prop="member_count" width="80" align="center" />
-      <el-table-column label="主页营期" width="120" align="center">
+      <el-table-column label="招募营期" width="120" align="center">
         <template #default="{ row }">
-          <el-tag v-if="row.is_featured" type="success" size="small">当前主页</el-tag>
-          <el-button v-else-if="canManage" size="small" link @click="setFeatured(row)">设为当前</el-button>
+          <el-tag v-if="row.is_featured" type="success" size="small">招募中</el-tag>
+          <el-button v-else-if="canManage" size="small" link @click="setFeatured(row)">设为招募</el-button>
         </template>
       </el-table-column>
       <el-table-column label="操作" width="230" fixed="right">
@@ -225,7 +225,7 @@ function archive(row) {
 async function setFeatured(row) {
   try {
     await api.put(`/camp/sessions/${row.id}/feature`);
-    ElMessage.success(`「${row.name}」已设为用户端主页营期`);
+    ElMessage.success(`「${row.name}」已设为招募营期`);
     fetchList();
   } catch (e) {
     ElMessage.error(e.response?.data?.message || '设置失败');
