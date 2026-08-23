@@ -16,7 +16,16 @@
       </div>
       <div v-else-if="!sessions.length" class="empty-camp">
         <DewCard variant="inset" size="lg" :no-hover="true">
-          你还没有加入任何营期。
+          <template v-if="emptyGuide.type === 'recruit'">
+            <div class="empty-text">你还没有加入营期。</div>
+            <DewButton type="glass" @click="router.push('/camp-home')">
+              查看「{{ emptyGuide.name }}」· 申请入营
+            </DewButton>
+          </template>
+          <div v-else-if="emptyGuide.type === 'unassigned'" class="empty-text">
+            你尚未被分配到营期。导生/老师由管理员在「营期管理」中直接分配，无需申请加入。
+          </div>
+          <div v-else class="empty-text">暂未开放营期，敬请期待。</div>
         </DewCard>
       </div>
       <div v-else class="camp-selector">
@@ -30,16 +39,19 @@
       <!-- Tab + 内容 -->
       <template v-if="sid">
         <DewButtonBar v-model="tab" :items="tabItems" style="margin: 16px 0;" />
+        <CampOverview v-if="tab === 'overview' && current" :sid="sid" :session="current" @go="(t) => (tab = t)" />
         <template v-if="isMentor">
-          <MentorDashboard v-if="tab === 'dashboard'" :sid="sid" />
+          <MsMentorDesk v-if="tab === 'ms'" :sid="sid" />
+          <MentorDashboard v-else-if="tab === 'dashboard'" :sid="sid" />
           <MentorLeave v-else-if="tab === 'leave'" :sid="sid" />
           <MentorReward v-else-if="tab === 'reward'" :sid="sid" />
           <MentorMembers v-else-if="tab === 'members'" :sid="sid" />
         </template>
         <template v-else>
-          <CampSelection v-if="tab === 'selection'" :sid="sid" />
+          <MsStudentPick v-if="tab === 'ms'" :sid="sid" />
+          <CampSelection v-else-if="tab === 'selection'" :sid="sid" />
           <CampAttendance v-else-if="tab === 'attendance'" :sid="sid" />
-          <LeaveApply v-else :sid="sid" />
+          <LeaveApply v-else-if="tab === 'leave'" :sid="sid" />
         </template>
       </template>
     </div>
@@ -47,13 +59,14 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useStore } from 'vuex';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import MenuComponent from '../components/MenuComponent.vue';
-import { DewButtonBar, DewCard, DewSelect, DewSkeleton } from '../components/ui';
+import { DewButtonBar, DewButton, DewCard, DewSelect, DewSkeleton } from '../components/ui';
 import { ElMessage } from 'element-plus';
 import { campService } from '../services/campService';
+import CampOverview from '../components/Camp/CampOverview.vue';
 import CampSelection from '../components/Camp/CampSelection.vue';
 import CampAttendance from '../components/Camp/CampAttendance.vue';
 import LeaveApply from '../components/Camp/LeaveApply.vue';
@@ -61,33 +74,62 @@ import MentorDashboard from '../components/Camp/MentorDashboard.vue';
 import MentorLeave from '../components/Camp/MentorLeave.vue';
 import MentorReward from '../components/Camp/MentorReward.vue';
 import MentorMembers from '../components/Camp/MentorMembers.vue';
+import MsStudentPick from '../components/Camp/MsStudentPick.vue';
+import MsMentorDesk from '../components/Camp/MsMentorDesk.vue';
 
 const store = useStore();
 const route = useRoute();
+const router = useRouter();
 const isDarkMode = computed(() => store.getters.isDarkMode);
 
 const sessions = ref([]);
 const sid = ref(null);
 const loadingSessions = ref(true);
+// 空状态分流：recruit=学生可申请（CTA 去招募页）/ unassigned=staff 未分配 / none=暂无营期
+const emptyGuide = ref({ type: 'none', name: '' });
 
 const isMentor = computed(() => store.getters.role === 'mentor');
-const studentTabs = [
-  { value: 'selection', label: '选课' },
-  { value: 'attendance', label: '我的考勤' },
-  { value: 'leave', label: '请假' },
-];
-const mentorTabs = [
-  { value: 'dashboard', label: '团队考勤' },
-  { value: 'leave', label: '请假审批' },
-  { value: 'reward', label: '发奖励' },
-  { value: 'members', label: '团队成员' },
-];
-const tabItems = computed(() => (isMentor.value ? mentorTabs : studentTabs));
+const isStudent = computed(() => store.getters.role === 'student');
+// 注意：studentTabs/mentorTabs 依赖 current，tab 初始化（tabItems.value）在 setup 期立即求值，
+// 故 current 必须声明在它们之前，否则 TDZ 报错 Cannot access 'current' before initialization
+const current = computed(() => sessions.value.find((s) => s.id === sid.value));
+// 看板为默认 tab（营期概要+仪表盘，自 CampHome 成员视图迁入）；
+// 选导生为开营前置阶段，启用时紧随看板（session 数据来自 _session_dict 的 mentor_selection_enabled）
+const studentTabs = computed(() => {
+  const t = [
+    { value: 'overview', label: '看板' },
+    { value: 'selection', label: '选课' },
+    { value: 'attendance', label: '我的考勤' },
+    { value: 'leave', label: '请假' },
+  ];
+  if (current.value?.mentor_selection_enabled) t.splice(1, 0, { value: 'ms', label: '选导生' });
+  return t;
+});
+const mentorTabs = computed(() => {
+  const t = [
+    { value: 'overview', label: '看板' },
+    { value: 'dashboard', label: '团队考勤' },
+    { value: 'leave', label: '请假审批' },
+    { value: 'reward', label: '发奖励' },
+    { value: 'members', label: '团队成员' },
+  ];
+  if (current.value?.mentor_selection_enabled) t.splice(1, 0, { value: 'ms', label: '选导生' });
+  return t;
+});
+const tabItems = computed(() => (isMentor.value ? mentorTabs.value : studentTabs.value));
 const tab = ref((tabItems.value.find((t) => t.value === route.query.tab) || tabItems.value[0]).value);
 
-const current = computed(() => sessions.value.find((s) => s.id === sid.value));
 const sessionOptions = computed(() => sessions.value.map((s) => ({ label: s.name, value: s.id })));
 const statusLabel = (s) => ({ draft: '草稿', active: '进行中', archived: '已归档' }[s] || s);
+
+// 营期列表加载完成后按 query 校正 tab：ms tab 依赖 session.mentor_selection_enabled，
+// 初始化时 current 尚为 null，直接到达 /camp?tab=ms 会先落到默认 tab
+watch(tabItems, (items) => {
+  const want = route.query.tab;
+  if (want && items.some((t) => t.value === want) && tab.value !== want) {
+    tab.value = want;
+  }
+});
 
 onMounted(async () => {
   loadingSessions.value = true;
@@ -101,6 +143,14 @@ onMounted(async () => {
     if (initSid && !sessions.value.some((s) => s.id === initSid)) initSid = null;
     if (!initSid && sessions.value.length) initSid = sessions.value[0].id;
     if (initSid) sid.value = initSid;
+    // 无成员营时的分流：学生看是否有招募中的营（引导去 /camp-home 申请），staff 提示待分配
+    if (!sessions.value.length) {
+      try {
+        const f = await campService.fetchFeatured();
+        if (f.session && isStudent.value) emptyGuide.value = { type: 'recruit', name: f.session.name };
+        else if (f.session) emptyGuide.value = { type: 'unassigned' };
+      } catch { /* featured 拉失败按暂无营期展示 */ }
+    }
   } catch {
     ElMessage.error('加载营期列表失败，请刷新重试');
   } finally { loadingSessions.value = false; }
@@ -134,4 +184,5 @@ onMounted(async () => {
 .camp-selector { display: flex; align-items: center; margin-bottom: 8px; }
 .selector-label { color: var(--dew-text-secondary, #909399); margin-right: 8px; }
 .empty-camp { margin-top: 16px; }
+.empty-text { color: var(--dew-text-muted, #909399); line-height: 1.7; margin-bottom: 12px; }
 </style>

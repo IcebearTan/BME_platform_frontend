@@ -5,12 +5,10 @@
       <div v-if="loading" v-loading="true" style="min-height: 80px;"></div>
       <div v-else-if="personal" class="summary">
         <DewBadge type="neutral">承诺 {{ personal.pledged_days ?? personal.planned_days }} 天</DewBadge>
-        <DewBadge type="success">出勤 {{ personal.present }}</DewBadge>
-        <DewBadge type="warning">迟到 {{ personal.late }}</DewBadge>
-        <DewBadge type="warning">时长不足 {{ personal.short_hours }}</DewBadge>
-        <DewBadge type="danger">迟到+不足 {{ personal.late_and_short }}</DewBadge>
-        <DewBadge type="danger">缺勤 {{ personal.absent }}</DewBadge>
-        <DewBadge type="primary">请假 {{ personal.on_leave }}</DewBadge>
+        <DewBadge type="success">出勤 {{ (personal.present || 0) + (personal.late || 0) }}<template v-if="personal.late">（迟到 {{ personal.late }}）</template></DewBadge>
+        <DewBadge type="warning">未达标 {{ (personal.short_hours || 0) + (personal.late_and_short || 0) }}<template v-if="personal.late_and_short">（迟到 {{ personal.late_and_short }}）</template></DewBadge>
+        <DewBadge type="danger">缺勤 {{ personal.absent || 0 }}</DewBadge>
+        <DewBadge type="primary">请假 {{ personal.on_leave || 0 }}</DewBadge>
         <span class="rate">达标率 {{ pct(personal.attendance_rate) }}</span>
       </div>
     </DewCard>
@@ -19,7 +17,7 @@
       <template #header><h3>每日明细</h3></template>
       <div v-if="!rows.length" class="empty">暂无承诺出勤日</div>
       <div v-else class="daily-list">
-        <div v-for="r in rows" :key="r.date" :class="['daily-row', 'cell-' + r.cell.status]">
+        <div v-for="r in rows" :key="r.date" :class="['daily-row', 'cell-' + campVisualKey(r.cell.status, r.date === todayIso)]">
           <span class="d-date">{{ r.date }}</span>
           <DewBadge :type="badgeType(r.cell.status)">{{ statusLabel(r.cell.status) }}</DewBadge>
           <span class="d-meta">{{ metaText(r.cell) }}</span>
@@ -33,7 +31,7 @@
 import { ref, computed, watch } from 'vue';
 import { DewCard, DewBadge } from '../ui';
 import { ElMessage } from 'element-plus';
-import { campService } from '../../services/campService';
+import { campService, campVisualKey, CAMP_STATUS_TEXT, todayLocal } from '../../services/campService';
 
 const props = defineProps({ sid: { type: [Number, String], required: true } });
 
@@ -42,18 +40,17 @@ const personal = ref(null);
 const dates = ref([]);
 const loading = ref(false);
 
+const todayIso = todayLocal();
 const rows = computed(() =>
   dates.value.map((d) => ({ date: d, cell: daily.value[d] || { status: 'unpledged' } })));
 
-const statusLabel = (s) => ({
-  present: '出勤', late: '迟到', short_hours: '时长不足', late_and_short: '迟到+不足',
-  absent: '缺勤', on_leave: '请假', pledged: '已承诺', unpledged: '未承诺',
-  in_progress: '进行中',
-}[s] || s);
+// 徽章文案保留后端细分语义（出勤·迟到 等），颜色按归类映射
+const statusLabel = (s) => CAMP_STATUS_TEXT[s] || s;
 const badgeType = (s) => ({
-  present: 'success', late: 'warning', short_hours: 'warning', late_and_short: 'danger',
-  absent: 'danger', on_leave: 'primary', pledged: 'primary', unpledged: 'neutral',
-  in_progress: 'primary',
+  present: 'success', late: 'success',
+  short_hours: 'warning', late_and_short: 'warning',
+  absent: 'danger', on_leave: 'primary',
+  pledged: 'neutral', in_progress: 'neutral', unpledged: 'neutral',
 }[s] || 'neutral');
 const pct = (r) => (r == null ? '—' : (r * 100).toFixed(0) + '%');
 const metaText = (c) => {
@@ -90,12 +87,10 @@ watch(() => props.sid, load, { immediate: true });
 .d-date { width: 110px; font-weight: 600; }
 .d-meta { color: #909399; font-size: 13px; }
 .empty { color: #909399; padding: 16px 0; }
-.cell-present { background: rgba(103, 194, 58, .08); }
-.cell-late, .cell-short_hours { background: rgba(230, 162, 60, .08); }
-.cell-late_and_short { background: rgba(245, 108, 108, .10); }
-.cell-absent { background: rgba(245, 108, 108, .10); }
-.cell-on_leave { background: rgba(64, 158, 255, .08); }
-.cell-in_progress { background: rgba(64, 158, 255, .07); }
-.cell-pledged { background: rgba(64, 158, 255, .05); }
+.cell-present { background: rgba(16, 185, 129, .08); }
+.cell-insufficient { background: rgba(245, 158, 11, .08); }
+.cell-absent { background: rgba(239, 68, 68, .08); }
+.cell-on_leave { background: rgba(99, 102, 241, .08); }
+.cell-pending { background: rgba(148, 163, 184, .05); }
 .cell-unpledged { background: transparent; }
 </style>

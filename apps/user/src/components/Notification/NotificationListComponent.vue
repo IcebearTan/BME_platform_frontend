@@ -192,13 +192,16 @@ function handleClick(item) {
         router.push({ path: '/camp', query: { tab: 'leave', sid } })
         break
       case 'join_request':
-        router.push('/camp-home')
+        router.push('/camp')
         break
       case 'reward':
         router.push('/medal/user-medal')
         break
+      case 'mentor_selection':
+        router.push({ path: '/camp', query: { tab: 'ms', sid } })
+        break
       default:
-        router.push('/camp-home')
+        router.push('/camp')
     }
   }
 }

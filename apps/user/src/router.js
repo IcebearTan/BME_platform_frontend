@@ -235,8 +235,8 @@ const router = createRouter({
             component: NotificationView,
             meta: { requiresAuth: false }
         },
-        // /group 已下线（小组功能并入营期），老书签重定向到营期主页
-        { path: '/group', redirect: '/camp-home' },
+        // /group 已下线（小组功能并入营期），老书签重定向到营期工作台
+        { path: '/group', redirect: '/camp' },
         {
             path: '/exercise/:id',
             name: 'exercise-solve',

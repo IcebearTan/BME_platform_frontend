@@ -13,11 +13,9 @@ export default {
         // 服务类子页面（服务大厅 / AI 大模型服务）统一高亮「服务大厅」
         activeIndex() {
             const path = this.$route.path
-            if (path.startsWith('/camp-home')) {
+            // 营期域（招募页 + 工作台）统一高亮营期导航项，避免工作台上导航失去位置感
+            if (path.startsWith('/camp-home') || path.startsWith('/camp')) {
                 return '/camp-home'
-            }
-            if (path.startsWith('/camp')) {
-                return '/camp'
             }
             if (path === '/service-hall' || path.startsWith('/ai-service')) {
                 return '/service-hall'
@@ -56,6 +54,7 @@ import { onMounted, ref, nextTick, onBeforeMount, computed } from 'vue'
 import { ClickOutside as vClickOutside } from 'element-plus'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { Calendar } from '@element-plus/icons-vue'
 import api from '../api'
 import NotificationBell from './Notification/NotificationBell.vue'
 import campLogo from '../assets/暑期训练营.png'
@@ -152,6 +151,7 @@ const logOut = () => {
 }
 
 const goUserCenter = () => router.push('/user')
+const goCamp = () => router.push('/camp')
 
 const handleUserInfo = () => {
     if (router.currentRoute.value.path != '/user-center/user-info') {
@@ -250,6 +250,10 @@ const handleUserInfo = () => {
                             </div>
                         </div>
                         <div class="avatar-pop__actions">
+                            <div class="avatar-pop__action" @click="goCamp">
+                                <el-icon><Calendar /></el-icon>
+                                <span>我的营期</span>
+                            </div>
                             <div class="avatar-pop__action" @click="handleUserInfo">
                                 <el-icon><Setting /></el-icon>
                                 <span>账户设置</span>
