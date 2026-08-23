@@ -19,7 +19,7 @@ import api from '../../../api'
 import { DewButton, DewCard, DewInput, DewMessage } from '@bme/dew-ui'
 import { MdEditor, MdCatalog } from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
-import './md-setup' // 自托管 highlight.js（禁外网 CDN），与阅读页共享
+import '@bme/editor/md-setup' // 自托管 highlight.js（禁外网 CDN），与阅读页共享
 
 const EDITOR_ID = 'article-v2-editor'
 // 工具栏排除：mermaid/katex 走 CDN 且用不到；github/htmlPreview/save/sub/sup/catalog/fullscreen 按需去掉

@@ -17,6 +17,9 @@ importers:
       '@bme/api':
         specifier: workspace:*
         version: link:../../packages/api
+      '@bme/editor':
+        specifier: workspace:*
+        version: link:../../packages/editor
       '@bme/styles':
         specifier: workspace:*
         version: link:../../packages/styles
@@ -87,6 +90,9 @@ importers:
       '@bme/dew-ui':
         specifier: workspace:*
         version: link:../../packages/dew-ui
+      '@bme/editor':
+        specifier: workspace:*
+        version: link:../../packages/editor
       '@bme/styles':
         specifier: workspace:*
         version: link:../../packages/styles
@@ -163,6 +169,12 @@ importers:
       vue:
         specifier: '>=3.4.0'
         version: 3.5.41
+
+  packages/editor:
+    dependencies:
+      md-editor-v3:
+        specifier: '>=6.0.0'
+        version: 6.5.6(vue@3.5.41)
 
   packages/styles: {}
 

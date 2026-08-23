@@ -16,7 +16,7 @@ import { Share, Star, StarFilled, ChatDotRound, Collection, View } from '@elemen
 import { DewCard, DewSkeleton } from '@bme/dew-ui'
 import { MdPreview, MdCatalog } from 'md-editor-v3'
 import 'md-editor-v3/lib/preview.css'
-import './md-setup' // 自托管 highlight.js（与编辑器共享）
+import '@bme/editor/md-setup' // 自托管 highlight.js（与编辑器共享）
 import api from '../../../api'
 import ArticleCommentSection from '../ArticleCommentSection.vue'
 import { useArticleReactions } from '../../../composables/useArticleReactions'
