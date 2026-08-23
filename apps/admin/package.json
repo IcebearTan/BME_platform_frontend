@@ -11,11 +11,6 @@
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.1",
     "@tinymce/tinymce-vue": "^6.1.0",
-    "@tiptap/core": "^2.11.5",
-    "@tiptap/extension-link": "^2.11.5",
-    "@tiptap/extension-text-style": "^2.11.5",
-    "@tiptap/starter-kit": "^2.11.5",
-    "@tiptap/vue-3": "^2.11.5",
     "@vueup/vue-quill": "^1.2.0",
     "axios": "^1.7.7",
     "element-plus": "^2.8.8",
