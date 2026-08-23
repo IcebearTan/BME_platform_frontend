@@ -1,0 +1,29 @@
+/* 液态玻璃工具类 —— 克制版
+   配方参照用户端 DewCard.vue：backdrop-filter + 半透白底 + inset 顶部白高光 + 1px 白边。
+   依赖 tokens.css 的 --dew-* 变量。
+   关键：玻璃感来自 backdrop-filter 模糊「父层极光衬底」，无极光衬底则呈淡白——须配合极光背景使用。 */
+
+/* 标准玻璃面（卡片/面板/顶栏/侧栏壳） */
+.glass-surface {
+    background: var(--dew-card-bg);
+    backdrop-filter: blur(20px) saturate(1.4);
+    -webkit-backdrop-filter: blur(20px) saturate(1.4);
+    border: 1px solid var(--dew-card-border);
+    box-shadow: var(--dew-card-shadow);
+}
+
+/* 抬升玻璃面（悬浮卡片/对话框） */
+.glass-surface-elevated {
+    background: var(--dew-card-elevated-bg);
+    backdrop-filter: blur(24px) saturate(1.5);
+    -webkit-backdrop-filter: blur(24px) saturate(1.5);
+    border: 1px solid var(--dew-card-elevated-bg);
+    box-shadow: var(--dew-card-elevated-shadow);
+}
+
+/* 内容实心台子：表格/表单内部高不透明衬底，保证数字文字可读（玻璃壳里的实心内容） */
+.surface-solid {
+    background: var(--surface-solid);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
