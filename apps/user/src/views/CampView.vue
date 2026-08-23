@@ -3,17 +3,12 @@
     <div style="height: 60px;"></div>
     <MenuComponent />
     <div class="camp-wrap">
-      <div class="page-header">
-        <div class="page-title-row">
-          <span class="title-accent"></span>
-          <h1 class="page-title">我的营期</h1>
-        </div>
+      <!-- 加载中 -->
+      <div v-if="loadingSessions" class="camp-loading">
+        <DewSkeleton variant="rect" width="100%" height="120" rounded="8px" />
       </div>
 
-      <!-- 选营 -->
-      <div v-if="loadingSessions" class="camp-selector">
-        <DewSkeleton variant="rect" width="280" height="34" rounded="6px" />
-      </div>
+      <!-- 无营期：智能分流空态 -->
       <div v-else-if="!sessions.length" class="empty-camp">
         <DewCard variant="inset" size="lg" :no-hover="true">
           <template v-if="emptyGuide.type === 'recruit'">
@@ -28,19 +23,74 @@
           <div v-else class="empty-text">暂未开放营期，敬请期待。</div>
         </DewCard>
       </div>
-      <div v-else class="camp-selector">
-        <span class="selector-label">当前营期：</span>
-        <DewSelect v-model="sid" :options="sessionOptions" placeholder="选择营期" style="width: 280px;" />
-        <el-tag v-if="current" size="small" style="margin-left: 12px;">
-          {{ statusLabel(current.status) }} · {{ current.start_date }} ~ {{ current.end_date }}
-        </el-tag>
-      </div>
 
-      <!-- Tab + 内容 -->
-      <template v-if="sid">
-        <DewButtonBar v-model="tab" :items="tabItems" style="margin: 16px 0;" />
-        <CampOverview v-if="tab === 'overview' && current" :sid="sid" :session="current" @go="(t) => (tab = t)" />
-        <template v-if="isMentor">
+      <!-- 工作台：左侧营期卡片列表（可折叠）+ 右侧无卡片头部区 + tabs -->
+      <div v-else-if="sid" class="camp-layout">
+        <aside :class="['camp-aside', { collapsed: asideCollapsed }]">
+          <div class="aside-head">
+            <span v-if="!asideCollapsed" class="aside-title">我的营期</span>
+            <button class="aside-toggle" :title="asideCollapsed ? '展开营期列表' : '折叠营期列表'"
+                    @click="asideCollapsed = !asideCollapsed">
+              <el-icon><Expand v-if="asideCollapsed" /><Fold v-else /></el-icon>
+            </button>
+          </div>
+          <div class="aside-list">
+            <div v-for="s in sessions" :key="s.id"
+                 :class="['camp-item', { active: s.id === sid }]"
+                 :title="s.name"
+                 @click="sid = s.id">
+              <template v-if="!asideCollapsed">
+                <div class="camp-item-name">{{ s.name }}</div>
+                <div class="camp-item-sub">
+                  <span class="status-dot" :class="'dot-status-' + s.status"></span>
+                  <span>{{ statusLabel(s.status) }}</span>
+                  <span class="camp-item-date">{{ s.start_date?.slice(5) }} ~ {{ s.end_date?.slice(5) }}</span>
+                </div>
+              </template>
+              <template v-else>
+                <span class="status-dot" :class="'dot-status-' + s.status"></span>
+              </template>
+            </div>
+          </div>
+        </aside>
+
+        <div class="camp-main">
+          <!-- 营期头部：无卡片样式，置于最上；tabs 切换条紧随其下 -->
+          <header v-if="current" class="camp-hero">
+            <h1 class="hero-title">{{ current.name }}</h1>
+            <!-- 信息行：状态·日期·规则（左） + 选导生阶段胶囊（右） -->
+            <div class="hero-meta-row">
+              <div class="hero-sub">
+                <span class="status-dot" :class="'dot-status-' + current.status"></span>
+                <span>{{ statusLabel(current.status) }}</span>
+                <span class="sep">·</span>
+                <span>{{ current.start_date }} ~ {{ current.end_date }}</span>
+                <span class="sep">·</span>
+                <span>期望到岗 {{ current.expected_check_in || '弹性' }}</span>
+                <span class="sep">·</span>
+                <span>每日 ≥ {{ current.min_daily_hours != null ? current.min_daily_hours + 'h' : '—' }}</span>
+                <span class="sep">·</span>
+                <span>{{ current.weekdays_only ? '仅工作日' : '含周末' }}</span>
+              </div>
+              <div v-if="msPhase" :class="['hero-ms', { live: msActive }]" @click="tab = 'ms'">
+                <span v-if="msActive" class="ms-dot"></span>
+                <span>选导生 · {{ MS_PHASE_LABEL[msPhase.phase] }}</span>
+                <span v-if="msActive" class="ms-go">去处理</span>
+              </div>
+            </div>
+            <!-- 营期进度：通栏 -->
+            <div class="hero-progress">
+              <DewProgress :percentage="progress.pct" size="md" />
+              <div class="progress-meta">
+                <span>营期进度</span>
+                <span class="progress-num">{{ progress.elapsed }} / {{ progress.total }} 天 · {{ progress.pct }}%</span>
+              </div>
+            </div>
+          </header>
+
+          <DewButtonBar v-model="tab" :items="tabItems" style="margin: 16px 0;" />
+          <CampOverview v-if="tab === 'overview' && current" :sid="sid" />
+          <template v-if="isMentor">
           <MsMentorDesk v-if="tab === 'ms'" :sid="sid" />
           <MentorDashboard v-else-if="tab === 'dashboard'" :sid="sid" />
           <MentorLeave v-else-if="tab === 'leave'" :sid="sid" />
@@ -53,7 +103,8 @@
           <CampAttendance v-else-if="tab === 'attendance'" :sid="sid" />
           <LeaveApply v-else-if="tab === 'leave'" :sid="sid" />
         </template>
-      </template>
+        </div><!-- camp-main -->
+      </div><!-- camp-layout -->
     </div>
   </div>
 </template>
@@ -63,9 +114,10 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { useStore } from 'vuex';
 import { useRoute, useRouter } from 'vue-router';
 import MenuComponent from '../components/MenuComponent.vue';
-import { DewButtonBar, DewButton, DewCard, DewSelect, DewSkeleton } from '../components/ui';
+import { DewButtonBar, DewButton, DewCard, DewProgress, DewSkeleton } from '../components/ui';
 import { ElMessage } from 'element-plus';
-import { campService } from '../services/campService';
+import { Fold, Expand } from '@element-plus/icons-vue';
+import { campService, MS_PHASE_LABEL } from '../services/campService';
 import CampOverview from '../components/Camp/CampOverview.vue';
 import CampSelection from '../components/Camp/CampSelection.vue';
 import CampAttendance from '../components/Camp/CampAttendance.vue';
@@ -118,16 +170,45 @@ const mentorTabs = computed(() => {
 });
 const tabItems = computed(() => (isMentor.value ? mentorTabs.value : studentTabs.value));
 const tab = ref((tabItems.value.find((t) => t.value === route.query.tab) || tabItems.value[0]).value);
+const asideCollapsed = ref(false);   // 左侧营期列表折叠态（折叠后仅剩状态圆点）
 
-const sessionOptions = computed(() => sessions.value.map((s) => ({ label: s.name, value: s.id })));
 const statusLabel = (s) => ({ draft: '草稿', active: '进行中', archived: '已归档' }[s] || s);
 
+// ── 营期头部（原 CampOverview hero 提升：所有 tab 共用）──
+const progress = computed(() => {
+  const s = current.value;
+  if (!s?.start_date) return { pct: 0, elapsed: 0, total: 0 };
+  const start = new Date(s.start_date);
+  const end = new Date(s.end_date);
+  const today = new Date();
+  start.setHours(0, 0, 0, 0); end.setHours(0, 0, 0, 0); today.setHours(0, 0, 0, 0);
+  const total = Math.max(1, Math.round((end - start) / 86400000) + 1);
+  const elapsed = Math.min(total, Math.max(0, Math.round((today - start) / 86400000) + 1));
+  return { pct: Math.round((elapsed / total) * 100), elapsed, total };
+});
+
+// 选导生阶段（仅启用时拉取；chip 点击直接切 ms tab）
+const msPhase = ref(null);
+const msActive = computed(() =>
+  !!msPhase.value && ['collecting', 'round1', 'round2'].includes(msPhase.value.phase));
+watch(sid, () => {
+  msPhase.value = null;
+  if (sid.value && current.value?.mentor_selection_enabled) {
+    campService.fetchMsPhase(sid.value)
+      .then((p) => { msPhase.value = p; })
+      .catch(() => {});
+  }
+}, { immediate: true });
+
 // 营期列表加载完成后按 query 校正 tab：ms tab 依赖 session.mentor_selection_enabled，
-// 初始化时 current 尚为 null，直接到达 /camp?tab=ms 会先落到默认 tab
+// 初始化时 current 尚为 null，直接到达 /camp?tab=ms 会先落到默认 tab；
+// 切营后旧 tab 在新营不存在（如 ms 未启用）时回落到第一个
 watch(tabItems, (items) => {
   const want = route.query.tab;
   if (want && items.some((t) => t.value === want) && tab.value !== want) {
     tab.value = want;
+  } else if (!items.some((t) => t.value === tab.value)) {
+    tab.value = items[0].value;
   }
 });
 
@@ -177,12 +258,107 @@ onMounted(async () => {
     linear-gradient(160deg, #16161a 0%, #0f0f12 100%);
 }
 .camp-wrap { max-width: 1080px; margin: 0 auto; padding: 24px 20px; }
-.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.page-title-row { display: flex; align-items: center; gap: 10px; }
-.title-accent { display: inline-block; width: 4px; height: 20px; border-radius: 2px; background: linear-gradient(180deg, #3b82f6, #8b5cf6); }
-.page-title { font-size: 18px; font-weight: 600; margin: 0; color: var(--dew-text-heading); }
-.camp-selector { display: flex; align-items: center; margin-bottom: 8px; }
-.selector-label { color: var(--dew-text-secondary, #909399); margin-right: 8px; }
+.camp-loading { padding: 8px 0; }
 .empty-camp { margin-top: 16px; }
 .empty-text { color: var(--dew-text-muted, #909399); line-height: 1.7; margin-bottom: 12px; }
+
+/* ── 工作台布局：左侧营期卡片列表（可折叠）+ 右侧内容 ── */
+.camp-layout { display: flex; align-items: flex-start; gap: 20px; }
+.camp-aside {
+  width: 224px; flex-shrink: 0;
+  transition: width 0.25s var(--dew-bounce, ease);
+  overflow: hidden;
+}
+.camp-aside.collapsed { width: 52px; }
+.aside-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; min-height: 28px; }
+.aside-title { font-size: 13px; font-weight: 600; letter-spacing: 1px; color: var(--dew-text-muted); white-space: nowrap; }
+.aside-toggle {
+  border: none; background: transparent; cursor: pointer; padding: 4px;
+  border-radius: var(--radius-md, 8px); color: var(--dew-text-muted);
+  display: flex; align-items: center;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+.aside-toggle:hover { background: var(--dew-ghost-hover-bg); color: var(--dew-text-heading); }
+.camp-aside.collapsed .aside-head { justify-content: center; }
+.aside-list { display: flex; flex-direction: column; gap: 8px; }
+.camp-item {
+  border: 1px solid var(--dew-card-border);
+  border-radius: var(--radius-md, 8px);
+  padding: 10px 12px; cursor: pointer;
+  background: transparent;
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s var(--dew-bounce, ease);
+  min-width: 0;
+}
+.camp-item:hover { transform: translateY(-1px); border-color: var(--dew-text-faint); }
+.camp-item.active {
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+}
+.camp-item-name {
+  font-size: 13.5px; font-weight: 600; color: var(--dew-text-heading);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.camp-item.active .camp-item-name { color: var(--color-primary); }
+.camp-item-sub { display: flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 12px; color: var(--dew-text-muted); }
+.camp-item-date { margin-left: auto; color: var(--dew-text-faint); white-space: nowrap; }
+.camp-aside.collapsed .camp-item { display: flex; align-items: center; justify-content: center; padding: 12px 0; }
+
+/* 状态圆点（侧栏 + hero 共用） */
+.status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+.dot-status-active { background: var(--color-success); box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.18); }
+.dot-status-draft { background: var(--dew-text-faint); }
+.dot-status-archived { background: var(--color-warning); }
+
+/* ── 营期头部：无卡片样式，置于 tabs 之上（所有 tab 共用）── */
+.camp-main { flex: 1; min-width: 0; }
+.camp-hero { padding-bottom: 4px; }
+.hero-title { font-size: 24px; font-weight: 700; margin: 0 0 8px; color: var(--dew-text-heading); letter-spacing: 0.5px; }
+/* 信息行：元信息（左）与选导生胶囊（右）同排，进度条通栏其下 */
+.hero-meta-row { display: flex; align-items: center; justify-content: space-between; gap: 12px 16px; margin-top: 4px; flex-wrap: wrap; }
+.hero-sub { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--dew-text-muted); flex-wrap: wrap; min-width: 0; }
+.hero-sub .sep { color: var(--dew-text-faint); }
+/* 选导生阶段胶囊：启用即常驻（点击进 ms tab），进行中主色高亮 */
+.hero-ms {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  cursor: pointer;
+  flex-shrink: 0;
+  color: var(--dew-text-muted);
+  border: 1px solid var(--dew-card-border);
+  transition: transform 0.25s var(--dew-bounce, ease), color 0.2s ease;
+}
+.hero-ms:hover { transform: translateY(-1px); }
+.hero-ms.live {
+  color: var(--color-primary);
+  border-color: color-mix(in srgb, var(--color-primary) 35%, transparent);
+  background: color-mix(in srgb, var(--color-primary) 9%, transparent);
+}
+.ms-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  animation: ms-pulse 2s ease infinite;
+}
+@keyframes ms-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.ms-go { font-size: 11.5px; opacity: 0.75; }
+.hero-progress { margin-top: 16px; }
+.progress-meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--dew-text-muted); margin-top: 8px; }
+.progress-num { font-weight: 600; color: var(--dew-text-heading); }
+
+/* 窄屏：侧栏列表横排，折叠概念仅桌面 */
+@media (max-width: 760px) {
+  .camp-layout { flex-direction: column; }
+  .camp-aside, .camp-aside.collapsed { width: 100%; }
+  .aside-list { flex-direction: row; overflow-x: auto; padding-bottom: 4px; }
+  .camp-item { flex-shrink: 0; min-width: 150px; }
+  .camp-aside.collapsed .camp-item { display: block; padding: 10px 12px; }
+}
 </style>
