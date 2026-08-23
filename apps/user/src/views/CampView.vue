@@ -26,30 +26,21 @@
 
       <!-- 工作台：左侧营期卡片列表（可折叠）+ 右侧无卡片头部区 + tabs -->
       <div v-else-if="sid" class="camp-layout">
-        <aside :class="['camp-aside', { collapsed: asideCollapsed }]">
+        <aside class="camp-aside">
           <div class="aside-head">
-            <span v-if="!asideCollapsed" class="aside-title">我的营期</span>
-            <button class="aside-toggle" :title="asideCollapsed ? '展开营期列表' : '折叠营期列表'"
-                    @click="asideCollapsed = !asideCollapsed">
-              <el-icon><Expand v-if="asideCollapsed" /><Fold v-else /></el-icon>
-            </button>
+            <span class="aside-title">我的营期</span>
           </div>
           <div class="aside-list">
             <div v-for="s in sessions" :key="s.id"
                  :class="['camp-item', { active: s.id === sid }]"
                  :title="s.name"
                  @click="sid = s.id">
-              <template v-if="!asideCollapsed">
-                <div class="camp-item-name">{{ s.name }}</div>
-                <div class="camp-item-sub">
-                  <span class="status-dot" :class="'dot-status-' + s.status"></span>
-                  <span>{{ statusLabel(s.status) }}</span>
-                  <span class="camp-item-date">{{ s.start_date?.slice(5) }} ~ {{ s.end_date?.slice(5) }}</span>
-                </div>
-              </template>
-              <template v-else>
+              <div class="camp-item-name">{{ s.name }}</div>
+              <div class="camp-item-sub">
                 <span class="status-dot" :class="'dot-status-' + s.status"></span>
-              </template>
+                <span>{{ statusLabel(s.status) }}</span>
+                <span class="camp-item-date">{{ s.start_date?.slice(5) }} ~ {{ s.end_date?.slice(5) }}</span>
+              </div>
             </div>
           </div>
         </aside>
@@ -116,7 +107,6 @@ import { useRoute, useRouter } from 'vue-router';
 import MenuComponent from '../components/MenuComponent.vue';
 import { DewButtonBar, DewButton, DewCard, DewProgress, DewSkeleton } from '../components/ui';
 import { ElMessage } from 'element-plus';
-import { Fold, Expand } from '@element-plus/icons-vue';
 import { campService, MS_PHASE_LABEL } from '../services/campService';
 import CampOverview from '../components/Camp/CampOverview.vue';
 import CampSelection from '../components/Camp/CampSelection.vue';
@@ -170,7 +160,6 @@ const mentorTabs = computed(() => {
 });
 const tabItems = computed(() => (isMentor.value ? mentorTabs.value : studentTabs.value));
 const tab = ref((tabItems.value.find((t) => t.value === route.query.tab) || tabItems.value[0]).value);
-const asideCollapsed = ref(false);   // 左侧营期列表折叠态（折叠后仅剩状态圆点）
 
 const statusLabel = (s) => ({ draft: '草稿', active: '进行中', archived: '已归档' }[s] || s);
 
@@ -257,29 +246,17 @@ onMounted(async () => {
     radial-gradient(ellipse 55% 60% at 8% 92%, rgba(245, 158, 11, 0.12), transparent 55%),
     linear-gradient(160deg, #16161a 0%, #0f0f12 100%);
 }
-.camp-wrap { max-width: 1080px; margin: 0 auto; padding: 24px 20px; }
+/* 容器上限放宽：展开侧栏时吃掉两侧留白，而不是挤压主内容（主内容保持折叠态的舒适宽度） */
+.camp-wrap { max-width: 1280px; margin: 0 auto; padding: 24px 20px; }
 .camp-loading { padding: 8px 0; }
 .empty-camp { margin-top: 16px; }
 .empty-text { color: var(--dew-text-muted, #909399); line-height: 1.7; margin-bottom: 12px; }
 
-/* ── 工作台布局：左侧营期卡片列表（可折叠）+ 右侧内容 ── */
+/* ── 工作台布局：左侧营期卡片列表 + 右侧内容 ── */
 .camp-layout { display: flex; align-items: flex-start; gap: 20px; }
-.camp-aside {
-  width: 224px; flex-shrink: 0;
-  transition: width 0.25s var(--dew-bounce, ease);
-  overflow: hidden;
-}
-.camp-aside.collapsed { width: 52px; }
-.aside-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; min-height: 28px; }
+.camp-aside { width: 224px; flex-shrink: 0; }
+.aside-head { margin-bottom: 10px; min-height: 28px; }
 .aside-title { font-size: 13px; font-weight: 600; letter-spacing: 1px; color: var(--dew-text-muted); white-space: nowrap; }
-.aside-toggle {
-  border: none; background: transparent; cursor: pointer; padding: 4px;
-  border-radius: var(--radius-md, 8px); color: var(--dew-text-muted);
-  display: flex; align-items: center;
-  transition: background 0.2s ease, color 0.2s ease;
-}
-.aside-toggle:hover { background: var(--dew-ghost-hover-bg); color: var(--dew-text-heading); }
-.camp-aside.collapsed .aside-head { justify-content: center; }
 .aside-list { display: flex; flex-direction: column; gap: 8px; }
 .camp-item {
   border: 1px solid var(--dew-card-border);
@@ -353,12 +330,11 @@ onMounted(async () => {
 .progress-meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--dew-text-muted); margin-top: 8px; }
 .progress-num { font-weight: 600; color: var(--dew-text-heading); }
 
-/* 窄屏：侧栏列表横排，折叠概念仅桌面 */
+/* 窄屏：侧栏列表横排 */
 @media (max-width: 760px) {
   .camp-layout { flex-direction: column; }
-  .camp-aside, .camp-aside.collapsed { width: 100%; }
+  .camp-aside { width: 100%; }
   .aside-list { flex-direction: row; overflow-x: auto; padding-bottom: 4px; }
   .camp-item { flex-shrink: 0; min-width: 150px; }
-  .camp-aside.collapsed .camp-item { display: block; padding: 10px 12px; }
 }
 </style>
