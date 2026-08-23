@@ -1,0 +1,12 @@
+{
+  "name": "@bme/styles",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "BME 平台共享样式：DewUI tokens（权威源）+ 文章正文样式 + 自托管高亮资产",
+  "exports": {
+    "./tokens.css": "./tokens.css",
+    "./article-content.css": "./article-content.css",
+    "./copy-to-public.mjs": "./copy-to-public.mjs"
+  }
+}

@@ -1,10 +1,10 @@
 /*
  * BME 共享富文本正文样式 —— 单一真相源（Single Source of Truth）
- * 权威文件：BME_frontend/src/styles/article-content.css
- * 镜像（须逐字符相同）：
- *   - BME_frontend/public/article-content.css   （用户端 TinyMCE iframe content_css URL）
- *   - BME_backend/src/styles/article-content.css   （admin main bundle，预览面板用）
- *   - BME_backend/public/article-content.css        （admin TinyMCE iframe content_css URL，serve 在 /admin/article-content.css）
+ * 权威文件：packages/styles/article-content.css（@bme/styles）
+ * 两 app 打包经 import '@bme/styles/article-content.css' 引入；
+ * public/ 运行时副本（TinyMCE iframe content_css URL）由各 app 的
+ * predev/prebuild 钩子运行 packages/styles/copy-to-public.mjs 自动生成，
+ * 不再手工镜像同步（原 sync-richtext.js 已删除）。
  *
  * 设计：
  *   - 选择器统一 .rich-text 前缀，作用域隔离，零全局污染（无 :root 声明，绝不影响 DewUI 其它组件）。

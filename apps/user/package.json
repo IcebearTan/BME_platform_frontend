@@ -4,16 +4,18 @@
   "version": "3.1.2",
   "type": "module",
   "scripts": {
+    "predev": "node ../../packages/styles/copy-to-public.mjs",
     "dev": "vite",
+    "prebuild": "node ../../packages/styles/copy-to-public.mjs",
     "build": "vite build",
     "preview": "vite preview",
     "release": "node release.js",
     "version:patch": "npm version patch --no-git-tag-version && node release.js",
     "version:minor": "npm version minor --no-git-tag-version && node release.js",
-    "version:major": "npm version major --no-git-tag-version && node release.js",
-    "sync:richtext": "node scripts/sync-richtext.js"
+    "version:major": "npm version major --no-git-tag-version && node release.js"
   },
   "dependencies": {
+    "@bme/styles": "workspace:*",
     "@element-plus/icons-vue": "^2.3.1",
     "@tailwindcss/vite": "^4.3.0",
     "@tinymce/tinymce-vue": "^6.1.0",

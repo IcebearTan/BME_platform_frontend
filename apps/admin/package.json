@@ -4,11 +4,14 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "predev": "node ../../packages/styles/copy-to-public.mjs",
     "dev": "vite",
+    "prebuild": "node ../../packages/styles/copy-to-public.mjs",
     "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@bme/styles": "workspace:*",
     "@element-plus/icons-vue": "^2.3.1",
     "@tinymce/tinymce-vue": "^6.1.0",
     "@vueup/vue-quill": "^1.2.0",
