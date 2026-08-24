@@ -32,7 +32,8 @@ export function useNotifications() {
     try {
       const r = await notificationService.fetchList({ per_page: 100, ...params })
       if (r.code === 200) {
-        notificationList.value = r.data.notifications
+        // 后端形状异常时保底空数组：直接赋 undefined 会让 unreadCount 的 filter 白屏整站
+        notificationList.value = r.data?.notifications || []
       }
     } catch (e) {
       console.error('[useNotifications] fetchNotifications 失败:', e)
