@@ -36,6 +36,7 @@ import UiShowcaseView from './views/UiShowcaseView.vue';
 import MyFeedbacksComponent from './components/User/MyFeedbacksComponent.vue';
 import CampView from './views/CampView.vue';
 import CampHome from './views/CampHome.vue';
+import CampMarket from './views/CampMarket.vue';
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -61,6 +62,13 @@ const router = createRouter({
             path: '/camp',
             name: 'camp',
             component: CampView,
+            meta: { requiresAuth: true }
+        },
+        {
+            // 团购导生市集：营期域内全出血展示型子路由（IA 规范 §1.2 例外条款）
+            path: '/camp/:sid/market',
+            name: 'camp-market',
+            component: CampMarket,
             meta: { requiresAuth: true }
         },
 

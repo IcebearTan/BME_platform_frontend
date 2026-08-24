@@ -2,6 +2,7 @@
 
 > 适用仓库：`BME_frontend`（用户端）为主，含与 `BME_backend`（管理端）、`BME_platform_flask`（后端）的对接约定。
 > 定稿：2026-08-23（营期 IA 重构「方案 A：工作台为家」+ 考勤状态渲染归类）。
+> 修订：2026-08-24（新增「团购导生」全出血子路由例外 + 选导生 tab 瘦身为状态机 + 热度红线）。
 > 本文是营期域前端开发的**唯一规范来源**；与本文冲突的旧实现以本文为准。
 
 ---
@@ -36,6 +37,12 @@
 
 **禁止**：为营期功能新增独立路由/首页插卡（历史上出现过 `/mentor-market` 式的割裂入口，已否决——营期相关功能一律住在 `/camp` 的 tab 里）。
 
+**例外（2026-08-24 修订）——「团购导生」子路由**：允许 `/camp/:sid/market` 这类**营期域内的全出血展示型子路由**。当时否决 `/mentor-market` 否定的是"全站割裂入口"，不是"营期域内不许有子页面"。此例外的边界：
+- URL 必须住在 `/camp/` 域内且带 `sid`（营期上下文不丢）；
+- 入口不新增：唯一入口是工作台 ms tab 的 CTA（通知深链仍指 `/camp?tab=ms&sid=`，状态优先，不直跳市集）；
+- 成员校验同工作台：非该营成员访问自动回落 `/camp`；导生端无挑选任务，访问回落自己的 ms tab；
+- 全出血布局（脱离工作台 shell，无侧栏无 tabs）**只授予"展示型逛购"页面**，事务型功能（考勤/请假/选课等）仍一律住 tab。
+
 ### 1.3 四条设计原则（决策时拿来仲裁）
 
 1. **一个领域一个家**：营期域的一切入口收敛到 `/camp`；子功能 = tab，不是新页面。
@@ -63,7 +70,7 @@
 - **左侧营期卡片列表**：每营一卡（名称/状态圆点/日期），当前营 primary 高亮；**无折叠**（两三营规模折叠属过度设计，已砍）；窄屏（<760px）自动变横排。
 - **hero 无卡片化**：营名大标题 + 一行元信息（状态·日期·期望到岗·每日时长·出勤日）+ 选导生阶段胶囊（右对齐）+ **通栏进度条**。所有 tab 共用，不属于任何 tab。
 - **选导生胶囊**：营启用 ms 即常驻（即将开始/已结束也显示、可点），进行中才主色高亮+脉动点+「去处理」；点击切 ms tab。
-- **tabs（DewButtonBar）**：`看板` 恒为第一个（默认落地）；`选导生` 仅在 `session.mentor_selection_enabled` 时插入第二位；其余按角色：
+- **tabs（DewButtonBar）**：`看板` 恒为第一个（默认落地）；`选导生` 仅在 `session.mentor_selection_enabled` 时插入第二位（2026-08-24 起 tab 为**状态机 + 市集入口**，浏览与提交住 `/camp/:sid/market`，见 §2.4）；其余按角色：
   - 学员：选课 / 我的考勤 / 请假
   - 导生：团队考勤 / 请假审批 / 发奖励 / 团队成员
 
@@ -80,6 +87,23 @@
 - 学生 + 有 active 营 → 「查看『营名』· 申请入营」CTA → `/camp-home`
 - staff + 有 active 营 → 「尚未被分配」提示（导生/老师由管理端分配）
 - 无 → 「暂未开放营期」
+
+### 2.4 团购导生（/camp/:sid/market，2026-08-24 新增）
+
+浏览与提交志愿从 ms tab 迁出到全出血市集页；tab 退化为"我的状态"：
+
+| 阶段 | ms tab（状态机） | 市集页 |
+|---|---|---|
+| upcoming | 开始时间提示 | 打烊提示 + 返回 |
+| collecting 未交 | **大 CTA 卡**（主入口）+ 倒计时 + 从众信号 | 营业：卡片墙 + 托盘 |
+| collecting 已交 | 我的 3 志愿回显（只读）+「再逛逛」次级入口 | 营业（截止前可整组改） |
+| round1 | 等待卡「导生正在挑选」 | 打烊提示 + 返回 |
+| round2 未匹配 | 状态卡 + 市集入口 | 营业：仅剩有名额导生 |
+| done | 结果海报卡 / 未匹配提示 | 打烊提示 + 返回 |
+
+- 市集头部：MsPhaseBar + 截止时间 + **从众信号**（`已有 X/N 位同学提交志愿`，数据来自 phase.stats，全营汇总）。
+- 志愿状态唯一真相源是 phase 接口（`me.round1/round2`）；tab 的回显从它渲染，不另存本地状态。
+- 卡片复用 MsMentorCard（市集用 `size="lg"` 放大态 + 余 1 席稀缺强调）；托盘复用 MsPreferenceTray。
 
 ---
 
@@ -151,12 +175,12 @@
 | CampSelection / CampAttendance / LeaveApply | 学员：选课 / 考勤明细 / 请假 | sid |
 | MentorDashboard / MentorLeave / MentorReward / MentorMembers | 导生四事务 | sid |
 | MsPhaseBar | 选导生五步阶段条（未配二轮则该步不渲染） | phase, round2Enabled |
-| MsMentorCard | 海报式导生卡（浏览 + 编辑器预览复用） | mentor, pickedRank, selectable, index |
+| MsMentorCard | 海报式导生卡（市集 `size="lg"` + 编辑器预览默认尺寸复用） | mentor, pickedRank, selectable, index, size |
 | MsMentorProfile | 导生名片编辑（左编辑右预览） | sid, msTags, locked |
-| MsStudentPick | 学员选导生（结果卡/等待/浏览/托盘） | sid |
+| MsStudentPick | 选导生**状态机**：阶段提示 / 我的志愿回显 / 结果卡 / 市集入口 CTA | sid |
 | MsMentorDesk / MsMentorCard 相关 | 导生端意向单/收人 | sid |
 
-页面：`views/CampView.vue`（工作台）、`views/CampHome.vue`（招募页）。
+页面：`views/CampView.vue`（工作台）、`views/CampHome.vue`（招募页）、`views/CampMarket.vue`（团购导生市集，路由 `/camp/:sid/market`）。
 
 ---
 
@@ -166,12 +190,13 @@
 - 阶段文案/状态归类/本地今天等**渲染助手也住在 campService**，随 import 复用。
 - 后端微调原则：前端要什么字段，**在自有范式内加**（如 phase 加 `stats`、mentors 加 `taken`），不引入平行蓝图；管理端若有同构渲染需**手工同步**（无共享包）。
 - 选导生业务模型（勿被"团购式单选"提案带偏）：**三有序志愿 → 导生收人（先到先得）→ 落选二轮互选 → 写 `team_mentor_id`**；名额实时进度语义只在 round1/round2 成立。
+- **热度不进收集期（2026-08-24 红线）**："团购"只做表现层，模型不动。收集志愿期间学生端只可见**真实余量**（余 X / 已满）与全营汇总从众信号（X/N 人已交），**不得暴露任何单导师维度的志愿数**（"23 人想跟 TA"式）——防羊群效应挤死冷门合适导生、防抢购焦虑替代三志愿深思。单导师志愿数仅在截止后于导生端自己的意向单（MsMentorDesk）揭示。
 
 ---
 
 ## 六、开发者对接清单（新增一个营期功能时）
 
-1. **入口**：加一个 tab（CampView 的 studentTabs/mentorTabs computed），**不要**新路由、不要首页插卡。
+1. **入口**：加一个 tab（CampView 的 studentTabs/mentorTabs computed），**不要**新路由、不要首页插卡（唯一例外：全出血展示型子路由，见 §1.2 例外——需同时满足"营期域内 + 入口不新增 + 展示型"三条件）。
 2. **组件**：`components/Camp/Xxx.vue`，接 `sid` prop，内部 `watch(sid, load, {immediate:true})`。
 3. **服务**：接口加到 campService；跨营数据一律带 sid。
 4. **渲染**：涉考勤状态 → campVisualKey；涉颜色 → token；涉加载 → DewSkeleton。

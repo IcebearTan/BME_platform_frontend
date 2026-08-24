@@ -50,42 +50,37 @@
         </div>
       </DewCard>
 
-      <!-- 浏览 + 提交志愿（collecting / round2 未匹配） -->
-      <template v-else-if="submittable">
-        <div v-if="phaseInfo.phase === 'round2'" class="round2-note">
-          二轮互选：仅在仍有名额的导生中重新提交志愿
-        </div>
+      <!-- 收集期 / 二轮未匹配：状态 + 市集入口（浏览与提交住在 /camp/:sid/market） -->
+      <DewCard
+        v-else-if="submittable" variant="default" size="lg" :no-hover="true"
+        :tinted="!alreadySubmitted" :accent="alreadySubmitted ? null : 'primary'" class="section-card"
+      >
+        <!-- 未交志愿：大 CTA -->
+        <template v-if="!alreadySubmitted">
+          <div class="cta-label">{{ submittable === 2 ? '二轮互选 · 重新提交志愿' : '选导生进行中' }}</div>
+          <div class="cta-title">去逛导生市集，交出你的 3 个志愿</div>
+          <div class="cta-meta">
+            <span v-if="trayDeadline">{{ trayDeadline }} 截止</span>
+            <span v-if="trayDeadline && submittedText"> · </span>
+            <span v-if="submittedText">{{ submittedText }}</span>
+          </div>
+          <DewButton type="glass" @click="goMarket">进入团购导生</DewButton>
+        </template>
 
-        <DewButtonBar v-model="activeTag" :items="tagItems" style="margin-bottom: 14px;" />
-
-        <div v-if="!filteredMentors.length" class="ms-empty">
-          {{ phaseInfo.phase === 'round2' ? '没有可选的导生了（均已满员）' : '暂无导生发布名片' }}
-        </div>
-        <div v-else class="mentor-grid">
-          <MsMentorCard
-            v-for="(m, i) in filteredMentors"
-            :key="m.user_id"
-            :mentor="m"
-            :picked-rank="rankOf(m.user_id)"
-            :selectable="true"
-            :index="i"
-            @toggle="togglePick(m)"
-          />
-        </div>
-
-        <MsPreferenceTray
-          :picks="picks"
-          :mentor-names="mentorNames"
-          :deadline="trayDeadline"
-          :round="submittable"
-          :already-submitted="alreadySubmitted"
-          :submitting="submitting"
-          @remove="removePick"
-          @move-up="moveUp"
-          @update-note="updateNote"
-          @submit="submitPicks"
-        />
-      </template>
+        <!-- 已交志愿：回显（真相源 phase 接口）+ 再逛逛 -->
+        <template v-else>
+          <div class="cta-label">已提交 {{ submittedPicks.length }} 个志愿 · 截止前可在市集整组修改</div>
+          <div class="pick-list">
+            <div v-for="(p, i) in submittedPicks" :key="p.mentor_id" class="pick-row">
+              <span class="pick-rank">{{ i + 1 }}</span>
+              <span class="pick-name">{{ mentorNames[p.mentor_id] || `导生#${p.mentor_id}` }}</span>
+              <span v-if="p.note" class="pick-note">“{{ p.note }}”</span>
+            </div>
+          </div>
+          <div class="cta-meta" v-if="trayDeadline">截止 {{ trayDeadline }}</div>
+          <DewButton type="ghost" @click="goMarket">再逛逛 · 修改志愿</DewButton>
+        </template>
+      </DewCard>
 
       <!-- 未开始 -->
       <DewCard v-else-if="phaseInfo.phase === 'upcoming'" variant="default" size="lg" :no-hover="true" class="section-card">
@@ -98,21 +93,18 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
-import { DewCard, DewButtonBar, DewTag } from '@bme/dew-ui';
+import { DewCard, DewButton, DewTag } from '@bme/dew-ui';
 import MsPhaseBar from './MsPhaseBar.vue';
-import MsMentorCard from './MsMentorCard.vue';
-import MsPreferenceTray from './MsPreferenceTray.vue';
 import { campService, assetUrl } from '../../services/campService';
 
 const props = defineProps({ sid: { type: [Number, String], required: true } });
+const router = useRouter();
 
 const loading = ref(true);
 const phaseInfo = ref(null);
 const mentors = ref([]);
-const activeTag = ref('all');
-const picks = ref([]);          // [{mentor_id, note}]
-const submitting = ref(false);
 
 const meRound1 = computed(() => phaseInfo.value?.me?.round1 || []);
 const submittable = computed(() => phaseInfo.value?.me?.submittable_round || null);
@@ -121,24 +113,13 @@ const alreadySubmitted = computed(() => {
   const list = submittable.value === 1 ? meRound1.value : (phaseInfo.value.me.round2 || []);
   return list.length > 0;
 });
+const submittedPicks = computed(() => (
+  submittable.value === 1 ? meRound1.value : (phaseInfo.value.me?.round2 || [])));
 
 const trayDeadline = computed(() => {
   const d = phaseInfo.value?.deadlines;
   if (!d) return '';
   return submittable.value === 2 ? d.round2_deadline : d.preference_deadline;
-});
-
-const tagItems = computed(() => [
-  { value: 'all', label: '全部' },
-  ...(phaseInfo.value?.ms_tags || []).map((t) => ({ value: t, label: t })),
-]);
-
-const filteredMentors = computed(() => {
-  let list = mentors.value;
-  if (activeTag.value !== 'all') list = list.filter((m) => m.tags?.includes(activeTag.value));
-  // 二轮只给有余额的导生（后端已挡满员提交，前端同样隐藏免得点了报错）
-  if (phaseInfo.value?.phase === 'round2') list = list.filter((m) => !m.full);
-  return list;
 });
 
 const mentorNames = computed(
@@ -185,43 +166,7 @@ const phaseCaption = computed(() => {
   return '';
 });
 
-const rankOf = (mentorId) => picks.value.findIndex((p) => p.mentor_id === mentorId) + 1;
-
-function togglePick(m) {
-  const i = picks.value.findIndex((p) => p.mentor_id === m.user_id);
-  if (i >= 0) {
-    picks.value.splice(i, 1);
-    return;
-  }
-  if (m.full) { ElMessage.warning('该导生名额已满'); return; }
-  if (picks.value.length >= 3) { ElMessage.warning('最多提交 3 个志愿，先移除一个'); return; }
-  picks.value.push({ mentor_id: m.user_id, note: '' });
-}
-
-const removePick = (i) => picks.value.splice(i, 1);
-const moveUp = (i) => {
-  if (i <= 0) return;
-  const arr = picks.value;
-  [arr[i - 1], arr[i]] = [arr[i], arr[i - 1]];
-};
-const updateNote = (i, v) => { if (picks.value[i]) picks.value[i].note = v; };
-
-async function submitPicks() {
-  if (!picks.value.length) return;
-  submitting.value = true;
-  try {
-    await campService.submitMsPreferences(
-      props.sid, picks.value.map((p) => ({ mentor_id: p.mentor_id, note: p.note || '' })));
-    ElMessage.success('志愿已提交，截止前可修改');
-    await load();
-  } catch (e) {
-    ElMessage.error(e.response?.data?.message || '提交失败');
-    // 常见原因：所选导生刚满员 / 窗口刚切换 —— 重拉最新状态
-    if (e.response?.status === 400 || e.response?.status === 403) await load();
-  } finally {
-    submitting.value = false;
-  }
-}
+const goMarket = () => router.push(`/camp/${props.sid}/market`);
 
 async function load() {
   loading.value = true;
@@ -232,19 +177,6 @@ async function load() {
     ]);
     phaseInfo.value = ph;
     mentors.value = ms.mentors || [];
-    // 已有志愿回填托盘（当前可提交轮次）
-    const r = ph.me?.submittable_round;
-    if (r) {
-      const prev = r === 1 ? ph.me.round1 : ph.me.round2;
-      picks.value = (prev || []).map((x) => ({ mentor_id: x.mentor_id, note: x.note || '' }));
-      // 二轮回填时剔除已满员的（防直接提交报错）
-      if (r === 2) {
-        picks.value = picks.value.filter(
-          (p) => !mentors.value.find((m) => m.user_id === p.mentor_id)?.full);
-      }
-    } else {
-      picks.value = [];
-    }
   } catch {
     ElMessage.error('加载选导生信息失败');
   } finally {
@@ -269,26 +201,48 @@ watch(() => props.sid, load, { immediate: true });
   color: var(--dew-text-muted);
 }
 
-.round2-note {
-  padding: 8px 14px;
+/* ── 市集入口卡：未交 = 大 CTA；已交 = 志愿回显 ── */
+.cta-label { font-size: 12px; letter-spacing: 1px; color: var(--dew-text-faint); }
+.cta-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--dew-text-heading);
+  margin: 8px 0 10px;
+  line-height: 1.4;
+}
+.cta-meta { font-size: 13px; color: var(--dew-text-muted); margin-bottom: 16px; }
+
+.pick-list { display: flex; flex-direction: column; gap: 8px; margin: 12px 0 4px; }
+.pick-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
   border-radius: var(--radius-md, 12px);
-  font-size: 13px;
-  color: var(--color-primary);
-  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+  background: var(--dew-card-flat-bg, rgba(0, 0, 0, 0.03));
 }
-
-.mentor-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(224px, 1fr));
-  gap: 14px;
-  margin-bottom: 16px;
+.pick-rank {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--color-primary);
+  color: #fff;
 }
-
-.ms-empty {
-  padding: 40px 0;
-  text-align: center;
-  font-size: 13px;
+.pick-name { font-size: 13.5px; font-weight: 600; color: var(--dew-text); }
+.pick-note {
+  font-size: 12.5px;
   color: var(--dew-text-muted);
+  margin-left: auto;
+  max-width: 46%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* 海报式结果卡：左海报右信息 */

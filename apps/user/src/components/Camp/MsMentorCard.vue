@@ -1,5 +1,5 @@
 <template>
-  <DewCard variant="inset" size="sm" class="mentor-card" :class="{ picked: pickedRank > 0, full }"
+  <DewCard variant="inset" size="sm" class="mentor-card" :class="{ picked: pickedRank > 0, full, 'is-lg': size === 'lg' }"
            :style="{ '--reveal-index': index }">
     <!-- 封面：海报比例照片（无照片 → 姓名首字色块，同课程卡哈希色） -->
     <div class="card-photo">
@@ -7,8 +7,8 @@
       <div v-else class="photo-fallback" :style="{ background: fallbackColor }">
         {{ initial }}
       </div>
-      <!-- 剩余名额角标 -->
-      <span class="cap-badge" :class="{ 'is-full': full }">
+      <!-- 剩余名额角标（余 1 席做稀缺强调） -->
+      <span class="cap-badge" :class="{ 'is-full': full, 'is-scarce': !full && mentor.remaining <= 1 }">
         {{ full ? '已满' : `余 ${mentor.remaining}` }}
       </span>
       <!-- 已入志愿角标 -->
@@ -50,6 +50,7 @@ const props = defineProps({
   pickedRank: { type: Number, default: 0 },   // 0 = 未在志愿中
   selectable: { type: Boolean, default: false },
   index: { type: Number, default: 0 },        // 网格内序号：入场 stagger 动画用
+  size: { type: String, default: 'md' },      // 'lg' = 市集放大态（编辑器预览用默认尺寸）
 });
 defineEmits(['toggle']);
 
@@ -125,6 +126,8 @@ const fallbackColor = computed(() => {
 }
 .cap-badge { right: 8px; }
 .cap-badge.is-full { color: var(--dew-text-muted); }
+/* 余 1 席：琥珀色稀缺强调（真实余量可见，不做人为热度） */
+.cap-badge.is-scarce { color: var(--color-warning); font-weight: 700; }
 .rank-badge {
   left: 8px;
   background: var(--color-primary);
@@ -158,4 +161,13 @@ const fallbackColor = computed(() => {
 }
 
 .card-actions { display: flex; gap: 8px; }
+
+/* ── 市集放大态（size="lg"）：字号/留白整体升一档，照片区比例不变 ── */
+.is-lg .card-meta { padding: 16px 18px 18px; }
+.is-lg .name { font-size: 17px; }
+.is-lg .cap-text { font-size: 12px; }
+.is-lg .bio { font-size: 13.5px; min-height: 42px; }
+.is-lg .photo-fallback { font-size: 72px; }
+.is-lg .cap-badge, .is-lg .rank-badge { font-size: 12px; padding: 3px 11px; }
+.is-lg .tag-row { gap: 8px; margin-top: 10px; }
 </style>
