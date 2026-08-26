@@ -7,13 +7,13 @@
     <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 16px;">
       <div style="display: flex; gap: 16px;">
         <div style="font-size: 13px; color: var(--dew-text-muted);">
-          共 <span style="font-weight: 600; color: var(--dew-text-heading);">{{ total }}</span> 条通知
+          共 <span style="font-weight: 600; color: var(--dew-text-heading);">{{ total }}</span> {{ totalLabel }}
         </div>
-        <div v-if="unreadCount > 0" style="font-size: 13px; color: var(--color-primary);">
-          <span style="font-weight: 600;">{{ unreadCount }}</span> 条未读
+        <div v-if="currentUnread > 0" style="font-size: 13px; color: var(--color-primary);">
+          <span style="font-weight: 600;">{{ currentUnread }}</span> 条未读
         </div>
       </div>
-      <DewButton v-if="unreadCount > 0" type="ghost" size="sm" @click="handleMarkAllAsRead">
+      <DewButton v-if="activeFilter !== 'gratitude' && unreadCount > 0" type="ghost" size="sm" @click="handleMarkAllAsRead">
         全部已读
       </DewButton>
     </div>
@@ -45,14 +45,15 @@
         <svg style="width: 40px; height: 40px; margin-bottom: 10px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
         </svg>
-        <span style="font-size: 14px;">暂无通知</span>
+        <span style="font-size: 14px;">{{ emptyText }}</span>
       </div>
 
       <!-- 通知卡片列表 -->
-      <div v-else style="display: flex; flex-direction: column; gap: 6px;">
+      <div v-else-if="activeFilter !== 'gratitude'" style="display: flex; flex-direction: column; gap: 6px;">
         <DewCard
           v-for="item in pagedList"
           :key="item.id"
+          :class="{ 'list-item--selected': item.id === selectedId }"
           :interactive="true"
           variant="inset"
           size="sm"
@@ -91,6 +92,46 @@
         </DewCard>
       </div>
 
+      <!-- 感谢信卡片列表（导生侧） -->
+      <div v-else style="display: flex; flex-direction: column; gap: 6px;">
+        <DewCard
+          v-for="letter in pagedList"
+          :key="letter.id"
+          :class="{ 'list-item--selected': letter.id === selectedId }"
+          :interactive="true"
+          variant="inset"
+          size="sm"
+          @click="handleLetterClick(letter)"
+        >
+          <div style="display: flex; align-items: flex-start; gap: 12px;">
+            <!-- 图标 -->
+            <div class="notification-icon notification-icon--letter">
+              <component :is="ChatDotRound" style="width: 18px; height: 18px; color: var(--color-success);" />
+            </div>
+
+            <!-- 内容 -->
+            <div style="flex: 1; min-width: 0;">
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                <span
+                  :style="{
+                    fontSize: '14px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    fontWeight: letter.is_read ? '500' : '600',
+                    color: letter.is_read ? 'var(--dew-text-muted)' : 'var(--dew-text-heading)',
+                  }"
+                >{{ letter.sender?.username }} 的感谢信</span>
+              </div>
+              <p class="notification-content">{{ letter.content }}</p>
+              <div style="display: flex; align-items: center; justify-content: space-between;">
+                <span style="font-size: 12px; color: var(--dew-text-faint);">{{ formatRelativeTime(letter.created_at) }}</span>
+              </div>
+            </div>
+
+            <!-- 未读蓝点 -->
+            <div v-if="!letter.is_read" class="unread-dot"></div>
+          </div>
+        </DewCard>
+      </div>
+
       <!-- 分页 -->
       <div v-if="pagedList.length > 0 && total > pageSize" class="pagination">
         <DewButton size="sm" :disabled="currentPage === 1" @click="currentPage--">上一页</DewButton>
@@ -113,22 +154,52 @@
         </div>
       </div>
     </DewDialog>
+
+    <!-- 感谢信详情弹窗（仅移动端单栏时使用） -->
+    <DewDialog v-model="letterDetailVisible" title="感谢信" :width="520">
+      <GratitudeLetterDetail v-if="mobileLetter" :letter="mobileLetter" />
+    </DewDialog>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
-import { Bell } from '@element-plus/icons-vue'
+import { useStore } from 'vuex'
+import { Bell, ChatDotRound } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { DewButton, DewButtonBar, DewCard, DewTag, DewDialog, DewSkeleton } from '@bme/dew-ui'
 import { useNotifications, formatRelativeTime } from '../../composables/useNotifications'
+import { useGratitude } from '../../composables/useGratitude'
+import GratitudeLetterDetail from '../Gratitude/GratitudeLetterDetail.vue'
+
+const props = defineProps({
+  /** 当前筛选 tab（受控：由 NotificationInbox 持有并同步到 URL） */
+  tab: { type: String, default: 'all' },
+  /** 右栏当前选中的通知/信件 id（用于左栏选中高亮） */
+  selectedId: { type: [Number, String], default: null },
+})
+
+const emit = defineEmits(['update:tab', 'select', 'select-letter'])
 
 const router = useRouter()
+const store = useStore()
 
-// 系统通知详情弹窗
+// 感谢信 tab 仅对导生展示（信件只有导生会收到）
+const isMentor = computed(() => store.getters.role === 'mentor')
+
+// 系统通知详情弹窗（仅移动端 <900px 使用；桌面端走右栏详情）
 const detailVisible = ref(false)
 const selectedNotice = ref(null)
+
+// 感谢信详情弹窗（同上，移动端回退）
+const letterDetailVisible = ref(false)
+const mobileLetter = ref(null)
+
+// 移动端判定：分栏折叠为单栏后，system 通知回退弹窗交互
+const isMobile = ref(false)
+let mediaQuery = null
+const handleMediaChange = (e) => { isMobile.value = e.matches }
 
 // 共享状态（与 NotificationBell 共用同一份数据）
 const {
@@ -141,23 +212,39 @@ const {
   markAllAsRead,
 } = useNotifications()
 
-const activeFilter = ref('all')
+// 感谢信共享状态（unreadCount 重命名避免与通知的冲突）
+const { letters, unreadCount: letterUnread, fetchLetters, markLetterRead } = useGratitude()
+
+const activeFilter = computed({
+  get: () => props.tab,
+  set: (v) => { emit('update:tab', v) },
+})
 const currentPage = ref(1)
 const pageSize = 20
 
 // 统计
 const total = computed(() => filteredList.value.length)
+const totalLabel = computed(() => (activeFilter.value === 'gratitude' ? '封信' : '条通知'))
+const currentUnread = computed(() => (activeFilter.value === 'gratitude' ? letterUnread.value : unreadCount.value))
+const emptyText = computed(() => (activeFilter.value === 'gratitude' ? '暂无感谢信' : '暂无通知'))
 
-// 筛选栏选项
-const filterItems = computed(() => [
-  { value: 'all', label: '全部', icon: Bell },
-  { value: 'system', label: '系统', icon: Bell },
-  { value: 'camp', label: '营期', icon: Bell },
-  { value: 'unread', label: '未读', icon: Bell, badge: unreadCount.value || undefined },
-])
+// 筛选栏选项（感谢信 tab 仅导生可见）
+const filterItems = computed(() => {
+  const items = [
+    { value: 'all', label: '全部', icon: Bell },
+    { value: 'system', label: '系统', icon: Bell },
+    { value: 'camp', label: '营期', icon: Bell },
+    { value: 'unread', label: '未读', icon: Bell, badge: unreadCount.value || undefined },
+  ]
+  if (isMentor.value) {
+    items.push({ value: 'gratitude', label: '感谢信', icon: ChatDotRound, badge: letterUnread.value || undefined })
+  }
+  return items
+})
 
-// 筛选 + 分页
+// 筛选 + 分页（gratitude tab 数据源切换为感谢信）
 const filteredList = computed(() => {
+  if (activeFilter.value === 'gratitude') return letters.value
   let list = notificationList.value
   if (activeFilter.value === 'system') {
     list = list.filter(n => n.category === 'system')
@@ -173,15 +260,30 @@ const pagedList = computed(() =>
   filteredList.value.slice((currentPage.value - 1) * pageSize, currentPage.value * pageSize)
 )
 
-watch(activeFilter, () => { currentPage.value = 1 })
+watch(activeFilter, (tab) => {
+  currentPage.value = 1
+  // 进入感谢信 tab 时刷新信箱（通知轮询不覆盖信件数据）
+  if (tab === 'gratitude' && isMentor.value) fetchLetters()
+})
 
 // 交互
 function handleClick(item) {
   if (!item.is_read) markAsRead(item.id)
-  // 系统通知：弹详情，不跳转
+  // 感谢信提醒：切到感谢信 tab 并选中对应信件
+  if (item.category === 'gratitude') {
+    emit('update:tab', 'gratitude')
+    const letter = letters.value.find(l => l.id === item.source_id)
+    if (letter) emit('select-letter', letter)
+    return
+  }
+  // 系统通知：桌面端右栏展示详情，移动端（单栏）回退弹窗
   if (item.category === 'system') {
-    selectedNotice.value = item
-    detailVisible.value = true
+    if (isMobile.value) {
+      selectedNotice.value = item
+      detailVisible.value = true
+    } else {
+      emit('select', item)
+    }
     return
   }
   // 营期通知：按 source_type 跳转到对应处理页
@@ -206,6 +308,16 @@ function handleClick(item) {
   }
 }
 
+// 信件点击：桌面端右栏展示，移动端回退弹窗（打开即已读由 GratitudeLetterDetail 处理）
+function handleLetterClick(letter) {
+  if (isMobile.value) {
+    mobileLetter.value = letter
+    letterDetailVisible.value = true
+  } else {
+    emit('select-letter', letter)
+  }
+}
+
 function handleMarkAllAsRead() {
   // 在分类 tab 下只标记该分类，避免把营期/系统通知一起标掉
   const cat = (activeFilter.value === 'camp' || activeFilter.value === 'system') ? activeFilter.value : null
@@ -213,8 +325,18 @@ function handleMarkAllAsRead() {
   ElMessage.success(cat ? `已将「${cat === 'camp' ? '营期' : '系统'}」通知标记为已读` : '已全部标记为已读')
 }
 
-// 初始化：拉取数据
-onMounted(() => fetchNotifications())
+// 初始化：拉取数据 + 导生预载感谢信（供 gratitude 通知点击时定位信件） + 移动端断点监听
+onMounted(() => {
+  fetchNotifications()
+  if (isMentor.value) fetchLetters()
+  mediaQuery = window.matchMedia('(max-width: 900px)')
+  isMobile.value = mediaQuery.matches
+  mediaQuery.addEventListener('change', handleMediaChange)
+})
+
+onBeforeUnmount(() => {
+  mediaQuery?.removeEventListener('change', handleMediaChange)
+})
 </script>
 
 <style scoped>
@@ -238,6 +360,11 @@ onMounted(() => fetchNotifications())
   background: rgba(156, 163, 175, 0.1);
 }
 
+/* 感谢信：语义成功色轻底 */
+.notification-icon--letter {
+  background: color-mix(in srgb, var(--color-success) 12%, transparent);
+}
+
 .notification-content {
   font-size: 13px;
   color: var(--dew-text-muted);
@@ -255,6 +382,12 @@ onMounted(() => fetchNotifications())
   background: var(--color-primary);
   flex-shrink: 0;
   margin-top: 8px;
+}
+
+/* 选中态：主色描边 + 轻底色（与右栏详情联动） */
+.list-item--selected {
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--color-primary) 55%, transparent);
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
 }
 
 .pagination {

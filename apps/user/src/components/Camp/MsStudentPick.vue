@@ -30,6 +30,9 @@
             </div>
             <p v-if="myMentorNote" class="result-note">“{{ myMentorNote }}”</p>
             <div class="result-hint">导生同样能看到你的信息，营期内可在「请假」等页面协作</div>
+            <div class="result-actions">
+              <DewButton type="ghost" size="sm" @click="gratitudeVisible = true">写封感谢信</DewButton>
+            </div>
           </div>
         </div>
       </DewCard>
@@ -88,6 +91,13 @@
         <div class="result-hint">{{ phaseInfo.deadlines.preference_start || '' }} 起可浏览导生名片并提交志愿，届时会有通知。</div>
       </DewCard>
     </template>
+
+    <!-- 感谢信：给我的导生（信件独立成表，营期仅作展示上下文） -->
+    <GratitudeDialog
+      v-model="gratitudeVisible"
+      :recipient="myMentorRecipient"
+      :camp-session-id="sid"
+    />
   </div>
 </template>
 
@@ -97,6 +107,7 @@ import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { DewCard, DewButton, DewTag } from '@bme/dew-ui';
 import MsPhaseBar from './MsPhaseBar.vue';
+import GratitudeDialog from '../Gratitude/GratitudeDialog.vue';
 import { campService, assetUrl } from '../../services/campService';
 
 const props = defineProps({ sid: { type: [Number, String], required: true } });
@@ -105,6 +116,7 @@ const router = useRouter();
 const loading = ref(true);
 const phaseInfo = ref(null);
 const mentors = ref([]);
+const gratitudeVisible = ref(false);
 
 const meRound1 = computed(() => phaseInfo.value?.me?.round1 || []);
 const submittable = computed(() => phaseInfo.value?.me?.submittable_round || null);
@@ -145,6 +157,13 @@ const myMentorNote = computed(() => {
   if (!me?.my_mentor) return '';
   const prefs = [...(me.round1 || []), ...(me.round2 || [])];
   return prefs.find((p) => p.mentor_id === me.my_mentor.user_id)?.note || '';
+});
+
+// 感谢信收件人：我的导生（供 GratitudeDialog 使用）
+const myMentorRecipient = computed(() => {
+  const mine = phaseInfo.value?.me?.my_mentor;
+  if (!mine) return { user_id: null, username: '', avatar: '' };
+  return { user_id: mine.user_id, username: mine.username, avatar: myMentorAvatar.value };
 });
 
 // 从众信号：本轮已交志愿的去重学员数 / 营内学员总数（后端 phase.stats）
@@ -275,4 +294,5 @@ watch(() => props.sid, load, { immediate: true });
   border-radius: 0 var(--radius-md, 12px) var(--radius-md, 12px) 0;
 }
 .result-hint { margin-top: 12px; font-size: 13px; color: var(--dew-text-muted); line-height: 1.6; }
+.result-actions { margin-top: 14px; }
 </style>

@@ -25,7 +25,7 @@
           :key="item.id"
           class="preview-item"
           :class="{ 'is-unread': !item.is_read }"
-          @click="goToNotifications"
+          @click="goToNotifications(item)"
         >
           <span v-if="!item.is_read" class="preview-dot"></span>
           <div class="preview-body">
@@ -66,8 +66,13 @@ const { notificationList, unreadCount, startPolling, stopPolling } = useNotifica
 
 const recentNotifications = computed(() => notificationList.value.slice(0, 5))
 
-const goToNotifications = () => {
-  router.push('/notifications')
+// 感谢信提醒直达感谢信 tab，其余进默认列表
+const goToNotifications = (item) => {
+  if (item?.category === 'gratitude') {
+    router.push({ path: '/notifications', query: { tab: 'gratitude' } })
+  } else {
+    router.push('/notifications')
+  }
 }
 
 onMounted(() => startPolling(30000))

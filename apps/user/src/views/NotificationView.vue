@@ -12,8 +12,8 @@
         </div>
       </div>
 
-      <!-- 统一通知列表组件（教师/学生共用） -->
-      <NotificationListComponent />
+      <!-- 邮箱式收件箱：左列消息列表 + 右栏详情（教师/学生共用） -->
+      <NotificationInbox />
     </div>
   </div>
 </template>
@@ -22,7 +22,7 @@
 import { computed } from 'vue'
 import { useStore } from 'vuex'
 import MenuComponent from '../components/MenuComponent.vue'
-import NotificationListComponent from '../components/Notification/NotificationListComponent.vue'
+import NotificationInbox from '../components/Notification/NotificationInbox.vue'
 
 const store = useStore()
 const isDarkMode = computed(() => store.getters.isDarkMode)
@@ -56,7 +56,7 @@ const isDarkMode = computed(() => store.getters.isDarkMode)
 }
 
 .notification-wrap {
-  max-width: 960px;
+  max-width: 1120px;
   margin: 0 auto;
   padding: 24px 20px;
 }
@@ -80,7 +80,7 @@ const isDarkMode = computed(() => store.getters.isDarkMode)
   width: 4px;
   height: 20px;
   border-radius: 2px;
-  background: linear-gradient(180deg, #3b82f6, #8b5cf6);
+  background: var(--color-primary);
 }
 
 .page-title {
