@@ -22,7 +22,14 @@
     >
       <component v-if="item.icon" :is="item.icon" class="dew-bar__icon" />
       <span class="dew-bar__label">{{ item.label }}</span>
-      <span v-if="item.badge && item.badge > 0" class="dew-bar__badge">{{ item.badge }}</span>
+      <span
+        v-if="hasBadge(item)"
+        class="dew-bar__badge"
+        :class="{
+          'dew-bar__badge--active-count': badgeMode === 'active-count',
+          'dew-bar__badge--visible': badgeMode !== 'active-count' || modelValue === item.value,
+        }"
+      >{{ badgeMode === 'active-count' ? `（${item.badge}）` : item.badge }}</span>
     </button>
   </div>
 </template>
@@ -38,6 +45,11 @@ const props = defineProps({
   items: { type: Array, required: true },
   modelValue: { type: [String, Number], default: null },
   size: { type: String, default: 'md' },  // sm | md
+  badgeMode: {
+    type: String,
+    default: 'pill',
+    validator: (value) => ['pill', 'active-count'].includes(value),
+  },
 })
 
 defineEmits(['update:modelValue'])
@@ -45,6 +57,10 @@ defineEmits(['update:modelValue'])
 const barRef = ref(null)
 const state = reactive({ hovering: false, x: 0.5, y: 0.5 })
 const indicator = reactive({ left: 0, width: 0 })
+
+const hasBadge = (item) => props.badgeMode === 'active-count'
+  ? item.badge !== undefined && item.badge !== null
+  : Number(item.badge) > 0
 
 // 测量选中项的位置，让指示器滑动过去
 function measureIndicator() {
@@ -189,6 +205,27 @@ const refractionStyle = computed(() => {
   background: var(--dew-bar-badge-bg);
   color: var(--dew-bar-badge-color);
 }
+.dew-bar__badge--active-count {
+  min-width: 0;
+  max-width: 0;
+  height: auto;
+  padding: 0;
+  overflow: hidden;
+  color: inherit;
+  background: transparent;
+  opacity: 0;
+  transform: translateX(-4px);
+  white-space: nowrap;
+  transition:
+    max-width 0.32s var(--dew-bounce),
+    opacity 0.2s ease,
+    transform 0.32s var(--dew-bounce);
+}
+.dew-bar__badge--active-count.dew-bar__badge--visible {
+  max-width: 44px;
+  opacity: 1;
+  transform: translateX(0);
+}
 
 /* ── 选中态 ── */
 .dew-bar__item--active {
@@ -200,5 +237,10 @@ const refractionStyle = computed(() => {
 /* ── hover（非选中项） ── */
 .dew-bar__item:not(.dew-bar__item--active):hover {
   color: var(--dew-bar-text-hover);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dew-bar__indicator,
+  .dew-bar__badge--active-count { transition: none; }
 }
 </style>

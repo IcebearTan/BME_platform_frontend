@@ -338,9 +338,13 @@ const mentorMembers = computed(() => members.value.filter((m) => m.role === 'men
 // 加成员：用户按全局 role 过滤（默认仅学员/导生），营期角色由所选用户派生
 const showAllUsers = ref(false);
 const roleLabel = (r) => ({ student: '学员', mentor: '导生', teacher: '教师', super_admin: '超管' }[r] || r || '—');
-const selectableUsers = computed(() =>
-  showAllUsers.value ? users.value : users.value.filter((u) => u.role === 'student' || u.role === 'mentor')
-);
+const selectableUsers = computed(() => {
+  const memberIds = new Set(members.value.map((member) => member.user_id));
+  const candidates = showAllUsers.value
+    ? users.value
+    : users.value.filter((user) => user.role === 'student' || user.role === 'mentor');
+  return candidates.filter((user) => !memberIds.has(user.User_Id));
+});
 // 已选用户的身份汇总：驱动「已选」标签展示，及「全学员才可统一归属导生」
 const selectedRoles = computed(() => {
   const c = { mentor: 0, student: 0, total: 0 };

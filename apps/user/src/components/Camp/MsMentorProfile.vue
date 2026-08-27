@@ -10,7 +10,7 @@
     <div class="profile-body">
       <!-- 左：编辑区 -->
       <div class="edit-col">
-        <!-- 照片：海报同比例 4:5，点击/拖拽上传 -->
+        <!-- 展示图片：与市集卡片保持 4:5，点击或拖拽上传。 -->
         <div class="photo-col">
           <div
             class="photo-box"
@@ -23,7 +23,7 @@
             <img v-if="photoSrc" :src="photoSrc" alt="" />
             <div v-else class="photo-empty">
               <el-icon><Plus /></el-icon>
-              <span>点击或拖入照片</span>
+              <span>点击或拖入展示图片</span>
             </div>
             <transition name="fade">
               <div v-if="uploading || dragOver" class="photo-mask">
@@ -31,7 +31,7 @@
               </div>
             </transition>
           </div>
-          <span class="photo-hint">jpg / png，不超过 5MB{{ locked ? '（已锁定）' : '' }}</span>
+          <span class="photo-hint">建议使用清晰的竖向展示图片（4:5），jpg / png，不超过 5MB{{ locked ? '（已锁定）' : '' }}</span>
           <!-- 隐藏的 el-upload：pickPhoto 触发其文件选择 -->
           <el-upload
             ref="uploadRef"
@@ -237,9 +237,9 @@ watch(() => props.sid, load, { immediate: true });
 .photo-col { flex: none; display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .photo-box {
   position: relative;
-  width: 160px;
+  width: 180px;
   aspect-ratio: 4 / 5;
-  border-radius: var(--radius-lg, 16px);
+  border-radius: 8px;
   overflow: hidden;
   cursor: pointer;
   border: 1.5px dashed var(--dew-card-border, rgba(128, 128, 128, 0.25));

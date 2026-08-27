@@ -4,7 +4,7 @@ import { test, expect } from '@playwright/test'
 // 布局壳与编辑器页的 created() 会调 /user/user_index，失败即踢回 /login。
 // 故在测试上下文预置 token 并 mock 该接口——用例不依赖后端与真实账号。
 
-const BASE = 'http://localhost:5173/admin'
+const BASE = 'http://127.0.0.1:15173/admin'
 
 async function loginAsStaff(page) {
   // store 初始 token 读 localStorage；vuex-persistedstate 从 bme-admin-state 恢复 state，两处都预置
@@ -13,7 +13,12 @@ async function loginAsStaff(page) {
     localStorage.setItem('bme-admin-token', 'e2e-mock-token')
     localStorage.setItem(
       'bme-admin-state',
-      JSON.stringify({ token: 'e2e-mock-token', isLogin: true, isDarkMode: false })
+      JSON.stringify({
+        token: 'e2e-mock-token',
+        user: { role: 'super_admin', permissions: [], User_Name: 'e2e' },
+        isLogin: true,
+        isDarkMode: false,
+      })
     )
   })
   // 拦截全部后端请求：user_index 提供角色；其余统一 200 空数据，
@@ -26,6 +31,85 @@ async function loginAsStaff(page) {
     }
     return route.fulfill({ json: { code: 200, message: 'ok', data: {} } })
   })
+}
+
+async function mockCampSessionDetail(page) {
+  const mentors = Array.from({ length: 8 }, (_, index) => ({
+    user_id: 101 + index,
+    username: ['林泽宇', '周启航', '陈思涵', '沈知行', '王嘉仪', '唐予安', '许一诺', '程知远'][index],
+    role: 'mentor',
+    team_mentor_id: null,
+    joined_at: '2026-08-20T09:00:00',
+  }))
+  const students = Array.from({ length: 20 }, (_, index) => ({
+    user_id: 201 + index,
+    username: `测试学员${String(index + 1).padStart(2, '0')}`,
+    role: 'student',
+    team_mentor_id: index < 8 ? 101 + index : null,
+    joined_at: '2026-08-20T09:00:00',
+  }))
+  const candidates = [
+    { User_Id: 301, User_Name: '方子航', User_Email: 'candidate1@example.test', role: 'student' },
+    { User_Id: 302, User_Name: '罗雨薇', User_Email: 'candidate2@example.test', role: 'student' },
+    { User_Id: 303, User_Name: '邓嘉诚', User_Email: 'candidate3@example.test', role: 'student' },
+  ]
+  const overviewMentors = mentors.map((mentor) => ({
+    ...mentor,
+    has_profile: true,
+    capacity: 4,
+    chose_r1: 0,
+    chose_r2: 0,
+    matched: 1,
+    remaining: 3,
+  }))
+  const overviewStudents = students.map((student) => ({
+    user_id: student.user_id,
+    username: student.username,
+    matched: false,
+    mentor_name: null,
+    submitted_r1: false,
+    submitted_r2: false,
+  }))
+
+  await page.route('http://127.0.0.1:5001/camp/sessions/1', (route) =>
+    route.fulfill({ json: {
+      code: 200,
+      session: { id: 1, name: '本地导师双选测试营', status: 'active', mentor_selection_enabled: true },
+    } })
+  )
+  await page.route('http://127.0.0.1:5001/camp/sessions/1/members', (route) => {
+    if (route.request().method() === 'POST') {
+      return route.fulfill({ json: { code: 200, message: '已加入' } })
+    }
+    return route.fulfill({ json: { code: 200, members: [...mentors, ...students] } })
+  })
+  await page.route('http://127.0.0.1:5001/user/user_list', (route) =>
+    route.fulfill({
+      json: [
+        ...mentors.map((mentor) => ({ User_Id: mentor.user_id, User_Name: mentor.username, role: 'mentor' })),
+        ...students.map((student) => ({ User_Id: student.user_id, User_Name: student.username, role: 'student' })),
+        ...candidates,
+      ],
+    })
+  )
+  await page.route('http://127.0.0.1:5001/camp/ms/1/overview', (route) =>
+    route.fulfill({ json: {
+      code: 200,
+      phase: 'collecting',
+      deadlines: {},
+      mentors: overviewMentors,
+      students: overviewStudents,
+      stats: { students: 20, matched: 0, unmatched: 20, r2_enabled: true },
+    } })
+  )
+  for (const endpoint of ['courses', 'seats', 'leave']) {
+    await page.route(`http://127.0.0.1:5001/camp/sessions/1/${endpoint}`, (route) =>
+      route.fulfill({ json: { code: 200, [endpoint]: [] } })
+    )
+  }
+  await page.route('http://127.0.0.1:5001/camp/sessions/1/join-requests', (route) =>
+    route.fulfill({ json: { code: 200, requests: [], mentors: overviewMentors } })
+  )
 }
 
 test('登录页正常渲染', async ({ page }) => {
@@ -76,4 +160,33 @@ test('md-editor-v3 编辑器挂载', async ({ page }) => {
   // TinyMCE 系死代码（EditorComponent/EditorCreateComponent 等）已于批次 5 删除
   await expect(page.locator('.md-editor').first()).toBeVisible({ timeout: 15_000 })
   await expect(page.getByRole('button', { name: '保存草稿' })).toBeVisible()
+})
+
+test('营期详情保留选导生与成员添加能力', async ({ page }) => {
+  await loginAsStaff(page)
+  await mockCampSessionDetail(page)
+  await page.goto(`${BASE}/camp/sessions/1`)
+
+  await expect(page.getByRole('tab', { name: '选导生' })).toBeVisible()
+  await expect(page.getByRole('cell', { name: '林泽宇', exact: true }).first()).toBeVisible()
+  await expect(page.getByRole('cell', { name: '测试学员20', exact: true })).toBeVisible()
+
+  await page.getByRole('tab', { name: '选导生' }).click()
+  await expect(page.getByText('导生概览', { exact: true })).toBeVisible()
+  await expect(page.getByText('学员配对（0 / 20）', { exact: true })).toBeVisible()
+
+  await page.getByRole('tab', { name: '成员' }).click()
+  await page.getByRole('button', { name: '加成员', exact: true }).click()
+  const addDialog = page.getByRole('dialog', { name: '加成员' })
+  await addDialog.locator('.el-select').first().click()
+  const dropdown = page.locator('.el-select__popper:visible')
+  await expect(dropdown.getByText('方子航（学员）', { exact: true })).toBeVisible()
+  await expect(dropdown.getByText('林泽宇（导生）', { exact: true })).toHaveCount(0)
+  await dropdown.getByText('方子航（学员）', { exact: true }).click()
+
+  const addRequest = page.waitForRequest((request) =>
+    request.url() === 'http://127.0.0.1:5001/camp/sessions/1/members'
+      && request.method() === 'POST')
+  await page.getByRole('button', { name: '加入（1）', exact: true }).click()
+  expect((await addRequest).postDataJSON()).toEqual({ user_id: 301, team_mentor_id: null })
 })

@@ -18,7 +18,9 @@ pnpm install          # 全 workspace 安装
 pnpm dev:user         # 用户端（http://localhost:8081/AMEII/）
 pnpm dev:admin        # 管理端（http://localhost:5173/admin/）
 pnpm dev:all          # 两端同开
+pnpm dev:preview      # 两端 + 5002 临时预览 API（仅演示数据）
 pnpm build            # 两端构建
+pnpm test:e2e         # 独立测试端口 18081/15173 + 预览 API 契约检查
 ```
 
 注意：一律通过根 scripts 或进入对应 `apps/*` 目录运行命令；不要在仓库根目录直接跑 `npx vite`（app 的 vite.config 依赖 cwd 读取各自 package.json 注入 `__APP_VERSION__`）。
@@ -33,6 +35,10 @@ echo "VITE_API_BASE_URL=http://127.0.0.1:5001" > apps/admin/.env.development
 ```
 
 `apps/user/.env.example` 有参考模板。
+
+需要使用临时演示数据时运行 `pnpm dev:preview`。该模式通过 `.env.preview` 明确指向
+`5002`，不得把 `.env.development` 改到预览 API；真实开发始终使用 `5001`。
+Playwright 使用 `.env.test` 和独立端口，不会复用正在操作的开发/预览页面。
 
 ## Windows 开发机
 

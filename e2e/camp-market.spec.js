@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test'
 // 团购导生市集（/camp/:sid/market）+ ms tab 状态机：mock 后端数据，零依赖真实库
 // 规范见 apps/user/docs/营期模块-设计与IA规范.md §1.2 例外 / §2.4
 
-const BASE = 'http://localhost:8081/AMEII'
+const BASE = 'http://127.0.0.1:18081/AMEII'
 
 const SESSIONS = {
   code: 200,
@@ -17,23 +17,27 @@ const SESSIONS = {
 }
 
 const DEADLINES = {
-  preference_start: '2026-08-24 00:00', preference_deadline: '2026-08-24 23:00',
-  round1_deadline: '2026-08-24 23:59', round2_deadline: null,
+  preference_start: '2099-08-24 00:00', preference_deadline: '2099-08-24 23:00',
+  round1_deadline: '2099-08-24 23:59', round2_deadline: '2099-08-25 23:00',
 }
 
 const MENTORS = {
   mentors: [
-    { user_id: 13, username: 'test_mentor', photo_url: null, avatar: null,
+    { user_id: 13, username: 'test_mentor', photo_url: '/camp/ms/photo/test.svg', avatar: null,
       capacity: 8, matched: 7, remaining: 1, full: false, tags: ['硬件组'], bio: '搞硬件的' },
     { user_id: 20, username: '满员导生', photo_url: null, avatar: null,
       capacity: 3, matched: 3, remaining: 0, full: true, tags: ['软件组'], bio: '已经满了' },
+    { user_id: 21, username: '软件导生', photo_url: null, avatar: null,
+      capacity: 6, matched: 2, remaining: 4, full: false, tags: ['软件组'], bio: '一起做真实项目' },
+    { user_id: 22, username: 'AI导生', photo_url: null, avatar: null,
+      capacity: 4, matched: 1, remaining: 3, full: false, tags: ['人工智能'], bio: '让数据真正帮助人' },
   ],
 }
 
 function phaseOf(phase, me = {}) {
   return {
     code: 200, phase, enabled: true, config_error: false,
-    deadlines: DEADLINES, round2_enabled: false, ms_tags: ['硬件组', '软件组'],
+    deadlines: DEADLINES, round2_enabled: true, ms_tags: ['硬件组', '软件组', '人工智能'],
     stats: { submitted: 2, students: 4 },
     me: {
       role: 'student', round1: [], round2: [], submittable_round: null,
@@ -54,6 +58,12 @@ async function loginAsStudent(page, phase) {
   // 2) 拦截全部后端请求：camp 三接口给真形数据，其余统一 200 空数据
   await page.route('http://127.0.0.1:5001/**', (route) => {
     const url = route.request().url()
+    if (url.includes('/camp/ms/photo/test.svg')) {
+      return route.fulfill({
+        contentType: 'image/svg+xml',
+        body: '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="500"><rect width="400" height="500" fill="#d8ebff"/><text x="200" y="260" text-anchor="middle" font-size="64">TEST</text></svg>',
+      })
+    }
     if (url.includes('/camp/sessions') && !url.includes('/camp/ms')) {
       return route.fulfill({ json: SESSIONS })
     }
@@ -73,18 +83,45 @@ test('市集营业：collecting 可逛可收志愿', async ({ page }) => {
   await loginAsStudent(page, phaseOf('collecting', { submittable_round: 1 }))
 
   await page.goto(`${BASE}/camp/1/market`)
-  await expect(page.getByRole('heading', { name: '团购导生' })).toBeVisible()
-  // 从众信号（全营汇总）与稀缺/满员角标
-  await expect(page.getByText('已有 2/4 位同学提交志愿')).toBeVisible()
-  await expect(page.getByText('余 1', { exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: '已满' })).toBeDisabled()
+  await expect(page.getByRole('img', { name: '导生集市活动海报' })).toBeVisible()
+  await expect(page.getByText('集市规则')).toBeVisible()
+  await expect(page.getByRole('button', { name: /全部.*4/ })).toBeVisible()
+  await expect(page.getByText('7/8', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: '满员导生 名额已满' })).toBeDisabled()
+
+  await page.getByRole('button', { name: '查看 test_mentor 的展示图片' }).click()
+  await expect(page.locator('.el-image-viewer__wrapper')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.locator('.el-image-viewer__wrapper')).toBeHidden()
 
   // 加入志愿 → 托盘计数变化
-  await page.getByRole('button', { name: '加入志愿' }).first().click()
-  await expect(page.getByText('我的志愿（1/3）')).toBeVisible()
-  await expect(page.getByRole('button', { name: '移出志愿' })).toBeVisible()
+  await page.getByRole('button', { name: '加入心仪导生 test_mentor' }).click()
+  await expect(page.getByText('我的心仪导生（1/3）')).toBeVisible()
+  await expect(page.getByRole('button', { name: '移除 test_mentor' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /移出志愿/ })).toHaveCount(0)
 
   expect(errors).toEqual([])
+})
+
+test('心仪导生栏：左右排序、叉号删除与一轮三志愿约束', async ({ page }) => {
+  await loginAsStudent(page, phaseOf('collecting', { submittable_round: 1 }))
+  await page.goto(`${BASE}/camp/1/market`)
+
+  const submit = page.getByRole('button', { name: '提交志愿' })
+  await expect(submit).toBeDisabled()
+  await page.getByRole('button', { name: '加入心仪导生 test_mentor' }).click()
+  await page.getByRole('button', { name: '加入心仪导生 软件导生' }).click()
+  await page.getByRole('button', { name: '加入心仪导生 AI导生' }).click()
+  await expect(submit).toBeEnabled()
+
+  const trayBox = await page.locator('.tray-card').boundingBox()
+  expect(trayBox.height).toBeLessThan(140)
+
+  await page.getByRole('button', { name: '将 test_mentor 右移' }).click()
+  await expect(page.locator('.tray-item .item-name')).toHaveText(['软件导生', 'test_mentor', 'AI导生'])
+  await page.getByRole('button', { name: '移除 test_mentor' }).click()
+  await expect(page.getByText('我的心仪导生（2/3）')).toBeVisible()
+  await expect(submit).toBeDisabled()
 })
 
 test('未交志愿：ms tab 大 CTA 直达市集', async ({ page }) => {
@@ -96,7 +133,7 @@ test('未交志愿：ms tab 大 CTA 直达市集', async ({ page }) => {
   await expect(page.getByText('去逛导生市集，交出你的 3 个志愿')).toBeVisible()
   await page.getByRole('button', { name: '进入团购导生' }).click()
   await expect(page).toHaveURL(/\/camp\/1\/market$/)
-  await expect(page.getByRole('heading', { name: '团购导生' })).toBeVisible()
+  await expect(page.getByRole('img', { name: '导生集市活动海报' })).toBeVisible()
 
   expect(errors).toEqual([])
 })

@@ -6,6 +6,10 @@
   "scripts": {
     "predev": "node ../../packages/styles/copy-to-public.mjs",
     "dev": "vite",
+    "predev:preview": "node ../../packages/styles/copy-to-public.mjs",
+    "dev:preview": "vite --mode preview",
+    "predev:test": "node ../../packages/styles/copy-to-public.mjs",
+    "dev:test": "vite --mode test --host 127.0.0.1 --port 18081 --strictPort",
     "prebuild": "node ../../packages/styles/copy-to-public.mjs",
     "build": "vite build",
     "preview": "vite preview",
