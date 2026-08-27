@@ -1,12 +1,14 @@
 <template>
-  <div class="ms-tray-wrap" :class="{ 'is-empty': !picks.length }">
-    <DewCard
-      variant="default"
-      size="md"
-      :no-hover="true"
-      class="tray-card"
-      :class="{ 'is-empty': !picks.length }"
-    >
+  <div ref="trayAnchor" class="ms-tray-anchor" :style="anchorStyle">
+    <div class="ms-tray-wrap" :class="{ 'is-docked': isDocked, 'is-empty': !picks.length }">
+      <DewCard
+        ref="trayCard"
+        variant="default"
+        size="md"
+        :no-hover="true"
+        class="tray-card"
+        :class="{ 'is-empty': !picks.length }"
+      >
       <div class="tray-head">
         <span class="tray-title">我的心仪导生（<span>{{ picks.length }}/3</span>）</span>
       </div>
@@ -75,12 +77,13 @@
           {{ alreadySubmitted ? '修改志愿' : '提交志愿' }}
         </DewButton>
       </div>
-    </DewCard>
+      </DewCard>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { ArrowLeft, ArrowRight, Close } from '@element-plus/icons-vue';
 import { DewCard, DewButton, DewInput } from '@bme/dew-ui';
 
@@ -98,16 +101,66 @@ const mentorName = (id) => props.mentorNames[id] || `导生#${id}`;
 const canSubmit = computed(() => props.round === 1
   ? props.picks.length === 3
   : props.picks.length >= 1 && props.picks.length <= 3);
+
+const trayAnchor = ref(null);
+const trayCard = ref(null);
+const trayHeight = ref(0);
+const isDocked = ref(false);
+const anchorStyle = computed(() => ({ '--tray-height': `${trayHeight.value}px` }));
+let trayResizeObserver = null;
+
+function syncDocking() {
+  const anchor = trayAnchor.value;
+  const card = trayCard.value?.$el || trayCard.value;
+  if (!anchor || !card) return;
+
+  trayHeight.value = card.offsetHeight;
+  if (window.matchMedia('(max-width: 900px)').matches) {
+    isDocked.value = false;
+    return;
+  }
+
+  const dockBoundary = window.innerHeight - trayHeight.value - 12;
+  isDocked.value = anchor.getBoundingClientRect().top > dockBoundary;
+}
+
+onMounted(() => {
+  syncDocking();
+  window.addEventListener('scroll', syncDocking, { passive: true });
+  window.addEventListener('resize', syncDocking);
+
+  const card = trayCard.value?.$el || trayCard.value;
+  if (card && typeof ResizeObserver !== 'undefined') {
+    trayResizeObserver = new ResizeObserver(syncDocking);
+    trayResizeObserver.observe(card);
+  }
+});
+
+onUnmounted(() => {
+  window.removeEventListener('scroll', syncDocking);
+  window.removeEventListener('resize', syncDocking);
+  trayResizeObserver?.disconnect();
+});
 </script>
 
 <style scoped>
-.ms-tray-wrap {
-  position: sticky;
-  top: calc(100vh - 122px);
-  z-index: 5;
+.ms-tray-anchor {
+  min-height: var(--tray-height, 0px);
   margin-top: 22px;
 }
-.ms-tray-wrap.is-empty { top: calc(100vh - 82px); }
+.ms-tray-wrap {
+  position: relative;
+  z-index: 5;
+}
+.ms-tray-wrap.is-docked {
+  position: fixed;
+  bottom: 12px;
+  left: 50%;
+  width: min(1280px, calc(100vw - 48px));
+  z-index: 30;
+  transform: translateX(-50%);
+  animation: tray-dock-in 0.24s var(--dew-bounce, ease);
+}
 .tray-card {
   width: 100%;
   border-radius: var(--radius-xl);
@@ -193,14 +246,22 @@ const canSubmit = computed(() => props.round === 1
 .tray-leave-active { position: absolute; }
 .tray-move { transition: transform 0.25s var(--dew-bounce, ease); }
 
+@keyframes tray-dock-in {
+  from { opacity: 0; transform: translate(-50%, 12px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .tray-enter-active,
   .tray-leave-active,
   .tray-move,
-  .tray-remove { transition: none; }
+  .tray-remove,
+  .ms-tray-wrap.is-docked { animation: none; transition: none; }
 }
 @media (max-width: 900px) {
-  .ms-tray-wrap { position: static; margin-top: 18px; }
+  .ms-tray-anchor { min-height: 0; margin-top: 18px; }
+  .ms-tray-wrap,
+  .ms-tray-wrap.is-docked { position: static; width: auto; transform: none; }
   .tray-card :deep(.dew-card__body) { display: block; }
   .tray-head { margin-bottom: 10px; }
   .tray-empty { padding: 14px 0; }

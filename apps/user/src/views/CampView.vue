@@ -1,5 +1,5 @@
 <template>
-  <div :class="['camp-view', { 'theme-dark': isDarkMode, 'theme-light': !isDarkMode }]">
+  <div :class="['camp-view', 'dew-page-background', { 'theme-dark': isDarkMode, 'theme-light': !isDarkMode }]">
     <div style="height: 60px;"></div>
     <MenuComponent />
     <div class="camp-wrap">
@@ -228,24 +228,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.camp-view { min-height: 100vh; background-attachment: fixed; }
-.theme-light.camp-view {
-  background:
-    radial-gradient(ellipse 60% 50% at 12% 18%, rgba(96, 165, 250, 0.26), transparent 60%),
-    radial-gradient(ellipse 55% 60% at 88% 12%, rgba(244, 114, 182, 0.24), transparent 55%),
-    radial-gradient(ellipse 70% 55% at 82% 88%, rgba(52, 211, 153, 0.22), transparent 60%),
-    radial-gradient(ellipse 55% 60% at 8% 92%, rgba(251, 191, 36, 0.20), transparent 55%),
-    radial-gradient(ellipse 50% 50% at 50% 50%, rgba(34, 211, 238, 0.10), transparent 70%),
-    linear-gradient(135deg, #f0f4ff 0%, #fdf2f8 50%, #f0fdf4 100%);
-}
-.theme-dark.camp-view {
-  background:
-    radial-gradient(ellipse 60% 50% at 12% 18%, rgba(59, 130, 246, 0.18), transparent 60%),
-    radial-gradient(ellipse 55% 60% at 88% 12%, rgba(236, 72, 153, 0.15), transparent 55%),
-    radial-gradient(ellipse 70% 55% at 82% 88%, rgba(16, 185, 129, 0.14), transparent 60%),
-    radial-gradient(ellipse 55% 60% at 8% 92%, rgba(245, 158, 11, 0.12), transparent 55%),
-    linear-gradient(160deg, #16161a 0%, #0f0f12 100%);
-}
+.camp-view { min-height: 100vh; }
 /* 容器上限放宽：展开侧栏时吃掉两侧留白，而不是挤压主内容（主内容保持折叠态的舒适宽度） */
 .camp-wrap { max-width: 1280px; margin: 0 auto; padding: 24px 20px; }
 .camp-loading { padding: 8px 0; }

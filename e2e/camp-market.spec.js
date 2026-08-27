@@ -88,6 +88,9 @@ test('市集营业：collecting 可逛可收志愿', async ({ page }) => {
   await expect(page.getByRole('button', { name: /全部.*4/ })).toBeVisible()
   await expect(page.getByText('7/8', { exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: '满员导生 名额已满' })).toBeDisabled()
+  await expect(page.locator('.ms-tray-wrap')).toHaveClass(/is-docked/)
+  await page.locator('.ms-tray-anchor').scrollIntoViewIfNeeded()
+  await expect(page.locator('.ms-tray-wrap')).not.toHaveClass(/is-docked/)
 
   await page.getByRole('button', { name: '查看 test_mentor 的展示图片' }).click()
   await expect(page.locator('.el-image-viewer__wrapper')).toBeVisible()

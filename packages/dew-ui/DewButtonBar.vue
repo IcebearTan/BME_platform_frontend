@@ -44,7 +44,7 @@ const props = defineProps({
    */
   items: { type: Array, required: true },
   modelValue: { type: [String, Number], default: null },
-  size: { type: String, default: 'md' },  // sm | md
+  size: { type: String, default: 'md' },  // sm | md | lg
   badgeMode: {
     type: String,
     default: 'pill',
@@ -123,6 +123,7 @@ const refractionStyle = computed(() => {
 /* ── 尺寸 ── */
 .dew-bar--sm { gap: 2px; }
 .dew-bar--md { gap: 3px; }
+.dew-bar--lg { gap: 4px; }
 
 /* ── 折射层 ── */
 .dew-bar__refraction {
@@ -179,6 +180,11 @@ const refractionStyle = computed(() => {
   height: 34px;
   padding: 0 16px;
   font-size: 13px;
+}
+.dew-bar--lg .dew-bar__item {
+  height: 40px;
+  padding: 0 19px;
+  font-size: 14px;
 }
 
 .dew-bar__icon {

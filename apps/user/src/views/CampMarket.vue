@@ -1,5 +1,5 @@
 <template>
-  <div :class="['camp-market', { 'theme-dark': isDarkMode, 'theme-light': !isDarkMode }]">
+  <div :class="['camp-market', 'dew-page-background', { 'theme-dark': isDarkMode, 'theme-light': !isDarkMode }]">
     <div class="top-space"></div>
     <MenuComponent />
 
@@ -36,15 +36,17 @@
           </button>
           <img :src="marketPoster" alt="导生集市活动海报" />
           <div class="poster-float" aria-live="polite">
-            <Transition name="ticker" mode="out-in">
-              <div :key="tickerMode" class="live-ticker" :class="{ attendance: tickerMode === 1 }">
+            <div class="live-ticker">
+              <Transition name="ticker" mode="out-in">
+                <div :key="tickerMode" class="ticker-content" :class="{ attendance: tickerMode === 1 }">
                 <template v-if="tickerMode === 0">
                   <span class="ticker-label">截止时间：</span>
                   <strong>{{ countdownText }}</strong>
                 </template>
                 <strong v-else>{{ submittedText }}</strong>
+                </div>
+              </Transition>
               </div>
-            </Transition>
           </div>
         </section>
 
@@ -70,6 +72,7 @@
           <DewButtonBar
             v-model="activeTag"
             :items="tagItems"
+            size="lg"
             badge-mode="active-count"
             class="market-filter"
           />
@@ -340,7 +343,7 @@ onUnmounted(stopLiveUpdates);
 </script>
 
 <style scoped>
-.camp-market { min-height: 100vh; background: transparent; }
+.camp-market { min-height: 100vh; }
 .top-space { height: 60px; }
 .market-wrap { max-width: 1280px; margin: 0 auto; padding: 24px 24px 220px; }
 .market-loading { padding: 8px 0; }
@@ -386,26 +389,29 @@ onUnmounted(stopLiveUpdates);
 }
 .poster-back:hover { transform: translateY(-2px) rotate(-2deg); }
 .poster-back:active { transform: translateY(2px) rotate(-2deg); box-shadow: 0 2px 0 var(--color-primary-hover); }
-.poster-float { position: absolute; right: 18px; bottom: 18px; min-width: 215px; }
+.poster-float { position: absolute; right: 18px; bottom: 18px; width: min(280px, calc(100vw - 44px)); }
 .live-ticker {
   display: flex;
-  min-height: 38px;
+  width: 100%;
+  min-height: 44px;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  padding: 0 13px;
-  border: 1px solid var(--dew-card-border);
-  border-radius: var(--radius-md);
-  color: var(--dew-text-muted);
-  background: var(--dew-card-elevated-bg);
-  box-shadow: var(--dew-card-shadow);
-  backdrop-filter: blur(16px) saturate(1.35);
-  font-size: 12px;
-  font-weight: 700;
+  padding: 0 17px;
+  border: 2px solid var(--dew-card-flat-bg);
+  border-radius: var(--radius-full);
+  color: var(--dew-text-heading);
+  background: var(--dew-card-flat-bg);
+  box-shadow: 0 4px 0 color-mix(in srgb, var(--color-warning) 76%, var(--dew-card-flat-bg)), 0 10px 20px color-mix(in srgb, var(--dew-text-heading) 20%, transparent);
+  box-sizing: border-box;
+  font-size: 13px;
+  font-weight: 800;
+  overflow: hidden;
   white-space: nowrap;
 }
-.live-ticker strong { color: var(--color-warning); font-variant-numeric: tabular-nums; }
-.live-ticker.attendance strong { color: var(--color-primary); }
+.ticker-content { display: flex; width: 100%; align-items: center; justify-content: center; gap: 6px; }
+.ticker-label { font-size: 14px; }
+.live-ticker strong { color: var(--color-warning); font-size: 15px; font-weight: 900; font-variant-numeric: tabular-nums; }
+.ticker-content.attendance strong { color: var(--color-primary); }
 .ticker-enter-active,
 .ticker-leave-active { transition: opacity 0.2s ease, transform 0.2s ease, filter 0.2s ease; }
 .ticker-enter-from { opacity: 0; transform: translateY(-5px) scale(0.985); filter: blur(2px); }
@@ -465,8 +471,9 @@ onUnmounted(stopLiveUpdates);
   .market-poster > img { aspect-ratio: 1.48 / 1; }
   .poster-back { top: 11px; left: 11px; min-height: 34px; padding-right: 10px; font-size: 12px; }
   .back-icon { width: 21px; height: 21px; }
-  .poster-float { right: 10px; bottom: 10px; left: 10px; display: flex; justify-content: flex-end; min-width: 0; }
-  .live-ticker { max-width: 100%; min-height: 34px; padding: 0 10px; overflow: hidden; font-size: 11px; text-overflow: ellipsis; }
+  .poster-float { right: 10px; bottom: 10px; left: 10px; display: flex; width: auto; justify-content: flex-end; }
+  .live-ticker { max-width: 100%; min-height: 38px; padding: 0 12px; overflow: hidden; font-size: 12px; text-overflow: ellipsis; }
+  .live-ticker strong { font-size: 13px; }
   .rule-panel { border-radius: var(--radius-lg); }
   .market-filter { overflow-x: auto; }
   .market-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }

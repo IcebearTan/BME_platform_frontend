@@ -67,7 +67,7 @@ const isOn = ref(false)
 |------|------|--------|------|
 | `items` | `Array` | — | 选项列表 `[{ value, label, icon?, badge? }]` |
 | `modelValue` | `string/number` | `null` | 当前选中值（v-model） |
-| `size` | `string` | `'md'` | 尺寸：`sm` / `md` |
+| `size` | `string` | `'md'` | 尺寸：`sm` / `md` / `lg` |
 
 ---
 
