@@ -107,7 +107,7 @@ EP 是结构层,不做逐个替换;通过全局 CSS 把 EP 拉进设计系统:
 
 ### 4.5 UI 硬约束(多条返训沉淀,违反必返工)
 
-1. 图标一律 `@element-plus/icons-vue` 或 SVG,**杜绝 emoji**;Icon 克制使用。
+1. 图标一律 `@element-plus/icons-vue` 或 SVG，**杜绝 emoji**。禁令同时覆盖界面、用户文案、Toast、日志和源码注释；提交前运行 `pnpm check:no-emoji`。
 2. **禁止默认蓝紫渐变**装饰;用中性色/玻璃/语义色。
 3. DewMessage/Toast 极简:单图标 + 色。
 4. 新 Dew 组件先上 `UiShowcaseView`(user 端)验证再接业务。

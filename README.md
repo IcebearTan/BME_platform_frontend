@@ -21,6 +21,7 @@ pnpm dev:all          # 两端同开
 pnpm dev:preview      # 两端 + 5002 临时预览 API（仅演示数据）
 pnpm build            # 两端构建
 pnpm test:e2e         # 独立测试端口 18081/15173 + 预览 API 契约检查
+pnpm check:no-emoji   # 检查生产源码中是否新增 emoji
 ```
 
 注意：一律通过根 scripts 或进入对应 `apps/*` 目录运行命令；不要在仓库根目录直接跑 `npx vite`（app 的 vite.config 依赖 cwd 读取各自 package.json 注入 `__APP_VERSION__`）。

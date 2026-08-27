@@ -12,12 +12,15 @@
     "dev:preview:user": "pnpm --filter @bme/user dev:preview",
     "dev:preview:admin": "pnpm --filter @bme/admin dev:preview",
     "dev:preview": "node scripts/preview/start-preview.mjs",
+    "check:no-emoji": "node scripts/check-no-emoji.mjs",
+    "prebuild": "pnpm check:no-emoji",
     "build": "pnpm -r run build",
     "build:user": "pnpm --filter @bme/user build",
     "build:admin": "pnpm --filter @bme/admin build",
     "preview:user": "pnpm --filter @bme/user preview",
     "preview:admin": "pnpm --filter @bme/admin preview",
     "release:user": "pnpm --filter @bme/user release",
+    "pretest:e2e": "pnpm check:no-emoji",
     "test:e2e": "playwright test -c e2e/playwright.config.ts"
   },
   "devDependencies": {

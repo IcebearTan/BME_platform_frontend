@@ -127,7 +127,6 @@ const checkTimeTheme = () => {
 // 手动切换主题
 const toggleTheme = () => {
   store.commit('toggleTheme')
-  console.log(`🎨 主题切换: ${isDarkMode.value ? '🌙 夜间模式' : '☀️ 白天模式'}`)
 }
 
 onMounted(() => {
