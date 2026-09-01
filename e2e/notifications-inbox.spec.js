@@ -131,7 +131,7 @@ test('感谢信：gratitude 通知直达感谢信 tab 并选中信件', async ({
   expect(errors).toEqual([])
 })
 
-test('选导生结果卡：写感谢信并寄出', async ({ page }) => {
+test('选导生 tab：现场写信卡写感谢信并寄出', async ({ page }) => {
   const errors = []
   page.on('pageerror', (e) => errors.push(e.message))
   await loginAs(page, 'student')
@@ -159,20 +159,52 @@ test('选导生结果卡：写感谢信并寄出', async ({ page }) => {
   await page.goto(`${BASE}/camp?tab=ms&sid=1`)
   await expect(page.getByText('我的导生', { exact: true })).toBeVisible()
 
-  // 打开感谢信弹窗
-  await page.getByRole('button', { name: '写封感谢信' }).click()
-  await expect(page.getByText('给 test_mentor')).toBeVisible()
+  // 现场写信卡紧跟结果卡，无需弹窗
+  await expect(page.getByText('感谢信 · 写给 test_mentor')).toBeVisible()
+  await expect(page.getByRole('button', { name: '寄出感谢' })).toBeDisabled()
 
-  // 写信寄出
   await page.getByPlaceholder(/写下这位导生帮过你的瞬间/).fill('谢谢你带我入门硬件')
   await page.getByRole('button', { name: '寄出感谢' }).click()
-  await expect(page.getByText('感谢信已寄出')).toBeVisible()
+  await expect(page.getByText('感谢信已寄出，TA 会在消息中心看到')).toBeVisible()
 
   // 契约字段：用户对 + 营期上下文 + 内容
   expect(sentPayload).toBeTruthy()
   expect(sentPayload.recipient_id).toBe(13)
   expect(String(sentPayload.camp_session_id)).toBe('1')
   expect(sentPayload.content).toBe('谢谢你带我入门硬件')
+
+  expect(errors).toEqual([])
+})
+
+test('感谢信频控：后端重复错误转为已写过提示', async ({ page }) => {
+  const errors = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  await loginAs(page, 'student')
+
+  await page.route('http://127.0.0.1:5001/**', (route) => {
+    const url = route.request().url()
+    const method = route.request().method()
+    if (url.includes('/camp/sessions') && !url.includes('/camp/ms')) {
+      return route.fulfill({ json: SESSIONS })
+    }
+    if (url.includes('/camp/ms/1/phase')) {
+      return route.fulfill({ json: PHASE_MATCHED })
+    }
+    if (url.includes('/camp/ms/1/mentors')) {
+      return route.fulfill({ json: MENTORS })
+    }
+    if (url.includes('/gratitude') && method === 'POST') {
+      return route.fulfill({ json: { code: 400, message: '本期已经给这位导生写过感谢信' } })
+    }
+    return route.fulfill({ json: { code: 200, message: 'ok', data: {} } })
+  })
+
+  await page.goto(`${BASE}/camp?tab=ms&sid=1`)
+  await page.getByPlaceholder(/写下这位导生帮过你的瞬间/).fill('再写一封试试')
+  await page.getByRole('button', { name: '寄出感谢' }).click()
+
+  // 频控命中不弹错误风暴，安静转已写过态
+  await expect(page.getByText('这一期你已经给 TA 写过感谢信啦')).toBeVisible()
 
   expect(errors).toEqual([])
 })

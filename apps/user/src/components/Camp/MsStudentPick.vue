@@ -30,9 +30,6 @@
             </div>
             <p v-if="myMentorNote" class="result-note">“{{ myMentorNote }}”</p>
             <div class="result-hint">导生同样能看到你的信息，营期内可在「请假」等页面协作</div>
-            <div class="result-actions">
-              <DewButton type="ghost" size="sm" @click="gratitudeVisible = true">写封感谢信</DewButton>
-            </div>
           </div>
         </div>
       </DewCard>
@@ -90,14 +87,15 @@
         <div class="result-label">选导生即将开始</div>
         <div class="result-hint">{{ phaseInfo.deadlines.preference_start || '' }} 起可浏览导生名片并提交志愿，届时会有通知。</div>
       </DewCard>
-    </template>
 
-    <!-- 感谢信：给我的导生（信件独立成表，营期仅作展示上下文） -->
-    <GratitudeDialog
-      v-model="gratitudeVisible"
-      :recipient="myMentorRecipient"
-      :camp-session-id="sid"
-    />
+      <!-- 感谢信：现场写信卡，紧跟结果卡（信件独立成表，营期仅作展示上下文） -->
+      <GratitudeLetterComposer
+        v-if="phaseInfo.me.my_mentor"
+        class="section-card"
+        :recipient="myMentorRecipient"
+        :camp-session-id="sid"
+      />
+    </template>
   </div>
 </template>
 
@@ -107,7 +105,7 @@ import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { DewCard, DewButton, DewTag } from '@bme/dew-ui';
 import MsPhaseBar from './MsPhaseBar.vue';
-import GratitudeDialog from '../Gratitude/GratitudeDialog.vue';
+import GratitudeLetterComposer from '../Gratitude/GratitudeLetterComposer.vue';
 import { campService, assetUrl } from '../../services/campService';
 
 const props = defineProps({ sid: { type: [Number, String], required: true } });
@@ -116,7 +114,6 @@ const router = useRouter();
 const loading = ref(true);
 const phaseInfo = ref(null);
 const mentors = ref([]);
-const gratitudeVisible = ref(false);
 
 const meRound1 = computed(() => phaseInfo.value?.me?.round1 || []);
 const submittable = computed(() => phaseInfo.value?.me?.submittable_round || null);
@@ -159,7 +156,7 @@ const myMentorNote = computed(() => {
   return prefs.find((p) => p.mentor_id === me.my_mentor.user_id)?.note || '';
 });
 
-// 感谢信收件人：我的导生（供 GratitudeDialog 使用）
+// 感谢信收件人：我的导生（供现场写信卡使用）
 const myMentorRecipient = computed(() => {
   const mine = phaseInfo.value?.me?.my_mentor;
   if (!mine) return { user_id: null, username: '', avatar: '' };
@@ -294,5 +291,4 @@ watch(() => props.sid, load, { immediate: true });
   border-radius: 0 var(--radius-md, 12px) var(--radius-md, 12px) 0;
 }
 .result-hint { margin-top: 12px; font-size: 13px; color: var(--dew-text-muted); line-height: 1.6; }
-.result-actions { margin-top: 14px; }
 </style>
