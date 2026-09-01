@@ -54,7 +54,7 @@
                       <!-- 左侧内容区 -->
                       <div class="banner-left">
                         <div class="banner-header">
-                          <span class="banner-icon">{{ topic.icon }}</span>
+                          <el-icon class="banner-icon"><Collection /></el-icon>
                           <span class="banner-category">活动专题</span>
                         </div>
                         <h3 class="banner-title">{{ topic.title }}</h3>
@@ -501,7 +501,6 @@ const topics = ref([
     id: 1,
     title: 'Python编程入门',
     description: '从零开始学习Python编程基础',
-    icon: '🐍',
     coverGradient: 'linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%)',
     articleCount: 25,
     viewCount: '1.2k'
@@ -510,7 +509,6 @@ const topics = ref([
     id: 2,
     title: '前端开发技巧',
     description: '现代前端开发最佳实践',
-    icon: '💻',
     coverGradient: 'linear-gradient(135deg, #fef3c7 0%, #fed7aa 100%)',
     articleCount: 32,
     viewCount: '2.5k'
@@ -519,7 +517,6 @@ const topics = ref([
     id: 3,
     title: '数据结构与算法',
     description: '掌握核心算法和数据结构',
-    icon: '🧮',
     coverGradient: 'linear-gradient(135deg, #e0e7ff 0%, #ddd6fe 100%)',
     articleCount: 18,
     viewCount: '980'
@@ -528,7 +525,6 @@ const topics = ref([
     id: 4,
     title: '机器学习实战',
     description: '实战项目驱动的机器学习课程',
-    icon: '🤖',
     coverGradient: 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)',
     articleCount: 15,
     viewCount: '1.8k'

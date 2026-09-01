@@ -23,6 +23,11 @@ dist-ssr
 # Playwright
 test-results/
 playwright-report/
+.playwright-cli/
+output/
+
+# 根目录运行共享资源同步时产生的副本
+public/article-content.css
 
 # @bme/styles 生成的 public 副本（predev/prebuild 自动产出）
 apps/*/public/article-content.css

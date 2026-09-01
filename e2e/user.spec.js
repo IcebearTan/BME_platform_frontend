@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test'
 // 用户端（apps/user）冒烟安全网：登录页渲染 / 前端路由跳转 / DewUI 组件库挂载
 // 注意：无后端也能跑——三条用例只依赖前端渲染，不依赖接口成功
 
-const BASE = 'http://localhost:8081/AMEII'
+const BASE = 'http://127.0.0.1:18081/AMEII'
 
 test('登录页正常渲染', async ({ page }) => {
   await page.goto(`${BASE}/login`)

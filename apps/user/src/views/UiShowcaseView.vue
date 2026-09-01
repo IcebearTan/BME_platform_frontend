@@ -63,6 +63,7 @@
         <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center; margin-bottom: 12px;">
           <DewButtonBar :items="barItems1" v-model="barValue1" />
           <DewButtonBar :items="barItems2" v-model="barValue2" size="sm" />
+          <DewButtonBar :items="barItems1" v-model="barValue1" size="lg" />
         </div>
         <div style="font-size: 12px; color: var(--dew-text-faint);">
           当前选中：{{ barValue1 }}

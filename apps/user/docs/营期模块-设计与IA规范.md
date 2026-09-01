@@ -101,9 +101,13 @@
 | round2 未匹配 | 状态卡 + 市集入口 | 营业：仅剩有名额导生 |
 | done | 结果海报卡 / 未匹配提示 | 打烊提示 + 返回 |
 
-- 市集头部：MsPhaseBar + 截止时间 + **从众信号**（`已有 X/N 位同学提交志愿`，数据来自 phase.stats，全营汇总）。
+- 市集营业态采用已确认的「导生集市」海报：海报内只保留返回入口，以及每 2 秒切换的截止倒计时/全营从众信号；不重复展示营名、活动标题、说明文字或阶段条。倒计时按总小时、分钟、秒实时刷新，到期显示「已截止」；从众信号使用 `phase.stats`，后台每 30 秒刷新。
+- 海报下方统一使用「集市规则」三列说明：选 3 个有序志愿、双方互选、截止前整组修改；不再分散重复规则文案。
+- 分类筛选继续使用 `DewButtonBar`，激活项平滑展开该分类当前可见导生数；二轮数量按剔除满员后的候选集计算。
 - 志愿状态唯一真相源是 phase 接口（`me.round1/round2`）；tab 的回显从它渲染，不另存本地状态。
-- 卡片复用 MsMentorCard（市集用 `size="lg"` 放大态 + 余 1 席稀缺强调）；托盘复用 MsPreferenceTray。
+- 卡片复用 MsMentorCard，采用 4:5 展示图片 + 志愿顺位 + 姓名右侧 `matched/capacity` + 单段两行 bio + tags + 团购价格。卡片不再显示「余 X」、名额进度条或重复简介；已选卡片不提供移除按钮，移除统一在托盘完成。
+- 展示图片可点击打开大图；上传当前保持可选，未上传时回退姓名首字。是否需要强化、弱化或取消上传入口，待导生使用意愿调研后决定。
+- 托盘标题为「我的心仪导生（N/3）」，桌面三项横排、移动端单列；每项右上角移除，左右箭头排序，留言字段保留。一轮必须提交 3 个，二轮允许 1–3 个。
 
 ---
 
@@ -158,7 +162,7 @@
 
 ### 3.6 海报卡范式（MsMentorCard）
 
-选导生域的"人物展示"统一海报式：**4:5 照片区** + 名额角标（余 X / 已满）+ 志愿角标 + tags + 两行 bio 截断。无照片回退姓名首字 + 哈希色板。编辑器（MsMentorProfile）右侧**实时预览直接复用该卡**——改展示形态只动 MsMentorCard 一处。
+选导生域的"人物展示"统一海报式：**4:5 展示图片区** + 志愿角标 + 姓名右侧 `matched/capacity` + tags + 单段两行 bio 截断 + 团购价格。无图片回退姓名首字 + token 色板。浏览卡只提供「抢」加入操作，移除统一在「我的心仪导生」托盘完成。编辑器（MsMentorProfile）右侧**实时预览直接复用该卡**——改展示形态只动 MsMentorCard 一处。
 
 ### 3.7 响应式
 
@@ -175,7 +179,7 @@
 | CampSelection / CampAttendance / LeaveApply | 学员：选课 / 考勤明细 / 请假 | sid |
 | MentorDashboard / MentorLeave / MentorReward / MentorMembers | 导生四事务 | sid |
 | MsPhaseBar | 选导生五步阶段条（未配二轮则该步不渲染） | phase, round2Enabled |
-| MsMentorCard | 海报式导生卡（市集 `size="lg"` + 编辑器预览默认尺寸复用） | mentor, pickedRank, selectable, index, size |
+| MsMentorCard | 海报式导生卡（市集加入 + 编辑器预览复用；移除不在卡片执行） | mentor, pickedRank, selectable, selectionDisabled, index, size |
 | MsMentorProfile | 导生名片编辑（左编辑右预览） | sid, msTags, locked |
 | MsStudentPick | 选导生**状态机**：阶段提示 / 我的志愿回显 / 结果卡 / 市集入口 CTA | sid |
 | MsMentorDesk / MsMentorCard 相关 | 导生端意向单/收人 | sid |

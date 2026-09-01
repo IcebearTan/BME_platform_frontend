@@ -11,7 +11,7 @@
           <div class="stat-value days-value">{{ monthlyStats.totalDays || 0 }}</div>
           <div class="stat-bottom">
             <div class="stat-icon days-icon">
-              <span>📅</span>
+              <el-icon><Calendar /></el-icon>
             </div>
             <div class="stat-label">累计天数</div>
           </div>
@@ -24,7 +24,7 @@
           <div class="stat-value duration-value">{{ formatDuration(monthlyStats.totalHours) }}</div>
           <div class="stat-bottom">
             <div class="stat-icon duration-icon">
-              <span>⏱️</span>
+              <el-icon><Timer /></el-icon>
             </div>
             <div class="stat-label">本月时长</div>
           </div>
@@ -37,7 +37,7 @@
           <div class="stat-value rank-value">{{ formatRank(monthlyStats.rank) }}</div>
           <div class="stat-bottom">
             <div class="stat-icon rank-icon">
-              <span>🏆</span>
+              <el-icon><Trophy /></el-icon>
             </div>
             <div class="stat-label">本月排名</div>
           </div>
@@ -49,6 +49,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import { Calendar, Timer, Trophy } from '@element-plus/icons-vue'
 
 // Props
 const props = defineProps({
@@ -220,8 +221,8 @@ const formatRank = (rank) => {
   background: linear-gradient(135deg, #f1c40f, #f39c12);
 }
 
-.stat-icon span {
-  filter: brightness(1.2);
+.stat-icon .el-icon {
+  color: #fff;
 }
 
 .stat-value {

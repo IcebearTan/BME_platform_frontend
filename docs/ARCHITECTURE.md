@@ -107,7 +107,7 @@ EP 是结构层,不做逐个替换;通过全局 CSS 把 EP 拉进设计系统:
 
 ### 4.5 UI 硬约束(多条返训沉淀,违反必返工)
 
-1. 图标一律 `@element-plus/icons-vue` 或 SVG,**杜绝 emoji**;Icon 克制使用。
+1. 图标一律 `@element-plus/icons-vue` 或 SVG，**杜绝 emoji**。禁令同时覆盖界面、用户文案、Toast、日志和源码注释；提交前运行 `pnpm check:no-emoji`。
 2. **禁止默认蓝紫渐变**装饰;用中性色/玻璃/语义色。
 3. DewMessage/Toast 极简:单图标 + 色。
 4. 新 Dew 组件先上 `UiShowcaseView`(user 端)验证再接业务。
@@ -200,22 +200,24 @@ const api = createApiClient({
 |---|---|
 | `pnpm install` | 全 workspace 安装 |
 | `pnpm dev:user` / `dev:admin` / `dev:all` | 起对应 dev server |
+| `pnpm dev:preview` | 起 5002 临时预览 API + 两端 preview 模式，仅用于演示数据 |
 | `pnpm build` / `build:user` / `build:admin` | 构建 |
 | `pnpm test:e2e` | Playwright(注意必须带 `-c e2e/playwright.config.ts`,根 script 已封装;裸跑 `npx playwright test` 不会起 webServer) |
 
 - **不要在仓库根直接 `npx vite`**:app 的 vite.config 依赖 cwd 读各自 package.json 注入 `__APP_VERSION__`;一律走根 scripts 或进 `apps/*` 目录;
-- env:`.env.development` 被 gitignore(内容 `VITE_API_BASE_URL=http://127.0.0.1:5001`),新 clone 后两 app 各建一份;`apps/user/.env.example` 有模板;
+- env:`.env.development` 被 gitignore(内容 `VITE_API_BASE_URL=http://127.0.0.1:5001`),新 clone 后两 app 各建一份;`.env.preview` 仅指向 5002 演示 API,禁止混用;`.env.test` 固定 5001 并使用独立前端端口;
 - Windows 开发机:Node ≥ 18 手动切换,重新 clone 本仓,按 README 建 env;
 - 提交规范:中文 conventional commits(`feat(camp): …`/`refactor(admin): …`);分支模型:`master`(稳定)+ `Icebear_develop`(日常开发,稳定后合回)。**不做一批次一分支**;
 - **项目级 Claude skills 随仓库分发**(`.claude/skills/`,已放行 gitignore;个人 `settings.local.json` 仍忽略):`bme-admin-page`(新增管理页)、`bme-dewui`(DewUI/视觉调整)、`bme-e2e`(测试编写)。它们是本指南的程序性投影,权威源仍是本文——改架构先改文档再改 skill。
 
 ## 10. 质量保障
 
-### 10.1 e2e 冒烟网(7 条,`e2e/*.spec.js`)
+### 10.1 e2e 冒烟网(16 条,`e2e/*.spec.js`)
 
-- 双 webServer(8081/5173),`reuseExistingServer` 复用已起服务;
+- user/admin 测试服务使用独立端口 18081/15173,不复用 8081/5173 的开发或预览进程;
+- 5002 预览 API 有独立契约测试:关键管理数据结构、已知空列表结构、未知路由必须 404;
 - **不依赖后端**:`page.route` 拦截全部 API——`loginAsStaff()` 预置假 token 与 vuex 持久化态、mock `/user/user_index` 返回 super_admin,其余统一 200 空数据;
-- 用例覆盖:两端登录页渲染、user 路由跳转、DewUI 展示页、admin 布局壳、md-editor 挂载、用户管理页(表格渲染 + 前端搜索 + **pageerror 断言**);
+- 用例覆盖:两端登录页渲染、user 路由跳转、DewUI 展示页、admin 布局壳、md-editor 挂载、用户管理页、导生市集状态机、营期详情的选导生/成员添加，以及预览 API 契约;
 - **新增页面请配一条用例**;pageerror 断言是抓"模板引用不存在绑定"类事故的利器(批次 6 教训)。
 
 ### 10.2 变更检查清单(提交前自查)
@@ -234,6 +236,7 @@ const api = createApiClient({
 | 优先级 | 项 | 说明 |
 |---|---|---|
 | 高 | admin 用户管理接口缺失 | 后端 `admin.py` 仅 /overview;补齐 CRUD 后恢复 UserManage 操作列 |
+| 高 | 导生双选后端实现分叉 | 正式后端必须收敛到 `BME_platform_flask`;对照 `BME_platform_flask_Icebear_develop` 迁入新模型/接口/迁移脚本并连接真实数据库后，才能移除 5002 预览 API |
 | 高 | MedalManage 勋章图 404 | `/admin/medals/${id}.png` 后端无路由无存储;需设计存储方案 |
 | 中 | LearningProgress ~280 行不可达死码 | 「课程进度设置」dialog 链,入口已注释,可直接删 |
 | 中 | user 端 v1 文章双轨下线 | ArticleView/ArticleEditorView(v1)删路由删文件;顺带 `mock/config.js`、空 `components/ui/` |

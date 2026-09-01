@@ -1,39 +1,77 @@
 <template>
-  <DewCard variant="inset" size="sm" class="mentor-card" :class="{ picked: pickedRank > 0, full, 'is-lg': size === 'lg' }"
-           :style="{ '--reveal-index': index }">
-    <!-- 封面：海报比例照片（无照片 → 姓名首字色块，同课程卡哈希色） -->
+  <DewCard
+    variant="elevated"
+    size="sm"
+    class="mentor-card"
+    :class="[
+      fallbackTheme,
+      { picked: pickedRank > 0, full, 'is-lg': size === 'lg' },
+    ]"
+    :style="{ '--reveal-index': index }"
+  >
     <div class="card-photo">
-      <img v-if="photoSrc" :src="photoSrc" alt="" loading="lazy" />
-      <div v-else class="photo-fallback" :style="{ background: fallbackColor }">
-        {{ initial }}
+      <button
+        v-if="photoSrc"
+        type="button"
+        class="photo-preview-button"
+        :aria-label="`查看 ${mentor.username} 的展示图片`"
+        title="查看大图"
+        @click="previewVisible = true"
+      >
+        <img
+          :src="photoSrc"
+          :alt="`${mentor.username} 的展示图片`"
+          loading="lazy"
+        />
+        <span class="preview-glyph" aria-hidden="true">
+          <el-icon><ZoomIn /></el-icon>
+        </span>
+      </button>
+      <div v-else class="photo-fallback" aria-hidden="true">
+        <span>{{ initial }}</span>
       </div>
-      <!-- 剩余名额角标（余 1 席做稀缺强调） -->
-      <span class="cap-badge" :class="{ 'is-full': full, 'is-scarce': !full && mentor.remaining <= 1 }">
-        {{ full ? '已满' : `余 ${mentor.remaining}` }}
-      </span>
-      <!-- 已入志愿角标 -->
+
       <span v-if="pickedRank > 0" class="rank-badge">志愿 {{ pickedRank }}</span>
     </div>
 
+    <el-image-viewer
+      v-if="previewVisible"
+      :url-list="[photoSrc]"
+      :initial-index="0"
+      :hide-on-click-modal="true"
+      :teleported="true"
+      @close="previewVisible = false"
+    />
+
     <div class="card-meta">
       <div class="name-row">
-        <span class="name">{{ mentor.username }}</span>
-        <span class="cap-text">{{ mentor.matched }}/{{ mentor.capacity }} 名额</span>
+        <h3 class="name">{{ mentor.username }}</h3>
+        <span class="capacity-total">{{ matched }}/{{ capacity }}</span>
       </div>
-      <div v-if="mentor.tags?.length" class="tag-row">
-        <DewTag v-for="t in mentor.tags" :key="t" size="sm" round>{{ t }}</DewTag>
+
+      <p class="bio">“{{ mentor.bio || '这位导生还没有写介绍。' }}”</p>
+
+      <div v-if="visibleTags.length" class="tag-row" aria-label="导生方向">
+        <span v-for="tag in visibleTags" :key="tag" class="tag">{{ tag }}</span>
+        <span v-if="hiddenTagCount" class="tag tag-more">+{{ hiddenTagCount }}</span>
       </div>
-      <p class="bio">{{ mentor.bio || '这位导生还没有写介绍。' }}</p>
-      <div class="card-actions">
-        <DewButton
-          v-if="selectable"
-          size="sm"
-          :type="pickedRank > 0 ? 'ghost' : 'glass'"
-          :disabled="full && pickedRank === 0"
-          @click="$emit('toggle')"
+
+      <div class="card-actions" :class="{ 'has-action': selectable && pickedRank === 0 }">
+        <span class="price-pair" aria-label="当前价格零元，原价九万九千九百九十九元">
+          <span class="price-now">￥0</span>
+          <span class="price-old">￥99999</span>
+        </span>
+        <button
+          v-if="selectable && pickedRank === 0"
+          type="button"
+          class="grab-button"
+          :disabled="full || selectionDisabled"
+          :aria-label="full ? `${mentor.username} 名额已满` : `加入心仪导生 ${mentor.username}`"
+          :title="full ? '名额已满' : '加入心仪导生'"
+          @click="$emit('add')"
         >
-          {{ pickedRank > 0 ? '移出志愿' : (full ? '已满' : '加入志愿') }}
-        </DewButton>
+          <img :src="grabSticker" alt="" aria-hidden="true" />
+        </button>
         <slot name="action"></slot>
       </div>
     </div>
@@ -41,37 +79,40 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
-import { DewCard, DewButton, DewTag } from '@bme/dew-ui';
+import { computed, ref } from 'vue';
+import { ZoomIn } from '@element-plus/icons-vue';
+import { DewCard } from '@bme/dew-ui';
 import { assetUrl } from '../../services/campService';
+import grabSticker from '../../assets/mentor-market-grab.webp';
 
 const props = defineProps({
   mentor: { type: Object, required: true },
-  pickedRank: { type: Number, default: 0 },   // 0 = 未在志愿中
+  pickedRank: { type: Number, default: 0 },
   selectable: { type: Boolean, default: false },
-  index: { type: Number, default: 0 },        // 网格内序号：入场 stagger 动画用
-  size: { type: String, default: 'md' },      // 'lg' = 市集放大态（编辑器预览用默认尺寸）
+  selectionDisabled: { type: Boolean, default: false },
+  index: { type: Number, default: 0 },
+  size: { type: String, default: 'md' },
 });
-defineEmits(['toggle']);
+defineEmits(['add']);
 
+const previewVisible = ref(false);
+const fallbackThemes = ['fallback-primary', 'fallback-success', 'fallback-warning', 'fallback-info'];
 const full = computed(() => !!props.mentor.full);
 const photoSrc = computed(() => assetUrl(props.mentor.photo_url));
 const initial = computed(() => (props.mentor.username || '?').trim().charAt(0).toUpperCase());
-
-// 无照片回退色块：姓名哈希到固定色板（同课程卡逻辑，同名同色）
-const COLOR_PALETTE = ['#b391ff', '#91bdff', '#91ffde', '#ffcc91', '#ff91c0'];
-const fallbackColor = computed(() => {
-  let hash = 0;
-  const s = props.mentor.username || '';
-  for (let i = 0; i < s.length; i++) hash = s.charCodeAt(i) + (hash << 6) + (hash << 16) - hash;
-  return COLOR_PALETTE[Math.abs(hash) % COLOR_PALETTE.length];
-});
+const capacity = computed(() => Math.max(0, Number(props.mentor.capacity) || 0));
+const matched = computed(() => Math.max(0, Number(props.mentor.matched) || 0));
+const visibleTags = computed(() => (props.mentor.tags || []).slice(0, 3));
+const hiddenTagCount = computed(() => Math.max(0, (props.mentor.tags?.length || 0) - visibleTags.value.length));
+const fallbackTheme = computed(() => fallbackThemes[Math.abs(props.index) % fallbackThemes.length]);
 </script>
 
 <style scoped>
-/* 入场 stagger：按网格序号轻微上浮淡入（delay 封顶 8 档，长列表不拖沓） */
 .mentor-card {
-  transition: transform 0.3s var(--dew-bounce, ease);
+  height: 100%;
+  overflow: hidden;
+  border-radius: 22px;
+  transition: transform 0.3s var(--dew-bounce, ease), border-color 0.25s ease, opacity 0.25s ease;
   animation: card-reveal 0.45s var(--dew-bounce, ease) both;
   animation-delay: calc(min(var(--reveal-index, 0), 8) * 45ms);
 }
@@ -79,95 +120,178 @@ const fallbackColor = computed(() => {
   from { opacity: 0; transform: translateY(14px); }
   to { opacity: 1; transform: translateY(0); }
 }
-@media (prefers-reduced-motion: reduce) {
-  .mentor-card { animation: none; }
-}
 .mentor-card:hover { transform: translateY(-3px); }
-.mentor-card.picked { outline: 1.5px solid color-mix(in srgb, var(--color-primary) 55%, transparent); }
-.mentor-card.full { opacity: 0.72; }
-.mentor-card :deep(.dew-card__body) { padding: 0; }
+.mentor-card.picked {
+  border-color: color-mix(in srgb, var(--color-primary) 72%, transparent);
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--color-primary) 14%, transparent);
+}
+.mentor-card.full { opacity: 0.68; }
+.mentor-card :deep(.dew-card__body) {
+  display: flex;
+  min-height: 100%;
+  flex-direction: column;
+  padding: 0;
+}
 
-/* 海报式封面：4:5 比例，hover 照片轻微放大（克制） */
 .card-photo {
   position: relative;
   aspect-ratio: 4 / 5;
   overflow: hidden;
-  border-radius: var(--radius-md, 12px) var(--radius-md, 12px) 0 0;
+  background: color-mix(in srgb, var(--color-primary) 24%, var(--dew-card-flat-bg));
+}
+.photo-preview-button {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  background: transparent;
+  cursor: zoom-in;
 }
 .card-photo img {
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  display: block;
   transition: transform 0.4s var(--dew-bounce, ease);
 }
-.mentor-card:hover .card-photo img { transform: scale(1.05); }
+.mentor-card:hover .card-photo img { transform: scale(1.035); }
+.mentor-card.full .card-photo img { filter: saturate(0.72); }
+.preview-glyph {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, white 70%, transparent);
+  border-radius: var(--radius-full);
+  color: white;
+  background: color-mix(in srgb, var(--dew-text-heading) 62%, transparent);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--dew-text-heading) 20%, transparent);
+  opacity: 0.78;
+  transition: opacity 0.2s ease, transform 0.2s var(--dew-bounce, ease);
+}
+.photo-preview-button:hover .preview-glyph,
+.photo-preview-button:focus-visible .preview-glyph { opacity: 1; transform: scale(1.06); }
+.photo-preview-button:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
 .photo-fallback {
-  height: 100%;
   display: flex;
+  height: 100%;
   align-items: center;
   justify-content: center;
-  font-size: 56px;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.95);
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+  color: var(--dew-text-heading);
+  background: color-mix(in srgb, var(--fallback-color) 25%, var(--dew-card-flat-bg));
 }
+.photo-fallback span { font-size: 68px; font-weight: 800; line-height: 1; }
+.fallback-primary { --fallback-color: var(--color-primary); }
+.fallback-success { --fallback-color: var(--color-success); }
+.fallback-warning { --fallback-color: var(--color-warning); }
+.fallback-info { --fallback-color: var(--color-info); }
 
-.cap-badge, .rank-badge {
-  position: absolute;
-  top: 8px;
-  padding: 2px 9px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 600;
-  background: rgba(255, 255, 255, 0.88);
-  backdrop-filter: blur(6px);
-  color: var(--color-primary);
-}
-.cap-badge { right: 8px; }
-.cap-badge.is-full { color: var(--dew-text-muted); }
-/* 余 1 席：琥珀色稀缺强调（真实余量可见，不做人为热度） */
-.cap-badge.is-scarce { color: var(--color-warning); font-weight: 700; }
 .rank-badge {
-  left: 8px;
+  position: absolute;
+  top: 9px;
+  left: 9px;
+  display: inline-flex;
+  min-height: 25px;
+  align-items: center;
+  padding: 0 10px;
+  border-radius: var(--radius-full);
+  color: var(--dew-text-on-primary, white);
   background: var(--color-primary);
-  color: #fff;
+  box-shadow: 0 4px 13px color-mix(in srgb, var(--color-primary) 24%, transparent);
+  font-size: 12px;
+  font-weight: 700;
 }
 
-.card-meta { padding: 12px 14px 14px; }
-
-.name-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
+.card-meta { display: flex; flex: 1; flex-direction: column; padding: 14px 16px 15px; }
+.name-row { display: flex; min-width: 0; align-items: baseline; justify-content: space-between; gap: 10px; }
+.name {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--dew-text-heading);
+  font-size: 17px;
+  font-weight: 750;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.name { font-size: 15px; font-weight: 600; color: var(--dew-text-heading); }
-.cap-text { font-size: 11px; color: var(--dew-text-muted); white-space: nowrap; }
-
-.tag-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-
+.capacity-total {
+  flex: none;
+  color: var(--dew-text-faint);
+  font-size: 11px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
 .bio {
-  margin: 10px 0 12px;
-  font-size: 12.5px;
-  line-height: 1.55;
-  color: var(--dew-text-muted);
   display: -webkit-box;
+  min-height: 38px;
+  margin: 8px 0 0;
+  overflow: hidden;
+  color: var(--color-warning);
+  font-size: 12.5px;
+  font-style: italic;
+  font-weight: 650;
+  line-height: 1.55;
+  -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  min-height: 39px;
 }
+.tag-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; margin-bottom: 10px; }
+.tag {
+  display: inline-flex;
+  min-height: 22px;
+  align-items: center;
+  padding: 0 8px;
+  border-radius: var(--radius-full);
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 11%, transparent);
+  font-size: 11.5px;
+  font-weight: 650;
+}
+.tag:nth-child(2) { color: var(--color-info); background: color-mix(in srgb, var(--color-info) 11%, transparent); }
+.tag:nth-child(3) { color: var(--color-success); background: color-mix(in srgb, var(--color-success) 11%, transparent); }
+.tag-more { color: var(--dew-text-muted); background: color-mix(in srgb, var(--dew-text-muted) 10%, transparent); }
 
-.card-actions { display: flex; gap: 8px; }
+.card-actions { display: flex; min-height: 30px; align-items: center; justify-content: flex-start; gap: 8px; margin-top: auto; }
+.card-actions.has-action { min-height: 56px; justify-content: space-between; }
+.price-pair { display: inline-flex; align-items: baseline; gap: 5px; line-height: 1; white-space: nowrap; }
+.price-now { color: var(--color-danger); font-size: 18px; font-weight: 850; }
+.price-old { color: var(--dew-text-faint); font-size: 11px; text-decoration: line-through; }
+.grab-button {
+  width: 56px;
+  min-width: 56px;
+  height: 56px;
+  padding: 0;
+  border: 0;
+  outline-offset: 2px;
+  background: transparent;
+  cursor: pointer;
+  transition: transform 0.2s var(--dew-bounce, ease), opacity 0.2s ease;
+}
+.grab-button img { display: block; width: 56px; height: 56px; object-fit: contain; }
+.grab-button:hover:not(:disabled) { transform: scale(1.06) rotate(-2deg); }
+.grab-button:disabled { opacity: 0.38; cursor: not-allowed; }
 
-/* ── 市集放大态（size="lg"）：字号/留白整体升一档，照片区比例不变 ── */
-.is-lg .card-meta { padding: 16px 18px 18px; }
-.is-lg .name { font-size: 17px; }
-.is-lg .cap-text { font-size: 12px; }
-.is-lg .bio { font-size: 13.5px; min-height: 42px; }
-.is-lg .photo-fallback { font-size: 72px; }
-.is-lg .cap-badge, .is-lg .rank-badge { font-size: 12px; padding: 3px 11px; }
-.is-lg .tag-row { gap: 8px; margin-top: 10px; }
+.is-lg .card-meta { padding: 15px 16px 16px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .mentor-card { animation: none; }
+  .mentor-card,
+  .card-photo img,
+  .grab-button,
+  .preview-glyph { transition: none; }
+}
+@media (max-width: 680px) {
+  .card-meta { padding: 11px; }
+  .name { font-size: 15px; }
+  .capacity-total { font-size: 10px; }
+  .bio { font-size: 11.5px; }
+}
 </style>
