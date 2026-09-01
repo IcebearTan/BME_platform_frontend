@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test'
 // 通知中心邮箱化（左右分栏）+ 感谢信：mock 后端数据，零依赖真实库
 // 覆盖：system 通知右栏详情 / gratitude 通知直达感谢信 tab / 选导生结果卡发送弹窗 / 移动端单栏弹窗回退
 
-const BASE = 'http://localhost:8081/AMEII'
+const BASE = 'http://127.0.0.1:18081/AMEII'
 
 const NOW = new Date().toISOString()
 
@@ -91,7 +91,7 @@ test('邮箱式收件箱：system 通知在右栏展开详情（桌面不弹窗�
   await loginAs(page, 'mentor')
   await mockInboxBackend(page)
 
-  await page.goto(`${BASE}/notifications`)
+  await page.goto(`${BASE}/notifications`, { waitUntil: 'domcontentloaded' })
   await expect(page.getByRole('heading', { name: '消息中心' })).toBeVisible()
   await expect(page.getByText('系统维护通知')).toBeVisible()
 
@@ -115,7 +115,7 @@ test('感谢信：gratitude 通知直达感谢信 tab 并选中信件', async ({
 
   // 等感谢信数据就绪再点击（通知点击时需要在内存里定位 source_id 对应信件）
   const lettersLoaded = page.waitForResponse((r) => r.url().includes('/gratitude/received'))
-  await page.goto(`${BASE}/notifications`)
+  await page.goto(`${BASE}/notifications`, { waitUntil: 'domcontentloaded' })
   await lettersLoaded
 
   await page.getByText('收到一封感谢信').click()
@@ -156,7 +156,7 @@ test('选导生 tab：现场写信卡写感谢信并寄出', async ({ page }) =>
     return route.fulfill({ json: { code: 200, message: 'ok', data: {} } })
   })
 
-  await page.goto(`${BASE}/camp?tab=ms&sid=1`)
+  await page.goto(`${BASE}/camp?tab=ms&sid=1`, { waitUntil: 'domcontentloaded' })
   await expect(page.getByText('我的导生', { exact: true })).toBeVisible()
 
   // 现场写信卡紧跟结果卡，无需弹窗
@@ -199,7 +199,7 @@ test('感谢信频控：后端重复错误转为已写过提示', async ({ page 
     return route.fulfill({ json: { code: 200, message: 'ok', data: {} } })
   })
 
-  await page.goto(`${BASE}/camp?tab=ms&sid=1`)
+  await page.goto(`${BASE}/camp?tab=ms&sid=1`, { waitUntil: 'domcontentloaded' })
   await page.getByPlaceholder(/写下这位导生帮过你的瞬间/).fill('再写一封试试')
   await page.getByRole('button', { name: '寄出感谢' }).click()
 
@@ -216,7 +216,7 @@ test('移动端单栏：system 通知回退详情弹窗', async ({ page }) => {
   await mockInboxBackend(page)
 
   await page.setViewportSize({ width: 375, height: 800 })
-  await page.goto(`${BASE}/notifications`)
+  await page.goto(`${BASE}/notifications`, { waitUntil: 'domcontentloaded' })
   await expect(page.getByText('系统维护通知')).toBeVisible()
 
   await page.getByText('系统维护通知').click()

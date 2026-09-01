@@ -82,7 +82,7 @@ test('市集营业：collecting 可逛可收志愿', async ({ page }) => {
   page.on('pageerror', (e) => errors.push(e.message))
   await loginAsStudent(page, phaseOf('collecting', { submittable_round: 1 }))
 
-  await page.goto(`${BASE}/camp/1/market`)
+  await page.goto(`${BASE}/camp/1/market`, { waitUntil: 'domcontentloaded' })
   await expect(page.getByRole('img', { name: '导生集市活动海报' })).toBeVisible()
   await expect(page.getByText('集市规则')).toBeVisible()
   await expect(page.getByRole('button', { name: /全部.*4/ })).toBeVisible()
@@ -108,7 +108,7 @@ test('市集营业：collecting 可逛可收志愿', async ({ page }) => {
 
 test('心仪导生栏：左右排序、叉号删除与一轮三志愿约束', async ({ page }) => {
   await loginAsStudent(page, phaseOf('collecting', { submittable_round: 1 }))
-  await page.goto(`${BASE}/camp/1/market`)
+  await page.goto(`${BASE}/camp/1/market`, { waitUntil: 'domcontentloaded' })
 
   const submit = page.getByRole('button', { name: '提交志愿' })
   await expect(submit).toBeDisabled()
@@ -132,7 +132,7 @@ test('未交志愿：ms tab 大 CTA 直达市集', async ({ page }) => {
   page.on('pageerror', (e) => errors.push(e.message))
   await loginAsStudent(page, phaseOf('collecting', { submittable_round: 1 }))
 
-  await page.goto(`${BASE}/camp?tab=ms&sid=1`)
+  await page.goto(`${BASE}/camp?tab=ms&sid=1`, { waitUntil: 'domcontentloaded' })
   await expect(page.getByText('去逛导生市集，交出你的 3 个志愿')).toBeVisible()
   await page.getByRole('button', { name: '进入团购导生' }).click()
   await expect(page).toHaveURL(/\/camp\/1\/market$/)
@@ -149,7 +149,7 @@ test('已交志愿：ms tab 回显志愿与再逛逛入口', async ({ page }) =>
     round1: [{ mentor_id: 13, note: '想学硬件' }],
   }))
 
-  await page.goto(`${BASE}/camp?tab=ms&sid=1`)
+  await page.goto(`${BASE}/camp?tab=ms&sid=1`, { waitUntil: 'domcontentloaded' })
   await expect(page.getByText('已提交 1 个志愿 · 截止前可在市集整组修改')).toBeVisible()
   await expect(page.getByText('test_mentor')).toBeVisible()
   await expect(page.getByText('“想学硬件”')).toBeVisible()
@@ -165,7 +165,7 @@ test('round1 打烊：市集出示等待卡并引导回工作台', async ({ page
     round1: [{ mentor_id: 13, note: '' }, { mentor_id: 20, note: '' }],
   }))
 
-  await page.goto(`${BASE}/camp/1/market`)
+  await page.goto(`${BASE}/camp/1/market`, { waitUntil: 'domcontentloaded' })
   await expect(page.getByText('导生正在挑选，市集暂停营业')).toBeVisible()
   await expect(page.getByRole('button', { name: '回工作台看状态' })).toBeVisible()
 

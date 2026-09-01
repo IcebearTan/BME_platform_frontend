@@ -5,7 +5,9 @@ import { defineConfig } from '@playwright/test'
 // 5002 预览 API 可复用，但 preview-api.spec.js 会校验其契约，旧实例无法静默通过。
 export default defineConfig({
   testDir: '.',
-  timeout: 30_000,
+  // 60s：页面由 vite dev 按需编译，双 worker 并发首访重页面（如 /camp?tab=ms）时
+  // load 事件可能超 30s；秒级用例不受影响，只是给重页面留余量。
+  timeout: 60_000,
   retries: 0,
   reporter: [['list']],
   use: {

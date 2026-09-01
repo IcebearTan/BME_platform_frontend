@@ -5,7 +5,7 @@ description: 为 BME 前端编写或运行 Playwright e2e 用例时使用。给�
 
 # BME e2e 测试规程
 
-> 权威源:`docs/ARCHITECTURE.md` §10;现有 7 条用例在 `e2e/*.spec.js`,先读它们再写新的。
+> 权威源:`docs/ARCHITECTURE.md` §10;现有 16 条用例在 `e2e/*.spec.js`,先读它们再写新的。
 
 ## 运行(必须带 -c,裸跑不会起 webServer)
 
@@ -15,12 +15,12 @@ npx playwright test -c e2e/playwright.config.ts   # 等价手动形式
 # ❌ 裸 `npx playwright test`:找不到 config → 不启动 dev server → 全部 connection refused
 ```
 
-配置:双 webServer(user 8081 /admin 5173,`reuseExistingServer` 复用已起服务);本地已开着 dev 时直接跑即可。
+配置:三 webServer——user **18081**(`dev:test`,不复用)/ admin **15173**(`dev:test`,不复用)/ 5002 预览 API(`dev:preview:api`,可复用)。**测试端口与开发端口(8081/5173)分离**:用例 BASE 一律写 `http://127.0.0.1:18081/AMEII` 或 `http://127.0.0.1:15173/admin`,不要写 localhost:8081/5173(会碰到你正开着的 dev server,产生不稳定结果);5002 的契约由 `preview-api.spec.js` 校验。
 
 ## mock 策略(用例零后端依赖)
 
 ```js
-const BASE = 'http://localhost:5173/admin'
+const BASE = 'http://127.0.0.1:15173/admin'
 
 async function loginAsStaff(page) {
   // 1) 预置登录态:token 键 + vuex 持久化键(两处都要,键名见 §8 键名规范)
@@ -62,10 +62,10 @@ expect(pageErrors).toEqual([])   // 模板引用不存在的绑定/点击即炸�
 
 ## 用例分层约定
 
-- 冒烟(现有 7 条):登录页渲染、路由跳转、布局壳、编辑器挂载、展示页——**不可删**;
+- 冒烟(现有 16 条):两端登录页、路由跳转、布局壳、编辑器挂载、展示页、导生市集状态机、营期详情选导生/成员、通知中心/感谢信、预览 API 契约——**不可删**;
 - 页面用例:每新增页面配一条(渲染 + 一次真实交互 + pageerror);mock 数据放 route 里,不造 fixture 文件;
 - 选择器优先 `getByRole`/`getByPlaceholder`,避免绑样式类名(样式重构不应打破测试)。
 
 ## 提交前
 
-`pnpm build`(两端)+ `pnpm test:e2e` 全绿;用例挂了先自查 mock 是否漏接口(url 打到 127.0.0.1:5001 且无拦截 = 环境/后端问题,不是页面问题)。
+`pnpm check:no-emoji` + `pnpm build`(两端)+ `pnpm test:e2e` 全绿(AGENTS.md 强制);用例挂了先自查 mock 是否漏接口(url 打到 127.0.0.1:5001 且无拦截 = 环境/后端问题,不是页面问题)。
