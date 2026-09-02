@@ -6,7 +6,7 @@
 
     <template v-else-if="phaseInfo">
       <DewCard variant="default" size="lg" :no-hover="true" class="section-card">
-        <MsPhaseBar :phase="phaseInfo.phase" :round2-enabled="phaseInfo.round2_enabled" />
+        <MsPhaseBar :phase="phaseInfo.phase" />
         <div class="phase-caption">{{ deskCaption }}</div>
       </DewCard>
 
@@ -42,17 +42,17 @@
         <div class="result-hint">你未发布名片（本轮对学员不可见）。下个营期记得在志愿期开始前发布。</div>
       </DewCard>
 
-      <!-- 意向单（collecting 预览 / round1/round2 正式收人） -->
+      <!-- 谁报了我（collecting 期只读名单；协调由老师线下完成） -->
       <DewCard
-        v-if="phaseInfo.phase === 'collecting' || phaseInfo.phase === 'round1' || phaseInfo.phase === 'round2'"
+        v-if="phaseInfo.phase === 'collecting'"
         variant="default" size="lg" :no-hover="true" class="section-card"
       >
         <template #header>
           <div class="head-row">
-            <h3>意向单</h3>
+            <h3>谁报了我</h3>
             <span class="head-hint">
-              已收 {{ suitorsInfo?.matched ?? 0 }} / {{ suitorsInfo?.capacity ?? 0 }} ·
-              {{ suitorsInfo?.preview ? '预览中，志愿截止后开放收人' : (suitorsInfo?.round === 2 ? '二轮' : '一轮') + '选择你的学员' }}
+              已分到 {{ suitorsInfo?.matched ?? 0 }} / {{ suitorsInfo?.capacity ?? 0 }} ·
+              {{ suitorsInfo?.preview ? '志愿收集中，截止后由老师统一协调' : '志愿已截止，名单供协调参考' }}
             </span>
           </div>
         </template>
@@ -69,16 +69,7 @@
               <p v-if="s.note" class="suitor-note">“{{ s.note }}”</p>
             </div>
             <div class="suitor-side">
-              <span v-if="s.matched" class="taken-tag">已被 {{ s.matched_mentor_name || '其他导生' }} 收下</span>
-              <DewButton
-                v-else
-                size="sm"
-                type="glass"
-                :disabled="suitorsInfo?.preview || !canPick"
-                @click="pick(s)"
-              >
-                {{ suitorsInfo?.preview ? '预览' : '收下' }}
-              </DewButton>
+              <span v-if="s.matched" class="taken-tag">已分配给 {{ s.matched_mentor_name || '其他导生' }}</span>
             </div>
           </div>
         </TransitionGroup>
@@ -101,7 +92,7 @@
             <el-avatar :size="36" :src="assetUrl(m.avatar)">{{ (m.username || '?').charAt(0) }}</el-avatar>
             <div class="team-meta">
               <span class="team-name">{{ m.username }}</span>
-              <span class="team-src">{{ m.source === 'admin' ? '老师指派' : (m.round === 2 ? '二轮互选' : '一轮互选') }}</span>
+              <span class="team-src">{{ m.source === 'admin' ? '老师指派' : '互选' }}</span>
             </div>
           </div>
         </div>
@@ -113,8 +104,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
 import { useStore } from 'vuex';
-import { ElMessage } from 'element-plus';
-import { DewCard, DewButton, DewTag } from '@bme/dew-ui';
+import { DewCard, DewTag } from '@bme/dew-ui';
 import MsPhaseBar from './MsPhaseBar.vue';
 import MsMentorProfile from './MsMentorProfile.vue';
 import { campService, assetUrl } from '../../services/campService';
@@ -126,37 +116,21 @@ const username = computed(() => store.state.user?.username || '');
 
 const loading = ref(true);
 const phaseInfo = ref(null);
-const suitorsInfo = ref(null);   // {round, preview, capacity, matched, remaining}
+const suitorsInfo = ref(null);   // {preview, capacity, matched, remaining}
 const suitors = ref([]);
 const matched = ref([]);
 
 const profile = computed(() => phaseInfo.value?.me?.profile || null);
 const locked = computed(() => phaseInfo.value?.me?.profile_locked ?? true);
-const canPick = computed(() =>
-  (suitorsInfo.value?.remaining ?? 0) > 0 && !suitorsInfo.value?.preview);
 
 const deskCaption = computed(() => {
   const p = phaseInfo.value;
   if (!p) return '';
   if (p.phase === 'upcoming') return `完善名片，${p.deadlines.preference_start || ''} 起学员可见`;
-  if (p.phase === 'collecting') return `学员正在提交志愿 · ${p.deadlines.preference_deadline || ''} 截止后开始收人`;
-  if (p.phase === 'round1') return `一轮挑选 · ${p.deadlines.round1_deadline || ''} 截止`;
-  if (p.phase === 'round2') return `二轮互选 · ${p.deadlines.round2_deadline || ''} 截止`;
-  if (p.phase === 'done') return '选导生结束';
+  if (p.phase === 'collecting') return `学员正在提交志愿 · ${p.deadlines.preference_deadline || ''} 截止后由老师统一协调分配`;
+  if (p.phase === 'done') return '志愿已截止，分配由老师协调后公布';
   return '';
 });
-
-async function pick(s) {
-  try {
-    const r = await campService.msPickStudent(props.sid, s.user_id);
-    ElMessage.success(`已收下 ${s.username}（${r.matched_count}/${suitorsInfo.value.capacity}）`);
-    await reloadAll();
-  } catch (e) {
-    ElMessage.error(e.response?.data?.message || '收下失败');
-    // 常见：刚被别人收走 / 名额刚满 / 窗口切换 —— 重拉
-    await reloadAll();
-  }
-}
 
 async function reloadAll() {
   const sid = props.sid;
@@ -164,7 +138,7 @@ async function reloadAll() {
     const ph = await campService.fetchMsPhase(sid);
     if (sid !== props.sid) return;   // 切营防串台
     phaseInfo.value = ph;
-    if (['collecting', 'round1', 'round2'].includes(ph.phase)) {
+    if (ph.phase === 'collecting') {
       const su = await campService.fetchMsSuitors(sid).catch(() => null);
       if (sid !== props.sid) return;
       if (su && su.code === 200) {

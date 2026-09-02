@@ -5,14 +5,12 @@ import api, { API_URL } from '../api'
 // dev 下前端 8081 与后端 5001 跨域，必须拼 API_URL（别像社区页裸用相对路径）
 export const assetUrl = (path) => (path ? API_URL + path : '')
 
-// 选导生阶段中文标签
+// 选导生阶段中文标签（单轮制三态：未开始 → 收集志愿 → 已截止出结果）
 export const MS_PHASE_LABEL = {
   disabled: '未启用',
-  upcoming: '即将开始',
-  collecting: '志愿提交',
-  round1: '导生挑选',
-  round2: '二轮互选',
-  done: '已结束',
+  upcoming: '未开始',
+  collecting: '收集志愿',
+  done: '已截止出结果',
 }
 
 // ── 考勤状态渲染归类（前端唯一真相源，各渲染面共用）──
@@ -91,6 +89,10 @@ export const campService = {
   requestJoin: (sid, selected_days, reason = '') =>
     api.post(`/camp/sessions/${sid}/join-request`, { selected_days, reason }).then(r => r.data),
 
+  // 导生报名入营（资格名单内用户自助，仅 upcoming 营；403/400 的 message 可直接展示）
+  registerMentor: (sid) =>
+    api.post(`/camp/sessions/${sid}/mentor-registration`).then(r => r.data),
+
   // ── 选导生（开营前置阶段；后端 blueprints/camp_ms.py）──
   // 阶段总览（含按身份视角数据；读端点顺带触发阶段过渡通知）
   fetchMsPhase: (sid) =>
@@ -117,11 +119,9 @@ export const campService = {
   submitMsPreferences: (sid, list) =>
     api.post(`/camp/ms/${sid}/preferences`, { list }).then(r => r.data),
 
-  // 导生端：意向单（选我的学员）/ 收下 / 我的团队
+  // 导生端：谁报了我（只读名单，收人动作已随单轮制下线）/ 我的团队
   fetchMsSuitors: (sid) =>
     api.get(`/camp/ms/${sid}/suitors`).then(r => r.data),
-  msPickStudent: (sid, student_id) =>
-    api.post(`/camp/ms/${sid}/pick`, { student_id }).then(r => r.data),
   fetchMsMatched: (sid) =>
     api.get(`/camp/ms/${sid}/matched`).then(r => r.data),
 

@@ -74,7 +74,7 @@ async function mockCampSessionDetail(page) {
   await page.route('http://127.0.0.1:5001/camp/sessions/1', (route) =>
     route.fulfill({ json: {
       code: 200,
-      session: { id: 1, name: '本地导师双选测试营', status: 'running', mentor_selection_enabled: true },
+      session: { id: 1, name: '本地导师双选测试营', status: 'running', category: 'learning', mentor_selection_enabled: true },
     } })
   )
   await page.route('http://127.0.0.1:5001/camp/sessions/1/members', (route) => {
@@ -99,7 +99,7 @@ async function mockCampSessionDetail(page) {
       deadlines: {},
       mentors: overviewMentors,
       students: overviewStudents,
-      stats: { students: 20, matched: 0, unmatched: 20, r2_enabled: true },
+      stats: { students: 20, matched: 0, unmatched: 20, r2_enabled: false },
     } })
   )
   for (const endpoint of ['courses', 'seats', 'leave']) {
@@ -171,9 +171,20 @@ test('营期详情保留选导生与成员添加能力', async ({ page }) => {
   await expect(page.getByRole('cell', { name: '林泽宇', exact: true }).first()).toBeVisible()
   await expect(page.getByRole('cell', { name: '测试学员20', exact: true })).toBeVisible()
 
+  // 培训营（learning）+ 超管：导生名单 tab 存在（资格名单导入入口）
+  await expect(page.getByRole('tab', { name: '导生名单' })).toBeVisible()
+
   await page.getByRole('tab', { name: '选导生' }).click()
   await expect(page.getByText('导生概览', { exact: true })).toBeVisible()
   await expect(page.getByText('学员配对（0 / 20）', { exact: true })).toBeVisible()
+
+  // 单轮制工具栏：志愿 CSV 导出 + 批量指派回填
+  await expect(page.getByRole('button', { name: '导出志愿 CSV' })).toBeVisible()
+  await page.getByRole('button', { name: '批量指派' }).click()
+  const batchDialog = page.getByRole('dialog', { name: '批量指派导生' })
+  await expect(batchDialog).toBeVisible()
+  await expect(batchDialog.getByRole('cell', { name: '测试学员09', exact: true })).toBeVisible()
+  await batchDialog.getByRole('button', { name: '关闭' }).click()
 
   await page.getByRole('tab', { name: '成员' }).click()
   await page.getByRole('button', { name: '加成员', exact: true }).click()

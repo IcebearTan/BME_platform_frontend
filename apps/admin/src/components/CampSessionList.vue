@@ -6,7 +6,10 @@
     <el-table :data="sessions" v-loading="loading" border stripe>
       <el-table-column label="营期名称" prop="name" min-width="160" />
       <el-table-column label="类型" width="100">
-        <template #default="{ row }">{{ typeLabel(row.camp_type) }}</template>
+        <template #default="{ row }">{{ categoryLabel(row.category) }}</template>
+      </el-table-column>
+      <el-table-column label="教学周期" width="110">
+        <template #default="{ row }">{{ row.cycle_name || '—' }}</template>
       </el-table-column>
       <el-table-column label="起止日期" min-width="190">
         <template #default="{ row }">{{ row.start_date }} ~ {{ row.end_date }}</template>
@@ -41,12 +44,18 @@
         <el-form-item label="营期名称" required>
           <el-input v-model="dlg.form.name" placeholder="如 2026暑期训练营" />
         </el-form-item>
-        <el-form-item label="类型">
-          <el-select v-model="dlg.form.camp_type" style="width:100%">
-            <el-option label="短期营" value="short_term" />
-            <el-option label="学期营" value="semester" />
-            <el-option label="冬令营" value="winter" />
+        <el-form-item label="营期类型" required>
+          <el-select v-model="dlg.form.category" :disabled="!!dlg.editId" style="width:100%">
+            <el-option label="培训营（学习型）" value="learning" />
+            <el-option label="项目营" value="project" />
           </el-select>
+          <div v-if="dlg.editId" class="field-tip">存量营的营期类型不可修改</div>
+        </el-form-item>
+        <el-form-item label="教学周期" :required="!dlg.editId">
+          <el-select v-model="dlg.form.cycle_id" filterable placeholder="选择教学周期" style="width:100%">
+            <el-option v-for="c in cycles" :key="c.id" :label="c.name" :value="c.id" />
+          </el-select>
+          <div v-if="!cycles.length" class="field-tip">暂无教学周期，请先让管理员创建周期</div>
         </el-form-item>
         <el-form-item label="起止日期" required>
           <el-date-picker v-model="dateRange" type="daterange" range-separator="至"
@@ -75,15 +84,7 @@
           </el-form-item>
           <el-form-item label="志愿截止" required>
             <el-date-picker v-model="dlg.form.ms_preference_deadline" type="datetime"
-              value-format="YYYY-MM-DD HH:mm" format="MM-DD HH:mm" placeholder="截止后进入挑选" style="width:100%" />
-          </el-form-item>
-          <el-form-item label="一轮截止" required>
-            <el-date-picker v-model="dlg.form.ms_round1_deadline" type="datetime"
-              value-format="YYYY-MM-DD HH:mm" format="MM-DD HH:mm" placeholder="导生挑选截止" style="width:100%" />
-          </el-form-item>
-          <el-form-item label="二轮截止">
-            <el-date-picker v-model="dlg.form.ms_round2_deadline" type="datetime"
-              value-format="YYYY-MM-DD HH:mm" format="MM-DD HH:mm" placeholder="留空 = 不设二轮" style="width:100%" />
+              value-format="YYYY-MM-DD HH:mm" format="MM-DD HH:mm" placeholder="截止后老师线下协调" style="width:100%" />
           </el-form-item>
           <el-form-item label="分类标签">
             <el-select v-model="dlg.form.ms_tags" multiple filterable allow-create default-first-option
@@ -118,10 +119,12 @@ const dateRange = ref(null);
 
 const dlg = reactive({
   visible: false, submitting: false, editId: null,
-  form: { name: '', camp_type: 'short_term', expected_check_in: null, min_daily_hours: 6, weekdays_only: true },
+  form: { name: '', category: 'learning', cycle_id: null, expected_check_in: null, min_daily_hours: 6, weekdays_only: true },
 });
 
-const typeLabel = (t) => ({ short_term: '短期营', semester: '学期营', winter: '冬令营' }[t] || t);
+// 教学周期选项（GET /camp/cycles 全员可读；创建营期必须挂一个周期）
+const cycles = ref([]);
+const categoryLabel = (c) => ({ learning: '培训营', project: '项目营' }[c] || '培训营');
 const statusLabel = (s) => ({ draft: '草稿', upcoming: '待开放', selecting: '选择阶段', running: '进行中', archived: '已结营' }[s] || s);
 const statusType = (s) => ({ draft: 'info', upcoming: 'primary', selecting: 'warning', running: 'success', archived: 'info' }[s] || 'info');
 
@@ -132,9 +135,15 @@ function msEmptyForm() {
   return {
     mentor_selection_enabled: false,
     ms_preference_start: null, ms_preference_deadline: null,
-    ms_round1_deadline: null, ms_round2_deadline: null,
     ms_tags: [...MS_TAG_PRESETS],
   };
+}
+
+async function fetchCycles() {
+  try {
+    const res = await api.get('/camp/cycles');
+    cycles.value = res.data.cycles || [];
+  } catch { /* 周期接口失败不阻断列表，建营时给行内提示 */ }
 }
 
 async function fetchList() {
@@ -151,7 +160,7 @@ async function fetchList() {
 
 function openCreate() {
   dlg.editId = null;
-  dlg.form = { name: '', camp_type: 'short_term', expected_check_in: null, min_daily_hours: 6, weekdays_only: true, ...msEmptyForm() };
+  dlg.form = { name: '', category: 'learning', cycle_id: null, expected_check_in: null, min_daily_hours: 6, weekdays_only: true, ...msEmptyForm() };
   dateRange.value = null;
   dlg.visible = true;
 }
@@ -159,15 +168,13 @@ function openCreate() {
 function openEdit(row) {
   dlg.editId = row.id;
   dlg.form = {
-    name: row.name, camp_type: row.camp_type, status: row.status,
+    name: row.name, category: row.category || 'learning', cycle_id: row.cycle_id || null, status: row.status,
     expected_check_in: row.expected_check_in ? String(row.expected_check_in).slice(0, 5) : null,
     min_daily_hours: row.min_daily_hours,
     weekdays_only: row.weekdays_only,
     mentor_selection_enabled: !!row.mentor_selection_enabled,
     ms_preference_start: row.ms_preference_start || null,
     ms_preference_deadline: row.ms_preference_deadline || null,
-    ms_round1_deadline: row.ms_round1_deadline || null,
-    ms_round2_deadline: row.ms_round2_deadline || null,
     ms_tags: (row.ms_tags && row.ms_tags.length) ? [...row.ms_tags] : [...MS_TAG_PRESETS],
   };
   dateRange.value = [row.start_date, row.end_date];
@@ -179,9 +186,14 @@ async function submit() {
     ElMessage.warning('请填写营期名称和起止日期');
     return;
   }
+  // 建营必须挂教学周期（后端强校验）；编辑时周期可改
+  if (!dlg.form.cycle_id) {
+    ElMessage.warning('请选择教学周期（没有可选时请先让管理员创建周期）');
+    return;
+  }
   if (dlg.form.mentor_selection_enabled
-    && (!dlg.form.ms_preference_start || !dlg.form.ms_preference_deadline || !dlg.form.ms_round1_deadline)) {
-    ElMessage.warning('启用选导生需设置：志愿开始 / 志愿截止 / 一轮截止');
+    && (!dlg.form.ms_preference_start || !dlg.form.ms_preference_deadline)) {
+    ElMessage.warning('启用选导生需设置：志愿开始 / 志愿截止');
     return;
   }
   dlg.submitting = true;
@@ -235,11 +247,15 @@ async function setFeatured(row) {
   }
 }
 
-onMounted(fetchList);
+onMounted(() => {
+  fetchList();
+  if (canManage.value) fetchCycles();
+});
 </script>
 
 <style scoped>
 .camp-session-list { padding: 16px; }
 .header-bar { margin-bottom: 12px; }
 .ms-tip { margin-left: 10px; font-size: 12px; color: var(--el-text-color-secondary, #909399); }
+.field-tip { width: 100%; font-size: 12px; line-height: 1.5; color: var(--el-text-color-secondary, #909399); }
 </style>

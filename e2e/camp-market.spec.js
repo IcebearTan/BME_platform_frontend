@@ -18,7 +18,6 @@ const SESSIONS = {
 
 const DEADLINES = {
   preference_start: '2099-08-24 00:00', preference_deadline: '2099-08-24 23:00',
-  round1_deadline: '2099-08-24 23:59', round2_deadline: '2099-08-25 23:00',
 }
 
 const MENTORS = {
@@ -35,9 +34,10 @@ const MENTORS = {
 }
 
 function phaseOf(phase, me = {}) {
+  // 单轮制契约：phase ∈ disabled/upcoming/collecting/done；round2 键恒空/false
   return {
     code: 200, phase, enabled: true, config_error: false,
-    deadlines: DEADLINES, round2_enabled: true, ms_tags: ['硬件组', '软件组', '人工智能'],
+    deadlines: DEADLINES, round2_enabled: false, ms_tags: ['硬件组', '软件组', '人工智能'],
     stats: { submitted: 2, students: 4 },
     me: {
       role: 'student', round1: [], round2: [], submittable_round: null,
@@ -46,18 +46,21 @@ function phaseOf(phase, me = {}) {
   }
 }
 
-async function loginAsStudent(page, phase) {
+async function loginAsUser(page, phase, role = 'student', extraMocks = []) {
   // 1) 预置登录态：token 键 + vuex 持久化键（role getter 读 state.user.role）
-  await page.addInitScript(() => {
+  await page.addInitScript((r) => {
     localStorage.setItem('bme-user-token', 'e2e-mock-token')
     localStorage.setItem('bme-user-state', JSON.stringify({
       token: 'e2e-mock-token', isLogin: true, isDarkMode: false,
-      user: { role: 'student' }, checkinInfo: {},
+      user: { role: r }, checkinInfo: {},
     }))
-  })
-  // 2) 拦截全部后端请求：camp 三接口给真形数据，其余统一 200 空数据
+  }, role)
+  // 2) 拦截全部后端请求：camp 接口按需给真形数据，其余统一 200 空数据
   await page.route('http://127.0.0.1:5001/**', (route) => {
     const url = route.request().url()
+    for (const hit of extraMocks) {
+      if (url.includes(hit.url)) return route.fulfill({ json: hit.json })
+    }
     if (url.includes('/camp/ms/photo/test.svg')) {
       return route.fulfill({
         contentType: 'image/svg+xml',
@@ -75,6 +78,10 @@ async function loginAsStudent(page, phase) {
     }
     return route.fulfill({ json: { code: 200, message: 'ok', data: {} } })
   })
+}
+
+async function loginAsStudent(page, phase) {
+  await loginAsUser(page, phase, 'student')
 }
 
 test('市集营业：collecting 可逛可收志愿', async ({ page }) => {
@@ -158,16 +165,50 @@ test('已交志愿：ms tab 回显志愿与再逛逛入口', async ({ page }) =>
   expect(errors).toEqual([])
 })
 
-test('round1 打烊：市集出示等待卡并引导回工作台', async ({ page }) => {
+test('志愿截止打烊：市集出示收摊卡并引导回工作台', async ({ page }) => {
   const errors = []
   page.on('pageerror', (e) => errors.push(e.message))
-  await loginAsStudent(page, phaseOf('round1', {
+  await loginAsStudent(page, phaseOf('done', {
     round1: [{ mentor_id: 13, note: '' }, { mentor_id: 20, note: '' }],
   }))
 
   await page.goto(`${BASE}/camp/1/market`, { waitUntil: 'domcontentloaded' })
-  await expect(page.getByText('导生正在挑选，市集暂停营业')).toBeVisible()
+  await expect(page.getByText('本轮市集已收摊')).toBeVisible()
+  await expect(page.getByText('志愿已截止，老师正在协调分配，结果在工作台公布')).toBeVisible()
   await expect(page.getByRole('button', { name: '回工作台看状态' })).toBeVisible()
+
+  expect(errors).toEqual([])
+})
+
+test('导生工作台：谁报了我只读名单，无收人按钮', async ({ page }) => {
+  const errors = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  await loginAsUser(page, phaseOf('collecting', {
+    role: 'mentor', has_profile: true, profile_locked: false,
+    matched_count: 0, remaining: 3, suitor_count: 2,
+  }), 'mentor', [
+    {
+      url: '/camp/ms/1/suitors',
+      json: {
+        code: 200, round: 1, preview: true, phase: 'collecting',
+        capacity: 3, matched: 0, remaining: 3,
+        suitors: [
+          { user_id: 201, username: '学员小张', avatar: null, rank: 1, note: '想学硬件', matched: false, matched_mentor_name: null },
+          { user_id: 202, username: '学员小王', avatar: null, rank: 2, note: '', matched: true, matched_mentor_name: '别的导生' },
+        ],
+      },
+    },
+    { url: '/camp/ms/1/matched', json: { code: 200, matched: [] } },
+    { url: '/camp/ms/1/profile', json: { code: 200, profile: null } },
+  ])
+
+  await page.goto(`${BASE}/camp?tab=ms&sid=1`, { waitUntil: 'domcontentloaded' })
+  await expect(page.getByText('谁报了我')).toBeVisible()
+  await expect(page.getByText('学员小张')).toBeVisible()
+  await expect(page.getByText('已分配给 别的导生')).toBeVisible()
+  // 单轮制：收人动作已下线，名单纯只读
+  await expect(page.getByRole('button', { name: '收下' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: '预览', exact: true })).toHaveCount(0)
 
   expect(errors).toEqual([])
 })

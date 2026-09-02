@@ -19,28 +19,24 @@ import { Check } from '@element-plus/icons-vue';
 
 const props = defineProps({
   phase: { type: String, default: 'disabled' },
-  round2Enabled: { type: Boolean, default: false },
 });
 
-// 阶段 → 全局步骤索引（disabled 由父级隐藏本组件，兜底按 -1 处理）
-const INDEX = { upcoming: 0, collecting: 1, round1: 2, round2: 3, done: 4 };
+// 阶段 → 步骤索引（单轮制三态；disabled 由父级隐藏本组件，兜底按 -1 处理）
+const INDEX = { upcoming: 0, collecting: 1, done: 2 };
 const currentIndex = computed(() => INDEX[props.phase] ?? -1);
 
 const steps = computed(() => {
   const cur = currentIndex.value;
   const all = [
-    { key: 'upcoming', label: '名片展示' },
-    { key: 'collecting', label: '志愿提交' },
-    { key: 'round1', label: '导生挑选' },
-    { key: 'round2', label: '二轮互选' },
-    { key: 'done', label: '完成' },
+    { key: 'upcoming', label: '未开始' },
+    { key: 'collecting', label: '收集志愿' },
+    { key: 'done', label: '已截止出结果' },
   ];
-  // 未配置二轮：整个步骤不显示（相位判定仍按全局 INDEX，不受过滤影响）
-  const shown = props.round2Enabled ? all : all.filter((s) => s.key !== 'round2');
-  return shown.map((s) => {
-    const idx = INDEX[s.key];
-    return { ...s, idx, state: cur > idx ? 'done' : cur === idx ? 'current' : 'todo' };
-  });
+  return all.map((s, i) => ({
+    ...s,
+    idx: i,
+    state: cur > i ? 'done' : cur === i ? 'current' : 'todo',
+  }));
 });
 </script>
 

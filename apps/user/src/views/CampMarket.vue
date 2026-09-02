@@ -21,7 +21,7 @@
 
       <div v-else-if="!open" class="market-closed">
         <DewCard variant="inset" size="lg" :no-hover="true">
-          <MsPhaseBar :phase="phaseInfo.phase" :round2-enabled="phaseInfo.round2_enabled" />
+          <MsPhaseBar :phase="phaseInfo.phase" />
           <div class="closed-label">{{ closedText }}</div>
           <div v-if="closedHint" class="closed-hint">{{ closedHint }}</div>
           <DewButton type="glass" @click="backToCamp">回工作台看状态</DewButton>
@@ -59,7 +59,7 @@
             </div>
             <div class="rule">
               <span class="rule-num">2</span>
-              <div><b>双方互选</b><p>导生按顺序挑选，双方互选后完成匹配。</p></div>
+              <div><b>老师协调</b><p>志愿截止后由老师统一协调，分配结果在工作台公布。</p></div>
             </div>
             <div class="rule">
               <span class="rule-num">3</span>
@@ -77,9 +77,7 @@
             class="market-filter"
           />
 
-          <div v-if="!filteredMentors.length" class="ms-empty">
-            {{ phaseInfo.phase === 'round2' ? '没有可选的导生了（均已满员）' : '暂无导生发布名片' }}
-          </div>
+          <div v-if="!filteredMentors.length" class="ms-empty">暂无导生发布名片</div>
           <div v-else class="market-grid">
             <MsMentorCard
               v-for="(mentor, index) in filteredMentors"
@@ -98,7 +96,7 @@
         <MsPreferenceTray
           :picks="picks"
           :mentor-names="mentorNames"
-          :round="submittable"
+          :round="1"
           :already-submitted="alreadySubmitted"
           :submitting="submitting"
           :disabled="expiredByClock"
@@ -146,20 +144,12 @@ let countdownTimer = null;
 let tickerTimer = null;
 let statsTimer = null;
 
-const open = computed(() => !!phaseInfo.value?.me?.submittable_round);
-const submittable = computed(() => phaseInfo.value?.me?.submittable_round || null);
+const open = computed(() => phaseInfo.value?.me?.submittable_round === 1);
+const submittable = computed(() => phaseInfo.value?.me?.submittable_round === 1);
 const meRound1 = computed(() => phaseInfo.value?.me?.round1 || []);
-const alreadySubmitted = computed(() => {
-  if (!phaseInfo.value || !submittable.value) return false;
-  const list = submittable.value === 1 ? meRound1.value : (phaseInfo.value.me.round2 || []);
-  return list.length > 0;
-});
+const alreadySubmitted = computed(() => submittable.value && meRound1.value.length > 0);
 
-const activeDeadline = computed(() => {
-  const deadlines = phaseInfo.value?.deadlines;
-  if (!deadlines) return '';
-  return submittable.value === 2 ? deadlines.round2_deadline : deadlines.preference_deadline;
-});
+const activeDeadline = computed(() => phaseInfo.value?.deadlines?.preference_deadline || '');
 const deadlineMs = computed(() => {
   if (!activeDeadline.value) return null;
   const timestamp = new Date(activeDeadline.value.replace(' ', 'T')).getTime();
@@ -181,9 +171,7 @@ const submittedText = computed(() => {
   return `已经有 ${stats.submitted}/${stats.students} 位同学上车啦～`;
 });
 
-const availableMentors = computed(() => phaseInfo.value?.phase === 'round2'
-  ? mentors.value.filter((mentor) => !mentor.full)
-  : mentors.value);
+const availableMentors = computed(() => mentors.value);
 const countForTag = (tag) => tag === 'all'
   ? availableMentors.value.length
   : availableMentors.value.filter((mentor) => mentor.tags?.includes(tag)).length;
@@ -202,7 +190,6 @@ const closedText = computed(() => {
   const phase = phaseInfo.value;
   if (!phase) return '';
   if (phase.me?.my_mentor) return '你已匹配到导生';
-  if (phase.phase === 'round1') return '导生正在挑选，市集暂停营业';
   if (phase.phase === 'done') return '本轮市集已收摊';
   if (phase.phase === 'upcoming') return '市集尚未开门';
   return '市集暂不营业';
@@ -211,9 +198,8 @@ const closedHint = computed(() => {
   const phase = phaseInfo.value;
   if (!phase) return '';
   if (phase.me?.my_mentor) return '回工作台「选导生」查看你的导生卡片';
-  if (phase.phase === 'round1') return '你提交的志愿正在按顺序被导生收人，结果出来会有通知';
-  if (phase.phase === 'done') return phase.me && (meRound1.value.length || (phase.me.round2 || []).length)
-    ? '本轮未被匹配，老师会在开营前指派导生'
+  if (phase.phase === 'done') return meRound1.value.length
+    ? '志愿已截止，老师正在协调分配，结果在工作台公布'
     : '选导生已结束';
   if (phase.phase === 'upcoming') return `${phase.deadlines.preference_start || ''} 开门，届时可浏览名片并提交志愿`;
   return '';
@@ -237,11 +223,8 @@ function movePick(index, direction) {
 const updateNote = (index, value) => { if (picks.value[index]) picks.value[index].note = value; };
 
 async function submitPicks() {
-  const validCount = submittable.value === 1
-    ? picks.value.length === 3
-    : picks.value.length >= 1 && picks.value.length <= 3;
-  if (!validCount || expiredByClock.value) {
-    ElMessage.warning(submittable.value === 1 ? '请选择 3 位心仪导生' : '请至少选择 1 位心仪导生');
+  if (picks.value.length !== 3 || expiredByClock.value) {
+    ElMessage.warning('请选择 3 位心仪导生');
     return;
   }
   submitting.value = true;
@@ -269,15 +252,9 @@ async function load() {
     ]);
     phaseInfo.value = phase;
     mentors.value = mentorData.mentors || [];
-    const round = phase.me?.submittable_round;
-    if (round) {
-      const previous = round === 1 ? phase.me.round1 : phase.me.round2;
-      picks.value = (previous || []).map((pick) => ({ mentor_id: pick.mentor_id, note: pick.note || '' }));
-      if (round === 2) {
-        picks.value = picks.value.filter(
-          (pick) => !mentors.value.find((mentor) => mentor.user_id === pick.mentor_id)?.full,
-        );
-      }
+    if (phase.me?.submittable_round === 1) {
+      const previous = phase.me.round1 || [];
+      picks.value = previous.map((pick) => ({ mentor_id: pick.mentor_id, note: pick.note || '' }));
     } else {
       picks.value = [];
     }

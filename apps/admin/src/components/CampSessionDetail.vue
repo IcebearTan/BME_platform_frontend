@@ -155,20 +155,61 @@
         </el-table>
       </el-tab-pane>
 
-      <!-- ⑧ 选导生（启用且老师/超管可见） -->
+      <!-- ⑧ 导生名单（培训营 + 超管：邮箱导入资格名单，名单内用户可自助报名） -->
+      <el-tab-pane v-if="session.category === 'learning' && isSuperAdmin" label="导生名单" name="eligibility">
+        <h4 class="ms-sec-title">导入资格名单</h4>
+        <el-input v-model="eligibility.raw" type="textarea" :rows="4"
+          placeholder="粘贴导生邮箱，换行或逗号分隔均可，自动去重" />
+        <div style="margin: 10px 0 4px;">
+          <el-button size="small" :loading="eligibility.previewing" @click="previewEligibility">预览</el-button>
+          <el-button size="small" type="primary" :loading="eligibility.confirming" @click="confirmEligibility">确认导入</el-button>
+          <span class="hint">确认导入仅限草稿/待开放阶段；已在名单内的自动跳过</span>
+        </div>
+
+        <template v-if="eligibility.preview">
+          <h4 class="ms-sec-title">预览结果（{{ eligibility.emails.length }} 个邮箱）</h4>
+          <el-alert v-if="eligibility.preview.unmatched_emails?.length" type="warning" :closable="false"
+            :title="`未匹配账号：${eligibility.preview.unmatched_emails.join('、')}`" style="margin-bottom: 8px;" />
+          <el-table :data="eligibility.preview.matched" border size="small">
+            <el-table-column label="姓名" prop="username" min-width="110" />
+            <el-table-column label="邮箱" prop="email" min-width="180" show-overflow-tooltip />
+            <el-table-column label="状态" width="100" align="center">
+              <template #default="{ row }">
+                <el-tag v-if="row.already_eligible" type="info" size="small">已在名单</el-tag>
+                <el-tag v-else type="success" size="small">将新增</el-tag>
+              </template>
+            </el-table-column>
+          </el-table>
+        </template>
+
+        <h4 class="ms-sec-title">已导入名单（{{ eligibility.list.length }}）</h4>
+        <el-table :data="eligibility.list" v-loading="eligibility.loading" border size="small">
+          <el-table-column label="姓名" prop="username" min-width="110" />
+          <el-table-column label="邮箱" prop="email" min-width="180" show-overflow-tooltip />
+          <el-table-column label="报名状态" width="100" align="center">
+            <template #default="{ row }">
+              <el-tag :type="row.registered ? 'success' : 'info'" size="small">
+                {{ row.registered ? '已报名' : '未报名' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+        </el-table>
+      </el-tab-pane>
+
+      <!-- ⑨ 选导生（启用且老师/超管可见） -->
       <el-tab-pane v-if="canManage && session.mentor_selection_enabled" label="选导生" name="ms">
         <!-- 阶段状态 + 手动推进（复用 session_update 改 deadline = 提前截止） -->
         <el-alert
           :type="msPhaseAlertType"
           :closable="false"
-          :title="`当前阶段：${msPhaseLabel} · 志愿 ${msOverview?.deadlines?.preference_deadline || '—'} 截止 / 一轮 ${msOverview?.deadlines?.round1_deadline || '—'} 截止${msOverview?.deadlines?.round2_deadline ? ' / 二轮 ' + msOverview.deadlines.round2_deadline + ' 截止' : '（无二轮）'}`"
+          :title="`当前阶段：${msPhaseLabel} · 志愿 ${msOverview?.deadlines?.preference_deadline || '—'} 截止`"
         />
         <el-alert v-if="msOverview?.config_error" type="error" :closable="false" title="配置不完整：启用但缺少时间点，请到「营期列表 → 编辑」补齐" style="margin-top:8px" />
         <div v-if="manageWritable" style="margin: 12px 0;">
-          <el-button v-if="msOverview?.phase === 'collecting'" size="small" @click="advanceMs('pd')">立即截止志愿（进入挑选）</el-button>
-          <el-button v-if="msOverview?.phase === 'round1'" size="small" @click="advanceMs('r1')">立即截止一轮</el-button>
-          <el-button v-if="msOverview?.phase === 'round1' || msOverview?.phase === 'round2'" size="small" @click="skipRound2">跳过二轮</el-button>
-          <span class="hint">推进即把对应截止时间改为当前时刻；也可在「营期列表 → 编辑」调整时间线</span>
+          <el-button v-if="msOverview?.phase === 'collecting'" size="small" @click="advanceMs">立即截止志愿</el-button>
+          <el-button v-if="isSuperAdmin" size="small" :loading="exporting" @click="exportMsCsv">导出志愿 CSV</el-button>
+          <el-button v-if="isSuperAdmin" size="small" type="primary" plain @click="openBatchAssign">批量指派</el-button>
+          <span class="hint">截止后导出志愿 CSV 线下协调，再用「批量指派」回填结果</span>
         </div>
 
         <!-- 导生概览 -->
@@ -182,9 +223,8 @@
             </template>
           </el-table-column>
           <el-table-column label="容量" prop="capacity" width="70" align="center" />
-          <el-table-column label="一轮志愿数" prop="chose_r1" width="100" align="center" />
-          <el-table-column label="二轮志愿数" prop="chose_r2" width="100" align="center" />
-          <el-table-column label="已收" prop="matched" width="70" align="center" />
+          <el-table-column label="志愿数" prop="chose_r1" width="80" align="center" />
+          <el-table-column label="已分配" prop="matched" width="80" align="center" />
           <el-table-column label="剩余" width="70" align="center">
             <template #default="{ row }">
               <span :style="row.remaining === 0 ? 'color:#e6a23c' : ''">{{ row.remaining }}</span>
@@ -202,19 +242,11 @@
               <span v-else style="color:#e6a23c">未匹配</span>
             </template>
           </el-table-column>
-          <el-table-column label="一轮志愿" width="90" align="center">
+          <el-table-column label="志愿" width="80" align="center">
             <template #default="{ row }">
               <el-tag :type="row.submitted_r1 ? 'info' : 'danger'" size="small" effect="plain">
                 {{ row.submitted_r1 ? '已交' : '未交' }}
               </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column label="二轮志愿" width="90" align="center">
-            <template #default="{ row }">
-              <el-tag v-if="msOverview?.stats?.r2_enabled" :type="row.submitted_r2 ? 'info' : 'danger'" size="small" effect="plain">
-                {{ row.submitted_r2 ? '已交' : '未交' }}
-              </el-tag>
-              <span v-else>—</span>
             </template>
           </el-table-column>
           <el-table-column v-if="manageWritable" label="手动指派" min-width="200">
@@ -293,12 +325,48 @@
         <el-button type="primary" @click="submitAssignSeat">分配</el-button>
       </template>
     </el-dialog>
+
+    <!-- 批量指派导生（线下协调结果回填） -->
+    <el-dialog v-model="batchDlg.visible" title="批量指派导生" width="680px">
+      <el-alert type="info" :closable="false" style="margin-bottom: 10px;"
+        title="为未分配学员逐行选择导师后提交；已分配、冲突、失败的行会就地标注结果" />
+      <div v-if="!batchDlg.rows.length" class="hint" style="padding: 10px 0;">本营暂无未分配学员</div>
+      <el-table v-else :data="batchDlg.rows" border size="small" max-height="420">
+        <el-table-column label="学员" prop="username" min-width="100" />
+        <el-table-column label="指派导师" min-width="190">
+          <template #default="{ row }">
+            <el-select v-model="row._mentor" size="small" placeholder="选择导师"
+              style="width: 100%;" :disabled="!!row._result">
+              <el-option v-for="m in msOverview?.mentors || []" :key="m.user_id"
+                :label="`${m.username}（余 ${m.remaining}）`" :value="m.user_id" />
+            </el-select>
+          </template>
+        </el-table-column>
+        <el-table-column label="结果" min-width="200">
+          <template #default="{ row }">
+            <template v-if="row._result">
+              <el-tag :type="batchStatusMeta(row._result.status).tag" size="small" effect="plain">
+                {{ batchStatusMeta(row._result.status).label }}
+              </el-tag>
+              <span class="batch-msg">{{ row._result.message }}</span>
+            </template>
+            <span v-else class="hint">—</span>
+          </template>
+        </el-table-column>
+      </el-table>
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="batchDlg.visible = false">关闭</el-button>
+          <el-button type="primary" :loading="batchDlg.submitting" @click="submitBatchAssign">提交指派</el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import api from '../api';
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useStore } from 'vuex';
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -311,6 +379,8 @@ const campId = route.params.id;
 // 营期管理写操作 = 老师/超管 且 营期未归档（mentor 只读：请假审批/发奖励除外）
 const canManage = computed(() => ['teacher', 'super_admin'].includes(store.getters.role));
 const manageWritable = computed(() => canManage.value && session.value.status !== 'archived');
+// 名单导入 / 志愿导出 / 批量指派等新端点后端 @camp_role() 仅 super_admin
+const isSuperAdmin = computed(() => store.getters.role === 'super_admin');
 
 const loading = ref(false);
 const activeTab = ref('members');
@@ -364,8 +434,8 @@ const availableCourses = computed(() => {
 });
 const mentorName = (id) => (id ? members.value.find((m) => m.user_id === id)?.username || '—' : '—');
 
-const statusLabel = (s) => ({ draft: '草稿', active: '进行中', archived: '已归档' }[s] || s);
-const statusType = (s) => ({ draft: 'info', active: 'success', archived: 'warning' }[s] || 'info');
+const statusLabel = (s) => ({ draft: '草稿', upcoming: '待开放', selecting: '选择阶段', running: '进行中', archived: '已结营' }[s] || s);
+const statusType = (s) => ({ draft: 'info', upcoming: 'primary', selecting: 'warning', running: 'success', archived: 'info' }[s] || 'info');
 const leaveStatusLabel = (s) => ({ pending: '待审批', approved: '已批准', rejected: '已拒绝' }[s] || s);
 const leaveStatusType = (s) => ({ pending: 'warning', approved: 'success', rejected: 'info' }[s] || 'info');
 
@@ -625,15 +695,81 @@ async function updateMentor(row, mentorId) {
   }
 }
 
-// ── 选导生（overview / 阶段推进 / 手动指派）──
+// ── 导生资格名单（Q-007：粘贴邮箱 → 预览 dry-run → 确认导入；名单内用户可自助报名）──
+const eligibility = reactive({
+  raw: '', emails: [],
+  preview: null, previewing: false, confirming: false,
+  list: [], loading: false,
+});
+
+// 粘贴文本 → 去重邮箱数组（换行/中英文逗号/分号/空白均可分隔）
+function parseEmails() {
+  const seen = new Set();
+  const emails = [];
+  for (const part of eligibility.raw.split(/[\s,，;；]+/)) {
+    const e = part.trim().toLowerCase();
+    if (e && !seen.has(e)) { seen.add(e); emails.push(e); }
+  }
+  return emails;
+}
+
+async function fetchEligibility() {
+  eligibility.loading = true;
+  try {
+    const res = await api.get(`/camp/sessions/${campId}/mentor-eligibility`);
+    eligibility.list = res.data.eligibility || [];
+  } catch {
+    eligibility.list = [];
+  } finally {
+    eligibility.loading = false;
+  }
+}
+
+async function previewEligibility() {
+  const emails = parseEmails();
+  if (!emails.length) { ElMessage.warning('请先粘贴邮箱'); return; }
+  eligibility.emails = emails;
+  eligibility.previewing = true;
+  try {
+    const res = await api.post(`/camp/sessions/${campId}/mentor-eligibility/import-preview`, { emails });
+    eligibility.preview = res.data.data || { matched: [], unmatched_emails: [] };
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '预览失败');
+  } finally {
+    eligibility.previewing = false;
+  }
+}
+
+async function confirmEligibility() {
+  // 按当前文本框内容导入（后端 dry-run 同款匹配逻辑，幂等跳过已在名单者）
+  const emails = parseEmails();
+  if (!emails.length) { ElMessage.warning('请先粘贴邮箱'); return; }
+  eligibility.confirming = true;
+  try {
+    const res = await api.post(`/camp/sessions/${campId}/mentor-eligibility/import-confirm`, { emails });
+    ElMessage.success(res.data.message || '已导入');
+    eligibility.preview = null;
+    eligibility.raw = '';
+    eligibility.emails = [];
+    fetchEligibility();
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '导入失败');
+  } finally {
+    eligibility.confirming = false;
+  }
+}
+
+// 进入「导生名单」tab 时拉取已导入名单
+watch(activeTab, (t) => { if (t === 'eligibility') fetchEligibility(); });
+
+// ── 选导生（overview / 提前截止 / 志愿导出 / 指派）──
 const msOverview = ref(null);
 const MS_PHASE_LABELS = {
-  disabled: '未启用', upcoming: '即将开始', collecting: '志愿提交中',
-  round1: '一轮挑选中', round2: '二轮互选中', done: '已结束',
+  disabled: '未启用', upcoming: '即将开始', collecting: '志愿收集中', done: '志愿已截止',
 };
 const msPhaseLabel = computed(() => MS_PHASE_LABELS[msOverview.value?.phase] || '—');
 const msPhaseAlertType = computed(() => ({
-  collecting: 'info', upcoming: 'info', round1: 'warning', round2: 'warning', done: 'success',
+  collecting: 'info', upcoming: 'info', done: 'success',
 }[msOverview.value?.phase] || 'info'));
 
 async function fetchMsOverview() {
@@ -649,37 +785,85 @@ function nowStr() {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
-async function advanceMs(which) {
-  const field = which === 'pd' ? 'ms_preference_deadline' : 'ms_round1_deadline';
-  const label = which === 'pd' ? '立即截止志愿' : '立即截止一轮';
+async function advanceMs() {
   try {
-    await ElMessageBox.confirm(`${label}？对应截止时间将改为当前时刻，进入下一阶段。`, '阶段推进', {
+    await ElMessageBox.confirm('立即截止志愿？截止时间将改为当前时刻，之后进入线下协调阶段。', '提前截止', {
       confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning',
     });
   } catch { return; }
   try {
-    await api.put(`/camp/sessions/${campId}`, { [field]: nowStr() });
-    ElMessage.success('已推进');
-    fetchAll();
-    fetchMsOverview();
-  } catch (e) {
-    ElMessage.error(e.response?.data?.message || '推进失败');
-  }
-}
-
-async function skipRound2() {
-  try {
-    await ElMessageBox.confirm('跳过二轮？未匹配学员将只能由你手动指派。', '跳过二轮', {
-      confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning',
-    });
-  } catch { return; }
-  try {
-    await api.put(`/camp/sessions/${campId}`, { ms_round2_deadline: null });
-    ElMessage.success('已跳过二轮');
+    await api.put(`/camp/sessions/${campId}`, { ms_preference_deadline: nowStr() });
+    ElMessage.success('已截止志愿');
     fetchAll();
     fetchMsOverview();
   } catch (e) {
     ElMessage.error(e.response?.data?.message || '操作失败');
+  }
+}
+
+// 导出学员志愿 CSV（blob 下载；文件名沿用后端 Content-Disposition 约定）
+const exporting = ref(false);
+async function exportMsCsv() {
+  exporting.value = true;
+  try {
+    const res = await api.get(`/camp/ms/${campId}/export`, { responseType: 'blob' });
+    const url = URL.createObjectURL(res.data);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `camp_${campId}_preferences.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    // 失败响应也是 blob：尽量解析出后端 message，解析不出给通用文案
+    let msg = '导出失败，请稍后重试';
+    try {
+      const text = await e.response?.data?.text();
+      if (text) msg = JSON.parse(text).message || msg;
+    } catch { /* 非 JSON 响应体，保持通用文案 */ }
+    ElMessage.error(msg);
+  } finally {
+    exporting.value = false;
+  }
+}
+
+// ── 批量指派（线下协调结果回填，逐行独立结果）──
+const batchDlg = reactive({ visible: false, submitting: false, rows: [] });
+const BATCH_STATUS = {
+  assigned: { label: '已指派', tag: 'success' },
+  skipped: { label: '跳过', tag: 'info' },
+  conflict: { label: '冲突', tag: 'warning' },
+  error: { label: '失败', tag: 'danger' },
+};
+const batchStatusMeta = (status) => BATCH_STATUS[status] || { label: status, tag: 'info' };
+
+function openBatchAssign() {
+  batchDlg.rows = (msOverview.value?.students || [])
+    .filter((s) => !s.matched)
+    .map((s) => ({ ...s, _mentor: null, _result: null }));
+  batchDlg.visible = true;
+}
+
+async function submitBatchAssign() {
+  const pairs = batchDlg.rows
+    .filter((r) => r._mentor && !r._result)
+    .map((r) => ({ student_user_id: r.user_id, mentor_user_id: r._mentor }));
+  if (!pairs.length) { ElMessage.warning('请至少为一个学员选择导师'); return; }
+  batchDlg.submitting = true;
+  try {
+    const res = await api.post(`/camp/ms/${campId}/assign/batch`, { pairs });
+    const results = res.data.results || [];
+    const byId = new Map(results.map((r) => [r.student_user_id, r]));
+    for (const row of batchDlg.rows) {
+      if (byId.has(row.user_id)) row._result = byId.get(row.user_id);
+    }
+    const count = (s) => results.filter((r) => r.status === s).length;
+    ElMessage.success(`已提交：指派 ${count('assigned')} · 跳过 ${count('skipped')} · 冲突 ${count('conflict')} · 失败 ${count('error')}`);
+    fetchMsOverview();
+    fetchAll();
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '批量指派失败');
+  } finally {
+    batchDlg.submitting = false;
   }
 }
 
@@ -722,4 +906,5 @@ onMounted(() => { fetchAll(); fetchOptions(); if (canManage.value) { fetchJoinRe
 .header .title { font-size: 18px; font-weight: 600; }
 .hint { margin-left: 12px; color: #909399; font-size: 12px; }
 .ms-sec-title { margin: 16px 0 8px; font-size: 14px; font-weight: 600; }
+.batch-msg { margin-left: 6px; font-size: 12px; color: #909399; }
 </style>

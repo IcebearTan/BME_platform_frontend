@@ -6,7 +6,7 @@
 
     <template v-else-if="phaseInfo">
       <DewCard variant="default" size="lg" :no-hover="true" class="section-card">
-        <MsPhaseBar :phase="phaseInfo.phase" :round2-enabled="phaseInfo.round2_enabled" />
+        <MsPhaseBar :phase="phaseInfo.phase" />
         <div class="phase-caption">{{ phaseCaption }}</div>
       </DewCard>
 
@@ -37,27 +37,18 @@
         v-else-if="phaseInfo.phase === 'done'"
         variant="default" size="lg" :no-hover="true" class="section-card"
       >
-        <div class="result-label">选导生已结束</div>
-        <div class="result-hint">你本轮未被匹配，老师会在开营前为你指派导生，请留意通知。</div>
+        <div class="result-label">志愿已截止</div>
+        <div class="result-hint">老师正在线下协调导生分配，结果确定后会在这里公布</div>
       </DewCard>
 
-      <!-- 一轮挑选中：等待 -->
-      <DewCard v-else-if="phaseInfo.phase === 'round1'" variant="default" size="lg" :no-hover="true" class="section-card">
-        <div class="result-label">导生正在挑选</div>
-        <div class="result-hint">
-          {{ submittedText ? `${submittedText}，` : '' }}你提交了 {{ meRound1.length }} 个志愿，导生正按顺序收人。
-          {{ phaseInfo.round2_enabled ? `若一轮未被选中，${phaseInfo.deadlines.round2_deadline || ''} 前可参加二轮互选。` : '本轮未选中将由老师指派。' }}
-        </div>
-      </DewCard>
-
-      <!-- 收集期 / 二轮未匹配：状态 + 市集入口（浏览与提交住在 /camp/:sid/market） -->
+      <!-- 收集期：状态 + 市集入口（浏览与提交住在 /camp/:sid/market） -->
       <DewCard
         v-else-if="submittable" variant="default" size="lg" :no-hover="true"
         :tinted="!alreadySubmitted" :accent="alreadySubmitted ? null : 'primary'" class="section-card"
       >
         <!-- 未交志愿：大 CTA -->
         <template v-if="!alreadySubmitted">
-          <div class="cta-label">{{ submittable === 2 ? '二轮互选 · 重新提交志愿' : '选导生进行中' }}</div>
+          <div class="cta-label">选导生进行中</div>
           <div class="cta-title">去逛导生市集，交出你的 3 个志愿</div>
           <div class="cta-meta">
             <span v-if="trayDeadline">{{ trayDeadline }} 截止</span>
@@ -116,20 +107,11 @@ const phaseInfo = ref(null);
 const mentors = ref([]);
 
 const meRound1 = computed(() => phaseInfo.value?.me?.round1 || []);
-const submittable = computed(() => phaseInfo.value?.me?.submittable_round || null);
-const alreadySubmitted = computed(() => {
-  if (!phaseInfo.value || !submittable.value) return false;
-  const list = submittable.value === 1 ? meRound1.value : (phaseInfo.value.me.round2 || []);
-  return list.length > 0;
-});
-const submittedPicks = computed(() => (
-  submittable.value === 1 ? meRound1.value : (phaseInfo.value.me?.round2 || [])));
+const submittable = computed(() => phaseInfo.value?.me?.submittable_round === 1);
+const alreadySubmitted = computed(() => submittable.value && meRound1.value.length > 0);
+const submittedPicks = computed(() => meRound1.value);
 
-const trayDeadline = computed(() => {
-  const d = phaseInfo.value?.deadlines;
-  if (!d) return '';
-  return submittable.value === 2 ? d.round2_deadline : d.preference_deadline;
-});
+const trayDeadline = computed(() => phaseInfo.value?.deadlines?.preference_deadline || '');
 
 const mentorNames = computed(
   () => Object.fromEntries(mentors.value.map((m) => [m.user_id, m.username])));
@@ -148,12 +130,11 @@ const myMentorTags = computed(() => {
   return mentors.value.find((x) => x.user_id === mine.user_id)?.tags || [];
 });
 
-// 留言回显：匹配成功的那条志愿（一轮/二轮）里的 note
+// 留言回显：匹配成功的那条志愿里的 note
 const myMentorNote = computed(() => {
   const me = phaseInfo.value?.me;
   if (!me?.my_mentor) return '';
-  const prefs = [...(me.round1 || []), ...(me.round2 || [])];
-  return prefs.find((p) => p.mentor_id === me.my_mentor.user_id)?.note || '';
+  return (me.round1 || []).find((p) => p.mentor_id === me.my_mentor.user_id)?.note || '';
 });
 
 // 感谢信收件人：我的导生（供现场写信卡使用）
@@ -175,9 +156,7 @@ const phaseCaption = computed(() => {
   if (!p) return '';
   if (p.phase === 'collecting')
     return `浏览导生名片，提交 3 个有序志愿 · ${p.deadlines.preference_deadline || ''} 截止${submittedText.value ? ` · ${submittedText.value}` : ''}`;
-  if (p.phase === 'round1') return '志愿收集完毕，导生正在挑选';
-  if (p.phase === 'round2') return `二轮互选进行中 · ${p.deadlines.round2_deadline || ''} 截止`;
-  if (p.phase === 'done') return '选导生结束，结果已公布';
+  if (p.phase === 'done') return '志愿已截止，导生分配由老师协调后公布';
   if (p.phase === 'upcoming') return '导生正在准备名片';
   return '';
 });
