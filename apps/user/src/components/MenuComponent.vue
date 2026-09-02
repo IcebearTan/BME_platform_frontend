@@ -255,7 +255,7 @@ const handleUserInfo = () => {
                         <div class="avatar-pop__actions">
                             <div class="avatar-pop__action" @click="goCamp">
                                 <el-icon><Calendar /></el-icon>
-                                <span>我的营期</span>
+                                <span>营期中心</span>
                             </div>
                             <div class="avatar-pop__action" @click="handleUserInfo">
                                 <el-icon><Setting /></el-icon>

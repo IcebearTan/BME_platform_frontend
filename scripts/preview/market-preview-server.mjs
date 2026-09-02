@@ -58,7 +58,7 @@ const previewMembers = [];
 
 const accounts = new Map([
   ['super.localdev@bme.sysu.edu.cn', { password: 'superadmin123', role: 'super_admin', name: '本地超级管理员', user_id: 1 }],
-  ['teacher.localdev@bme.sysu.edu.cn', { password: 'teacher123', role: 'teacher', name: '本地教师', user_id: 2 }],
+  ['teacher.localdev@bme.sysu.edu.cn', { password: 'teacher123', role: 'super_admin', name: '本地教师', user_id: 2 }],
   ...mentorFixtures.map((mentor) => [`${mentor.handle}.localdev@bme.sysu.edu.cn`, {
     password: 'mentor123', role: 'mentor', name: mentor.username, user_id: mentor.user_id,
   }]),
@@ -97,7 +97,7 @@ const campSession = {
   camp_type: 'short_term',
   start_date: '2026-08-20',
   end_date: '2026-09-20',
-  status: 'active',
+  status: 'running',
   is_featured: true,
   member_count: mentorFixtures.length + studentFixtures.length,
   mentor_selection_enabled: true,
@@ -165,7 +165,7 @@ function memberRows() {
 function userRows() {
   return [
     { User_Id: 1, User_Name: '本地超级管理员', User_Email: 'super.localdev@bme.sysu.edu.cn', role: 'super_admin' },
-    { User_Id: 2, User_Name: '本地教师', User_Email: 'teacher.localdev@bme.sysu.edu.cn', role: 'teacher' },
+    { User_Id: 2, User_Name: '本地教师', User_Email: 'teacher.localdev@bme.sysu.edu.cn', role: 'super_admin' },
     ...mentorFixtures.map((mentor) => ({
       User_Id: mentor.user_id, User_Name: mentor.username,
       User_Email: `${mentor.handle}.localdev@bme.sysu.edu.cn`, role: 'mentor',
@@ -292,6 +292,8 @@ const server = createServer(async (req, res) => {
       sessions: [{
         ...campSession,
         is_member: Boolean(activeMemberRole()),
+        // 身份解耦契约：导生/学员视角由营内 my_role 驱动（与真实后端 session_list 对齐）
+        my_role: activeMemberRole(),
       }],
     });
     return;

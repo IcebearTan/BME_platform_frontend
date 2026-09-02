@@ -10,8 +10,8 @@
         暂未开放营期，敬请期待。
       </DewCard>
 
-      <!-- 非成员学员：营期简介（大气招募页） -->
-      <template v-else-if="session && !isMember && isStudent">
+      <!-- 非成员可申请者（非管理员）：营期简介（大气招募页）；导生不走此入口（名单导入定向报名） -->
+      <template v-else-if="session && !isMember && canApply">
         <div class="camp-intro">
           <!-- ① Hero：大标题 + 介绍 + 力连接图背景 -->
           <div class="intro-hero">
@@ -37,12 +37,19 @@
             </DewCard>
           </div>
 
-          <!-- ③ 申请加入 -->
+          <!-- ③ 申请加入 + 营期中心入口（报名统一在营期工作台 CampJoin 内完成：选组+到岗日+理由；
+               本页收敛为招募着陆页，不再自带旧报名 sheet——避免双报名表单漂移） -->
           <div class="intro-cta">
-            <DewButton v-if="myRequest?.status === 'pending'" type="glass" size="lg" disabled>申请审核中…</DewButton>
-            <DewButton v-else-if="myRequest?.status === 'rejected'" type="glass" size="lg" @click="openJoinSheet">上次未通过，重新申请</DewButton>
-            <DewButton v-else type="glass" size="lg" @click="openJoinSheet">申请加入</DewButton>
-            <div class="cta-hint">提交后由老师审批 · 通过即正式入营</div>
+            <template v-if="myRequest?.status === 'pending'">
+              <DewButton type="glass" size="lg" disabled>申请审核中…</DewButton>
+              <DewButton type="ghost" size="lg" :loading="cancelling" @click="cancelFeaturedJoin">撤回申请</DewButton>
+            </template>
+            <DewButton v-else-if="myRequest?.status === 'rejected'" type="glass" size="lg"
+              @click="goJoin">上次未通过，重新申请</DewButton>
+            <DewButton v-else type="glass" size="lg" @click="goJoin">申请加入</DewButton>
+            <div class="cta-hint">提交后由老师审批 · 通过即正式入营 ·
+              <a class="cta-center-link" @click.prevent="router.push('/camp')">先去营期中心看看</a>
+            </div>
           </div>
         </div>
       </template>
@@ -55,51 +62,18 @@
       </template>
 
       <!-- 成员：不渲染内容，loadFeatured 已 redirect 到 /camp -->
-
-      <!-- 选承诺出勤日 sheet（底部弹出，上下滚动多选） -->
-      <transition name="sheet">
-        <div v-if="joinSheet.visible" class="sheet-mask" @click.self="closeJoinSheet">
-          <div class="join-sheet">
-            <div class="sheet-grip"></div>
-            <div class="sheet-header">
-              <h3>选择承诺出勤日</h3>
-              <span class="sheet-hint">勾选你计划出勤的日期 · 已选 {{ joinSheet.selected.size }} 天</span>
-            </div>
-            <div class="sheet-days">
-              <div v-for="d in campDays" :key="d.iso"
-                   :class="['day-row', { selected: joinSheet.selected.has(d.iso), disabled: d.disabled }]"
-                   @click="d.disabled || toggleDay(d.iso)">
-                <div class="day-main">
-                  <div class="day-date">{{ d.label }}</div>
-                  <div class="day-sub">{{ d.disabled ? d.why : d.weekday }}</div>
-                </div>
-                <div class="day-mark">
-                  <el-icon class="day-check"><Check /></el-icon>
-                </div>
-              </div>
-            </div>
-            <div class="sheet-reason">
-              <DewInput v-model="joinReason" type="textarea" :rows="2" placeholder="申请理由（可选，老师审批时可见）" />
-            </div>
-            <div class="sheet-footer">
-              <DewButton type="glass" @click="closeJoinSheet">取消</DewButton>
-              <DewButton type="glass" :disabled="!joinSheet.selected.size" :loading="joinSubmitting" @click="submitJoin">确认承诺 {{ joinSheet.selected.size }} 天</DewButton>
-            </div>
-          </div>
-        </div>
-      </transition>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useStore } from 'vuex';
 import { useRouter } from 'vue-router';
 import MenuComponent from '../components/MenuComponent.vue';
-import { DewCard, DewButton, DewInput } from '@bme/dew-ui';
+import { DewCard, DewButton } from '@bme/dew-ui';
 import { ElMessage } from 'element-plus';
-import { Calendar, Clock, User, Trophy, Check } from '@element-plus/icons-vue';
+import { Calendar, Clock, User, Trophy } from '@element-plus/icons-vue';
 import { campService } from '../services/campService';
 
 const store = useStore();
@@ -107,11 +81,11 @@ const router = useRouter();
 const isDarkMode = computed(() => store.getters.isDarkMode);
 
 const loading = ref(true);
-const isStudent = computed(() => store.getters.role === 'student');
+// 身份解耦后无全局学员角色：非管理员皆可按学员身份申请入营（超管由后台直接分配）
+const canApply = computed(() => store.getters.role !== 'super_admin');
 const session = ref(null);
 const isMember = ref(false);
 const myRequest = ref(null);
-const joinSubmitting = ref(false);
 
 async function loadFeatured() {
   const data = await campService.fetchFeatured();
@@ -124,55 +98,24 @@ async function loadFeatured() {
   }
 }
 
-// 选承诺出勤日 sheet（底部弹出，上下滚动多选营期范围内日期）
-const joinSheet = reactive({ visible: false, selected: new Set() });
-const joinReason = ref('');
-const campDays = computed(() => {
-  const s = session.value;
-  if (!s) return [];
-  const out = [];
-  const wk = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-  const pad = (n) => String(n).padStart(2, '0');
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  let cur = new Date(s.start_date);
-  const end = new Date(s.end_date);
-  while (cur <= end) {
-    const iso = `${cur.getFullYear()}-${pad(cur.getMonth() + 1)}-${pad(cur.getDate())}`;
-    // 与后端 join_request_submit 同口径：过去日不可承诺；仅工作日营不含周末
-    const past = cur < today;
-    const weekend = cur.getDay() === 0 || cur.getDay() === 6;
-    out.push({
-      iso, label: `${cur.getMonth() + 1}/${cur.getDate()}`, weekday: wk[cur.getDay()],
-      disabled: past || (s.weekdays_only && weekend),
-      why: past ? '已过去' : '非工作日',
-    });
-    cur.setDate(cur.getDate() + 1);
-  }
-  return out;
-});
-function openJoinSheet() {
-  joinSheet.selected = new Set();
-  joinReason.value = '';
-  joinSheet.visible = true;
+// 报名入口：去营期工作台报名页（CampJoin：意向大组+承诺到岗日+理由，全站唯一报名表单）
+function goJoin() {
+  if (!session.value) return;
+  router.push({ path: '/camp', query: { sid: String(session.value.id) } });
 }
-function closeJoinSheet() { joinSheet.visible = false; }
-function toggleDay(iso) {
-  if (joinSheet.selected.has(iso)) joinSheet.selected.delete(iso);
-  else joinSheet.selected.add(iso);
-}
-async function submitJoin() {
-  if (joinSubmitting.value) return;   // 重入护栏：防双击连发两个申请（第二个撞 409）
-  if (!session.value || !joinSheet.selected.size) return;
-  joinSubmitting.value = true;
+// 撤回待审核的入营申请（审核前可反悔；撤回后按钮回到「申请加入」）
+const cancelling = ref(false);
+async function cancelFeaturedJoin() {
+  if (cancelling.value || !session.value) return;
+  cancelling.value = true;
   try {
-    await campService.requestJoin(session.value.id, [...joinSheet.selected], joinReason.value.trim());
-    ElMessage.success('申请已提交，等待审批');
-    joinSheet.visible = false;
+    const r = await campService.cancelJoin(session.value.id);
+    ElMessage.success(r.message || '已撤回申请');
     await loadFeatured();
   } catch (e) {
-    ElMessage.error(e.response?.data?.message || '提交失败');
+    ElMessage.error(e.response?.data?.message || '撤回失败，请稍后重试');
   } finally {
-    joinSubmitting.value = false;
+    cancelling.value = false;
   }
 }
 
@@ -329,84 +272,12 @@ onMounted(async () => {
 .feature-desc { font-size: 12px; color: var(--dew-text-muted); line-height: 1.5; }
 .intro-cta { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 4px 0 12px; }
 .cta-hint { font-size: 12px; color: var(--dew-text-faint); }
+.cta-center-link { color: var(--color-primary); cursor: pointer; }
+.cta-center-link:hover { text-decoration: underline; }
 @media (max-width: 900px) { .intro-features { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 560px) {
   .intro-features { grid-template-columns: 1fr; }
   .intro-title { font-size: 34px; }
   .intro-hero { height: 360px; }
 }
-
-/* 选日 sheet（底部弹出） */
-.sheet-mask {
-  position: fixed; inset: 0; z-index: 100;
-  background: rgba(0,0,0,0.45);
-  display: flex; align-items: flex-end; justify-content: center;
-  backdrop-filter: blur(4px);
-}
-.join-sheet {
-  width: 100%; max-width: 520px; max-height: 80vh;
-  background: var(--dew-card-bg);
-  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-  border: 1px solid var(--dew-card-border);
-  box-shadow: 0 -8px 40px rgba(0,0,0,0.2);
-  display: flex; flex-direction: column;
-  padding: 12px 20px 20px;
-}
-.sheet-grip { width: 40px; height: 4px; border-radius: 999px; background: var(--dew-text-faint); opacity: 0.4; margin: 0 auto 12px; }
-.sheet-header h3 { margin: 0 0 4px; font-size: 17px; color: var(--dew-text-heading); }
-.sheet-hint { font-size: 12px; color: var(--dew-text-muted); }
-.sheet-days {
-  flex: 1; overflow-y: auto; margin: 14px 0; padding-right: 4px;
-  display: flex; flex-direction: column; gap: 8px;
-}
-.day-row {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 14px; border-radius: var(--radius-md);
-  border: 1px solid var(--dew-card-border);
-  background: var(--dew-card-bg);
-  cursor: pointer; transition: all 0.25s var(--dew-bounce);
-}
-.day-row:hover { transform: translateY(-1px); }
-.day-row.disabled {
-  cursor: not-allowed; opacity: 0.45;
-  border-style: dashed;
-}
-.day-row.disabled:hover { transform: none; }
-.day-row.selected {
-  border-color: var(--color-success);
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(16, 185, 129, 0.05));
-}
-.day-main { display: flex; flex-direction: column; gap: 2px; }
-.day-date { font-size: 15px; font-weight: 600; color: var(--dew-text-heading); }
-.day-sub { font-size: 12px; color: var(--dew-text-muted); }
-.day-mark {
-  width: 22px; height: 22px; border-radius: 50%;
-  border: 2px solid var(--dew-text-faint);
-  display: flex; align-items: center; justify-content: center;
-  transition: all 0.2s var(--dew-bounce);
-  flex-shrink: 0;
-}
-.day-check {
-  color: #fff;
-  font-size: 13px;
-  opacity: 0;
-  transform: scale(0.5);
-  transition: opacity 0.2s ease, transform 0.2s var(--dew-bounce);
-}
-.day-row.selected .day-mark {
-  border-color: var(--color-success);
-  background: var(--color-success);
-  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.18);
-}
-.day-row.selected .day-check {
-  opacity: 1;
-  transform: scale(1);
-}
-.sheet-reason { margin: 4px 0 12px; }
-.sheet-footer { display: flex; gap: 10px; padding-top: 12px; border-top: 1px solid var(--dew-card-divider); }
-.sheet-footer .dew-button { flex: 1; }
-.sheet-enter-active, .sheet-leave-active { transition: opacity 0.25s; }
-.sheet-enter-active .join-sheet, .sheet-leave-active .join-sheet { transition: transform 0.3s var(--dew-bounce); }
-.sheet-enter-from, .sheet-leave-to { opacity: 0; }
-.sheet-enter-from .join-sheet, .sheet-leave-to .join-sheet { transform: translateY(100%); }
 </style>

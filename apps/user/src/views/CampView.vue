@@ -8,30 +8,23 @@
         <DewSkeleton variant="rect" width="100%" height="120" rounded="8px" />
       </div>
 
-      <!-- 无营期：智能分流空态 -->
-      <div v-else-if="!sessions.length" class="empty-camp">
-        <DewCard variant="inset" size="lg" :no-hover="true">
-          <template v-if="emptyGuide.type === 'recruit'">
-            <div class="empty-text">你还没有加入营期。</div>
-            <DewButton type="glass" @click="router.push('/camp-home')">
-              查看「{{ emptyGuide.name }}」· 申请入营
-            </DewButton>
-          </template>
-          <div v-else-if="emptyGuide.type === 'unassigned'" class="empty-text">
-            你尚未被分配到营期。导生/老师由管理员在「营期管理」中直接分配，无需申请加入。
-          </div>
-          <div v-else class="empty-text">暂未开放营期，敬请期待。</div>
-        </DewCard>
-      </div>
+      <!-- 无选中营期：营期中心（分组卡片：待我处理/可报名/我的营期/即将开始/历史）。
+           卡片只做导航（统一「进入营期」），导生报名/学员报名均在营期工作台内完成 -->
+      <CampCenter v-else-if="!sid" :sessions="sessions" :loading="false"
+        :pending="pendingMap" :is-staff="isStaff"
+        @open="openCamp" />
 
       <!-- 工作台：左侧营期卡片列表（可折叠）+ 右侧无卡片头部区 + tabs -->
-      <div v-else-if="sid" class="camp-layout">
+      <div v-else-if="sessions.length" class="camp-layout">
         <aside class="camp-aside">
           <div class="aside-head">
+            <button type="button" class="back-center" @click="backToCenter">
+              <span class="back-arrow">←</span>营期中心
+            </button>
             <span class="aside-title">我的营期</span>
           </div>
           <div class="aside-list">
-            <div v-for="s in sessions" :key="s.id"
+            <div v-for="s in mySessions" :key="s.id"
                  :class="['camp-item', { active: s.id === sid }]"
                  :title="s.name"
                  @click="sid = s.id">
@@ -40,16 +33,6 @@
                 <span class="status-dot" :class="'dot-status-' + s.status"></span>
                 <span>{{ statusLabel(s.status) }}</span>
                 <span class="camp-item-date">{{ s.start_date?.slice(5) }} ~ {{ s.end_date?.slice(5) }}</span>
-              </div>
-              <!-- 资格名单内的待开放营：自助报名成为导生（审核制：提交后需管理员审核） -->
-              <div v-if="canRegisterMentor(s)" class="camp-item-actions" @click.stop>
-                <DewButton size="sm" type="glass" :loading="registeringSid === s.id"
-                  @click="registerMentor(s)">报名成为导生</DewButton>
-                <div class="camp-item-hint">你在本营具有报名资格，报名后需管理员审核</div>
-              </div>
-              <!-- 已提交导生报名：安静态（mine 有 pending 申请或本会话内提交过） -->
-              <div v-else-if="isMentorPending(s)" class="camp-item-pending" @click.stop>
-                <span class="pending-dot"></span>报名待审核
               </div>
             </div>
           </div>
@@ -89,24 +72,41 @@
             </div>
           </header>
 
-          <!-- 资格名单内、尚未报名的待开放营：工作台内容需成员身份，先引导报名（审核制：通过后才入营） -->
-          <DewCard v-if="current && !current.is_member" variant="inset" size="lg" :no-hover="true" class="register-card">
-            <!-- 报名待审核：安静态（进页拉 mine 的 pending 导生申请，或本会话内提交过） -->
-            <template v-if="isMentorPending(current)">
-              <div class="register-title">报名待审核</div>
-              <div class="register-hint">已提交导生报名申请，管理员审核通过后即可布置名片、参与选导生。</div>
-            </template>
-            <template v-else>
-              <div class="register-title">你已在「{{ current.name }}」的导生资格名单内</div>
-              <div class="register-hint">你在本营具有报名资格，报名后需管理员审核；审核通过后即可布置名片、参与选导生。</div>
-              <DewButton type="glass" :loading="registeringSid === current.id" @click="registerMentor(current)">
-                报名成为导生
-              </DewButton>
-            </template>
-          </DewCard>
+          <!-- ── 非成员视图（按状态/类型分发；报名在营期工作台内进行）── -->
+          <template v-if="current && !current.is_member">
+            <!-- 待开放营 + 资格名单内：导生报名（审核制：通过后才入营） -->
+            <DewCard v-if="current.status === 'upcoming' && current.has_eligibility"
+                     variant="inset" size="lg" :no-hover="true" class="register-card">
+              <!-- 报名待审核：安静态 + 撤回（审核前可反悔重新提交） -->
+              <template v-if="isMentorPending(current)">
+                <div class="register-title">报名待审核</div>
+                <div class="register-hint">已提交导生报名申请，管理员审核通过后即可布置名片、参与选导生。审核前可撤回。</div>
+                <DewButton type="ghost" :loading="cancellingSid === current.id"
+                  @click="cancelMentorRegister(current)">撤回报名</DewButton>
+              </template>
+              <template v-else>
+                <div class="register-title">你已在「{{ current.name }}」的导生资格名单内</div>
+                <div class="register-hint">你在本营具有报名资格，报名后需管理员审核；审核通过后即可布置名片、参与选导生。</div>
+                <DewButton type="glass" :loading="registeringSid === current.id" @click="registerMentor(current)">
+                  报名成为导生
+                </DewButton>
+              </template>
+            </DewCard>
+            <!-- 选择阶段：学员报名页（意向大组 + 承诺到岗日 + 理由；项目营表单 CampJoin 内分发预留） -->
+            <CampJoin v-else-if="current.status === 'selecting'"
+              :session="current" :pending="pendingStudentSids.has(current.id)"
+              @submitted="onJoinSubmitted" @cancelled="onJoinCancelled" />
+            <!-- 其余状态：非成员无可做动作 -->
+            <DewCard v-else variant="inset" size="lg" :no-hover="true" class="register-card">
+              <div class="register-title">尚未加入「{{ current.name }}」</div>
+              <div class="register-hint">
+                该营期当前{{ current.status === 'running' ? '进行中' : '不接受报名' }}（{{ statusLabel(current.status) }}），成员由管理员在营期管理中分配。
+              </div>
+            </DewCard>
+          </template>
 
           <DewButtonBar v-else v-model="tab" :items="tabItems" style="margin: 16px 0;" />
-          <CampOverview v-if="tab === 'overview' && current && current.is_member" :sid="sid" />
+          <CampOverview v-if="tab === 'overview' && current && current.is_member" :sid="sid" :my-role="current.my_role" />
           <template v-if="isMentor && current?.is_member">
           <MsMentorDesk v-if="tab === 'ms'" :sid="sid" />
           <MentorDashboard v-else-if="tab === 'dashboard'" :sid="sid" />
@@ -144,6 +144,8 @@ import MentorReward from '../components/Camp/MentorReward.vue';
 import MentorMembers from '../components/Camp/MentorMembers.vue';
 import MsStudentPick from '../components/Camp/MsStudentPick.vue';
 import MsMentorDesk from '../components/Camp/MsMentorDesk.vue';
+import CampCenter from '../components/Camp/CampCenter.vue';
+import CampJoin from '../components/Camp/CampJoin.vue';
 
 const store = useStore();
 const route = useRoute();
@@ -153,16 +155,14 @@ const isDarkMode = computed(() => store.getters.isDarkMode);
 const sessions = ref([]);
 const sid = ref(null);
 const loadingSessions = ref(true);
-// 空状态分流：recruit=学生可申请（CTA 去招募页）/ unassigned=staff 未分配 / none=暂无营期
-const emptyGuide = ref({ type: 'none', name: '' });
 
-const isMentor = computed(() => store.getters.role === 'mentor');
-const isStudent = computed(() => store.getters.role === 'student');
-// staff（老师/超管）由管理员直接分配营期，不参与导生自助报名
-const isStaff = computed(() => ['teacher', 'super_admin'].includes(store.getters.role));
+// 身份解耦（Phase 1a）后全局角色仅 super_admin/user：导生/学员是营内任职（session.my_role），
+// 工作台视角按当前营 my_role 分流，不再读全局角色；staff=超管（teacher 已并入），由管理员直接分配营期
+const isStaff = computed(() => store.getters.role === 'super_admin');
 // 注意：studentTabs/mentorTabs 依赖 current，tab 初始化（tabItems.value）在 setup 期立即求值，
 // 故 current 必须声明在它们之前，否则 TDZ 报错 Cannot access 'current' before initialization
 const current = computed(() => sessions.value.find((s) => s.id === sid.value));
+const isMentor = computed(() => current.value?.my_role === 'mentor');
 // 看板为默认 tab（营期概要+仪表盘，自 CampHome 成员视图迁入）；
 // 选导生为开营前置阶段，启用时紧随看板（session 数据来自 _session_dict 的 mentor_selection_enabled）
 const studentTabs = computed(() => {
@@ -211,7 +211,8 @@ const msPhase = ref(null);
 const msActive = computed(() => msPhase.value?.phase === 'collecting');
 watch(sid, () => {
   msPhase.value = null;
-  if (sid.value && current.value?.mentor_selection_enabled) {
+  // 仅成员营拉阶段（非成员 403，白冒控制台错误）；导生资格营的阶段态走报名卡文案
+  if (sid.value && current.value?.is_member && current.value?.mentor_selection_enabled) {
     campService.fetchMsPhase(sid.value)
       .then((p) => { msPhase.value = p; })
       .catch(() => {});
@@ -232,43 +233,54 @@ watch(tabItems, (items) => {
 
 onMounted(async () => {
   await loadSessions();
-  // staff 不参与导生自助报名，无需拉待审核申请；静默请求，不阻塞首屏
-  if (!isStaff.value) loadPendingMentorSids();
+  // staff 不参与导生自助报名/入营申请，无需拉待审核申请；静默请求，不阻塞首屏
+  if (!isStaff.value) loadPendingRequests();
 });
 
-// 营期列表加载（导生报名改审核制后不再触发重拉：提交不改变成员关系）
+// 营期列表加载。营期中心可见性由后端 session_list 决定（方案 §3.3，五态）：
+// 成员/持资格的营 + 全员可见的 upcoming/selecting；此处不做二次过滤。
+// 选营仅认 route.query.sid（直链/营期中心跳转带过来）；无 sid = 营期中心首页
 async function loadSessions() {
   loadingSessions.value = true;
   try {
     const data = await campService.fetchSessions();
-    // 保留本人是成员的营，外加「待开放」营（后端会把导生资格名单内的营一并返回，
-    // is_member=false，供自助报名；staff 的 session_list 返回所有营，仍按成员过滤）
-    sessions.value = (data.sessions || [])
-      .filter((s) => s.is_member || (!isStaff.value && s.status === 'upcoming'));
-    // 选营优先级：route.query.sid（从 CampHome 入口带过来，须在保留列表内）> 列表第一个
+    sessions.value = data.sessions || [];
     let initSid = route.query.sid ? Number(route.query.sid) : null;
     if (initSid && !sessions.value.some((s) => s.id === initSid)) initSid = null;
-    if (!initSid && sessions.value.length) initSid = sessions.value[0].id;
     if (initSid) sid.value = initSid;
-    // 无成员营时的分流：学生看是否有招募中的营（引导去 /camp-home 申请），staff 提示待分配
-    if (!sessions.value.length) {
-      try {
-        const f = await campService.fetchFeatured();
-        if (f.session && isStudent.value) emptyGuide.value = { type: 'recruit', name: f.session.name };
-        else if (f.session) emptyGuide.value = { type: 'unassigned' };
-      } catch { /* featured 拉失败按暂无营期展示 */ }
-    }
   } catch {
     ElMessage.error('加载营期列表失败，请刷新重试');
   } finally { loadingSessions.value = false; }
 }
 
+// ── 营期中心 ↔ 工作台切换（sid 进 URL：浏览器后退可回中心）──
+function openCamp(s, tab = null) {
+  sid.value = s.id;
+  if (tab) tab.value = tab;
+  router.replace({ path: '/camp', query: { sid: String(s.id), ...(tab ? { tab } : {}) } });
+}
+function backToCenter() {
+  sid.value = null;
+  router.replace({ path: '/camp', query: {} });
+}
+// 浏览器前进/后退同步（openCamp 已就地设值，此处兜底 query 变化）
+watch(() => route.query.sid, (v) => {
+  const n = v ? Number(v) : null;
+  if (n === sid.value) return;
+  if (n === null || sessions.value.some((s) => s.id === n)) sid.value = n;
+});
+
+// 我的营期（工作台侧栏 = 本人是成员的营；报名/申请中的营在营期中心呈现）
+const mySessions = computed(() => sessions.value.filter((s) => s.is_member));
+
 // ── 导生自助报名（Q-007 演进：资格名单内用户对 upcoming 营提交报名，2026-09 起改审核制）──
 const registeringSid = ref(null);
-// 待审核导生报名的营：进页拉 join-requests/mine 判定 + 本会话内提交过即记入（兜底）
+// 待审核申请的营（进页拉 join-requests/mine 判定 + 本会话内提交过即记入兜底）：
+// mentor = 导生报名待审核；student = 入营申请待审核（营期中心卡片安静态）
 const pendingMentorSids = ref(new Set());
+const pendingStudentSids = ref(new Set());
+const pendingMap = computed(() => ({ mentor: pendingMentorSids.value, student: pendingStudentSids.value }));
 const isMentorPending = (s) => pendingMentorSids.value.has(s.id);
-const canRegisterMentor = (s) => !isStaff.value && s.status === 'upcoming' && !s.is_member && !isMentorPending(s);
 async function registerMentor(s) {
   if (registeringSid.value || isMentorPending(s)) return;
   registeringSid.value = s.id;
@@ -286,12 +298,37 @@ async function registerMentor(s) {
     registeringSid.value = null;
   }
 }
-// 进页判定跨会话的待审核导生报名（mine 行含 apply_role/status；失败静默，仅失去该态展示）
-async function loadPendingMentorSids() {
+// 营期中心「申请入营」提交成功：就地转「申请待审核」安静态
+function onJoinSubmitted(sidId) {
+  pendingStudentSids.value.add(sidId);
+}
+// ── 撤回本人待审批申请（导生报名/学员入营通用；撤回后回到可提交态）──
+const cancellingSid = ref(null);
+async function cancelMentorRegister(s) {
+  if (cancellingSid.value) return;
+  cancellingSid.value = s.id;
+  try {
+    const r = await campService.cancelJoin(s.id);
+    ElMessage.success(r.message || '已撤回申请');
+    pendingMentorSids.value.delete(s.id);
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '撤回失败，请稍后重试');
+  } finally {
+    cancellingSid.value = null;
+  }
+}
+// 报名页撤回（CampJoin emitted）：学员申请回到表单态
+function onJoinCancelled(sidId) {
+  pendingStudentSids.value.delete(sidId);
+}
+// 进页判定跨会话的待审核申请（mine 行含 apply_role/status；失败静默，仅失去该态展示）
+async function loadPendingRequests() {
   try {
     const data = await campService.fetchMyJoinRequests();
     for (const r of data.requests || []) {
-      if (r.apply_role === 'mentor' && r.status === 'pending') pendingMentorSids.value.add(r.camp_session_id);
+      if (r.status !== 'pending') continue;
+      if (r.apply_role === 'mentor') pendingMentorSids.value.add(r.camp_session_id);
+      else pendingStudentSids.value.add(r.camp_session_id);
     }
   } catch { /* 静默 */ }
 }
@@ -302,13 +339,20 @@ async function loadPendingMentorSids() {
 /* 容器上限放宽：展开侧栏时吃掉两侧留白，而不是挤压主内容（主内容保持折叠态的舒适宽度） */
 .camp-wrap { max-width: 1280px; margin: 0 auto; padding: 24px 20px; }
 .camp-loading { padding: 8px 0; }
-.empty-camp { margin-top: 16px; }
-.empty-text { color: var(--dew-text-muted, #909399); line-height: 1.7; margin-bottom: 12px; }
 
 /* ── 工作台布局：左侧营期卡片列表 + 右侧内容 ── */
 .camp-layout { display: flex; align-items: flex-start; gap: 20px; }
 .camp-aside { width: 224px; flex-shrink: 0; }
-.aside-head { margin-bottom: 10px; min-height: 28px; }
+.aside-head { margin-bottom: 10px; min-height: 28px; display: flex; flex-direction: column; gap: 8px; }
+/* 返回营期中心（侧栏顶部） */
+.back-center {
+  display: inline-flex; align-items: center; gap: 6px; width: fit-content;
+  border: none; background: transparent; padding: 0; cursor: pointer;
+  font-size: 12.5px; color: var(--dew-text-muted);
+  transition: color 0.2s ease, transform 0.2s var(--dew-bounce, ease);
+}
+.back-center:hover { color: var(--color-primary); transform: translateX(-2px); }
+.back-arrow { font-size: 13px; }
 .aside-title { font-size: 13px; font-weight: 600; letter-spacing: 1px; color: var(--dew-text-muted); white-space: nowrap; }
 .aside-list { display: flex; flex-direction: column; gap: 8px; }
 .camp-item {
@@ -331,7 +375,6 @@ async function loadPendingMentorSids() {
 .camp-item.active .camp-item-name { color: var(--color-primary); }
 .camp-item-sub { display: flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 12px; color: var(--dew-text-muted); }
 .camp-item-date { margin-left: auto; color: var(--dew-text-faint); white-space: nowrap; }
-.camp-aside.collapsed .camp-item { display: flex; align-items: center; justify-content: center; padding: 12px 0; }
 
 /* 状态圆点（侧栏 + hero 共用；五态：draft/upcoming/selecting/running/archived） */
 .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
@@ -341,22 +384,7 @@ async function loadPendingMentorSids() {
 .dot-status-running { background: var(--color-success); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-success) 18%, transparent); }
 .dot-status-archived { background: var(--dew-text-faint); opacity: 0.6; }
 
-/* 待开放营的导生报名按钮（资格名单内可见）与审核制说明 */
-.camp-item-actions { margin-top: 8px; }
-.camp-item-hint { margin-top: 6px; font-size: 11px; line-height: 1.6; color: var(--dew-text-faint); }
-/* 已提交导生报名：安静态徽标（虚线胶囊 + 静态圆点，无交互动效） */
-.camp-item-pending {
-  margin-top: 8px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 3px 10px;
-  border: 1px dashed var(--dew-card-border);
-  border-radius: 999px;
-  font-size: 11.5px;
-  color: var(--dew-text-muted);
-}
-.pending-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--color-warning); flex-shrink: 0; }
+/* 资格名单内、未报名的待开放营：直链进入工作台时的报名引导卡 */
 .register-card { margin-top: 16px; }
 .register-title { font-size: 16px; font-weight: 600; color: var(--dew-text-heading); margin-bottom: 8px; }
 .register-hint { font-size: 13px; color: var(--dew-text-muted); line-height: 1.7; margin-bottom: 14px; }

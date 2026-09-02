@@ -86,8 +86,12 @@ export const campService = {
   // ── 营期主页（后台指定的当前营期）+ 加入申请 ──
   fetchFeatured: () =>
     api.get('/camp/featured').then(r => r.data),
-  requestJoin: (sid, selected_days, reason = '') =>
-    api.post(`/camp/sessions/${sid}/join-request`, { selected_days, reason }).then(r => r.data),
+  // 学员报名入营（工作台报名页提交）：承诺出勤日必填，preferred_tag=意向大组（须在本营 ms_tags 内）
+  requestJoin: (sid, selected_days, reason = '', preferred_tag = null) =>
+    api.post(`/camp/sessions/${sid}/join-request`, { selected_days, reason, preferred_tag }).then(r => r.data),
+  // 撤回本人待审批的申请（导生报名/学员入营通用；撤回后可重新提交）
+  cancelJoin: (sid) =>
+    api.post(`/camp/sessions/${sid}/join-request/cancel`).then(r => r.data),
 
   // 导生报名入营（资格名单内用户自助，仅 upcoming 营；2026-09 起改审核制：提交后待管理员审批，
   // 重复提交与首提都走 200 + message；403/400 的 message 可直接展示）

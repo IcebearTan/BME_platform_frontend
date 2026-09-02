@@ -142,6 +142,10 @@
               </el-tag>
             </template>
           </el-table-column>
+          <!-- 意向大组：学员报名时选（须在本营 ms_tags 内）；导生报名无 -->
+          <el-table-column label="意向组" width="90" align="center">
+            <template #default="{ row }">{{ row.preferred_tag || '—' }}</template>
+          </el-table-column>
           <el-table-column label="事由" prop="reason" min-width="140" show-overflow-tooltip />
           <el-table-column label="提交时间" width="110">
             <template #default="{ row }">{{ row.created_at ? row.created_at.slice(0, 10) : '' }}</template>
@@ -402,7 +406,7 @@ const store = useStore();
 const campId = route.params.id;
 
 // 营期管理写操作 = 老师/超管 且 营期未归档（mentor 只读：请假审批/发奖励除外）
-const canManage = computed(() => ['teacher', 'super_admin'].includes(store.getters.role));
+const canManage = computed(() => store.getters.role === 'super_admin');
 const manageWritable = computed(() => canManage.value && session.value.status !== 'archived');
 // 名单导入 / 志愿导出 / 批量指派等新端点后端 @camp_role() 仅 super_admin
 const isSuperAdmin = computed(() => store.getters.role === 'super_admin');
