@@ -6,12 +6,16 @@ import { extname, join } from 'node:path';
 
 const port = 5002;
 const assetDir = join(process.cwd(), 'apps', 'user', 'src', 'assets');
-const allowedOrigins = new Set([
-  'http://localhost:8081',
-  'http://127.0.0.1:8081',
-  'http://localhost:5173',
-  'http://127.0.0.1:5173',
-]);
+// 本地演示服务器：放行任意端口的本机来源（端口随启动方式浮动，写死会挡掉自定义端口的预览实例）
+function isLocalOrigin(origin) {
+  if (!origin) return false;
+  try {
+    const { hostname } = new URL(origin);
+    return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
+  } catch {
+    return false;
+  }
+}
 
 const mentorFixtures = [
   ['林泽宇', 'mentor1', ['软件开发', '人工智能', '算法与数据'], 4, 3, '代码是我表达想法的语言，也是改变世界的方式。', 'LuMengXuan.jpg'],
@@ -229,7 +233,7 @@ async function readJson(req) {
 
 const server = createServer(async (req, res) => {
   const origin = req.headers.origin;
-  if (allowedOrigins.has(origin)) {
+  if (isLocalOrigin(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Vary', 'Origin');
   }
