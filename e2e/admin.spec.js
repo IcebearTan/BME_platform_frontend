@@ -74,7 +74,7 @@ async function mockCampSessionDetail(page) {
   await page.route('http://127.0.0.1:5001/camp/sessions/1', (route) =>
     route.fulfill({ json: {
       code: 200,
-      session: { id: 1, name: '本地导师双选测试营', status: 'active', mentor_selection_enabled: true },
+      session: { id: 1, name: '本地导师双选测试营', status: 'running', mentor_selection_enabled: true },
     } })
   )
   await page.route('http://127.0.0.1:5001/camp/sessions/1/members', (route) => {

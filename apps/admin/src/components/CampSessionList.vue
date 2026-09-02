@@ -27,7 +27,8 @@
         <template #default="{ row }">
           <el-button size="small" type="primary" @click="goDetail(row.id)">详情</el-button>
           <el-button v-if="canManage" size="small" @click="openEdit(row)">编辑</el-button>
-          <el-button v-if="canManage && row.status !== 'archived'" size="small" @click="archive(row)">归档</el-button>
+          <el-button v-if="canManage && NEXT_ACTION[row.status]" size="small" type="primary" plain @click="transition(row, NEXT_ACTION[row.status])">{{ NEXT_ACTION[row.status].label }}</el-button>
+          <el-button v-if="canManage && row.status === 'upcoming'" size="small" @click="transition(row, { action: 'retract', label: '撤回发布' })">撤回</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -36,11 +37,6 @@
     <el-dialog v-model="dlg.visible" :title="dlg.editId ? '编辑营期' : '新建营期'" width="520px">
       <el-form :model="dlg.form" label-width="110px">
         <el-form-item v-if="dlg.editId" label="状态">
-          <el-select v-model="dlg.form.status" style="width:100%">
-            <el-option label="草稿" value="draft" />
-            <el-option label="进行中" value="active" />
-            <el-option label="已归档" value="archived" />
-          </el-select>
         </el-form-item>
         <el-form-item label="营期名称" required>
           <el-input v-model="dlg.form.name" placeholder="如 2026暑期训练营" />
@@ -122,12 +118,12 @@ const dateRange = ref(null);
 
 const dlg = reactive({
   visible: false, submitting: false, editId: null,
-  form: { name: '', camp_type: 'short_term', status: 'draft', expected_check_in: null, min_daily_hours: 6, weekdays_only: true },
+  form: { name: '', camp_type: 'short_term', expected_check_in: null, min_daily_hours: 6, weekdays_only: true },
 });
 
 const typeLabel = (t) => ({ short_term: '短期营', semester: '学期营', winter: '冬令营' }[t] || t);
-const statusLabel = (s) => ({ draft: '草稿', active: '进行中', archived: '已归档' }[s] || s);
-const statusType = (s) => ({ draft: 'info', active: 'success', archived: 'warning' }[s] || 'info');
+const statusLabel = (s) => ({ draft: '草稿', upcoming: '待开放', selecting: '选择阶段', running: '进行中', archived: '已结营' }[s] || s);
+const statusType = (s) => ({ draft: 'info', upcoming: 'primary', selecting: 'warning', running: 'success', archived: 'info' }[s] || 'info');
 
 // 选导生默认标签（后端 MS_DEFAULT_TAGS 同款；营级可改）
 const MS_TAG_PRESETS = ['硬件组', '软件组', '深度学习', '机械设计', '其他'];
@@ -155,7 +151,7 @@ async function fetchList() {
 
 function openCreate() {
   dlg.editId = null;
-  dlg.form = { name: '', camp_type: 'short_term', status: 'draft', expected_check_in: null, min_daily_hours: 6, weekdays_only: true, ...msEmptyForm() };
+  dlg.form = { name: '', camp_type: 'short_term', expected_check_in: null, min_daily_hours: 6, weekdays_only: true, ...msEmptyForm() };
   dateRange.value = null;
   dlg.visible = true;
 }
@@ -209,16 +205,23 @@ async function submit() {
 
 const goDetail = (id) => router.push(`/camp/sessions/${id}`);
 
-function archive(row) {
-  ElMessageBox.confirm(`确定归档「${row.name}」吗？`, '提示', {
-    confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning',
+// 状态机（H-004）：draft→upcoming→selecting→running→archived，动作制迁移
+const NEXT_ACTION = {
+  draft: { action: 'publish', label: '发布' },
+  upcoming: { action: 'open_enrollment', label: '开放报名' },
+  selecting: { action: 'open', label: '开营' },
+  running: { action: 'close', label: '结营' },
+}
+function transition(row, { action, label }) {
+  ElMessageBox.confirm(`确定对「${row.name}」执行「${label}」吗？${action === 'close' ? '结营后营期转为只读，不可撤销。' : ''}`, '状态变更', {
+    confirmButtonText: label, cancelButtonText: '取消', type: 'warning',
   }).then(async () => {
-    await api.put(`/camp/sessions/${row.id}`, { status: 'archived' });
-    ElMessage.success('已归档');
+    await api.post(`/camp/sessions/${row.id}/transitions`, { action });
+    ElMessage.success(`已${label}`);
     fetchList();
   }).catch((e) => {
-    if (e === 'cancel' || e === 'close') return;   // 用户取消
-    ElMessage.error(e.response?.data?.message || '归档失败');
+    if (e === 'cancel' || e === 'close') return;
+    ElMessage.error(e.response?.data?.message || `${label}失败`);
   });
 }
 

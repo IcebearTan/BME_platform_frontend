@@ -9,7 +9,7 @@ const SESSIONS = {
   code: 200,
   sessions: [{
     id: 1, name: '测试营', camp_type: 'short_term',
-    start_date: '2026-08-26', end_date: '2026-09-30', status: 'active',
+    start_date: '2026-08-26', end_date: '2026-09-30', status: 'running',
     expected_check_in: '09:00', min_daily_hours: 6, weekdays_only: true,
     is_featured: false, member_count: 5, is_member: true,
     mentor_selection_enabled: true,
