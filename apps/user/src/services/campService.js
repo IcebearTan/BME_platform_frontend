@@ -89,9 +89,14 @@ export const campService = {
   requestJoin: (sid, selected_days, reason = '') =>
     api.post(`/camp/sessions/${sid}/join-request`, { selected_days, reason }).then(r => r.data),
 
-  // 导生报名入营（资格名单内用户自助，仅 upcoming 营；403/400 的 message 可直接展示）
+  // 导生报名入营（资格名单内用户自助，仅 upcoming 营；2026-09 起改审核制：提交后待管理员审批，
+  // 重复提交与首提都走 200 + message；403/400 的 message 可直接展示）
   registerMentor: (sid) =>
     api.post(`/camp/sessions/${sid}/mentor-registration`).then(r => r.data),
+
+  // 我的加入申请（行含 apply_role/status；pending 的 mentor 行用于「报名待审核」态判定）
+  fetchMyJoinRequests: () =>
+    api.get('/camp/join-requests/mine').then(r => r.data),
 
   // ── 选导生（开营前置阶段；后端 blueprints/camp_ms.py）──
   // 阶段总览（含按身份视角数据；读端点顺带触发阶段过渡通知）

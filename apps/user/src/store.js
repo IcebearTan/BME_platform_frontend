@@ -2,6 +2,11 @@ import Vuex from 'vuex';
 import VuexPersist from 'vuex-persistedstate';
 import { useRouter } from 'vue-router';
 
+// 用户等级（LV1-4 整数，1 为默认）归一：非整数/越界一律回退 1
+const normalizeLevel = (value) => {
+    const n = Number(value);
+    return Number.isInteger(n) && n >= 1 && n <= 4 ? n : 1;
+};
 
 export default new Vuex.Store({
     state: {
@@ -9,6 +14,7 @@ export default new Vuex.Store({
         token: localStorage.getItem('bme-user-token') || null,
         isLogin: false,
         avatar: null,
+        level: 1,
         // 添加打卡状态管理
         checkinInfo: {
             checkedIn: false,
@@ -32,6 +38,11 @@ export default new Vuex.Store({
         },
         setUser(state, user) {
             state.user = user
+            // 登录响应整体入 store 时顺带提取等级（level 为 LV1-4 整数，1 为默认）
+            if (user && user.level != null) state.level = normalizeLevel(user.level)
+        },
+        setLevel(state, level) {
+            state.level = normalizeLevel(level)
         },
         clearUser(state) {
             state.user = null
@@ -93,6 +104,8 @@ export default new Vuex.Store({
         // RBAC：role / permissions 随登录响应存于 state.user
         role: (state) => state.user?.role || 'student',
         permissions: (state) => state.user?.permissions || [],
+        // 用户等级 LV1-4（写入时已归一；旧持久化态无该键时回退 1）
+        level: (state) => state.level ?? 1,
         can: (_state, getters) => (perm) => getters.role === 'super_admin' || getters.permissions.includes(perm),
     },
     plugins: [

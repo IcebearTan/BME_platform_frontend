@@ -134,6 +134,14 @@
           <el-table-column label="身份" width="80">
             <template #default="{ row }">{{ row.role === 'mentor' ? '导生' : '学员' }}</template>
           </el-table-column>
+          <!-- 申请类型：导生报名（apply_role=mentor，审核通过以导生身份入营）/ 学员申请 -->
+          <el-table-column label="类型" width="70" align="center">
+            <template #default="{ row }">
+              <el-tag :type="row.apply_role === 'mentor' ? 'warning' : 'success'" size="small">
+                {{ row.apply_role === 'mentor' ? '导生' : '学员' }}
+              </el-tag>
+            </template>
+          </el-table-column>
           <el-table-column label="事由" prop="reason" min-width="140" show-overflow-tooltip />
           <el-table-column label="提交时间" width="110">
             <template #default="{ row }">{{ row.created_at ? row.created_at.slice(0, 10) : '' }}</template>

@@ -41,10 +41,15 @@
                 <span>{{ statusLabel(s.status) }}</span>
                 <span class="camp-item-date">{{ s.start_date?.slice(5) }} ~ {{ s.end_date?.slice(5) }}</span>
               </div>
-              <!-- 资格名单内的待开放营：自助报名成为导生（报名后即入营） -->
+              <!-- 资格名单内的待开放营：自助报名成为导生（审核制：提交后需管理员审核） -->
               <div v-if="canRegisterMentor(s)" class="camp-item-actions" @click.stop>
                 <DewButton size="sm" type="glass" :loading="registeringSid === s.id"
                   @click="registerMentor(s)">报名成为导生</DewButton>
+                <div class="camp-item-hint">你在本营具有报名资格，报名后需管理员审核</div>
+              </div>
+              <!-- 已提交导生报名：安静态（mine 有 pending 申请或本会话内提交过） -->
+              <div v-else-if="isMentorPending(s)" class="camp-item-pending" @click.stop>
+                <span class="pending-dot"></span>报名待审核
               </div>
             </div>
           </div>
@@ -84,13 +89,20 @@
             </div>
           </header>
 
-          <!-- 资格名单内、尚未报名的待开放营：工作台内容需成员身份，先引导报名 -->
+          <!-- 资格名单内、尚未报名的待开放营：工作台内容需成员身份，先引导报名（审核制：通过后才入营） -->
           <DewCard v-if="current && !current.is_member" variant="inset" size="lg" :no-hover="true" class="register-card">
-            <div class="register-title">你已在「{{ current.name }}」的导生资格名单内</div>
-            <div class="register-hint">报名成为本营导生后即可布置名片、参与选导生；报名即刻生效，无需审核。</div>
-            <DewButton type="glass" :loading="registeringSid === current.id" @click="registerMentor(current)">
-              报名成为导生
-            </DewButton>
+            <!-- 报名待审核：安静态（进页拉 mine 的 pending 导生申请，或本会话内提交过） -->
+            <template v-if="isMentorPending(current)">
+              <div class="register-title">报名待审核</div>
+              <div class="register-hint">已提交导生报名申请，管理员审核通过后即可布置名片、参与选导生。</div>
+            </template>
+            <template v-else>
+              <div class="register-title">你已在「{{ current.name }}」的导生资格名单内</div>
+              <div class="register-hint">你在本营具有报名资格，报名后需管理员审核；审核通过后即可布置名片、参与选导生。</div>
+              <DewButton type="glass" :loading="registeringSid === current.id" @click="registerMentor(current)">
+                报名成为导生
+              </DewButton>
+            </template>
           </DewCard>
 
           <DewButtonBar v-else v-model="tab" :items="tabItems" style="margin: 16px 0;" />
@@ -220,9 +232,11 @@ watch(tabItems, (items) => {
 
 onMounted(async () => {
   await loadSessions();
+  // staff 不参与导生自助报名，无需拉待审核申请；静默请求，不阻塞首屏
+  if (!isStaff.value) loadPendingMentorSids();
 });
 
-// 营期列表加载（导生报名成功后也走这里刷新）
+// 营期列表加载（导生报名改审核制后不再触发重拉：提交不改变成员关系）
 async function loadSessions() {
   loadingSessions.value = true;
   try {
@@ -249,22 +263,37 @@ async function loadSessions() {
   } finally { loadingSessions.value = false; }
 }
 
-// ── 导生自助报名（Q-007：资格名单内用户对 upcoming 营一键报名入营）──
+// ── 导生自助报名（Q-007 演进：资格名单内用户对 upcoming 营提交报名，2026-09 起改审核制）──
 const registeringSid = ref(null);
-const canRegisterMentor = (s) => !isStaff.value && s.status === 'upcoming' && !s.is_member;
+// 待审核导生报名的营：进页拉 join-requests/mine 判定 + 本会话内提交过即记入（兜底）
+const pendingMentorSids = ref(new Set());
+const isMentorPending = (s) => pendingMentorSids.value.has(s.id);
+const canRegisterMentor = (s) => !isStaff.value && s.status === 'upcoming' && !s.is_member && !isMentorPending(s);
 async function registerMentor(s) {
-  if (registeringSid.value) return;
+  if (registeringSid.value || isMentorPending(s)) return;
   registeringSid.value = s.id;
   try {
     const r = await campService.registerMentor(s.id);
-    ElMessage.success(r.message || '报名成功');
-    await loadSessions();
+    // 首提与重复提交都走 200：message 分别为「报名已提交，管理员审核通过后即可布置导生名片」
+    // 与「已提交报名申请，等待管理员审核」，原样透出
+    ElMessage.success(r.message || '报名已提交，等待管理员审核');
+    // 审核制下报名不再直接入营：不重拉营期列表，就地切「报名待审核」安静态
+    pendingMentorSids.value.add(s.id);
   } catch (e) {
     // 名单外 403 / 非 upcoming 400：后端 message 面向用户，直接展示
     ElMessage.error(e.response?.data?.message || '报名失败，请稍后重试');
   } finally {
     registeringSid.value = null;
   }
+}
+// 进页判定跨会话的待审核导生报名（mine 行含 apply_role/status；失败静默，仅失去该态展示）
+async function loadPendingMentorSids() {
+  try {
+    const data = await campService.fetchMyJoinRequests();
+    for (const r of data.requests || []) {
+      if (r.apply_role === 'mentor' && r.status === 'pending') pendingMentorSids.value.add(r.camp_session_id);
+    }
+  } catch { /* 静默 */ }
 }
 </script>
 
@@ -312,8 +341,22 @@ async function registerMentor(s) {
 .dot-status-running { background: var(--color-success); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-success) 18%, transparent); }
 .dot-status-archived { background: var(--dew-text-faint); opacity: 0.6; }
 
-/* 待开放营的导生报名按钮（资格名单内可见） */
+/* 待开放营的导生报名按钮（资格名单内可见）与审核制说明 */
 .camp-item-actions { margin-top: 8px; }
+.camp-item-hint { margin-top: 6px; font-size: 11px; line-height: 1.6; color: var(--dew-text-faint); }
+/* 已提交导生报名：安静态徽标（虚线胶囊 + 静态圆点，无交互动效） */
+.camp-item-pending {
+  margin-top: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border: 1px dashed var(--dew-card-border);
+  border-radius: 999px;
+  font-size: 11.5px;
+  color: var(--dew-text-muted);
+}
+.pending-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--color-warning); flex-shrink: 0; }
 .register-card { margin-top: 16px; }
 .register-title { font-size: 16px; font-weight: 600; color: var(--dew-text-heading); margin-bottom: 8px; }
 .register-hint { font-size: 13px; color: var(--dew-text-muted); line-height: 1.7; margin-bottom: 14px; }

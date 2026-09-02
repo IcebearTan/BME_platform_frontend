@@ -29,14 +29,6 @@ export default {
                 return '/home'
             }
             return path
-        },
-        // 角色标签（超管/老师/导生/学生）
-        roleLabel() {
-            const map = { super_admin: '超管', teacher: '老师', mentor: '导生', student: '学生' }
-            return map[this.$store.getters.role] || '同学'
-        },
-        roleIsStaff() {
-            return ['super_admin', 'teacher', 'mentor'].includes(this.$store.getters.role)
         }
     },
 
@@ -88,6 +80,20 @@ const refreshAvatar = () => {
     .catch(() => { /* 头像刷新失败静默；401 由全局拦截器处理 */ })
 }
 
+// 等级徽标（LV1-4）：同步读 store（登录响应已写入），首帧无闪烁
+const levelLabel = computed(() => `LV${store.getters.level}`)
+
+// 后台静默校准等级（user_index 回包 level，写入 store 由 levelLabel 自动同步）；失败静默
+const refreshUserLevel = () => {
+  api({ url: '/user/user_index', method: 'get' })
+    .then((res) => {
+      if (res.data.code === 200 && res.data.level != null) {
+        store.commit('setLevel', res.data.level)
+      }
+    })
+    .catch(() => { /* 等级刷新失败静默；401 由全局拦截器处理 */ })
+}
+
 const isExpanded = ref(false)
 
 const isSearchInputExpand = () => {
@@ -132,11 +138,12 @@ const toggleTheme = () => {
 onMounted(() => {
     // 初始化主题
     checkTimeTheme()
-    
-    // 已登录则后台静默刷新头像（不阻塞渲染，避免闪烁）
-    if (isLogin) refreshAvatar()
-    
 
+    // 已登录则后台静默刷新头像与等级（不阻塞渲染，避免闪烁）
+    if (isLogin) {
+        refreshAvatar()
+        refreshUserLevel()
+    }
 })
 
 const onClickOutside = () => {
@@ -240,11 +247,8 @@ const handleUserInfo = () => {
                             <el-avatar :src="User_Avatar" alt="头像" :size="44" />
                             <div class="avatar-pop__info">
                                 <div class="avatar-pop__name">{{ $store.state.user?.User_Name }}</div>
-                                <div
-                                    class="avatar-pop__role"
-                                    :class="roleIsStaff ? 'avatar-pop__role--admin' : 'avatar-pop__role--student'"
-                                >
-                                    {{ roleLabel }}
+                                <div class="avatar-pop__role avatar-pop__role--level">
+                                    {{ levelLabel }}
                                 </div>
                             </div>
                         </div>
@@ -1018,8 +1022,8 @@ const handleUserInfo = () => {
   padding: 1px 8px;
   border-radius: var(--radius-full);
 }
-.avatar-pop__role--admin { color: var(--color-primary); background: var(--color-primary-light); }
-.avatar-pop__role--student { color: var(--color-success); background: var(--color-success-light); }
+/* 等级徽标（LV1-4，无等级显示 LV1）：替代原角色文案 */
+.avatar-pop__role--level { color: var(--color-primary); background: var(--color-primary-light); }
 .avatar-pop__actions {
   margin-top: 6px;
   padding-top: 6px;

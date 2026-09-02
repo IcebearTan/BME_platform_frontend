@@ -108,7 +108,14 @@ async function mockCampSessionDetail(page) {
     )
   }
   await page.route('http://127.0.0.1:5001/camp/sessions/1/join-requests', (route) =>
-    route.fulfill({ json: { code: 200, requests: [], mentors: overviewMentors } })
+    route.fulfill({ json: {
+      code: 200,
+      requests: [
+        { id: 11, user_id: 401, username: '申请学员', email: 'stu@example.test', role: 'student', apply_role: 'student', reason: '想参加', status: 'pending', created_at: '2026-08-28T10:00:00' },
+        { id: 12, user_id: 402, username: '报名导生', email: 'mentor@example.test', role: 'student', apply_role: 'mentor', reason: '导生报名（候选人池内）', status: 'pending', created_at: '2026-08-28T11:00:00' },
+      ],
+      mentors: overviewMentors,
+    } })
   )
   await page.route('http://127.0.0.1:5001/camp/sessions/1/mentor-eligibility', (route) =>
     route.fulfill({ json: {
@@ -201,6 +208,11 @@ test('营期详情保留选导生与成员添加能力', async ({ page }) => {
   await expect(page.getByRole('tab', { name: '选导生' })).toBeVisible()
   await expect(page.getByRole('cell', { name: '林泽宇', exact: true }).first()).toBeVisible()
   await expect(page.getByRole('cell', { name: '测试学员20', exact: true })).toBeVisible()
+
+  // 加入申请：类型列按 apply_role 区分学员申请与导生报名（导生报名走审核制）
+  await page.getByRole('tab', { name: '加入申请' }).click()
+  await expect(page.getByRole('row', { name: /申请学员/ }).locator('.el-tag', { hasText: '学员' })).toBeVisible()
+  await expect(page.getByRole('row', { name: /报名导生/ }).locator('.el-tag', { hasText: '导生' })).toBeVisible()
 
   // 培训营（learning）+ 超管：导生候选人 tab（候选人池 = 手工导入 + 按等级生成两种策略）
   await page.getByRole('tab', { name: '导生候选人' }).click()
