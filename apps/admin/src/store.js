@@ -43,11 +43,11 @@ export default new Vuex.Store({
     getters: {
         isLogin: (state) => !!state.token,
         isDarkMode: (state) => state.isDarkMode,
-        // RBAC：role / permissions 随登录响应存于 state.user
-        role: (state) => state.user?.role || 'student',
+        // RBAC：role / permissions 随登录响应存于 state.user（两级角色：teacher/mentor 已并入，仅剩 super_admin 登录管理端）
+        role: (state) => state.user?.role || '',
         permissions: (state) => state.user?.permissions || [],
         can: (_state, getters) => (perm) => getters.role === 'super_admin' || getters.permissions.includes(perm),
-        isStaff: (state) => ['super_admin', 'teacher', 'mentor'].includes(state.user?.role),
+        isStaff: (state) => state.user?.role === 'super_admin',
     },
     plugins: [
         VuexPersist({

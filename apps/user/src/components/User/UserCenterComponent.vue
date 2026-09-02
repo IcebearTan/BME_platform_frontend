@@ -91,12 +91,9 @@ const fetchUserAvatar = async () => {
   }
 }
 
-// 角色标签：与顶栏点头像（MenuComponent）一致，走 RBAC role（不再用旧 User_Mode）
-const roleLabel = computed(() => {
-  const map = { super_admin: '超管', teacher: '老师', mentor: '导生', student: '学生' }
-  return map[store.getters.role] || '同学'
-})
-const roleIsStaff = computed(() => ['super_admin', 'teacher', 'mentor'].includes(store.getters.role))
+// 角色标签：身份解耦后全局角色仅两级（导生/学员是营内身份，展示层不再区分）
+const roleLabel = computed(() => (store.getters.role === 'super_admin' ? '超管' : '同学'))
+const roleIsStaff = computed(() => store.getters.role === 'super_admin')
 
 // 计算当前应该高亮的菜单项
 const getActiveMenuIndex = (currentPath) => {

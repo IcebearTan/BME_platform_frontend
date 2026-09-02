@@ -32,9 +32,15 @@ const SESSIONS = {
     id: 1, name: '测试营', camp_type: 'short_term',
     start_date: '2026-08-26', end_date: '2026-09-30', status: 'running',
     expected_check_in: '09:00', min_daily_hours: 6, weekdays_only: true,
-    is_featured: false, member_count: 5, is_member: true,
+    is_featured: false, member_count: 5, is_member: true, my_role: 'student',
     mentor_selection_enabled: true,
   }],
+}
+
+// 消息中心导生判定：身份解耦后感谢信 tab 读「任一营期 my_role=mentor」（sessions 驱动，非全局 role）
+const SESSIONS_MENTOR = {
+  ...SESSIONS,
+  sessions: [{ ...SESSIONS.sessions[0], my_role: 'mentor' }],
 }
 
 const MENTORS = {
@@ -60,8 +66,8 @@ const PHASE_MATCHED = {
   },
 }
 
-async function loginAs(page, role) {
-  // 预置登录态：token 键 + vuex 持久化键（role getter 读 state.user.role）
+async function loginAs(page, role = 'user') {
+  // 预置登录态：token 键 + vuex 持久化键（两级角色恒 'user'；导生视角由 sessions 的 my_role 驱动）
   await page.addInitScript((r) => {
     localStorage.setItem('bme-user-token', 'e2e-mock-token')
     localStorage.setItem('bme-user-state', JSON.stringify({
@@ -72,7 +78,7 @@ async function loginAs(page, role) {
 }
 
 async function mockInboxBackend(page) {
-  // 通知 + 感谢信给真形数据，其余统一 200 空数据
+  // 通知 + 感谢信 + 营期列表（导生判定）给真形数据，其余统一 200 空数据
   await page.route('http://127.0.0.1:5001/**', (route) => {
     const url = route.request().url()
     if (url.includes('/notification/list')) {
@@ -81,6 +87,9 @@ async function mockInboxBackend(page) {
     if (url.includes('/gratitude/received')) {
       return route.fulfill({ json: LETTERS })
     }
+    if (url.includes('/camp/sessions') && !url.includes('/camp/ms')) {
+      return route.fulfill({ json: SESSIONS_MENTOR })
+    }
     return route.fulfill({ json: { code: 200, message: 'ok', data: {} } })
   })
 }
@@ -88,7 +97,7 @@ async function mockInboxBackend(page) {
 test('邮箱式收件箱：system 通知在右栏展开详情（桌面不弹窗）', async ({ page }) => {
   const errors = []
   page.on('pageerror', (e) => errors.push(e.message))
-  await loginAs(page, 'mentor')
+  await loginAs(page, 'user')
   await mockInboxBackend(page)
 
   await page.goto(`${BASE}/notifications`, { waitUntil: 'domcontentloaded' })
@@ -110,7 +119,7 @@ test('邮箱式收件箱：system 通知在右栏展开详情（桌面不弹窗�
 test('感谢信：gratitude 通知直达感谢信 tab 并选中信件', async ({ page }) => {
   const errors = []
   page.on('pageerror', (e) => errors.push(e.message))
-  await loginAs(page, 'mentor')
+  await loginAs(page, 'user')
   await mockInboxBackend(page)
 
   // 等感谢信数据就绪再点击（通知点击时需要在内存里定位 source_id 对应信件）
@@ -134,7 +143,7 @@ test('感谢信：gratitude 通知直达感谢信 tab 并选中信件', async ({
 test('选导生 tab：现场写信卡写感谢信并寄出', async ({ page }) => {
   const errors = []
   page.on('pageerror', (e) => errors.push(e.message))
-  await loginAs(page, 'student')
+  await loginAs(page, 'user')
 
   let sentPayload = null
   await page.route('http://127.0.0.1:5001/**', (route) => {
@@ -179,7 +188,7 @@ test('选导生 tab：现场写信卡写感谢信并寄出', async ({ page }) =>
 test('感谢信频控：后端重复错误转为已写过提示', async ({ page }) => {
   const errors = []
   page.on('pageerror', (e) => errors.push(e.message))
-  await loginAs(page, 'student')
+  await loginAs(page, 'user')
 
   await page.route('http://127.0.0.1:5001/**', (route) => {
     const url = route.request().url()
@@ -212,7 +221,7 @@ test('感谢信频控：后端重复错误转为已写过提示', async ({ page 
 test('移动端单栏：system 通知回退详情弹窗', async ({ page }) => {
   const errors = []
   page.on('pageerror', (e) => errors.push(e.message))
-  await loginAs(page, 'mentor')
+  await loginAs(page, 'user')
   await mockInboxBackend(page)
 
   await page.setViewportSize({ width: 375, height: 800 })

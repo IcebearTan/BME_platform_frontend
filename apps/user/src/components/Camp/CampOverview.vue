@@ -97,17 +97,17 @@
 // 看板 tab：角色仪表盘 + 出勤日历 + 营期规则（自 CampHome 成员视图迁移）。
 // 营期头部（名称/状态/进度/选导生 chip）已提升至 CampView 工作台页头，此处不再渲染。
 import { ref, computed, watch } from 'vue';
-import { useStore } from 'vuex';
 import { ElMessage } from 'element-plus';
 import { DewCard } from '@bme/dew-ui';
 import { campService, campVisualKey, CAMP_STATUS_TEXT } from '../../services/campService';
 
 const props = defineProps({
   sid: { type: Number, required: true },
+  // 本人营内任职（CampMember.role）：身份解耦后导生视角改由此判定，不再读全局角色
+  myRole: { type: String, default: null },
 });
 
-const store = useStore();
-const isMentor = computed(() => store.getters.role === 'mentor');
+const isMentor = computed(() => props.myRole === 'mentor');
 
 const loading = ref(false);
 const personal = ref(null);

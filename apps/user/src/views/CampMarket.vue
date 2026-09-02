@@ -291,16 +291,17 @@ const backToCamp = () => router.push({ path: '/camp', query: { tab: 'ms', sid } 
 
 onMounted(async () => {
   try {
-    if (store.getters.role !== 'student') {
-      guardMsg.value = '团购导生面向学员开放';
-      router.replace({ path: '/camp', query: { tab: 'ms', sid } });
-      return;
-    }
     const data = await campService.fetchSessions();
     const camp = (data.sessions || []).find((session) => session.id === sid && session.is_member);
     if (!camp) {
       guardMsg.value = '你还不是这个营期的成员';
       router.replace('/camp');
+      return;
+    }
+    // 身份解耦后无全局学员角色：志愿收集面向本营学员（my_role=student），导生走工作台名片侧
+    if (camp.my_role !== 'student') {
+      guardMsg.value = '团购导生面向学员开放';
+      router.replace({ path: '/camp', query: { tab: 'ms', sid } });
       return;
     }
     if (!camp.mentor_selection_enabled) {

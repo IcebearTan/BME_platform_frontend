@@ -165,7 +165,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
-import { useStore } from 'vuex'
+import { campService } from '../../services/campService'
 import { Bell, ChatDotRound } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { DewButton, DewButtonBar, DewCard, DewTag, DewDialog, DewSkeleton } from '@bme/dew-ui'
@@ -183,10 +183,18 @@ const props = defineProps({
 const emit = defineEmits(['update:tab', 'select', 'select-letter'])
 
 const router = useRouter()
-const store = useStore()
 
-// 感谢信 tab 仅对导生展示（信件只有导生会收到）
-const isMentor = computed(() => store.getters.role === 'mentor')
+// 感谢信 tab 仅对导生展示（信件只有导生会收到）。身份解耦后无全局导生角色，
+// 以「任一营期 my_role=mentor」判定（/camp/sessions 对成员含已结营营，历史导生保留入口）；
+// 判定失败静默——仅失去感谢信 tab，不影响通知主流程
+const isMentor = ref(false)
+async function detectMentor() {
+  try {
+    const data = await campService.fetchSessions()
+    isMentor.value = (data.sessions || []).some((s) => s.my_role === 'mentor')
+  } catch { /* 静默 */ }
+  if (isMentor.value) fetchLetters()
+}
 
 // 系统通知详情弹窗（仅移动端 <900px 使用；桌面端走右栏详情）
 const detailVisible = ref(false)
@@ -325,10 +333,10 @@ function handleMarkAllAsRead() {
   ElMessage.success(cat ? `已将「${cat === 'camp' ? '营期' : '系统'}」通知标记为已读` : '已全部标记为已读')
 }
 
-// 初始化：拉取数据 + 导生预载感谢信（供 gratitude 通知点击时定位信件） + 移动端断点监听
+// 初始化：拉取数据 + 导生判定并预载感谢信（供 gratitude 通知点击时定位信件） + 移动端断点监听
 onMounted(() => {
   fetchNotifications()
-  if (isMentor.value) fetchLetters()
+  detectMentor()
   mediaQuery = window.matchMedia('(max-width: 900px)')
   isMobile.value = mediaQuery.matches
   mediaQuery.addEventListener('change', handleMediaChange)

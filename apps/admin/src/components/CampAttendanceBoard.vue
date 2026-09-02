@@ -10,8 +10,7 @@
         @change="fetchBoard" style="margin-left: 12px" />
       <el-tag type="info" style="margin-left: 12px" v-if="sid">
         当前可见 {{ (board.rows || []).length }} 名学员
-        <span v-if="role === 'mentor'">（本团队）</span>
-        <span v-else-if="['teacher', 'super_admin'].includes(role)">（全营）</span>
+        <span v-if="role === 'super_admin'">（全营）</span>
       </el-tag>
     </div>
 

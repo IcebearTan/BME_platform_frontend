@@ -142,7 +142,7 @@ const displayContent = computed(() =>
 const canDelete = computed(() => {
   const authorId = Number(props.discussion.authorId)
   if (!Number.isNaN(authorId) && authorId === Number(store.state.user?.User_Id)) return true
-  return store.getters.role === 'super_admin' || store.state.user?.User_Mode === 'admin'
+  return store.getters.role === 'super_admin'
 })
 
 // 作者点击：进其个人主页（仅在有作者 id 时）

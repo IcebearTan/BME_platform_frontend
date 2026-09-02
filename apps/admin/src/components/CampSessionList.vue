@@ -112,7 +112,7 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 const router = useRouter();
 const store = useStore();
 // 营期管理操作仅老师/超管（mentor 只读查看）
-const canManage = computed(() => ['teacher', 'super_admin'].includes(store.getters.role));
+const canManage = computed(() => store.getters.role === 'super_admin');
 const sessions = ref([]);
 const loading = ref(false);
 const dateRange = ref(null);

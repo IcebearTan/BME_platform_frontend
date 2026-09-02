@@ -11,9 +11,15 @@ const SESSIONS = {
     id: 1, name: '测试营', camp_type: 'short_term',
     start_date: '2026-08-26', end_date: '2026-09-30', status: 'running',
     expected_check_in: '09:00', min_daily_hours: 6, weekdays_only: true,
-    is_featured: false, member_count: 5, is_member: true,
+    is_featured: false, member_count: 5, is_member: true, my_role: 'student',
     mentor_selection_enabled: true,
   }],
+}
+
+// 导生视角的同一营：my_role=mentor（身份解耦后工作台分流读营内角色，不看全局 role）
+const SESSIONS_MENTOR = {
+  ...SESSIONS,
+  sessions: [{ ...SESSIONS.sessions[0], my_role: 'mentor' }],
 }
 
 const DEADLINES = {
@@ -46,8 +52,8 @@ function phaseOf(phase, me = {}) {
   }
 }
 
-async function loginAsUser(page, phase, role = 'student', extraMocks = []) {
-  // 1) 预置登录态：token 键 + vuex 持久化键（role getter 读 state.user.role）
+async function loginAsUser(page, phase, role = 'user', extraMocks = []) {
+  // 1) 预置登录态：token 键 + vuex 持久化键（两级角色恒 'user'；导生/学员视角由 SESSIONS.my_role 驱动）
   await page.addInitScript((r) => {
     localStorage.setItem('bme-user-token', 'e2e-mock-token')
     localStorage.setItem('bme-user-state', JSON.stringify({
@@ -81,7 +87,7 @@ async function loginAsUser(page, phase, role = 'student', extraMocks = []) {
 }
 
 async function loginAsStudent(page, phase) {
-  await loginAsUser(page, phase, 'student')
+  await loginAsUser(page, phase, 'user')
 }
 
 test('市集营业：collecting 可逛可收志愿', async ({ page }) => {
@@ -186,7 +192,8 @@ test('导生工作台：谁报了我只读名单，无收人按钮', async ({ pa
   await loginAsUser(page, phaseOf('collecting', {
     role: 'mentor', has_profile: true, profile_locked: false,
     matched_count: 0, remaining: 3, suitor_count: 2,
-  }), 'mentor', [
+  }), 'user', [
+    { url: '/camp/sessions', json: SESSIONS_MENTOR },
     {
       url: '/camp/ms/1/suitors',
       json: {

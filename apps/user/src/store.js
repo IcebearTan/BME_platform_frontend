@@ -101,8 +101,9 @@ export default new Vuex.Store({
         isCurrentlyCheckedIn: (state) => state.checkinInfo.checkedIn && !state.checkinInfo.checkedOut,
         // 添加主题状态的 getters
         isDarkMode: (state) => state.isDarkMode,
-        // RBAC：role / permissions 随登录响应存于 state.user
-        role: (state) => state.user?.role || 'student',
+        // RBAC：role / permissions 随登录响应存于 state.user（两级角色：super_admin/user；
+        // 导生/学员是营内身份，业务侧读 /camp/sessions 的 my_role，别再判全局角色字符串）
+        role: (state) => state.user?.role || 'user',
         permissions: (state) => state.user?.permissions || [],
         // 用户等级 LV1-4（写入时已归一；旧持久化态无该键时回退 1）
         level: (state) => state.level ?? 1,

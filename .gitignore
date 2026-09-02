@@ -35,6 +35,10 @@ apps/*/public/md-ext/
 
 # Claude Code:仅忽略个人本地设置;.claude/skills/ 随仓库分发(见 docs/ARCHITECTURE.md)
 .claude/settings.local.json
+# 本机浏览调试工具不入库(用户 2026-09-03 定):Playwright MCP 配置/会话产物/bme-browse 个人 skill
+.mcp.json
+.playwright-mcp/
+.claude/skills/bme-browse/
 
 # Editor directories and files
 .vscode/*
