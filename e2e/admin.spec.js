@@ -110,6 +110,19 @@ async function mockCampSessionDetail(page) {
   await page.route('http://127.0.0.1:5001/camp/sessions/1/join-requests', (route) =>
     route.fulfill({ json: { code: 200, requests: [], mentors: overviewMentors } })
   )
+  await page.route('http://127.0.0.1:5001/camp/sessions/1/mentor-eligibility', (route) =>
+    route.fulfill({ json: {
+      code: 200,
+      eligibility: [
+        { user_id: 301, username: '方子航', email: 'candidate1@example.test', registered: false, source: 'manual' },
+        { user_id: 302, username: '罗雨薇', email: 'candidate2@example.test', registered: true, source: 'level' },
+      ],
+    } })
+  )
+  // 通用拦截的 data:{} 会破坏 availableCourses 的数组契约（pageerror 断言会抓住），按真实形状补齐
+  await page.route('http://127.0.0.1:5001/course/list', (route) =>
+    route.fulfill({ json: [] })
+  )
 }
 
 test('登录页正常渲染', async ({ page }) => {
@@ -127,12 +140,12 @@ test('管理布局壳挂载（侧边栏 + 主区域）', async ({ page }) => {
 
 test('用户管理页只读表格渲染 + 前端搜索', async ({ page }) => {
   await loginAsStaff(page)
-  // mock 用户列表数据（loginAsStaff 的统一拦截返回空 data，这里覆盖）
+  // mock 用户列表数据（loginAsStaff 的统一拦截返回空 data，这里覆盖；level 为 LV1-4 整数）
   await page.route('http://127.0.0.1:5001/user/user_list', (route) =>
     route.fulfill({
       json: [
-        { User_Id: 1, User_Name: 'alice', User_Mode: 'super_admin', join_time: '2026-08-01', User_Email: 'a@b.c' },
-        { User_Id: 2, User_Name: 'bob', User_Mode: 'student', join_time: '2026-08-02', User_Email: 'd@e.f' },
+        { User_Id: 1, User_Name: 'alice', User_Mode: 'super_admin', join_time: '2026-08-01', User_Email: 'a@b.c', level: 1 },
+        { User_Id: 2, User_Name: 'bob', User_Mode: 'student', join_time: '2026-08-02', User_Email: 'd@e.f', level: 3 },
       ],
     })
   )
@@ -144,11 +157,27 @@ test('用户管理页只读表格渲染 + 前端搜索', async ({ page }) => {
   await expect(page.getByRole('cell', { name: 'alice' })).toBeVisible()
   await expect(page.getByRole('cell', { name: 'bob' })).toBeVisible()
 
+  // 等级列：LV tag 随等级递进取色（alice LV1 / bob LV3）
+  await expect(page.getByText('LV1', { exact: true })).toBeVisible()
+  await expect(page.getByText('LV3', { exact: true })).toBeVisible()
+
   // 前端搜索交互：过滤后 alice 行消失
   await page.getByPlaceholder(' 输入用户名&权限&id').fill('bob')
   await page.getByPlaceholder(' 输入用户名&权限&id').press('Enter')
   await expect(page.getByRole('cell', { name: 'bob' })).toBeVisible()
   await expect(page.getByRole('cell', { name: 'alice' })).toHaveCount(0)
+
+  // 调级弹窗：bob LV3 改 LV4，确认发出 PUT（loginAsStaff 统一拦截兜底响应）
+  await page.getByRole('row', { name: 'bob' }).getByRole('button', { name: '调级' }).click()
+  const levelDialog = page.getByRole('dialog', { name: '调整等级' })
+  await expect(levelDialog).toBeVisible()
+  await levelDialog.locator('.el-select').click()
+  await page.locator('.el-select__popper:visible').getByText('LV4', { exact: true }).click()
+  const levelRequest = page.waitForRequest((request) =>
+    request.url() === 'http://127.0.0.1:5001/admin/users/2/level'
+      && request.method() === 'PUT')
+  await levelDialog.getByRole('button', { name: '确定' }).click()
+  expect((await levelRequest).postDataJSON()).toEqual({ level: 4 })
 
   expect(pageErrors).toEqual([])
 })
@@ -165,14 +194,35 @@ test('md-editor-v3 编辑器挂载', async ({ page }) => {
 test('营期详情保留选导生与成员添加能力', async ({ page }) => {
   await loginAsStaff(page)
   await mockCampSessionDetail(page)
+  const pageErrors = []
+  page.on('pageerror', (e) => pageErrors.push(e.message))
   await page.goto(`${BASE}/camp/sessions/1`)
 
   await expect(page.getByRole('tab', { name: '选导生' })).toBeVisible()
   await expect(page.getByRole('cell', { name: '林泽宇', exact: true }).first()).toBeVisible()
   await expect(page.getByRole('cell', { name: '测试学员20', exact: true })).toBeVisible()
 
-  // 培训营（learning）+ 超管：导生名单 tab 存在（资格名单导入入口）
-  await expect(page.getByRole('tab', { name: '导生名单' })).toBeVisible()
+  // 培训营（learning）+ 超管：导生候选人 tab（候选人池 = 手工导入 + 按等级生成两种策略）
+  await page.getByRole('tab', { name: '导生候选人' }).click()
+  await expect(page.getByText('候选人列表（2）', { exact: true })).toBeVisible()
+  await expect(page.getByRole('cell', { name: '方子航', exact: true })).toBeVisible()
+  await expect(page.getByText('手工导入', { exact: true })).toBeVisible()
+  await expect(page.getByText('按等级', { exact: true })).toBeVisible()
+
+  // 按等级生成：默认 LV2，请求体携带 min_level
+  const genRequest = page.waitForRequest((request) =>
+    request.url() === 'http://127.0.0.1:5001/camp/sessions/1/mentor-candidates/generate-by-level'
+      && request.method() === 'POST')
+  await page.getByRole('button', { name: '按等级生成' }).click()
+  expect((await genRequest).postDataJSON()).toEqual({ min_level: 2 })
+
+  // 移除候选人：确认框后发 DELETE，命中对应 uid
+  await page.getByRole('row', { name: '方子航' }).getByRole('button', { name: '移除' }).click()
+  const delRequest = page.waitForRequest((request) =>
+    request.url() === 'http://127.0.0.1:5001/camp/sessions/1/mentor-candidates/301'
+      && request.method() === 'DELETE')
+  await page.locator('.el-message-box').getByRole('button', { name: '确定' }).click()
+  expect(await delRequest).toBeTruthy()
 
   await page.getByRole('tab', { name: '选导生' }).click()
   await expect(page.getByText('导生概览', { exact: true })).toBeVisible()
@@ -200,4 +250,5 @@ test('营期详情保留选导生与成员添加能力', async ({ page }) => {
       && request.method() === 'POST')
   await page.getByRole('button', { name: '加入（1）', exact: true }).click()
   expect((await addRequest).postDataJSON()).toEqual({ user_id: 301, team_mentor_id: null })
+  expect(pageErrors).toEqual([])
 })

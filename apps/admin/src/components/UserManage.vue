@@ -1,8 +1,13 @@
 <script setup>
 import api from '../api';
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
+import { useStore } from 'vuex';
 import { ElMessage } from 'element-plus';
 import { DewCard } from '@bme/dew-ui';
+
+const store = useStore();
+// 调级走 PUT /admin/users/<id>/level，后端要求 system_management 权限；按钮同步显隐，其余保持只读
+const canSetLevel = computed(() => store.getters.can('system_management'));
 
 const formInline = reactive({
   key: ''
@@ -88,9 +93,36 @@ const handlePageChange = (page) => {
   updatePagedUsers();
 };
 
+// ── 用户等级（LV1-4）：展示随等级递进取色，调级弹窗 ──
+const LEVEL_TAG_TYPES = { 1: 'info', 2: 'success', 3: 'warning', 4: 'danger' };
+const levelTagType = (level) => LEVEL_TAG_TYPES[level] || 'info';
+
+const levelDlg = reactive({ visible: false, submitting: false, userId: null, userName: '', level: 1 });
+
+const openLevelDlg = (row) => {
+  levelDlg.userId = row.User_Id;
+  levelDlg.userName = row.User_Name;
+  levelDlg.level = row.level || 1;
+  levelDlg.visible = true;
+};
+
+const submitLevel = async () => {
+  levelDlg.submitting = true;
+  try {
+    const res = await api.put(`/admin/users/${levelDlg.userId}/level`, { level: levelDlg.level });
+    ElMessage.success(res.data.message || '等级已调整');
+    levelDlg.visible = false;
+    fetchUsers();
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '调整失败');
+  } finally {
+    levelDlg.submitting = false;
+  }
+};
+
 onMounted(() => {
   fetchUsers();
-  
+
 })
 </script>
 
@@ -129,6 +161,17 @@ onMounted(() => {
         >
           <el-table-column v-for="item in tableLabel" :key="item.prop" :prop="item.prop" :label="item.label"
             :width="item.width ? item.width : 125" />
+          <el-table-column label="等级" width="90" align="center">
+            <template #default="{ row }">
+              <el-tag v-if="row.level" :type="levelTagType(row.level)" size="small">LV{{ row.level }}</el-tag>
+              <span v-else>—</span>
+            </template>
+          </el-table-column>
+          <el-table-column v-if="canSetLevel" label="操作" width="90" align="center">
+            <template #default="{ row }">
+              <el-button size="small" link @click="openLevelDlg(row)">调级</el-button>
+            </template>
+          </el-table-column>
         </el-table>
         <div class="pagination-wrapper">
           <el-pagination
@@ -142,11 +185,27 @@ onMounted(() => {
         </div>
       </DewCard>
     </div>
-    
+
+    <!-- 调级弹窗（等级地基：现阶段手动调整） -->
+    <el-dialog v-model="levelDlg.visible" title="调整等级" width="420px">
+      <el-form label-width="70px">
+        <el-form-item label="用户">
+          <span>{{ levelDlg.userName }}（{{ levelDlg.userId }}）</span>
+        </el-form-item>
+        <el-form-item label="等级">
+          <el-select v-model="levelDlg.level" style="width: 100%;">
+            <el-option v-for="n in [1, 2, 3, 4]" :key="n" :label="`LV${n}`" :value="n" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="levelDlg.visible = false">取消</el-button>
+          <el-button type="primary" :loading="levelDlg.submitting" @click="submitLevel">确定</el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
-
-
-   
 </template>
 
 <style scoped>

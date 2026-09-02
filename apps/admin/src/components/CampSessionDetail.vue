@@ -155,15 +155,20 @@
         </el-table>
       </el-tab-pane>
 
-      <!-- ⑧ 导生名单（培训营 + 超管：邮箱导入资格名单，名单内用户可自助报名） -->
-      <el-tab-pane v-if="session.category === 'learning' && isSuperAdmin" label="导生名单" name="eligibility">
-        <h4 class="ms-sec-title">导入资格名单</h4>
+      <!-- ⑧ 导生候选人（培训营 + 超管：营期外链的候选人池，手工导入/按等级生成策略可插拔，池内用户可自助报名） -->
+      <el-tab-pane v-if="session.category === 'learning' && isSuperAdmin" label="导生候选人" name="eligibility">
+        <h4 class="ms-sec-title">手工导入（邮箱）</h4>
         <el-input v-model="eligibility.raw" type="textarea" :rows="4"
           placeholder="粘贴导生邮箱，换行或逗号分隔均可，自动去重" />
-        <div style="margin: 10px 0 4px;">
+        <div class="elig-toolbar">
           <el-button size="small" :loading="eligibility.previewing" @click="previewEligibility">预览</el-button>
           <el-button size="small" type="primary" :loading="eligibility.confirming" @click="confirmEligibility">确认导入</el-button>
-          <span class="hint">确认导入仅限草稿/待开放阶段；已在名单内的自动跳过</span>
+          <el-divider direction="vertical" />
+          <el-select v-model="eligibility.minLevel" size="small" class="elig-level-select">
+            <el-option v-for="n in [1, 2, 3, 4]" :key="n" :label="`LV${n}`" :value="n" />
+          </el-select>
+          <el-button size="small" :loading="eligibility.generating" @click="generateByLevel">按等级生成</el-button>
+          <span class="hint">增删仅限草稿/待开放阶段；已在池内的自动跳过</span>
         </div>
 
         <template v-if="eligibility.preview">
@@ -182,15 +187,27 @@
           </el-table>
         </template>
 
-        <h4 class="ms-sec-title">已导入名单（{{ eligibility.list.length }}）</h4>
+        <h4 class="ms-sec-title">候选人列表（{{ eligibility.list.length }}）</h4>
         <el-table :data="eligibility.list" v-loading="eligibility.loading" border size="small">
           <el-table-column label="姓名" prop="username" min-width="110" />
           <el-table-column label="邮箱" prop="email" min-width="180" show-overflow-tooltip />
+          <el-table-column label="来源" width="100" align="center">
+            <template #default="{ row }">
+              <el-tag :type="row.source === 'level' ? 'success' : 'info'" size="small">
+                {{ row.source === 'level' ? '按等级' : '手工导入' }}
+              </el-tag>
+            </template>
+          </el-table-column>
           <el-table-column label="报名状态" width="100" align="center">
             <template #default="{ row }">
               <el-tag :type="row.registered ? 'success' : 'info'" size="small">
                 {{ row.registered ? '已报名' : '未报名' }}
               </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="80" align="center">
+            <template #default="{ row }">
+              <el-button size="small" type="danger" link @click="removeCandidate(row)">移除</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -695,10 +712,11 @@ async function updateMentor(row, mentorId) {
   }
 }
 
-// ── 导生资格名单（Q-007：粘贴邮箱 → 预览 dry-run → 确认导入；名单内用户可自助报名）──
+// ── 导生候选人（营期外链的候选人池：手工邮箱导入 / 按等级生成，策略可插拔；池内用户可自助报名）──
 const eligibility = reactive({
   raw: '', emails: [],
   preview: null, previewing: false, confirming: false,
+  minLevel: 2, generating: false,
   list: [], loading: false,
 });
 
@@ -759,7 +777,39 @@ async function confirmEligibility() {
   }
 }
 
-// 进入「导生名单」tab 时拉取已导入名单
+// 策略 B：按等级生成（level >= min_level 的用户物化进池，幂等合并，可重复刷新）
+async function generateByLevel() {
+  eligibility.generating = true;
+  try {
+    const res = await api.post(
+      `/camp/sessions/${campId}/mentor-candidates/generate-by-level`,
+      { min_level: eligibility.minLevel },
+    );
+    ElMessage.success(res.data.message || '已生成');
+    fetchEligibility();
+  } catch (e) {
+    // 非草稿/待开放等 400：直接透出后端提示
+    ElMessage.error(e.response?.data?.message || '生成失败');
+  } finally {
+    eligibility.generating = false;
+  }
+}
+
+function removeCandidate(row) {
+  ElMessageBox.confirm(`确定将「${row.username}」从导生候选人池移除吗？`, '提示', {
+    confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning',
+  }).then(async () => {
+    // 后端 message 可能带「已报名的导生身份不受影响」说明，原样透出
+    const res = await api.delete(`/camp/sessions/${campId}/mentor-candidates/${row.user_id}`);
+    ElMessage.success(res.data.message || '已移除');
+    fetchEligibility();
+  }).catch((e) => {
+    if (e === 'cancel' || e === 'close') return;
+    ElMessage.error(e.response?.data?.message || '移除失败');
+  });
+}
+
+// 进入「导生候选人」tab 时拉取候选人列表
 watch(activeTab, (t) => { if (t === 'eligibility') fetchEligibility(); });
 
 // ── 选导生（overview / 提前截止 / 志愿导出 / 指派）──
@@ -907,4 +957,10 @@ onMounted(() => { fetchAll(); fetchOptions(); if (canManage.value) { fetchJoinRe
 .hint { margin-left: 12px; color: #909399; font-size: 12px; }
 .ms-sec-title { margin: 16px 0 8px; font-size: 14px; font-weight: 600; }
 .batch-msg { margin-left: 6px; font-size: 12px; color: #909399; }
+/* 候选池工具栏：间距统一交给 flex gap（覆盖 el-button 相邻默认 margin） */
+.elig-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 10px 0 4px; }
+.elig-toolbar :deep(.el-button + .el-button) { margin-left: 0; }
+.elig-toolbar :deep(.el-divider--vertical) { margin: 0; }
+.elig-toolbar .hint { margin-left: 4px; }
+.elig-level-select { width: 88px; }
 </style>
