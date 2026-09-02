@@ -250,50 +250,8 @@ const checkEnrollment = async () => {
   }
 }
 
-// 点击加入/退课按钮
-const debugEnroll = async () => {
-  if (!isEnrolled.value) {
-    // 选课
-    try {
-      const res = await api({
-        url: '/userCourse/enroll',
-        method: 'post',
-        data: {
-          Course_Id: courseId.value
-        }
-      })
-      if (res.data.code === 200) {
-        isEnrolled.value = true
-        ElMessage.success('选课成功')
-      } else {
-        ElMessage.error(res.data.message || '选课失败')
-      }
-    } catch (error) {
-      console.error('选课失败:', error)
-      ElMessage.error('选课失败，请重试')
-    }
-  } else {
-    // 退课
-    try {
-      const res = await api({
-        url: '/userCourse/drop',
-        method: 'post',
-        data: {
-          Course_Id: courseId.value
-        }
-      })
-      if (res.data.code === 200) {
-        isEnrolled.value = false
-        ElMessage.success('退课成功')
-      } else {
-        ElMessage.error(res.data.message || '退课失败')
-      }
-    } catch (error) {
-      console.error('退课失败:', error)
-      ElMessage.error('退课失败，请重试')
-    }
-  }
-}
+// 「加入学习/退课」自助入口已移除（阶段 1，A14）：入课唯一途径 = 营期选课；
+// isEnrolled 仅作只读展示（历史选课与营期选课状态照常显示）。
 
 // 已完成课时列表，用于显示勾选标记
 const completedLessons = ref([])
@@ -398,9 +356,6 @@ const goBack = () => {
               </h2>
               <div class="course-description" :class="themeClass">
                 {{ courseInfo.Introduction }}
-              </div>
-              <div class="course-bottom">
-                <el-button :class="['enrolled-btn', { 'is-enrolled': isEnrolled }]" type="primary" plain size="large" @click="debugEnroll()">{{ isEnrolled ? '正在学习' : '加入学习' }}</el-button>
               </div>
             </div>
           </div>
