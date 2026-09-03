@@ -177,10 +177,10 @@
           <el-button size="small" type="primary" :loading="eligibility.confirming" @click="confirmEligibility">确认导入</el-button>
           <el-divider direction="vertical" />
           <el-select v-model="eligibility.minLevel" size="small" class="elig-level-select">
-            <el-option v-for="n in [1, 2, 3, 4]" :key="n" :label="`LV${n}`" :value="n" />
+            <el-option v-for="n in [2, 3, 4]" :key="n" :label="`LV${n} 及以上`" :value="n" />
           </el-select>
           <el-button size="small" :loading="eligibility.generating" @click="generateByLevel">按等级生成</el-button>
-          <span class="hint">增删仅限草稿/待开放阶段；已在池内的自动跳过</span>
+          <span class="hint">增删仅限草稿/待开放阶段；LV1 为普通学员默认等级，不入导生池</span>
         </div>
 
         <template v-if="eligibility.preview">

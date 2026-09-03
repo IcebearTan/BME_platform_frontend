@@ -3,7 +3,13 @@
     <template #header>
       <div class="head-row">
         <h3>我的导生名片</h3>
-        <span class="head-hint">{{ locked ? '志愿已截止，名片锁定' : '学员将在浏览页看到这张名片' }}</span>
+        <span class="head-hint">
+          {{ locked
+            ? '志愿已截止，名片锁定'
+            : deadline
+              ? `学员将在浏览页看到这张名片 · ${deadline} 截止后锁定，届时不可再改`
+              : '学员将在浏览页看到这张名片' }}
+        </span>
       </div>
     </template>
 
@@ -112,6 +118,7 @@ import { campService, assetUrl } from '../../services/campService';
 const props = defineProps({
   sid: { type: [Number, String], required: true },
   msTags: { type: Array, default: () => [] },
+  deadline: { type: String, default: '' },   // 志愿截止时间（锁定时点提示）
   locked: { type: Boolean, default: false },
 });
 const emit = defineEmits(['saved']);

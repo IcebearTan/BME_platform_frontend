@@ -128,11 +128,20 @@ export const campService = {
   submitMsPreferences: (sid, list) =>
     api.post(`/camp/ms/${sid}/preferences`, { list }).then(r => r.data),
 
-  // 导生端：谁报了我（只读名单，收人动作已随单轮制下线）/ 我的团队
+  // 导生端：谁报了我（收集期只读名单）/ 我的团队
   fetchMsSuitors: (sid) =>
     api.get(`/camp/ms/${sid}/suitors`).then(r => r.data),
   fetchMsMatched: (sid) =>
     api.get(`/camp/ms/${sid}/matched`).then(r => r.data),
+
+  // 导生端：协调期（志愿截止后）自助勾选——人员确认名单 / 勾选 / 释放
+  // （D-4：与老师批量指派共用写入路径，释放仅限自己勾选的学员）
+  fetchMsPickRoster: (sid) =>
+    api.get(`/camp/ms/${sid}/pick/roster`).then(r => r.data),
+  msPickStudent: (sid, studentId) =>
+    api.post(`/camp/ms/${sid}/pick`, { student_user_id: studentId }).then(r => r.data),
+  msReleaseStudent: (sid, studentId) =>
+    api.post(`/camp/ms/${sid}/pick`, { student_user_id: studentId, action: 'release' }).then(r => r.data),
 
   // 结果（done 后）
   fetchMsResults: (sid) =>

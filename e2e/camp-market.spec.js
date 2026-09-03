@@ -213,9 +213,87 @@ test('导生工作台：谁报了我只读名单，无收人按钮', async ({ pa
   await expect(page.getByText('谁报了我')).toBeVisible()
   await expect(page.getByText('学员小张')).toBeVisible()
   await expect(page.getByText('已分配给 别的导生')).toBeVisible()
-  // 单轮制：收人动作已下线，名单纯只读
+  // 单轮制：收集期名单纯只读，勾选动作只在截止后的人员确认页出现
   await expect(page.getByRole('button', { name: '收下' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: '预览', exact: true })).toHaveCount(0)
+
+  expect(errors).toEqual([])
+})
+
+test('导生人员确认：志愿截止后可锁定/释放学员', async ({ page }) => {
+  const errors = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  await loginAsUser(page, phaseOf('done', {
+    role: 'mentor', has_profile: true, profile_locked: true,
+    matched_count: 2, remaining: 1,
+  }), 'user', [
+    { url: '/camp/sessions', json: SESSIONS_MENTOR },
+    // 头像跳转的公开主页（UserIndex）会拉年度考勤，必须给数组形状（空对象会炸 .reduce）
+    { url: '/records/yearly', json: { code: 200, data: [] } },
+  ])
+
+  // 勾选/释放接口直接改内存名单，roster 回读最新状态（同一营内闭环）
+  const students = [
+    { user_id: 201, username: '学员小张', avatar: null, rank: 1, note: '想学硬件', submitted: true, status: 'free', mentor_name: null, source: null },
+    { user_id: 202, username: '学员小王', avatar: null, rank: null, note: null, submitted: true, status: 'taken', mentor_name: '别的导生', source: null },
+    { user_id: 203, username: '学员小赵', avatar: null, rank: null, note: null, submitted: false, status: 'free', mentor_name: null, source: null },
+    { user_id: 204, username: '学员小钱', avatar: null, rank: 2, note: '', submitted: true, status: 'mine', mentor_name: null, source: 'mentor_pick' },
+    { user_id: 205, username: '学员小李', avatar: null, rank: null, note: null, submitted: true, status: 'mine', mentor_name: null, source: 'admin' },
+  ]
+  const CAP = 3
+  let matchedN = 2
+  const rosterJson = () => ({
+    code: 200, phase: 'done', writable: true,
+    capacity: CAP, matched: matchedN, remaining: Math.max(0, CAP - matchedN),
+    students,
+  })
+  await page.route('**/camp/ms/1/pick/roster', (route) => route.fulfill({ json: rosterJson() }))
+  await page.route('**/camp/ms/1/pick', async (route) => {
+    const body = route.request().postDataJSON()
+    const s = students.find((x) => x.user_id === body.student_user_id)
+    if (body.action === 'release') {
+      s.status = 'free'; s.source = null; matchedN -= 1
+      return route.fulfill({ json: { code: 200, message: `已释放 ${s.username}` } })
+    }
+    s.status = 'mine'; s.source = 'mentor_pick'; matchedN += 1
+    return route.fulfill({ json: { code: 200, message: `已锁定 ${s.username}` } })
+  })
+
+  await page.goto(`${BASE}/camp?tab=ms&sid=1`, { waitUntil: 'domcontentloaded' })
+
+  // 名单信号：志愿序 / 未选我 / 未交 / 已属他人 / 老师指派不可释放
+  await expect(page.getByText('人员确认')).toBeVisible()
+  await expect(page.getByText('已选 2 / 3')).toBeVisible()
+  await expect(page.locator('.pick-item', { hasText: '学员小张' }).getByText('志愿 1')).toBeVisible()
+  await expect(page.locator('.pick-item', { hasText: '学员小王' }).getByText('已属 别的导生')).toBeVisible()
+  await expect(page.locator('.pick-item', { hasText: '学员小赵' }).getByText('未交志愿')).toBeVisible()
+  await expect(page.locator('.pick-item', { hasText: '学员小李' }).getByText('老师指派')).toBeVisible()
+  await expect(page.locator('.pick-item', { hasText: '学员小李' }).getByRole('button')).toHaveCount(0)
+  await expect(page.locator('.pick-item', { hasText: '学员小钱' }).getByRole('button', { name: '释放' })).toBeVisible()
+
+  // 锁定小赵（剩 1 个名额）→ 满员，其他 free 行转「名额已满」
+  await page.locator('.pick-item', { hasText: '学员小赵' }).getByRole('button', { name: '锁定' }).click()
+  await expect(page.getByText('已选 3 / 3')).toBeVisible()
+  await expect(page.locator('.pick-item', { hasText: '学员小赵' }).getByRole('button', { name: '释放' })).toBeVisible()
+  await expect(page.locator('.pick-item', { hasText: '学员小张' }).getByText('名额已满')).toBeVisible()
+
+  // 释放小赵回到可锁定态
+  await page.locator('.pick-item', { hasText: '学员小赵' }).getByRole('button', { name: '释放' }).click()
+  await expect(page.getByText('已选 2 / 3')).toBeVisible()
+  await expect(page.locator('.pick-item', { hasText: '学员小赵' }).getByRole('button', { name: '锁定' })).toBeVisible()
+
+  // 搜索过滤（DewInput）
+  await page.getByPlaceholder('搜索学员姓名').fill('小张')
+  await expect(page.getByText('1 位学员')).toBeVisible()
+  await expect(page.locator('.pick-item')).toHaveCount(1)
+
+  // 头像点击新开页签进公开主页，原页面停留原地
+  const [popup] = await Promise.all([
+    page.waitForEvent('popup'),
+    page.locator('.pick-item', { hasText: '学员小张' }).locator('.link-avatar').click(),
+  ])
+  await expect(popup).toHaveURL(/\/profile\/\d+/)
+  await expect(page).toHaveURL(/\/camp\?/)
 
   expect(errors).toEqual([])
 })
