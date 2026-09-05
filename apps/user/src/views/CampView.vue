@@ -115,7 +115,7 @@
           <MentorMembers v-else-if="tab === 'members'" :sid="sid" />
         </template>
         <template v-else-if="current?.is_member">
-          <MsStudentPick v-if="tab === 'ms'" :sid="sid" />
+          <MsStudentPick v-if="tab === 'ms'" :sid="sid" :camp-status="current.status" />
           <CampSelection v-else-if="tab === 'selection'" :sid="sid" />
           <CampAttendance v-else-if="tab === 'attendance'" :sid="sid" />
           <LeaveApply v-else-if="tab === 'leave'" :sid="sid" />

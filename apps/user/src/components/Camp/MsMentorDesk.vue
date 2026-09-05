@@ -50,10 +50,12 @@
         <template #header>
           <div class="head-row">
             <h3>谁报了我</h3>
-            <span class="head-hint">
-              已分到 {{ suitorsInfo?.matched ?? 0 }} / {{ suitorsInfo?.capacity ?? 0 }} ·
-              {{ suitorsInfo?.preview ? '志愿收集中，截止后由老师统一协调' : '志愿已截止，名单供协调参考' }}
-            </span>
+            <div class="preference-summary" aria-label="志愿人数统计">
+              <span class="summary-item summary-total">共 {{ suitors.length }} 人</span>
+              <span v-for="item in preferenceCounts" :key="item.rank" class="summary-item">
+                {{ item.label }} {{ item.count }}
+              </span>
+            </div>
           </div>
         </template>
 
@@ -122,6 +124,11 @@ const matched = ref([]);
 
 const profile = computed(() => phaseInfo.value?.me?.profile || null);
 const locked = computed(() => phaseInfo.value?.me?.profile_locked ?? true);
+const preferenceCounts = computed(() => [
+  { rank: 1, label: '一志愿', count: suitors.value.filter((s) => s.rank === 1).length },
+  { rank: 2, label: '二志愿', count: suitors.value.filter((s) => s.rank === 2).length },
+  { rank: 3, label: '三志愿', count: suitors.value.filter((s) => s.rank === 3).length },
+]);
 
 const deskCaption = computed(() => {
   const p = phaseInfo.value;
@@ -180,6 +187,17 @@ watch(() => props.sid, () => { loading.value = true; reloadAll(); }, { immediate
 .head-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .head-row h3 { margin: 0; font-size: 16px; font-weight: 600; }
 .head-hint { font-size: 12px; color: var(--dew-text-muted); }
+.preference-summary { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.summary-item {
+  padding: 2px 7px;
+  border: 1px solid var(--dew-card-flat-border, rgba(0, 0, 0, 0.08));
+  border-radius: 4px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--dew-text-muted);
+  background: var(--dew-card-flat-bg, rgba(0, 0, 0, 0.03));
+}
+.summary-total { color: var(--dew-text); font-weight: 600; }
 
 .ms-empty {
   padding: 30px 0;

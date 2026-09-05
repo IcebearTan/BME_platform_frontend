@@ -50,9 +50,9 @@ const MENTORS = {
   ],
 }
 
-// 已匹配结果卡：my_mentor 存在即渲染海报式结果卡
+// 已发布匹配结果：发布标记与 my_mentor 同时存在才渲染结果卡
 const PHASE_MATCHED = {
-  code: 200, phase: 'done', enabled: true, config_error: false,
+  code: 200, phase: 'done', enabled: true, config_error: false, results_released: true,
   deadlines: {
     preference_start: '2026-08-24 00:00', preference_deadline: '2026-08-24 23:00',
     round1_deadline: '2026-08-24 23:59', round2_deadline: null,

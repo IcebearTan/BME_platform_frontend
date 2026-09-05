@@ -120,6 +120,7 @@ function phasePayload() {
     code: 200,
     phase: 'collecting',
     enabled: true,
+    results_released: false,
     config_error: false,
     deadlines: {
       preference_start: deadlineAfter(-24),

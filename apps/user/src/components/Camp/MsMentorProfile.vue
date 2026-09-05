@@ -3,7 +3,7 @@
     <template #header>
       <div class="head-row">
         <h3>我的导生名片</h3>
-        <span class="head-hint">{{ locked ? '志愿已截止，名片锁定' : '学员将在浏览页看到这张名片' }}</span>
+        <span v-if="locked" class="head-hint">志愿已截止，名片锁定</span>
       </div>
     </template>
 
@@ -47,16 +47,17 @@
         <!-- 表单 -->
         <div class="form-col">
           <div class="form-item">
-            <label class="form-label">自我介绍</label>
+            <label class="form-label">一句话介绍 <span class="label-sub">最多 30 字</span></label>
             <DewInput
-              v-model="form.bio"
+              :model-value="form.bio"
               type="textarea"
               :rows="5"
-              maxlength="1000"
               resize="none"
-              placeholder="写点什么让学员想选你：方向、能教什么、带过几届……"
+              placeholder="用一句话说说你的方向、能带学员做什么"
               :disabled="locked"
+              @update:model-value="updateBio"
             />
+            <span class="bio-counter">{{ form.bio.length }}/30</span>
           </div>
 
           <div class="form-item">
@@ -153,6 +154,10 @@ function toggleTag(t) {
   form.value.tags.push(t);
 }
 
+function updateBio(value) {
+  form.value.bio = String(value || '').slice(0, 30);
+}
+
 function pickPhoto() {
   if (props.locked) { ElMessage.info('志愿已截止，名片锁定'); return; }
   // 触发隐藏的 el-upload 文件选择
@@ -208,7 +213,7 @@ async function load() {
     hasProfile.value = !!p;
     photoFilename.value = p?.photo_url || '';
     form.value = {
-      bio: p?.bio || '',
+      bio: (p?.bio || '').slice(0, 30),
       tags: p?.tags || [],
       capacity: p?.capacity ?? 8,
     };
@@ -226,6 +231,7 @@ watch(() => props.sid, load, { immediate: true });
 .head-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .head-row h3 { margin: 0; font-size: 16px; font-weight: 600; }
 .head-hint { font-size: 12px; color: var(--dew-text-muted); }
+.bio-counter { align-self: flex-end; font-size: 11px; color: var(--dew-text-faint); }
 
 .profile-body { display: flex; gap: 24px; align-items: flex-start; }
 @media (max-width: 860px) { .profile-body { flex-direction: column; } }

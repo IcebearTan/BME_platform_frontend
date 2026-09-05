@@ -42,7 +42,7 @@ const MENTORS = {
 function phaseOf(phase, me = {}) {
   // 单轮制契约：phase ∈ disabled/upcoming/collecting/done；round2 键恒空/false
   return {
-    code: 200, phase, enabled: true, config_error: false,
+    code: 200, phase, enabled: true, config_error: false, results_released: false,
     deadlines: DEADLINES, round2_enabled: false, ms_tags: ['硬件组', '软件组', '人工智能'],
     stats: { submitted: 2, students: 4 },
     me: {
@@ -171,6 +171,48 @@ test('已交志愿：ms tab 回显志愿与再逛逛入口', async ({ page }) =>
   expect(errors).toEqual([])
 })
 
+test('结果门禁：收集期与协调期隐藏导生结果，正式发布后才展示', async ({ page }) => {
+  const leakedMatch = {
+    round1: [{ mentor_id: 13, note: '想学硬件' }],
+    unmatched: false,
+    my_mentor: { user_id: 13, username: 'test_mentor' },
+  }
+
+  await loginAsStudent(page, phaseOf('collecting', leakedMatch))
+  await page.goto(`${BASE}/camp?tab=ms&sid=1`, { waitUntil: 'domcontentloaded' })
+  await expect(page.getByText('已提交 1 个志愿')).toBeVisible()
+  await expect(page.getByText('我的导生', { exact: true })).toHaveCount(0)
+  await expect(page.getByText(/感谢信 · 写给/)).toHaveCount(0)
+
+  await page.unrouteAll({ behavior: 'ignoreErrors' })
+  await loginAsStudent(page, phaseOf('done', leakedMatch))
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await expect(page.getByText('老师正在线下协调导生分配')).toBeVisible()
+  await expect(page.getByText('我的导生', { exact: true })).toHaveCount(0)
+
+  await page.unrouteAll({ behavior: 'ignoreErrors' })
+  await loginAsStudent(page, {
+    ...phaseOf('done', leakedMatch),
+    results_released: true,
+  })
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await expect(page.getByText('我的导生', { exact: true })).toBeVisible()
+  await expect(page.getByText('test_mentor', { exact: true })).toBeVisible()
+})
+
+test('旧后端兼容：缺少发布字段时按营期状态展示正式结果', async ({ page }) => {
+  const legacyPhase = phaseOf('done', {
+    unmatched: false,
+    my_mentor: { user_id: 13, username: 'test_mentor' },
+  })
+  delete legacyPhase.results_released
+
+  await loginAsStudent(page, legacyPhase)
+  await page.goto(`${BASE}/camp?tab=ms&sid=1`, { waitUntil: 'domcontentloaded' })
+  await expect(page.getByText('我的导生', { exact: true })).toBeVisible()
+  await expect(page.getByText('test_mentor', { exact: true })).toBeVisible()
+})
+
 test('志愿截止打烊：市集出示收摊卡并引导回工作台', async ({ page }) => {
   const errors = []
   page.on('pageerror', (e) => errors.push(e.message))
@@ -202,6 +244,8 @@ test('导生工作台：谁报了我只读名单，无收人按钮', async ({ pa
         suitors: [
           { user_id: 201, username: '学员小张', avatar: null, rank: 1, note: '想学硬件', matched: false, matched_mentor_name: null },
           { user_id: 202, username: '学员小王', avatar: null, rank: 2, note: '', matched: true, matched_mentor_name: '别的导生' },
+          { user_id: 203, username: '学员小李', avatar: null, rank: 1, note: '', matched: false, matched_mentor_name: null },
+          { user_id: 204, username: '学员小赵', avatar: null, rank: 3, note: '', matched: false, matched_mentor_name: null },
         ],
       },
     },
@@ -211,6 +255,34 @@ test('导生工作台：谁报了我只读名单，无收人按钮', async ({ pa
 
   await page.goto(`${BASE}/camp?tab=ms&sid=1`, { waitUntil: 'domcontentloaded' })
   await expect(page.getByText('谁报了我')).toBeVisible()
+  await expect(page.getByText('学员将在浏览页看到这张名片')).toHaveCount(0)
+  await expect(page.getByText('一句话介绍')).toBeVisible()
+  await expect(page.getByText('最多 30 字')).toBeVisible()
+  await expect(page.getByText('这位导生有点神秘，先看看标签吧~~')).toBeVisible()
+  const bioInput = page.getByPlaceholder('用一句话说说你的方向、能带学员做什么')
+  await bioInput.fill('一'.repeat(31))
+  await expect(bioInput).toHaveValue('一'.repeat(30))
+  await expect(page.getByText('30/30')).toBeVisible()
+  const bioCapacity = await page.locator('.mentor-card .bio').first().evaluate((element) => {
+    const clone = element.cloneNode(true)
+    const style = getComputedStyle(element)
+    clone.style.cssText = `position:absolute;visibility:hidden;display:block;width:${element.clientWidth}px;height:auto;min-height:0;-webkit-line-clamp:unset;line-clamp:unset;font:${style.font};line-height:${style.lineHeight};`
+    document.body.appendChild(clone)
+    const twoLines = Number.parseFloat(style.lineHeight) * 2 + 0.5
+    let maximum = 0
+    for (let length = 1; length <= 60; length += 1) {
+      clone.textContent = `“${'测'.repeat(length)}”`
+      if (clone.scrollHeight <= twoLines) maximum = length
+    }
+    const result = { width: element.clientWidth, lineHeight: style.lineHeight, maximum }
+    clone.remove()
+    return result
+  })
+  expect(bioCapacity.maximum).toBeGreaterThanOrEqual(30)
+  await expect(page.getByText('共 4 人')).toBeVisible()
+  await expect(page.getByText('一志愿 2')).toBeVisible()
+  await expect(page.getByText('二志愿 1')).toBeVisible()
+  await expect(page.getByText('三志愿 1')).toBeVisible()
   await expect(page.getByText('学员小张')).toBeVisible()
   await expect(page.getByText('已分配给 别的导生')).toBeVisible()
   // 单轮制：收人动作已下线，名单纯只读
