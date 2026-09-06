@@ -29,23 +29,27 @@
       </div>
 
       <template v-else>
-        <section class="market-poster" aria-label="导生集市活动海报">
-          <button type="button" class="poster-back" @click="backToCamp">
-            <span class="back-icon"><el-icon><Back /></el-icon></span>
-            <span>返回</span>
-          </button>
-          <img :src="marketPoster" alt="导生集市活动海报" />
-          <div class="poster-float" aria-live="polite">
-            <div class="live-ticker">
-              <span class="ticker-label">截止时间：</span>
-              <strong>{{ countdownText }}</strong>
+        <section class="market-poster" aria-label="导生集市">
+          <div class="poster-tools">
+            <button type="button" class="poster-back" aria-label="返回营期工作台" @click="backToCamp">
+              <span class="back-icon"><el-icon><Back /></el-icon></span><span>返回</span>
+            </button>
+            <button type="button" class="head-tool" @click="rulesVisible = true">
+              <el-icon><Document /></el-icon><span>选导生规则</span>
+            </button>
+          </div>
+          <div class="poster-art">
+            <img :src="marketPoster" alt="导生集市活动海报" width="1600" height="800" />
+          </div>
+          <div class="poster-float">
+            <div class="live-ticker" role="timer">
+              <span class="ticker-label">截止时间：</span><strong>{{ countdownText }}</strong>
             </div>
           </div>
         </section>
 
-        <section class="rule-panel" aria-labelledby="market-rules-title">
-          <div class="rule-head"><strong id="market-rules-title">集市规则</strong></div>
-          <div class="rules">
+        <el-dialog v-model="rulesVisible" title="选导生规则" width="min(680px, 94vw)" append-to-body>
+          <div class="rules rules-dialog">
             <div class="rule">
               <span class="rule-num">1</span>
               <div><b>选 3 个志愿</b><p>按你最想去的顺序排列第一、第二、第三志愿。</p></div>
@@ -59,17 +63,22 @@
               <div><b>截止前可修改</b><p>修改时整组替换志愿，以最后一次提交为准。</p></div>
             </div>
           </div>
-        </section>
+        </el-dialog>
 
         <section class="market-browser" aria-label="浏览导生名片">
-          <DewButtonBar
-            v-model="activeTag"
-            :items="tagItems"
-            size="lg"
-            badge-mode="active-count"
-            class="market-filter"
-          />
+          <div class="market-toolbar">
+            <div class="market-filter-scroll">
+              <DewButtonBar v-model="activeTag" :items="tagItems" size="lg" class="market-filter" />
+            </div>
+            <div class="market-count" aria-live="polite">
+              <strong>{{ filteredMentors.length }}</strong> 位导生<span>共 {{ availableMentors.length }} 位</span>
+            </div>
+          </div>
 
+          <div v-if="favoritesError" role="status" class="favorites-error">
+            收藏暂不可用
+            <button type="button" @click="loadFavorites" :disabled="favoritesLoading">重试</button>
+          </div>
           <div v-if="!filteredMentors.length" class="ms-empty">暂无导生发布名片</div>
           <div v-else class="market-grid">
             <MsMentorCard
@@ -80,6 +89,10 @@
               :selectable="true"
               :selection-disabled="selectionLocked"
               :index="index"
+              :favorite-enabled="true"
+              :favorited="favoriteIds.includes(mentor.user_id)"
+              :favorite-disabled="favoritesLoading || !!favoritesError || expiredByClock || favoritePending.includes(mentor.user_id)"
+              @favorite="toggleFavorite(mentor.user_id)"
               size="lg"
               @add="addPick(mentor)"
             />
@@ -108,7 +121,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useStore } from 'vuex';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
-import { Back } from '@element-plus/icons-vue';
+import { Back, Document } from '@element-plus/icons-vue';
 import MenuComponent from '../components/MenuComponent.vue';
 import { DewButton, DewButtonBar, DewCard, DewSkeleton } from '@bme/dew-ui';
 import MsPhaseBar from '../components/Camp/MsPhaseBar.vue';
@@ -130,6 +143,11 @@ const phaseInfo = ref(null);
 const mentors = ref([]);
 const activeTag = ref('all');
 const picks = ref([]);
+const favoriteIds = ref([]);
+const favoritePending = ref([]);
+const favoritesLoading = ref(true);
+const favoritesError = ref(false);
+const rulesVisible = ref(false);
 const submitting = ref(false);
 const nowTs = ref(Date.now());
 let countdownTimer = null;
@@ -157,16 +175,14 @@ const countdownText = computed(() => {
   return `${hours}小时 ${minutes}分 ${seconds}秒`;
 });
 const availableMentors = computed(() => mentors.value);
-const countForTag = (tag) => tag === 'all'
-  ? availableMentors.value.length
-  : availableMentors.value.filter((mentor) => mentor.tags?.includes(tag)).length;
 const tagItems = computed(() => [
-  { value: 'all', label: '全部', badge: countForTag('all') },
-  ...(phaseInfo.value?.ms_tags || []).map((tag) => ({ value: tag, label: tag, badge: countForTag(tag) })),
+  { value: 'all', label: '全部' },
+  ...(phaseInfo.value?.ms_tags || []).map((tag) => ({ value: tag, label: tag })),
 ]);
-const filteredMentors = computed(() => activeTag.value === 'all'
+const filteredMentors = computed(() => (activeTag.value === 'all'
   ? availableMentors.value
-  : availableMentors.value.filter((mentor) => mentor.tags?.includes(activeTag.value)));
+  : availableMentors.value.filter((mentor) => mentor.tags?.includes(activeTag.value)))
+  .slice().sort((a, b) => Number(favoriteIds.value.includes(b.user_id)) - Number(favoriteIds.value.includes(a.user_id))));
 const mentorNames = computed(() => Object.fromEntries(
   mentors.value.map((mentor) => [mentor.user_id, mentor.username])));
 const selectionLocked = computed(() => picks.value.length >= 3 || expiredByClock.value);
@@ -225,6 +241,35 @@ async function submitPicks() {
     if (error.response?.status === 400 || error.response?.status === 403) await load();
   } finally {
     submitting.value = false;
+  }
+}
+
+async function loadFavorites() {
+  favoritesLoading.value = true;
+  try {
+    const data = await campService.fetchMsFavorites(sid);
+    if (!Array.isArray(data.mentor_ids)) throw new Error('Invalid favorites response');
+    favoriteIds.value = data.mentor_ids;
+    favoritesError.value = false;
+  } catch {
+    favoritesError.value = true;
+  } finally {
+    favoritesLoading.value = false;
+  }
+}
+
+async function toggleFavorite(mentorId) {
+  if (favoritesLoading.value || favoritesError.value || expiredByClock.value || favoritePending.value.includes(mentorId)) return;
+  const favorited = !favoriteIds.value.includes(mentorId);
+  favoritePending.value.push(mentorId);
+  try {
+    await campService.setMsFavorite(sid, mentorId, favorited);
+    favoriteIds.value = favoriteIds.value.filter(id => id !== mentorId);
+    if (favorited) favoriteIds.value.push(mentorId);
+  } catch (error) {
+    ElMessage.error(error.response?.data?.message || '收藏保存失败，请重试');
+  } finally {
+    favoritePending.value = favoritePending.value.filter(id => id !== mentorId);
   }
 }
 
@@ -291,6 +336,7 @@ onMounted(async () => {
       return;
     }
     await load();
+    await loadFavorites();
     startLiveUpdates();
   } catch {
     guardMsg.value = '加载营期信息失败，请稍后再试';
@@ -303,24 +349,37 @@ onUnmounted(stopLiveUpdates);
 
 <style scoped>
 .camp-market { min-height: 100vh; }
+.market-wrap {
+  --market-leaf: color-mix(in srgb, var(--color-success) 65%, var(--color-warning));
+  --color-primary: color-mix(in srgb, var(--market-leaf) 72%, var(--dew-text-heading));
+  --color-primary-hover: color-mix(in srgb, var(--market-leaf) 55%, var(--dew-text-heading));
+  --color-info: color-mix(in srgb, var(--color-warning) 55%, var(--color-success));
+  --dew-card-border: color-mix(in srgb, var(--market-leaf) 14%, transparent);
+}
+.market-browser :deep(.fallback-info) {
+  --fallback-color: var(--color-info);
+}
 .top-space { height: 60px; }
 .market-wrap { max-width: 1280px; margin: 0 auto; padding: 24px 24px 220px; }
 .market-loading { padding: 8px 0; }
 
-.market-poster {
-  position: relative;
-  overflow: hidden;
-  border: 1px solid var(--dew-card-border);
-  border-radius: var(--radius-xl);
-  background: var(--dew-card-flat-bg);
-  box-shadow: var(--dew-card-shadow);
+.market-poster { position: relative; padding-bottom: 38px; }
+.poster-art {
+  display: block;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
 }
-.market-poster > img { display: block; width: 100%; aspect-ratio: 2 / 1; object-fit: cover; }
+.poster-art img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.poster-tools { position: absolute; inset: 14px 12px auto; display: flex; justify-content: space-between; align-items: center; gap: 12px; pointer-events: none; z-index: 1; }
+.poster-tools > button { pointer-events: auto; }
 .poster-back {
-  position: absolute;
-  z-index: 3;
-  top: 18px;
-  left: 18px;
   display: inline-flex;
   min-height: 38px;
   align-items: center;
@@ -337,50 +396,44 @@ onUnmounted(stopLiveUpdates);
   transform: rotate(-2deg);
   transition: transform 0.2s var(--dew-bounce, ease), box-shadow 0.2s ease;
 }
-.back-icon {
-  display: grid;
-  width: 24px;
-  height: 24px;
-  place-items: center;
-  border-radius: var(--radius-full);
-  color: var(--dew-text-on-primary, white);
-  background: var(--color-primary);
-}
+.back-icon { display: grid; width: 24px; height: 24px; place-items: center; border-radius: var(--radius-full); color: var(--dew-text-on-primary, white); background: var(--color-primary); }
 .poster-back:hover { transform: translateY(-2px) rotate(-2deg); }
 .poster-back:active { transform: translateY(2px) rotate(-2deg); box-shadow: 0 2px 0 var(--color-primary-hover); }
-.poster-float { position: absolute; right: 18px; bottom: 18px; width: min(280px, calc(100vw - 44px)); }
+.poster-float { position: absolute; right: 18px; bottom: 46px; max-width: calc(100% - 36px); }
 .live-ticker {
   display: flex;
-  width: 100%;
   min-height: 44px;
   align-items: center;
   justify-content: center;
+  flex-wrap: wrap;
   padding: 0 17px;
   border: 2px solid var(--dew-card-flat-bg);
   border-radius: var(--radius-full);
   color: var(--dew-text-heading);
   background: var(--dew-card-flat-bg);
   box-shadow: 0 4px 0 color-mix(in srgb, var(--color-warning) 76%, var(--dew-card-flat-bg)), 0 10px 20px color-mix(in srgb, var(--dew-text-heading) 20%, transparent);
-  box-sizing: border-box;
   font-size: 13px;
   font-weight: 800;
-  overflow: hidden;
-  white-space: nowrap;
 }
 .ticker-label { font-size: 14px; }
 .live-ticker strong { color: var(--color-warning); font-size: 15px; font-weight: 900; font-variant-numeric: tabular-nums; }
-
-.rule-panel {
-  margin-top: 18px;
-  padding: 14px 16px 15px;
+.head-tool {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
   border: 1px solid var(--dew-card-border);
-  border-radius: var(--radius-xl);
-  background: var(--dew-card-bg);
-  box-shadow: var(--dew-card-shadow);
-  backdrop-filter: blur(20px) saturate(1.35);
+  border-radius: var(--radius-md);
+  color: var(--dew-text-heading);
+  background: var(--dew-card-flat-bg);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
 }
-.rule-head { color: var(--dew-text-heading); font-size: 15px; }
-.rules { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-top: 12px; }
+.head-tool:hover { border-color: color-mix(in srgb, var(--market-leaf) 45%, var(--dew-card-border)); color: var(--color-primary); }
+.rules { display: grid; gap: 18px; }
+.rules-dialog { padding: 4px 2px 8px; }
 .rule { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
 .rule-num {
   display: grid;
@@ -397,13 +450,35 @@ onUnmounted(stopLiveUpdates);
 .rule b { color: var(--dew-text-heading); font-size: 13px; }
 .rule p { margin: 4px 0 0; color: var(--dew-text-muted); font-size: 12px; line-height: 1.5; }
 
-.market-browser { margin-top: 20px; }
-.market-filter { max-width: 100%; margin-bottom: 18px; }
+.market-browser { position: relative; margin-top: -20px; }
+.market-toolbar {
+  position: sticky;
+  z-index: 8;
+  top: 64px;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding: 14px 16px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+}
+.favorites-error { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; color: var(--dew-text-muted); font-size: 13px; }
+.favorites-error button { border: 0; background: transparent; color: var(--color-primary); cursor: pointer; }
+.market-filter-scroll { min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.market-filter-scroll::-webkit-scrollbar { display: none; }
+.market-filter { width: max-content; }
+.market-count { display: flex; flex: none; align-items: baseline; gap: 4px; color: var(--dew-text-heading); font-size: 13px; white-space: nowrap; }
+.market-count strong { color: var(--color-primary); font-size: 18px; font-variant-numeric: tabular-nums; }
+.market-count span { margin-left: 5px; color: var(--dew-text-muted); font-size: 12px; }
 .market-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(252px, 1fr));
   align-items: stretch;
-  gap: 16px;
+  gap: 24px 20px;
 }
 .ms-empty { padding: 60px 0; color: var(--dew-text-muted); font-size: 13px; text-align: center; }
 .market-closed { margin-top: 24px; }
@@ -413,24 +488,23 @@ onUnmounted(stopLiveUpdates);
 @media (prefers-reduced-motion: reduce) {
   .poster-back { transition: none; }
 }
-@media (max-width: 980px) {
-  .rules { grid-template-columns: 1fr; gap: 12px; }
-}
 @media (max-width: 760px) {
-  .market-wrap { padding: 16px 12px 28px; }
-  .market-poster { border-radius: var(--radius-lg); }
-  .market-poster > img { aspect-ratio: 1.48 / 1; }
-  .poster-back { top: 11px; left: 11px; min-height: 34px; padding-right: 10px; font-size: 12px; }
-  .back-icon { width: 21px; height: 21px; }
-  .poster-float { right: 10px; bottom: 10px; left: 10px; display: flex; width: auto; justify-content: flex-end; }
-  .live-ticker { max-width: 100%; min-height: 38px; padding: 0 12px; overflow: hidden; font-size: 12px; text-overflow: ellipsis; }
+  .market-wrap { padding: 16px 12px 112px; }
+  .poster-tools { position: relative; inset: auto; margin: 0 4px 16px; }
+  .poster-back { min-height: 34px; font-size: 12px; }
+  .market-poster { padding-bottom: 64px; }
+  .poster-float { right: 4px; bottom: 12px; }
+  .market-browser { margin-top: 0; }
+  .live-ticker { min-height: 38px; padding: 0 12px; }
   .live-ticker strong { font-size: 13px; }
-  .rule-panel { border-radius: var(--radius-lg); }
-  .market-filter { overflow-x: auto; }
-  .market-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .head-tool { min-height: 34px; padding: 0 9px; font-size: 12px; }
+  .market-toolbar { top: 58px; gap: 10px; margin-bottom: 20px; padding: 10px; }
+  .market-count { flex-direction: column; align-items: flex-end; gap: 0; }
+  .market-count strong { font-size: 16px; }
+  .market-count span { margin-left: 0; font-size: 11px; }
+  .market-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 12px; }
 }
 @media (max-width: 430px) {
-  .market-poster > img { aspect-ratio: 1.25 / 1; }
   .market-grid { grid-template-columns: 1fr; }
 }
 </style>

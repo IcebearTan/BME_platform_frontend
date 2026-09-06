@@ -32,6 +32,11 @@
       </div>
 
       <span v-if="pickedRank > 0" class="rank-badge">志愿 {{ pickedRank }}</span>
+      <button v-if="favoriteEnabled" type="button" class="favorite-button" :class="{ 'is-favorite': favorited }"
+        :aria-pressed="favorited" :aria-label="`${favorited ? '取消收藏' : '收藏'} ${mentor.username}`"
+        :title="favorited ? '取消收藏' : '收藏导生'" :disabled="favoriteDisabled" @click="$emit('favorite')">
+        <el-icon aria-hidden="true"><StarFilled v-if="favorited" /><Star v-else /></el-icon>
+      </button>
     </div>
 
     <el-image-viewer
@@ -49,14 +54,18 @@
         <span class="capacity-total">可带 {{ capacity }} 人</span>
       </div>
 
+      <div v-if="visibleTags.length" class="tag-row" aria-label="导生方向">
+        <DewTag v-for="(tag, index) in visibleTags" :key="tag" :type="index === 1 ? 'warning' : 'success'" size="sm" round class="mentor-tag" :title="tag"><span class="mentor-tag-text">{{ tag }}</span></DewTag>
+        <DewTag v-if="hiddenTagCount" type="neutral" size="sm" round>+{{ hiddenTagCount }}</DewTag>
+      </div>
+
       <p class="bio" :class="{ 'is-multiline': bioMultiline }">
         <span class="bio-text">“{{ displayBio }}”</span>
       </p>
 
-      <div v-if="visibleTags.length" class="tag-row" aria-label="导生方向">
-        <span v-for="tag in visibleTags" :key="tag" class="tag">{{ tag }}</span>
-        <span v-if="hiddenTagCount" class="tag tag-more">+{{ hiddenTagCount }}</span>
-      </div>
+      <button class="detail-link" type="button" :aria-label="`查看 ${mentor.username} 的完整介绍`" @click="detailVisible = true">
+        查看介绍 <el-icon><ArrowRight /></el-icon>
+      </button>
 
       <div class="card-actions" :class="{ 'has-action': selectable && pickedRank === 0 }">
         <span class="price-pair" aria-label="当前价格零元，原价九万九千九百九十九元">
@@ -72,20 +81,51 @@
           :title="full ? '名额已满' : '加入心仪导生'"
           @click="$emit('add')"
         >
-          <img :src="grabSticker" alt="" aria-hidden="true" />
+          <el-icon aria-hidden="true"><ShoppingCart /></el-icon>
         </button>
         <slot name="action"></slot>
       </div>
     </div>
+    <el-dialog
+      v-model="detailVisible"
+      :title="mentor.username + ' 的导生名片'"
+      width="min(680px, 94vw)"
+      top="5vh"
+      :style="{ background: 'var(--dew-card-flat-bg)' }"
+      append-to-body
+      class="mentor-detail-dialog"
+    >
+      <div class="mentor-detail">
+        <div class="detail-heading">
+          <h3>{{ mentor.username }}</h3>
+          <span>可带 {{ capacity }} 人</span>
+        </div>
+        <div v-if="mentor.tags?.length" class="detail-tags">
+          <DewTag v-for="(tag, index) in mentor.tags" :key="tag" :type="index === 1 ? 'warning' : 'success'" size="sm" round class="mentor-tag" :title="tag"><span class="mentor-tag-text">{{ tag }}</span></DewTag>
+        </div>
+        <p class="detail-bio">{{ displayBio }}</p>
+        <img v-if="photoSrc" class="detail-photo" :src="photoSrc" :alt="`${mentor.username} 的展示图片`" />
+      </div>
+      <template #footer>
+        <div class="detail-footer">
+          <span class="price-pair"><span class="price-now">￥0</span><span class="price-old">￥99999</span></span>
+          <span v-if="pickedRank > 0" class="detail-picked">已选为第 {{ pickedRank }} 志愿</span>
+          <button v-else-if="selectable" class="grab-button" type="button" :disabled="full || selectionDisabled"
+            :aria-label="full ? `${mentor.username} 名额已满` : `加入心仪导生 ${mentor.username}`"
+            :title="full ? '名额已满' : '加入心仪导生'" @click="$emit('add')">
+            <el-icon aria-hidden="true"><ShoppingCart /></el-icon>
+          </button>
+        </div>
+      </template>
+    </el-dialog>
   </DewCard>
 </template>
 
 <script setup>
 import { computed, ref } from 'vue';
-import { ZoomIn } from '@element-plus/icons-vue';
-import { DewCard } from '@bme/dew-ui';
+import { ZoomIn, ArrowRight, ShoppingCart, Star, StarFilled } from '@element-plus/icons-vue';
+import { DewCard, DewTag } from '@bme/dew-ui';
 import { assetUrl } from '../../services/campService';
-import grabSticker from '../../assets/mentor-market-grab.png';
 
 const props = defineProps({
   mentor: { type: Object, required: true },
@@ -94,10 +134,14 @@ const props = defineProps({
   selectionDisabled: { type: Boolean, default: false },
   index: { type: Number, default: 0 },
   size: { type: String, default: 'md' },
+  favoriteEnabled: { type: Boolean, default: false },
+  favorited: { type: Boolean, default: false },
+  favoriteDisabled: { type: Boolean, default: false },
 });
-defineEmits(['add']);
+defineEmits(['add', 'favorite']);
 
 const previewVisible = ref(false);
+const detailVisible = ref(false);
 const fallbackThemes = ['fallback-primary', 'fallback-success', 'fallback-warning', 'fallback-info'];
 const full = computed(() => !!props.mentor.full);
 const photoSrc = computed(() => assetUrl(props.mentor.photo_url));
@@ -110,7 +154,7 @@ const hasBio = computed(() => Boolean(String(props.mentor.bio || '').trim()));
 const displayBio = computed(() => {
   const bio = String(props.mentor.bio || '').trim();
   if (!bio) return '这位导生有点神秘，先看看标签吧~~';
-  return bio.length > 30 ? `${bio.slice(0, 30)}…` : bio;
+  return bio;
 });
 const bioMultiline = computed(() => hasBio.value && displayBio.value.length > 15);
 </script>
@@ -119,7 +163,8 @@ const bioMultiline = computed(() => hasBio.value && displayBio.value.length > 15
 .mentor-card {
   height: 100%;
   overflow: hidden;
-  border-radius: 22px;
+  border-radius: var(--radius-xl, 16px);
+  box-shadow: 0 3px 12px color-mix(in srgb, var(--dew-text-heading) 5%, transparent);
   transition: transform 0.3s var(--dew-bounce, ease), border-color 0.25s ease, opacity 0.25s ease;
   animation: card-reveal 0.45s var(--dew-bounce, ease) both;
   animation-delay: calc(min(var(--reveal-index, 0), 8) * 45ms);
@@ -130,10 +175,13 @@ const bioMultiline = computed(() => hasBio.value && displayBio.value.length > 15
 }
 .mentor-card:hover { transform: translateY(-3px); }
 .mentor-card.picked {
-  border-color: color-mix(in srgb, var(--color-primary) 72%, transparent);
-  box-shadow: 0 10px 30px color-mix(in srgb, var(--color-primary) 14%, transparent);
+  border-color: color-mix(in srgb, var(--color-primary) 22%, var(--dew-card-border));
 }
 .mentor-card.full { opacity: 0.68; }
+.favorite-button { position: absolute; top: 9px; right: 9px; display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid var(--dew-card-border); border-radius: var(--radius-full); background: var(--dew-card-flat-bg); color: var(--dew-text-muted); cursor: pointer; font-size: 21px; }
+.favorite-button.is-favorite { color: var(--color-warning); }
+.favorite-button:focus-visible { outline: 2px solid var(--color-warning); outline-offset: 2px; }
+.favorite-button:disabled { opacity: 0.5; cursor: not-allowed; }
 .mentor-card :deep(.dew-card__body) {
   display: flex;
   min-height: 100%;
@@ -143,9 +191,10 @@ const bioMultiline = computed(() => hasBio.value && displayBio.value.length > 15
 
 .card-photo {
   position: relative;
-  aspect-ratio: 4 / 5;
+  height: 104px;
+  flex: none;
   overflow: hidden;
-  background: color-mix(in srgb, var(--color-primary) 24%, var(--dew-card-flat-bg));
+  background: color-mix(in srgb, var(--color-primary) 4%, var(--dew-card-flat-bg));
 }
 .photo-preview-button {
   position: relative;
@@ -162,7 +211,7 @@ const bioMultiline = computed(() => hasBio.value && displayBio.value.length > 15
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   transition: transform 0.4s var(--dew-bounce, ease);
 }
 .mentor-card:hover .card-photo img { transform: scale(1.035); }
@@ -192,9 +241,9 @@ const bioMultiline = computed(() => hasBio.value && displayBio.value.length > 15
   align-items: center;
   justify-content: center;
   color: var(--dew-text-heading);
-  background: color-mix(in srgb, var(--fallback-color) 25%, var(--dew-card-flat-bg));
+  background: color-mix(in srgb, var(--fallback-color) 16%, var(--dew-card-flat-bg));
 }
-.photo-fallback span { font-size: 68px; font-weight: 800; line-height: 1; }
+.photo-fallback span { display: grid; place-items: center; width: 52px; height: 52px; border-radius: var(--radius-full); background: color-mix(in srgb, var(--fallback-color) 14%, var(--dew-card-flat-bg)); font-size: 26px; font-weight: 700; line-height: 1; }
 .fallback-primary { --fallback-color: var(--color-primary); }
 .fallback-success { --fallback-color: var(--color-success); }
 .fallback-warning { --fallback-color: var(--color-warning); }
@@ -216,14 +265,14 @@ const bioMultiline = computed(() => hasBio.value && displayBio.value.length > 15
   font-weight: 700;
 }
 
-.card-meta { display: flex; flex: 1; flex-direction: column; padding: 15px 16px 14px; }
+.card-meta { display: flex; flex: 1; flex-direction: column; padding: 18px; }
 .name-row { display: flex; min-width: 0; align-items: baseline; justify-content: space-between; gap: 10px; }
 .name {
   min-width: 0;
   margin: 0;
   overflow: hidden;
   color: var(--dew-text-heading);
-  font-size: 17px;
+  font-size: 19px;
   font-weight: 750;
   line-height: 1.35;
   text-overflow: ellipsis;
@@ -238,64 +287,78 @@ const bioMultiline = computed(() => hasBio.value && displayBio.value.length > 15
   white-space: nowrap;
 }
 .bio {
+  --bio-gold: color-mix(in srgb, var(--color-warning) 65%, var(--dew-text-heading));
+  position: relative;
   display: flex;
-  height: 44px;
+  height: 72px;
+  flex: none;
   align-items: center;
-  margin: 10px 0 0;
+  margin: 10px 0 12px;
   overflow: hidden;
-  color: var(--color-warning);
-  font-size: 12.5px;
-  font-style: italic;
-  font-weight: 650;
-  line-height: 1.55;
+  color: var(--bio-gold);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 24px;
 }
-.bio.is-multiline { align-items: flex-start; }
 .bio-text {
   display: -webkit-box;
   width: 100%;
+  box-sizing: border-box;
+  border-left: 2px solid var(--bio-gold);
+  padding-left: 10px;
   overflow: hidden;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+  text-align: center;
 }
-.bio.is-multiline .bio-text { text-align: justify; }
-.tag-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; margin-bottom: 12px; }
-.tag {
-  display: inline-flex;
-  min-height: 24px;
-  align-items: center;
-  padding: 0 8px;
-  border-radius: var(--radius-full);
-  color: var(--color-primary);
-  background: color-mix(in srgb, var(--color-primary) 11%, transparent);
-  font-size: 12.5px;
-  font-weight: 650;
-}
-.tag:nth-child(2) { color: var(--color-info); background: color-mix(in srgb, var(--color-info) 11%, transparent); }
-.tag:nth-child(3) { color: var(--color-success); background: color-mix(in srgb, var(--color-success) 11%, transparent); }
-.tag-more { color: var(--dew-text-muted); background: color-mix(in srgb, var(--dew-text-muted) 10%, transparent); }
+.bio.is-multiline .bio-text { text-align: start; }
+.tag-row { display: flex; flex: none; flex-wrap: wrap; align-items: flex-start; gap: 8px 6px; margin-top: 10px; margin-bottom: 4px; }
+.mentor-tag { flex: none; max-width: 100%; box-sizing: border-box; }
+.mentor-tag-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.card-actions { display: flex; min-height: 30px; align-items: center; justify-content: flex-start; gap: 8px; margin-top: auto; }
-.card-actions.has-action { min-height: 50px; justify-content: space-between; }
+.card-actions { display: flex; min-height: 58px; align-items: center; justify-content: flex-start; gap: 8px; margin-top: auto; border-top: 1px solid var(--dew-card-border); padding-top: 8px; }
+.card-actions.has-action { justify-content: space-between; }
 .price-pair { display: inline-flex; align-items: baseline; gap: 5px; line-height: 1; white-space: nowrap; }
-.price-now { color: var(--color-danger); font-size: 18px; font-weight: 850; }
+.price-now { color: var(--color-danger); font-size: 24px; font-weight: 850; }
 .price-old { color: var(--dew-text-faint); font-size: 11px; text-decoration: line-through; }
 .grab-button {
-  width: 50px;
-  min-width: 50px;
-  height: 50px;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
   padding: 0;
-  border: 0;
+  border: 1px solid color-mix(in srgb, var(--color-danger) 24%, transparent);
+  border-radius: var(--radius-full);
   outline-offset: 2px;
-  background: transparent;
+  color: var(--color-danger);
+  background: color-mix(in srgb, var(--color-danger) 10%, var(--dew-card-flat-bg));
   cursor: pointer;
   transition: transform 0.2s var(--dew-bounce, ease), opacity 0.2s ease;
 }
-.grab-button img { display: block; width: 50px; height: 50px; object-fit: contain; }
-.grab-button:hover:not(:disabled) { transform: scale(1.06) rotate(-2deg); }
-.grab-button:disabled { opacity: 0.38; cursor: not-allowed; }
+.grab-button .el-icon { font-size: 22px; }
+.grab-button:hover:not(:disabled) { transform: translateY(-2px); background: color-mix(in srgb, var(--color-danger) 18%, var(--dew-card-flat-bg)); }
+.grab-button:focus-visible { outline: 2px solid var(--color-danger); }
+.grab-button:disabled { opacity: 0.45; cursor: not-allowed; }
 
 .is-lg .card-meta { padding: 15px 16px 16px; }
+.is-lg .card-photo { height: 168px; }
+
+.detail-link { display: inline-flex; align-items: center; align-self: flex-start; gap: 6px; padding: 0; margin: 0 0 14px; min-height: 28px; border: 0; background: transparent; color: var(--color-primary); font: inherit; font-size: 13px; cursor: pointer; }
+.detail-link:hover { text-decoration: underline; }
+.mentor-detail { max-height: 65vh; overflow-y: auto; color: var(--dew-text-heading); }
+.detail-heading { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.detail-heading h3 { margin: 0; font-size: 22px; overflow-wrap: anywhere; }
+.detail-heading > span { color: var(--dew-text-muted); }
+.detail-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.detail-bio { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 16px; line-height: 1.9; margin: 24px 0; }
+.detail-photo { display: block; width: 100%; height: auto; border-radius: 6px; }
+.detail-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 50px; }
+.detail-picked { color: var(--color-primary); }
 
 @media (prefers-reduced-motion: reduce) {
   .mentor-card { animation: none; }
@@ -308,7 +371,6 @@ const bioMultiline = computed(() => hasBio.value && displayBio.value.length > 15
   .card-meta { padding: 11px; }
   .name { font-size: 15px; }
   .capacity-total { font-size: 10px; }
-  .bio { height: 40px; font-size: 11.5px; }
-  .tag { min-height: 22px; font-size: 11.5px; }
+  .bio { height: 72px; font-size: 14px; }
 }
 </style>

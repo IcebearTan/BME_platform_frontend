@@ -125,6 +125,11 @@ export const campService = {
     api.get(`/camp/ms/${sid}/mentors`, { params: tag ? { tag } : {} }).then(r => r.data),
   fetchMsPreferences: (sid) =>
     api.get(`/camp/ms/${sid}/preferences/mine`).then(r => r.data),
+  fetchMsFavorites: (sid) =>
+    api.get(`/camp/ms/${sid}/favorites`).then(r => r.data),
+  setMsFavorite: (sid, mentorId, favorited) =>
+    (favorited ? api.put(`/camp/ms/${sid}/favorites/${mentorId}`)
+      : api.delete(`/camp/ms/${sid}/favorites/${mentorId}`)).then(r => r.data),
   submitMsPreferences: (sid, list) =>
     api.post(`/camp/ms/${sid}/preferences`, { list }).then(r => r.data),
 
