@@ -46,10 +46,12 @@
     <div class="card-meta">
       <div class="name-row">
         <h3 class="name">{{ mentor.username }}</h3>
-        <span class="capacity-total">{{ matched }}/{{ capacity }}</span>
+        <span class="capacity-total">可带 {{ capacity }} 人</span>
       </div>
 
-      <p class="bio">“{{ displayBio }}”</p>
+      <p class="bio" :class="{ 'is-multiline': bioMultiline }">
+        <span class="bio-text">“{{ displayBio }}”</span>
+      </p>
 
       <div v-if="visibleTags.length" class="tag-row" aria-label="导生方向">
         <span v-for="tag in visibleTags" :key="tag" class="tag">{{ tag }}</span>
@@ -83,7 +85,7 @@ import { computed, ref } from 'vue';
 import { ZoomIn } from '@element-plus/icons-vue';
 import { DewCard } from '@bme/dew-ui';
 import { assetUrl } from '../../services/campService';
-import grabSticker from '../../assets/mentor-market-grab.webp';
+import grabSticker from '../../assets/mentor-market-grab.png';
 
 const props = defineProps({
   mentor: { type: Object, required: true },
@@ -101,15 +103,16 @@ const full = computed(() => !!props.mentor.full);
 const photoSrc = computed(() => assetUrl(props.mentor.photo_url));
 const initial = computed(() => (props.mentor.username || '?').trim().charAt(0).toUpperCase());
 const capacity = computed(() => Math.max(0, Number(props.mentor.capacity) || 0));
-const matched = computed(() => Math.max(0, Number(props.mentor.matched) || 0));
 const visibleTags = computed(() => (props.mentor.tags || []).slice(0, 3));
 const hiddenTagCount = computed(() => Math.max(0, (props.mentor.tags?.length || 0) - visibleTags.value.length));
 const fallbackTheme = computed(() => fallbackThemes[Math.abs(props.index) % fallbackThemes.length]);
+const hasBio = computed(() => Boolean(String(props.mentor.bio || '').trim()));
 const displayBio = computed(() => {
   const bio = String(props.mentor.bio || '').trim();
   if (!bio) return '这位导生有点神秘，先看看标签吧~~';
   return bio.length > 30 ? `${bio.slice(0, 30)}…` : bio;
 });
+const bioMultiline = computed(() => hasBio.value && displayBio.value.length > 15);
 </script>
 
 <style scoped>
@@ -213,7 +216,7 @@ const displayBio = computed(() => {
   font-weight: 700;
 }
 
-.card-meta { display: flex; flex: 1; flex-direction: column; padding: 14px 16px 15px; }
+.card-meta { display: flex; flex: 1; flex-direction: column; padding: 15px 16px 14px; }
 .name-row { display: flex; min-width: 0; align-items: baseline; justify-content: space-between; gap: 10px; }
 .name {
   min-width: 0;
@@ -235,29 +238,37 @@ const displayBio = computed(() => {
   white-space: nowrap;
 }
 .bio {
-  display: -webkit-box;
-  min-height: 38px;
-  margin: 8px 0 0;
+  display: flex;
+  height: 44px;
+  align-items: center;
+  margin: 10px 0 0;
   overflow: hidden;
   color: var(--color-warning);
   font-size: 12.5px;
   font-style: italic;
   font-weight: 650;
   line-height: 1.55;
+}
+.bio.is-multiline { align-items: flex-start; }
+.bio-text {
+  display: -webkit-box;
+  width: 100%;
+  overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   line-clamp: 2;
 }
-.tag-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; margin-bottom: 10px; }
+.bio.is-multiline .bio-text { text-align: justify; }
+.tag-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; margin-bottom: 12px; }
 .tag {
   display: inline-flex;
-  min-height: 22px;
+  min-height: 24px;
   align-items: center;
   padding: 0 8px;
   border-radius: var(--radius-full);
   color: var(--color-primary);
   background: color-mix(in srgb, var(--color-primary) 11%, transparent);
-  font-size: 11.5px;
+  font-size: 12.5px;
   font-weight: 650;
 }
 .tag:nth-child(2) { color: var(--color-info); background: color-mix(in srgb, var(--color-info) 11%, transparent); }
@@ -265,14 +276,14 @@ const displayBio = computed(() => {
 .tag-more { color: var(--dew-text-muted); background: color-mix(in srgb, var(--dew-text-muted) 10%, transparent); }
 
 .card-actions { display: flex; min-height: 30px; align-items: center; justify-content: flex-start; gap: 8px; margin-top: auto; }
-.card-actions.has-action { min-height: 56px; justify-content: space-between; }
+.card-actions.has-action { min-height: 50px; justify-content: space-between; }
 .price-pair { display: inline-flex; align-items: baseline; gap: 5px; line-height: 1; white-space: nowrap; }
 .price-now { color: var(--color-danger); font-size: 18px; font-weight: 850; }
 .price-old { color: var(--dew-text-faint); font-size: 11px; text-decoration: line-through; }
 .grab-button {
-  width: 56px;
-  min-width: 56px;
-  height: 56px;
+  width: 50px;
+  min-width: 50px;
+  height: 50px;
   padding: 0;
   border: 0;
   outline-offset: 2px;
@@ -280,7 +291,7 @@ const displayBio = computed(() => {
   cursor: pointer;
   transition: transform 0.2s var(--dew-bounce, ease), opacity 0.2s ease;
 }
-.grab-button img { display: block; width: 56px; height: 56px; object-fit: contain; }
+.grab-button img { display: block; width: 50px; height: 50px; object-fit: contain; }
 .grab-button:hover:not(:disabled) { transform: scale(1.06) rotate(-2deg); }
 .grab-button:disabled { opacity: 0.38; cursor: not-allowed; }
 
@@ -297,6 +308,7 @@ const displayBio = computed(() => {
   .card-meta { padding: 11px; }
   .name { font-size: 15px; }
   .capacity-total { font-size: 10px; }
-  .bio { font-size: 11.5px; }
+  .bio { height: 40px; font-size: 11.5px; }
+  .tag { min-height: 22px; font-size: 11.5px; }
 }
 </style>

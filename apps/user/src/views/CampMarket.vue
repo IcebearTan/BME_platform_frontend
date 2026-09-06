@@ -37,16 +37,9 @@
           <img :src="marketPoster" alt="导生集市活动海报" />
           <div class="poster-float" aria-live="polite">
             <div class="live-ticker">
-              <Transition name="ticker" mode="out-in">
-                <div :key="tickerMode" class="ticker-content" :class="{ attendance: tickerMode === 1 }">
-                <template v-if="tickerMode === 0">
-                  <span class="ticker-label">截止时间：</span>
-                  <strong>{{ countdownText }}</strong>
-                </template>
-                <strong v-else>{{ submittedText }}</strong>
-                </div>
-              </Transition>
-              </div>
+              <span class="ticker-label">截止时间：</span>
+              <strong>{{ countdownText }}</strong>
+            </div>
           </div>
         </section>
 
@@ -139,9 +132,7 @@ const activeTag = ref('all');
 const picks = ref([]);
 const submitting = ref(false);
 const nowTs = ref(Date.now());
-const tickerMode = ref(0);
 let countdownTimer = null;
-let tickerTimer = null;
 let statsTimer = null;
 
 const open = computed(() => phaseInfo.value?.me?.submittable_round === 1);
@@ -165,12 +156,6 @@ const countdownText = computed(() => {
   const seconds = secondsLeft % 60;
   return `${hours}小时 ${minutes}分 ${seconds}秒`;
 });
-const submittedText = computed(() => {
-  const stats = phaseInfo.value?.stats;
-  if (!stats || stats.students === undefined || stats.submitted === undefined) return '';
-  return `已经有 ${stats.submitted}/${stats.students} 位同学上车啦～`;
-});
-
 const availableMentors = computed(() => mentors.value);
 const countForTag = (tag) => tag === 'all'
   ? availableMentors.value.length
@@ -276,14 +261,10 @@ async function refreshPhaseStats() {
 
 function startLiveUpdates() {
   countdownTimer = window.setInterval(() => { nowTs.value = Date.now(); }, 1000);
-  tickerTimer = window.setInterval(() => {
-    tickerMode.value = submittedText.value ? (tickerMode.value === 0 ? 1 : 0) : 0;
-  }, 2000);
   statsTimer = window.setInterval(refreshPhaseStats, 30_000);
 }
 function stopLiveUpdates() {
   window.clearInterval(countdownTimer);
-  window.clearInterval(tickerTimer);
   window.clearInterval(statsTimer);
 }
 
@@ -386,14 +367,8 @@ onUnmounted(stopLiveUpdates);
   overflow: hidden;
   white-space: nowrap;
 }
-.ticker-content { display: flex; width: 100%; align-items: center; justify-content: center; gap: 6px; }
 .ticker-label { font-size: 14px; }
 .live-ticker strong { color: var(--color-warning); font-size: 15px; font-weight: 900; font-variant-numeric: tabular-nums; }
-.ticker-content.attendance strong { color: var(--color-primary); }
-.ticker-enter-active,
-.ticker-leave-active { transition: opacity 0.2s ease, transform 0.2s ease, filter 0.2s ease; }
-.ticker-enter-from { opacity: 0; transform: translateY(-5px) scale(0.985); filter: blur(2px); }
-.ticker-leave-to { opacity: 0; transform: translateY(5px) scale(0.98); filter: blur(2px); }
 
 .rule-panel {
   margin-top: 18px;
@@ -436,9 +411,7 @@ onUnmounted(stopLiveUpdates);
 .closed-hint { margin-bottom: 14px; color: var(--dew-text-muted); font-size: 13px; line-height: 1.6; }
 
 @media (prefers-reduced-motion: reduce) {
-  .poster-back,
-  .ticker-enter-active,
-  .ticker-leave-active { transition: none; }
+  .poster-back { transition: none; }
 }
 @media (max-width: 980px) {
   .rules { grid-template-columns: 1fr; gap: 12px; }

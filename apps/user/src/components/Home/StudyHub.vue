@@ -8,8 +8,13 @@
         height="160px"
         indicator-position="outside"
         arrow="hover"
+        @change="handleBannerChange"
       >
-        <el-carousel-item v-for="(banner, index) in banners" :key="index">
+        <el-carousel-item
+          v-for="(banner, index) in banners"
+          :key="banner.id"
+          :class="{ 'is-outgoing-banner': index === outgoingBannerIndex }"
+        >
           <div class="banner-item" @click="handleBannerClick(banner)">
             <div v-if="!banner.bare" class="banner-overlay">
               <h3 class="banner-title">{{ banner.title }}</h3>
@@ -116,9 +121,9 @@ const entryIcons = {
 const banners = ref([
   {
     id: 1,
-    title: '2026 暑期训练营',
-    description: '加入营期，沉浸式学习与考勤打卡',
-    image: import.meta.env.BASE_URL + '2026暑期训练营.png',
+    title: '2026 秋季学期营',
+    description: '在实践中探索，在协作中成长',
+    image: import.meta.env.BASE_URL + '2026秋季学期营.png',
     route: '/camp',
     bare: true
   },
@@ -139,12 +144,17 @@ const banners = ref([
     bare: true
   }
 ])
+const outgoingBannerIndex = ref(banners.value.length - 1)
+
+const handleBannerChange = (_currentIndex, previousIndex) => {
+  outgoingBannerIndex.value = previousIndex
+}
 
 // 学习功能入口数据
 const studyEntries = ref([
   { id: 'courses', title: '课程', description: '系统化的课程学习', route: '/study', color: '#409EFF' },
   { id: 'question-bank', title: '题库', description: '练习巩固知识点', route: '/question-bank', color: '#67C23A', disabled: true },
-  { id: 'camp', title: '营期', description: '2026 暑期训练营', route: '/camp', color: '#7c3aed' },
+  { id: 'camp', title: '营期中心', description: '查看报名与我的营期', route: '/camp', color: '#7c3aed' },
   { id: 'exams', title: '考核评估', description: '检验学习效果', route: '/exam', color: '#F56C6C', disabled: true },
   { id: 'resources', title: '学习资源', description: '丰富的学习材料', route: '/resources', color: '#909399', disabled: true },
   { id: '3d-print', title: '3D打印', description: '3D 模型打印预约', external: '/3dfarm/', color: '#06b6d4' },
@@ -436,6 +446,10 @@ onMounted(() => {
 }
 
 :deep(.el-carousel__item--card.is-active) {
+  z-index: 3;
+}
+
+:deep(.el-carousel__item--card.is-outgoing-banner:not(.is-active)) {
   z-index: 2;
 }
 

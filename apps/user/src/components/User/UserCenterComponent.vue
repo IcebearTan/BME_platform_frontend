@@ -34,7 +34,7 @@ const navItems = [
   },
   {
     label: '学习', children: [
-      { value: '/camp', label: '我的营期', icon: Calendar },
+      { value: '/camp', label: '营期中心', icon: Calendar },
     ],
   },
 ]
@@ -115,7 +115,7 @@ const getActiveMenuIndex = (currentPath) => {
     return '/user-center/my-articles'
   }
 
-  // 营期（我的营期，跳 /camp 独立页）
+  // 营期中心独立页
   if (currentPath.startsWith('/camp')) {
     return '/camp'
   }

@@ -31,7 +31,7 @@ const MENTORS = {
     { user_id: 13, username: 'test_mentor', photo_url: '/camp/ms/photo/test.svg', avatar: null,
       capacity: 8, matched: 7, remaining: 1, full: false, tags: ['硬件组'], bio: '搞硬件的' },
     { user_id: 20, username: '满员导生', photo_url: null, avatar: null,
-      capacity: 3, matched: 3, remaining: 0, full: true, tags: ['软件组'], bio: '已经满了' },
+      capacity: 3, matched: 3, remaining: 0, full: true, tags: ['软件组'], bio: '' },
     { user_id: 21, username: '软件导生', photo_url: null, avatar: null,
       capacity: 6, matched: 2, remaining: 4, full: false, tags: ['软件组'], bio: '一起做真实项目' },
     { user_id: 22, username: 'AI导生', photo_url: null, avatar: null,
@@ -99,7 +99,10 @@ test('市集营业：collecting 可逛可收志愿', async ({ page }) => {
   await expect(page.getByRole('img', { name: '导生集市活动海报' })).toBeVisible()
   await expect(page.getByText('集市规则')).toBeVisible()
   await expect(page.getByRole('button', { name: /全部.*4/ })).toBeVisible()
-  await expect(page.getByText('7/8', { exact: true })).toBeVisible()
+  await expect(page.getByText('可带 8 人', { exact: true })).toBeVisible()
+  await expect(page.locator('.bio').filter({ hasText: '这位导生有点神秘，先看看标签吧~~' })).not.toHaveClass(/is-multiline/)
+  await expect(page.getByText(/已经有.*位同学上车/)).toHaveCount(0)
+  await expect(page.locator('.live-ticker')).toContainText('截止时间：')
   await expect(page.getByRole('button', { name: '满员导生 名额已满' })).toBeDisabled()
   await expect(page.locator('.ms-tray-wrap')).toHaveClass(/is-docked/)
   await page.locator('.ms-tray-anchor').scrollIntoViewIfNeeded()

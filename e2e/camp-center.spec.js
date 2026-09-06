@@ -197,7 +197,7 @@ test('待我处理：进营期后报名成为导生，可撤回重报', async ({
   expect(errors).toEqual([])
 })
 
-test('中心↔工作台：卡片进入工作台，侧栏返回中心（sid 进 URL）', async ({ page }) => {
+test('中心↔工作台：顶部入口和工作台返回均收敛到中心', async ({ page }) => {
   const errors = []
   page.on('pageerror', (e) => errors.push(e.message))
   await loginAsUser(page)
@@ -205,11 +205,18 @@ test('中心↔工作台：卡片进入工作台，侧栏返回中心（sid 进 
   await page.goto(`${BASE}/camp`, { waitUntil: 'domcontentloaded' })
   await page.locator('.camp-card', { hasText: '进行中的营' }).getByRole('button', { name: '进入营期' }).click()
 
-  // 工作台：hero 标题 + sid 进 URL + 侧栏返回入口
+  // 工作台：hero 标题 + sid 进 URL；不再渲染重复的「我的营期」侧栏
   await expect(page.locator('.hero-title', { hasText: '进行中的营' })).toBeVisible()
   await expect(page).toHaveURL(/sid=1/)
-  await expect(page.locator('.aside-title', { hasText: '我的营期' })).toBeVisible()
+  await expect(page.locator('.camp-aside')).toHaveCount(0)
 
+  // 顶部营期入口始终返回中心，不保留具体营期 sid
+  await page.locator('.camp-nav-item').click()
+  await expect(page.getByRole('heading', { name: '营期中心' })).toBeVisible()
+  await expect(page).not.toHaveURL(/sid=/)
+
+  // 从中心重新进入工作台，内容区返回操作同样回到中心
+  await page.locator('.camp-card', { hasText: '进行中的营' }).getByRole('button', { name: '进入营期' }).click()
   await page.locator('.back-center').click()
   await expect(page.getByRole('heading', { name: '营期中心' })).toBeVisible()
   await expect(page).not.toHaveURL(/sid=/)
