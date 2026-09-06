@@ -49,7 +49,7 @@
         <span class="capacity-total">{{ matched }}/{{ capacity }}</span>
       </div>
 
-      <p class="bio">“{{ mentor.bio || '这位导生还没有写介绍。' }}”</p>
+      <p class="bio">“{{ displayBio }}”</p>
 
       <div v-if="visibleTags.length" class="tag-row" aria-label="导生方向">
         <span v-for="tag in visibleTags" :key="tag" class="tag">{{ tag }}</span>
@@ -105,6 +105,11 @@ const matched = computed(() => Math.max(0, Number(props.mentor.matched) || 0));
 const visibleTags = computed(() => (props.mentor.tags || []).slice(0, 3));
 const hiddenTagCount = computed(() => Math.max(0, (props.mentor.tags?.length || 0) - visibleTags.value.length));
 const fallbackTheme = computed(() => fallbackThemes[Math.abs(props.index) % fallbackThemes.length]);
+const displayBio = computed(() => {
+  const bio = String(props.mentor.bio || '').trim();
+  if (!bio) return '这位导生有点神秘，先看看标签吧~~';
+  return bio.length > 30 ? `${bio.slice(0, 30)}…` : bio;
+});
 </script>
 
 <style scoped>

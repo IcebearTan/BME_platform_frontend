@@ -39,8 +39,6 @@
     <!-- 新建营期 -->
     <el-dialog v-model="dlg.visible" :title="dlg.editId ? '编辑营期' : '新建营期'" width="520px">
       <el-form :model="dlg.form" label-width="110px">
-        <el-form-item v-if="dlg.editId" label="状态">
-        </el-form-item>
         <el-form-item label="营期名称" required>
           <el-input v-model="dlg.form.name" placeholder="如 2026暑期训练营" />
         </el-form-item>

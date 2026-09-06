@@ -8,6 +8,11 @@ test('预览 API 提供管理端关键数据契约', async ({ request }) => {
   const { session } = await sessionResponse.json()
   expect(session.mentor_selection_enabled).toBe(true)
 
+  const phaseResponse = await request.get(`${API}/camp/ms/1/phase`)
+  expect(phaseResponse.ok()).toBeTruthy()
+  const phase = await phaseResponse.json()
+  expect(phase.results_released).toBe(false)
+
   const membersResponse = await request.get(`${API}/camp/sessions/1/members`)
   const { members } = await membersResponse.json()
   expect(members.filter((member) => member.role === 'mentor')).toHaveLength(8)

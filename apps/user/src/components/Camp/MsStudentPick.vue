@@ -10,9 +10,9 @@
         <div class="phase-caption">{{ phaseCaption }}</div>
       </DewCard>
 
-      <!-- 已有归属 / 已出结果：海报式结果卡（照片 + 标签 + 我的志愿留言回显） -->
+      <!-- 正式发布结果：海报式结果卡（照片 + 标签 + 我的志愿留言回显） -->
       <DewCard
-        v-if="phaseInfo.me.my_mentor"
+        v-if="showResult"
         variant="default" size="lg" :no-hover="true" tinted accent="success" class="section-card"
       >
         <div class="result-poster-row">
@@ -43,7 +43,7 @@
 
       <!-- 收集期：状态 + 市集入口（浏览与提交住在 /camp/:sid/market） -->
       <DewCard
-        v-else-if="submittable" variant="default" size="lg" :no-hover="true"
+        v-else-if="collecting" variant="default" size="lg" :no-hover="true"
         :tinted="!alreadySubmitted" :accent="alreadySubmitted ? null : 'primary'" class="section-card"
       >
         <!-- 未交志愿：大 CTA -->
@@ -79,9 +79,9 @@
         <div class="result-hint">{{ phaseInfo.deadlines.preference_start || '' }} 起可浏览导生名片并提交志愿，届时会有通知。</div>
       </DewCard>
 
-      <!-- 感谢信：现场写信卡，紧跟结果卡（信件独立成表，营期仅作展示上下文） -->
+      <!-- 感谢信：只在正式结果发布后紧跟结果卡 -->
       <GratitudeLetterComposer
-        v-if="phaseInfo.me.my_mentor"
+        v-if="showResult"
         class="section-card"
         :recipient="myMentorRecipient"
         :camp-session-id="sid"
@@ -99,7 +99,10 @@ import MsPhaseBar from './MsPhaseBar.vue';
 import GratitudeLetterComposer from '../Gratitude/GratitudeLetterComposer.vue';
 import { campService, assetUrl } from '../../services/campService';
 
-const props = defineProps({ sid: { type: [Number, String], required: true } });
+const props = defineProps({
+  sid: { type: [Number, String], required: true },
+  campStatus: { type: String, default: '' },
+});
 const router = useRouter();
 
 const loading = ref(true);
@@ -107,9 +110,15 @@ const phaseInfo = ref(null);
 const mentors = ref([]);
 
 const meRound1 = computed(() => phaseInfo.value?.me?.round1 || []);
-const submittable = computed(() => phaseInfo.value?.me?.submittable_round === 1);
-const alreadySubmitted = computed(() => submittable.value && meRound1.value.length > 0);
+const collecting = computed(() => phaseInfo.value?.phase === 'collecting');
+const alreadySubmitted = computed(() => meRound1.value.length > 0);
 const submittedPicks = computed(() => meRound1.value);
+const resultsReleased = computed(() => {
+  const explicit = phaseInfo.value?.results_released;
+  if (typeof explicit === 'boolean') return explicit;
+  return ['running', 'archived'].includes(props.campStatus);
+});
+const showResult = computed(() => resultsReleased.value && phaseInfo.value?.me?.my_mentor);
 
 const trayDeadline = computed(() => phaseInfo.value?.deadlines?.preference_deadline || '');
 
