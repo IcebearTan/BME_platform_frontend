@@ -17,6 +17,7 @@ import ExamView from './views/ExamView.vue'
 import UserIndex from './views/UserIndex.vue';
 import UserCenter from './views/UserCenter.vue';
 import UserInfoComponent from './components/User/UserInfoComponent.vue';
+import UserSettingsComponent from './components/User/UserSettingsComponent.vue';
 import MyFavoritesComponent from './components/User/MyFavoritesComponent.vue';
 import MyArticlesComponent from './components/User/MyArticlesComponent.vue';
 
@@ -133,6 +134,11 @@ const router = createRouter({
                     path: '/user-center/user-info',
                     name: 'user-info',
                     component: UserInfoComponent,
+                },
+                {
+                    path: '/user-center/settings',
+                    name: 'user-settings',
+                    component: UserSettingsComponent,
                 },
                 {
                     path: '/user-center/my-feedbacks',

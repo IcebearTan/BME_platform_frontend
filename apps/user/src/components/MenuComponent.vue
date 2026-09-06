@@ -258,8 +258,8 @@ const handleUserInfo = () => {
                                 <span>营期中心</span>
                             </div>
                             <div class="avatar-pop__action" @click="handleUserInfo">
-                                <el-icon><Setting /></el-icon>
-                                <span>账户设置</span>
+                                <el-icon><User /></el-icon>
+                                <span>个人资料</span>
                             </div>
                             <div class="avatar-pop__action avatar-pop__action--danger" @click="logOut">
                                 <el-icon><SwitchButton /></el-icon>

@@ -5,7 +5,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRouter, useRoute } from 'vue-router'
 import { useStore } from 'vuex';
-import { Message, User, Calendar, Collection, EditPen, Document } from '@element-plus/icons-vue';
+import { Message, User, Setting, Calendar, Collection, EditPen, Document } from '@element-plus/icons-vue';
 import { DewCard, DewSidebar } from '@bme/dew-ui'
 
 const User_Info = ref({})
@@ -22,7 +22,8 @@ const store = useStore()
 const navItems = [
   {
     label: '账户与反馈', children: [
-      { value: '/user-center/user-info', label: '账户设置', icon: User },
+      { value: '/user-center/user-info', label: '个人资料', icon: User },
+      { value: '/user-center/settings', label: '偏好设置', icon: Setting },
       { value: '/user-center/my-feedbacks', label: '反馈记录', icon: Message },
     ],
   },
@@ -100,6 +101,11 @@ const getActiveMenuIndex = (currentPath) => {
   // 处理user-info的子路由
   if (currentPath.startsWith('/user-center/user-info')) {
     return '/user-center/user-info'
+  }
+
+  // 处理settings的子路由
+  if (currentPath.startsWith('/user-center/settings')) {
+    return '/user-center/settings'
   }
 
   // 处理my-feedbacks的子路由

@@ -187,7 +187,7 @@ const onSubmit = () => {
       :delay="0"
       element-loading-text="loading..."
     >
-      <template #header>账户设置</template>
+      <template #header>个人资料</template>
 
       <!-- 头像上传 -->
       <div class="avatar-block">
