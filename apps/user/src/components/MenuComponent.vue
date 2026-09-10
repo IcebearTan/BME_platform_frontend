@@ -80,8 +80,10 @@ const refreshAvatar = () => {
     .catch(() => { /* 头像刷新失败静默；401 由全局拦截器处理 */ })
 }
 
-// 等级徽标（LV1-4）：同步读 store（登录响应已写入），首帧无闪烁
-const levelLabel = computed(() => `LV${store.getters.level}`)
+// 等级徽标：super_admin 显示「超管」标识（管理员无等级语义，别让人误读成 LV1 普通用户），
+// 普通用户显示 LV1-4；同步读 store（登录响应已写入），首帧无闪烁
+const levelLabel = computed(() =>
+  store.getters.role === 'super_admin' ? '超管' : `LV${store.getters.level}`)
 
 // 后台静默校准等级（user_index 回包 level，写入 store 由 levelLabel 自动同步）；失败静默
 const refreshUserLevel = () => {
@@ -247,7 +249,8 @@ const handleUserInfo = () => {
                             <el-avatar :src="User_Avatar" alt="头像" :size="44" />
                             <div class="avatar-pop__info">
                                 <div class="avatar-pop__name">{{ $store.state.user?.User_Name }}</div>
-                                <div class="avatar-pop__role avatar-pop__role--level">
+                                <div class="avatar-pop__role avatar-pop__role--level"
+                                    :class="{ 'avatar-pop__role--admin': levelLabel === '超管' }">
                                     {{ levelLabel }}
                                 </div>
                             </div>
@@ -1022,8 +1025,9 @@ const handleUserInfo = () => {
   padding: 1px 8px;
   border-radius: var(--radius-full);
 }
-/* 等级徽标（LV1-4，无等级显示 LV1）：替代原角色文案 */
+/* 等级徽标（LV1-4，无等级显示 LV1）：替代原角色文案；超管变体换醒目色防误读 */
 .avatar-pop__role--level { color: var(--color-primary); background: var(--color-primary-light); }
+.avatar-pop__role--admin { color: var(--color-warning); background: var(--color-warning-light); }
 .avatar-pop__actions {
   margin-top: 6px;
   padding-top: 6px;

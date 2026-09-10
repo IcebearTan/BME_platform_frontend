@@ -47,7 +47,7 @@ const studentNames = [
 const studentFixtures = studentNames.map((username, index) => ({
   user_id: 201 + index,
   username,
-  handle: `student${String(index + 1).padStart(2, '0')}`,
+  handle: `stu${index + 1}`,
 }));
 const candidateFixtures = [
   { user_id: 301, username: '方子航', handle: 'candidate1', role: 'student' },
@@ -56,17 +56,20 @@ const candidateFixtures = [
 ];
 const previewMembers = [];
 
+// 测试账号统一规范（与真库 dev_seed_ms_test.py 同一套，清单见前端仓 docs/dev-测试账号.md）：
+// 域 @seed.dev / 密码一律 123456。名片与志愿背景数据仍是全量 fixtures（8 导生 20 学员），
+// 此处只收敛"可登录"账号：admin + teacher + mentor1-3 + stu1-8 + candidate1-3。
 const accounts = new Map([
-  ['super.localdev@bme.sysu.edu.cn', { password: 'superadmin123', role: 'super_admin', name: '本地超级管理员', user_id: 1 }],
-  ['teacher.localdev@bme.sysu.edu.cn', { password: 'teacher123', role: 'super_admin', name: '本地教师', user_id: 2 }],
-  ...mentorFixtures.map((mentor) => [`${mentor.handle}.localdev@bme.sysu.edu.cn`, {
-    password: 'mentor123', role: 'mentor', name: mentor.username, user_id: mentor.user_id,
+  ['admin@seed.dev', { password: '123456', role: 'super_admin', name: '本地超管(测试)', user_id: 1 }],
+  ['teacher@seed.dev', { password: '123456', role: 'super_admin', name: '本地老师(测试)', user_id: 2 }],
+  ...mentorFixtures.slice(0, 3).map((mentor) => [`${mentor.handle}@seed.dev`, {
+    password: '123456', role: 'mentor', name: mentor.username, user_id: mentor.user_id,
   }]),
-  ...studentFixtures.map((student) => [`${student.handle}.localdev@bme.sysu.edu.cn`, {
-    password: 'student123', role: 'student', name: student.username, user_id: student.user_id,
+  ...studentFixtures.slice(0, 8).map((student) => [`${student.handle}@seed.dev`, {
+    password: '123456', role: 'student', name: student.username, user_id: student.user_id,
   }]),
-  ...candidateFixtures.map((student) => [`${student.handle}.localdev@bme.sysu.edu.cn`, {
-    password: 'student123', role: student.role, name: student.username, user_id: student.user_id,
+  ...candidateFixtures.map((student) => [`${student.handle}@seed.dev`, {
+    password: '123456', role: student.role, name: student.username, user_id: student.user_id,
   }]),
 ]);
 
@@ -79,9 +82,9 @@ studentFixtures.slice(0, 16).forEach((student, studentIndex) => {
   })));
 });
 let activeAccount = {
-  email: 'super.localdev@bme.sysu.edu.cn',
+  email: 'admin@seed.dev',
   role: 'super_admin',
-  name: '本地超级管理员',
+  name: '本地超管(测试)',
   user_id: 1,
 };
 
@@ -165,19 +168,19 @@ function memberRows() {
 
 function userRows() {
   return [
-    { User_Id: 1, User_Name: '本地超级管理员', User_Email: 'super.localdev@bme.sysu.edu.cn', role: 'super_admin' },
-    { User_Id: 2, User_Name: '本地教师', User_Email: 'teacher.localdev@bme.sysu.edu.cn', role: 'super_admin' },
+    { User_Id: 1, User_Name: '本地超管(测试)', User_Email: 'admin@seed.dev', role: 'super_admin' },
+    { User_Id: 2, User_Name: '本地老师(测试)', User_Email: 'teacher@seed.dev', role: 'super_admin' },
     ...mentorFixtures.map((mentor) => ({
       User_Id: mentor.user_id, User_Name: mentor.username,
-      User_Email: `${mentor.handle}.localdev@bme.sysu.edu.cn`, role: 'mentor',
+      User_Email: `${mentor.handle}@seed.dev`, role: 'mentor',
     })),
     ...studentFixtures.map((student) => ({
       User_Id: student.user_id, User_Name: student.username,
-      User_Email: `${student.handle}.localdev@bme.sysu.edu.cn`, role: 'student',
+      User_Email: `${student.handle}@seed.dev`, role: 'student',
     })),
     ...candidateFixtures.map((student) => ({
       User_Id: student.user_id, User_Name: student.username,
-      User_Email: `${student.handle}.localdev@bme.sysu.edu.cn`, role: student.role,
+      User_Email: `${student.handle}@seed.dev`, role: student.role,
     })),
   ];
 }
