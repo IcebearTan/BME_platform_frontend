@@ -92,9 +92,11 @@ async function loadFeatured() {
   session.value = data.session || null;
   isMember.value = !!data.is_member;
   myRequest.value = data.my_request || null;
-  // 成员/已分配者本页无事可做：直接回营期工作台（带上 sid 免二次选营）
-  if (session.value && isMember.value) {
+  // 顶部学期营入口直达当前主推营期；没有主推营期时回到营期中心。
+  if (session.value?.id) {
     router.replace({ path: '/camp', query: session.value.id ? { sid: session.value.id } : {} });
+  } else {
+    router.replace('/camp');
   }
 }
 

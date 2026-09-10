@@ -31,7 +31,7 @@ const MENTORS = {
     { user_id: 13, username: 'test_mentor', photo_url: '/camp/ms/photo/test.svg', avatar: null,
       capacity: 8, matched: 7, remaining: 1, full: false, tags: ['硬件组'], bio: '搞硬件的' },
     { user_id: 20, username: '满员导生', photo_url: null, avatar: null,
-      capacity: 3, matched: 3, remaining: 0, full: true, tags: ['软件组'], bio: '已经满了' },
+      capacity: 3, matched: 3, remaining: 0, full: true, tags: ['软件组'], bio: '' },
     { user_id: 21, username: '软件导生', photo_url: null, avatar: null,
       capacity: 6, matched: 2, remaining: 4, full: false, tags: ['软件组'], bio: '一起做真实项目' },
     { user_id: 22, username: 'AI导生', photo_url: null, avatar: null,
@@ -53,6 +53,7 @@ function phaseOf(phase, me = {}) {
 }
 
 async function loginAsUser(page, phase, role = 'user', extraMocks = []) {
+  const favorites = new Set()
   // 1) 预置登录态：token 键 + vuex 持久化键（两级角色恒 'user'；导生/学员视角由 SESSIONS.my_role 驱动）
   await page.addInitScript((r) => {
     localStorage.setItem('bme-user-token', 'e2e-mock-token')
@@ -66,6 +67,12 @@ async function loginAsUser(page, phase, role = 'user', extraMocks = []) {
     const url = route.request().url()
     for (const hit of extraMocks) {
       if (url.includes(hit.url)) return route.fulfill({ json: hit.json })
+    }
+    if (url.includes('/camp/ms/1/favorites')) {
+      const id = Number(url.split('/').pop())
+      if (route.request().method() === 'PUT') favorites.add(id)
+      if (route.request().method() === 'DELETE') favorites.delete(id)
+      return route.fulfill({ json: { code: 200, mentor_ids: [...favorites], mentor_id: id, favorited: favorites.has(id) } })
     }
     if (url.includes('/camp/ms/photo/test.svg')) {
       return route.fulfill({
@@ -96,12 +103,39 @@ test('市集营业：collecting 可逛可收志愿', async ({ page }) => {
   await loginAsStudent(page, phaseOf('collecting', { submittable_round: 1 }))
 
   await page.goto(`${BASE}/camp/1/market`, { waitUntil: 'domcontentloaded' })
-  await expect(page.getByRole('img', { name: '导生集市活动海报' })).toBeVisible()
-  await expect(page.getByText('集市规则')).toBeVisible()
-  await expect(page.getByRole('button', { name: /全部.*4/ })).toBeVisible()
-  await expect(page.getByText('7/8', { exact: true })).toBeVisible()
+  await expect(page.locator('.poster-art img')).toBeVisible()
+  await expect(page.locator('.live-ticker')).toContainText('截止时间：')
+  await expect(page.locator('.market-count')).toHaveText(/4 位导生共 4 位/)
+  const allWidth = await page.getByRole('button', { name: '全部', exact: true }).evaluate(element => element.getBoundingClientRect().width)
+  await page.getByRole('button', { name: '软件组', exact: true }).click()
+  await expect(page.locator('.market-count')).toHaveText(/2 位导生共 4 位/)
+  await expect.poll(() => page.getByRole('button', { name: '全部', exact: true }).evaluate(element => element.getBoundingClientRect().width)).toBe(allWidth)
+  await page.getByRole('button', { name: '全部', exact: true }).click()
+  await expect(page.getByRole('button', { name: '查看完整活动海报' })).toHaveCount(0)
+  await page.getByRole('button', { name: '选导生规则' }).click()
+  await expect(page.getByRole('dialog')).toContainText('按你最想去的顺序排列第一、第二、第三志愿。')
+  await expect(page.getByRole('dialog')).toContainText('修改时整组替换志愿，以最后一次提交为准。')
+  await page.keyboard.press('Escape')
+  await expect(page.getByText('可带 8 人', { exact: true })).toBeVisible()
+  await expect(page.locator('.bio').filter({ hasText: '这位导生有点神秘，先看看标签吧~~' })).not.toHaveClass(/is-multiline/)
+  await expect(page.getByText(/已经有.*位同学上车/)).toHaveCount(0)
   await expect(page.getByRole('button', { name: '满员导生 名额已满' })).toBeDisabled()
+  await page.getByRole('button', { name: '收藏 软件导生', exact: true }).click()
+  await expect(page.locator('.market-grid .name').first()).toHaveText('软件导生')
+  await page.reload()
+  await expect(page.getByRole('button', { name: '取消收藏 软件导生', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.locator('.market-grid .name').first()).toHaveText('软件导生')
+  await page.getByRole('button', { name: '取消收藏 软件导生', exact: true }).click()
+  await expect(page.locator('.market-grid .name').first()).toHaveText('test_mentor')
+  await page.route('**/camp/ms/1/favorites/21', route => route.fulfill({ status: 503, json: { message: '收藏服务暂不可用' } }))
+  await page.getByRole('button', { name: '收藏 软件导生', exact: true }).click()
+  await expect(page.getByText('收藏服务暂不可用', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: '收藏 软件导生', exact: true })).toHaveAttribute('aria-pressed', 'false')
+  await page.unroute('**/camp/ms/1/favorites/21')
   await expect(page.locator('.ms-tray-wrap')).toHaveClass(/is-docked/)
+  await expect(page.getByRole('button', { name: '查看志愿' })).toBeVisible()
+  await page.getByRole('button', { name: '查看志愿' }).click()
+  await expect(page.locator('.tray-card')).toBeInViewport()
   await page.locator('.ms-tray-anchor').scrollIntoViewIfNeeded()
   await expect(page.locator('.ms-tray-wrap')).not.toHaveClass(/is-docked/)
 
@@ -111,7 +145,12 @@ test('市集营业：collecting 可逛可收志愿', async ({ page }) => {
   await expect(page.locator('.el-image-viewer__wrapper')).toBeHidden()
 
   // 加入志愿 → 托盘计数变化
-  await page.getByRole('button', { name: '加入心仪导生 test_mentor' }).click()
+  await page.getByRole('button', { name: '查看 test_mentor 的完整介绍' }).click()
+  const detail = page.getByRole('dialog')
+  await expect(detail.locator('.detail-bio')).toHaveText('搞硬件的')
+  await detail.getByRole('button', { name: '加入心仪导生 test_mentor' }).click()
+  await expect(detail.getByText('已选为第 1 志愿')).toBeVisible()
+  await page.keyboard.press('Escape')
   await expect(page.getByText('我的心仪导生（1/3）')).toBeVisible()
   await expect(page.getByRole('button', { name: '移除 test_mentor' })).toBeVisible()
   await expect(page.getByRole('button', { name: /移出志愿/ })).toHaveCount(0)
@@ -149,7 +188,7 @@ test('未交志愿：ms tab 大 CTA 直达市集', async ({ page }) => {
   await expect(page.getByText('去逛导生市集，交出你的 3 个志愿')).toBeVisible()
   await page.getByRole('button', { name: '进入团购导生' }).click()
   await expect(page).toHaveURL(/\/camp\/1\/market$/)
-  await expect(page.getByRole('img', { name: '导生集市活动海报' })).toBeVisible()
+  await expect(page.locator('.poster-art img')).toBeVisible()
 
   expect(errors).toEqual([])
 })
@@ -256,29 +295,19 @@ test('导生工作台：谁报了我只读名单，无收人按钮', async ({ pa
   await page.goto(`${BASE}/camp?tab=ms&sid=1`, { waitUntil: 'domcontentloaded' })
   await expect(page.getByText('谁报了我')).toBeVisible()
   await expect(page.getByText('学员将在浏览页看到这张名片')).toHaveCount(0)
-  await expect(page.getByText('一句话介绍')).toBeVisible()
-  await expect(page.getByText('最多 30 字')).toBeVisible()
+  await expect(page.getByText('最多 1000 字')).toBeVisible()
   await expect(page.getByText('这位导生有点神秘，先看看标签吧~~')).toBeVisible()
-  const bioInput = page.getByPlaceholder('用一句话说说你的方向、能带学员做什么')
-  await bioInput.fill('一'.repeat(31))
-  await expect(bioInput).toHaveValue('一'.repeat(30))
-  await expect(page.getByText('30/30')).toBeVisible()
-  const bioCapacity = await page.locator('.mentor-card .bio').first().evaluate((element) => {
-    const clone = element.cloneNode(true)
-    const style = getComputedStyle(element)
-    clone.style.cssText = `position:absolute;visibility:hidden;display:block;width:${element.clientWidth}px;height:auto;min-height:0;-webkit-line-clamp:unset;line-clamp:unset;font:${style.font};line-height:${style.lineHeight};`
-    document.body.appendChild(clone)
-    const twoLines = Number.parseFloat(style.lineHeight) * 2 + 0.5
-    let maximum = 0
-    for (let length = 1; length <= 60; length += 1) {
-      clone.textContent = `“${'测'.repeat(length)}”`
-      if (clone.scrollHeight <= twoLines) maximum = length
-    }
-    const result = { width: element.clientWidth, lineHeight: style.lineHeight, maximum }
-    clone.remove()
-    return result
-  })
-  expect(bioCapacity.maximum).toBeGreaterThanOrEqual(30)
+  const bioInput = page.getByPlaceholder('介绍你的经历、擅长的方向、能带学员做什么，以及你期待怎样的伙伴。')
+  const longBio = '介绍'.repeat(500)
+  await bioInput.fill(longBio)
+  await expect(bioInput).toHaveValue(longBio)
+  await expect(page.getByText('1000/1000')).toBeVisible()
+  await page.locator('.detail-link').click()
+  await expect(page.getByRole('dialog').locator('.detail-bio')).toHaveText(longBio)
+  await page.keyboard.press('Escape')
+  await bioInput.fill(longBio + '多')
+  await page.getByRole('button', { name: '发布名片', exact: true }).click()
+  await expect(page.getByText('自我介绍不能超过 1000 字')).toBeVisible()
   await expect(page.getByText('共 4 人')).toBeVisible()
   await expect(page.getByText('一志愿 2')).toBeVisible()
   await expect(page.getByText('二志愿 1')).toBeVisible()

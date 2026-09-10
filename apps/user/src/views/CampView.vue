@@ -14,31 +14,13 @@
         :pending="pendingMap" :is-staff="isStaff"
         @open="openCamp" />
 
-      <!-- 工作台：左侧营期卡片列表（可折叠）+ 右侧无卡片头部区 + tabs -->
+      <!-- 工作台：具体营期内容；其他营期统一回中心选择 -->
       <div v-else-if="sessions.length" class="camp-layout">
-        <aside class="camp-aside">
-          <div class="aside-head">
-            <button type="button" class="back-center" @click="backToCenter">
-              <span class="back-arrow">←</span>营期中心
-            </button>
-            <span class="aside-title">我的营期</span>
-          </div>
-          <div class="aside-list">
-            <div v-for="s in mySessions" :key="s.id"
-                 :class="['camp-item', { active: s.id === sid }]"
-                 :title="s.name"
-                 @click="sid = s.id">
-              <div class="camp-item-name">{{ s.name }}</div>
-              <div class="camp-item-sub">
-                <span class="status-dot" :class="'dot-status-' + s.status"></span>
-                <span>{{ statusLabel(s.status) }}</span>
-                <span class="camp-item-date">{{ s.start_date?.slice(5) }} ~ {{ s.end_date?.slice(5) }}</span>
-              </div>
-            </div>
-          </div>
-        </aside>
-
         <div class="camp-main">
+          <button type="button" class="back-center" @click="backToCenter">
+            <el-icon><ArrowLeft /></el-icon>
+            <span>营期中心</span>
+          </button>
           <!-- 营期头部：无卡片样式，置于最上；tabs 切换条紧随其下 -->
           <header v-if="current" class="camp-hero">
             <h1 class="hero-title">{{ current.name }}</h1>
@@ -133,6 +115,7 @@ import { useRoute, useRouter } from 'vue-router';
 import MenuComponent from '../components/MenuComponent.vue';
 import { DewButtonBar, DewButton, DewCard, DewProgress, DewSkeleton } from '@bme/dew-ui';
 import { ElMessage } from 'element-plus';
+import { ArrowLeft } from '@element-plus/icons-vue';
 import { campService, MS_PHASE_LABEL } from '../services/campService';
 import CampOverview from '../components/Camp/CampOverview.vue';
 import CampSelection from '../components/Camp/CampSelection.vue';
@@ -270,9 +253,6 @@ watch(() => route.query.sid, (v) => {
   if (n === null || sessions.value.some((s) => s.id === n)) sid.value = n;
 });
 
-// 我的营期（工作台侧栏 = 本人是成员的营；报名/申请中的营在营期中心呈现）
-const mySessions = computed(() => sessions.value.filter((s) => s.is_member));
-
 // ── 导生自助报名（Q-007 演进：资格名单内用户对 upcoming 营提交报名，2026-09 起改审核制）──
 const registeringSid = ref(null);
 // 待审核申请的营（进页拉 join-requests/mine 判定 + 本会话内提交过即记入兜底）：
@@ -336,45 +316,19 @@ async function loadPendingRequests() {
 
 <style scoped>
 .camp-view { min-height: 100vh; }
-/* 容器上限放宽：展开侧栏时吃掉两侧留白，而不是挤压主内容（主内容保持折叠态的舒适宽度） */
+/* 页面内容宽度 */
 .camp-wrap { max-width: 1280px; margin: 0 auto; padding: 24px 20px; }
 .camp-loading { padding: 8px 0; }
 
-/* ── 工作台布局：左侧营期卡片列表 + 右侧内容 ── */
-.camp-layout { display: flex; align-items: flex-start; gap: 20px; }
-.camp-aside { width: 224px; flex-shrink: 0; }
-.aside-head { margin-bottom: 10px; min-height: 28px; display: flex; flex-direction: column; gap: 8px; }
-/* 返回营期中心（侧栏顶部） */
+/* ── 工作台布局 ── */
+.camp-layout { width: 100%; }
 .back-center {
-  display: inline-flex; align-items: center; gap: 6px; width: fit-content;
-  border: none; background: transparent; padding: 0; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
+  border: none; background: transparent; padding: 0; margin-bottom: 14px; cursor: pointer;
   font-size: 12.5px; color: var(--dew-text-muted);
   transition: color 0.2s ease, transform 0.2s var(--dew-bounce, ease);
 }
 .back-center:hover { color: var(--color-primary); transform: translateX(-2px); }
-.back-arrow { font-size: 13px; }
-.aside-title { font-size: 13px; font-weight: 600; letter-spacing: 1px; color: var(--dew-text-muted); white-space: nowrap; }
-.aside-list { display: flex; flex-direction: column; gap: 8px; }
-.camp-item {
-  border: 1px solid var(--dew-card-border);
-  border-radius: var(--radius-md, 8px);
-  padding: 10px 12px; cursor: pointer;
-  background: transparent;
-  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s var(--dew-bounce, ease);
-  min-width: 0;
-}
-.camp-item:hover { transform: translateY(-1px); border-color: var(--dew-text-faint); }
-.camp-item.active {
-  border-color: var(--color-primary);
-  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
-}
-.camp-item-name {
-  font-size: 13.5px; font-weight: 600; color: var(--dew-text-heading);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.camp-item.active .camp-item-name { color: var(--color-primary); }
-.camp-item-sub { display: flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 12px; color: var(--dew-text-muted); }
-.camp-item-date { margin-left: auto; color: var(--dew-text-faint); white-space: nowrap; }
 
 /* 状态圆点（侧栏 + hero 共用；五态：draft/upcoming/selecting/running/archived） */
 .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
@@ -433,11 +387,7 @@ async function loadPendingRequests() {
 .progress-meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--dew-text-muted); margin-top: 8px; }
 .progress-num { font-weight: 600; color: var(--dew-text-heading); }
 
-/* 窄屏：侧栏列表横排 */
 @media (max-width: 760px) {
-  .camp-layout { flex-direction: column; }
-  .camp-aside { width: 100%; }
-  .aside-list { flex-direction: row; overflow-x: auto; padding-bottom: 4px; }
-  .camp-item { flex-shrink: 0; min-width: 150px; }
+  .camp-wrap { padding: 18px 14px; }
 }
 </style>

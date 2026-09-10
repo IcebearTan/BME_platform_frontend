@@ -13,7 +13,7 @@ export default {
         // 服务类子页面（服务大厅 / AI 大模型服务）统一高亮「服务大厅」
         activeIndex() {
             const path = this.$route.path
-            // 营期域（招募页 + 工作台）统一高亮营期导航项，避免工作台上导航失去位置感
+            // 营期域统一高亮当前学期营入口
             if (path.startsWith('/camp-home') || path.startsWith('/camp')) {
                 return '/camp-home'
             }
@@ -49,7 +49,7 @@ import { ElMessage } from 'element-plus'
 import { Calendar } from '@element-plus/icons-vue'
 import api from '../api'
 import NotificationBell from './Notification/NotificationBell.vue'
-import campLogo from '../assets/暑期训练营.png'
+import campLogo from '../assets/秋季学期营.png'
 import DewPopover from '@bme/dew-ui/DewPopover.vue'
 
 const buttonRef = ref()
@@ -200,7 +200,7 @@ const handleUserInfo = () => {
                     服务大厅
                 </el-menu-item>
                 <el-menu-item index="/camp-home" class="camp-nav-item">
-                    <img :src="campLogo" alt="2026暑期训练营" class="camp-nav-logo" />
+                    <img :src="campLogo" alt="秋季学期营" class="camp-nav-logo" />
                 </el-menu-item>
             </div>
             

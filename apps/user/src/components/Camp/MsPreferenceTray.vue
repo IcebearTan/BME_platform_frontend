@@ -1,8 +1,7 @@
 <template>
-  <div ref="trayAnchor" class="ms-tray-anchor" :style="anchorStyle">
+  <div ref="trayAnchor" class="ms-tray-anchor">
     <div class="ms-tray-wrap" :class="{ 'is-docked': isDocked, 'is-empty': !picks.length }">
       <DewCard
-        ref="trayCard"
         variant="default"
         size="md"
         :no-hover="true"
@@ -13,7 +12,7 @@
         <span class="tray-title">我的心仪导生（<span>{{ picks.length }}/3</span>）</span>
       </div>
 
-      <div v-if="!picks.length" class="tray-empty">点击导生卡片右下角的“抢”，按心仪顺序选择导生</div>
+      <div v-if="!picks.length" class="tray-empty">使用导生卡片上的购物车按钮，按心仪顺序选择导生</div>
 
       <TransitionGroup v-else name="tray" tag="div" class="tray-list">
         <div v-for="(pick, index) in picks" :key="pick.mentor_id" class="tray-item">
@@ -78,6 +77,19 @@
         </DewButton>
       </div>
       </DewCard>
+
+      <Transition name="compact-tray">
+        <div v-if="isDocked" class="compact-summary" aria-label="心仪导生摘要">
+          <div class="compact-count"><span>已选</span><strong>{{ picks.length }}/3</strong></div>
+          <div class="compact-picks">
+            <div v-for="index in 3" :key="index" class="compact-pick" :class="{ 'is-empty': !picks[index - 1] }">
+              <span>{{ index }}</span>
+              <b>{{ picks[index - 1] ? mentorName(picks[index - 1].mentor_id) : '待选择' }}</b>
+            </div>
+          </div>
+          <button type="button" class="compact-open" @click="showPreferences">查看志愿</button>
+        </div>
+      </Transition>
     </div>
   </div>
 </template>
@@ -103,64 +115,77 @@ const canSubmit = computed(() => props.round === 1
   : props.picks.length >= 1 && props.picks.length <= 3);
 
 const trayAnchor = ref(null);
-const trayCard = ref(null);
-const trayHeight = ref(0);
 const isDocked = ref(false);
-const anchorStyle = computed(() => ({ '--tray-height': `${trayHeight.value}px` }));
-let trayResizeObserver = null;
+let layoutObserver;
+
+function showPreferences() {
+  trayAnchor.value?.scrollIntoView({
+    behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+    block: 'center',
+  });
+}
 
 function syncDocking() {
   const anchor = trayAnchor.value;
-  const card = trayCard.value?.$el || trayCard.value;
-  if (!anchor || !card) return;
-
-  trayHeight.value = card.offsetHeight;
-  if (window.matchMedia('(max-width: 900px)').matches) {
-    isDocked.value = false;
-    return;
-  }
-
-  const dockBoundary = window.innerHeight - trayHeight.value - 12;
-  isDocked.value = anchor.getBoundingClientRect().top > dockBoundary;
+  if (!anchor) return;
+  isDocked.value = anchor.getBoundingClientRect().top > window.innerHeight - 24;
 }
 
 onMounted(() => {
   syncDocking();
   window.addEventListener('scroll', syncDocking, { passive: true });
   window.addEventListener('resize', syncDocking);
-
-  const card = trayCard.value?.$el || trayCard.value;
-  if (card && typeof ResizeObserver !== 'undefined') {
-    trayResizeObserver = new ResizeObserver(syncDocking);
-    trayResizeObserver.observe(card);
-  }
+  layoutObserver = new ResizeObserver(syncDocking);
+  if (trayAnchor.value?.parentElement) layoutObserver.observe(trayAnchor.value.parentElement);
 });
 
 onUnmounted(() => {
   window.removeEventListener('scroll', syncDocking);
   window.removeEventListener('resize', syncDocking);
-  trayResizeObserver?.disconnect();
+  layoutObserver?.disconnect();
 });
 </script>
 
 <style scoped>
 .ms-tray-anchor {
-  min-height: var(--tray-height, 0px);
   margin-top: 22px;
 }
 .ms-tray-wrap {
   position: relative;
   z-index: 5;
 }
-.ms-tray-wrap.is-docked {
+.compact-summary {
   position: fixed;
   bottom: 12px;
   left: 50%;
-  width: min(1280px, calc(100vw - 48px));
+  display: grid;
+  width: min(920px, calc(100vw - 48px));
+  min-height: 64px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 9px 10px 9px 16px;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 20%, var(--dew-card-flat-border));
+  border-radius: var(--radius-xl);
+  color: var(--dew-text-heading);
+  background: color-mix(in srgb, var(--dew-card-flat-bg) 94%, transparent);
+  box-shadow: 0 16px 38px color-mix(in srgb, var(--dew-text-heading) 16%, transparent);
+  box-sizing: border-box;
   z-index: 30;
   transform: translateX(-50%);
+  backdrop-filter: blur(20px) saturate(1.25);
   animation: tray-dock-in 0.24s var(--dew-bounce, ease);
 }
+.compact-count { display: flex; align-items: baseline; gap: 6px; color: var(--dew-text-muted); font-size: 12px; white-space: nowrap; }
+.compact-count strong { color: var(--color-primary); font-size: 18px; font-variant-numeric: tabular-nums; }
+.compact-picks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+.compact-pick { display: flex; min-width: 0; align-items: center; gap: 7px; padding: 7px 9px; border-radius: var(--radius-md); background: color-mix(in srgb, var(--color-primary) 7%, var(--dew-card-flat-bg)); }
+.compact-pick > span { display: grid; width: 19px; height: 19px; flex: none; place-items: center; border-radius: 50%; color: var(--dew-text-on-primary, white); background: var(--color-primary); font-size: 10px; font-weight: 800; }
+.compact-pick b { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.compact-pick.is-empty { color: var(--dew-text-faint); background: var(--dew-card-inset-bg); }
+.compact-pick.is-empty > span { color: var(--dew-text-muted); background: var(--dew-card-flat-border); }
+.compact-open { min-height: 38px; padding: 0 14px; border: 0; border-radius: var(--radius-md); color: var(--dew-text-on-primary, white); background: var(--color-primary); font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.compact-open:hover { background: var(--color-primary-hover); }
 .tray-card {
   width: 100%;
   border-radius: var(--radius-xl);
@@ -245,6 +270,10 @@ onUnmounted(() => {
 .tray-leave-to { opacity: 0; transform: translateY(6px); }
 .tray-leave-active { position: absolute; }
 .tray-move { transition: transform 0.25s var(--dew-bounce, ease); }
+.compact-tray-enter-active,
+.compact-tray-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
+.compact-tray-enter-from,
+.compact-tray-leave-to { opacity: 0; transform: translate(-50%, 8px); }
 
 @keyframes tray-dock-in {
   from { opacity: 0; transform: translate(-50%, 12px); }
@@ -256,12 +285,10 @@ onUnmounted(() => {
   .tray-leave-active,
   .tray-move,
   .tray-remove,
-  .ms-tray-wrap.is-docked { animation: none; transition: none; }
+  .compact-summary { animation: none; transition: none; }
 }
 @media (max-width: 900px) {
   .ms-tray-anchor { min-height: 0; margin-top: 18px; }
-  .ms-tray-wrap,
-  .ms-tray-wrap.is-docked { position: static; width: auto; transform: none; }
   .tray-card :deep(.dew-card__body) { display: block; }
   .tray-head { margin-bottom: 10px; }
   .tray-empty { padding: 14px 0; }
@@ -269,5 +296,17 @@ onUnmounted(() => {
   .tray-item { min-height: 66px; }
   .tray-foot { margin-top: 9px; }
   .tray-foot :deep(.dew-btn) { width: 100%; }
+  .compact-summary { bottom: 10px; width: calc(100vw - 24px); grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; padding: 8px 8px 8px 12px; border-radius: var(--radius-lg); }
+  .compact-picks { grid-template-columns: repeat(3, minmax(42px, 1fr)); gap: 4px; }
+  .compact-pick { justify-content: center; padding: 7px 5px; }
+  .compact-pick > span { display: none; }
+  .compact-open { min-height: 36px; padding: 0 10px; font-size: 12px; }
+}
+@media (max-width: 520px) {
+  .compact-summary { grid-template-columns: auto minmax(0, 1fr); }
+  .compact-picks { display: flex; min-width: 0; }
+  .compact-pick { display: none; }
+  .compact-pick:not(.is-empty) { display: block; flex: 1; overflow: hidden; }
+  .compact-open { grid-column: 2; grid-row: 1; justify-self: end; }
 }
 </style>

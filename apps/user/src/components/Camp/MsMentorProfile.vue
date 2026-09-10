@@ -12,7 +12,6 @@
     <div class="profile-body">
       <!-- 左：编辑区 -->
       <div class="edit-col">
-        <!-- 展示图片：与市集卡片保持 4:5，点击或拖拽上传。 -->
         <div class="photo-col">
           <div
             class="photo-box"
@@ -33,7 +32,7 @@
               </div>
             </transition>
           </div>
-          <span class="photo-hint">建议使用清晰的竖向展示图片（4:5），jpg / png，不超过 5MB{{ locked ? '（已锁定）' : '' }}</span>
+          <span class="photo-hint">展示图片 · JPG / PNG · 不超过 5MB{{ locked ? '（已锁定）' : '' }}</span>
           <!-- 隐藏的 el-upload：pickPhoto 触发其文件选择 -->
           <el-upload
             ref="uploadRef"
@@ -49,28 +48,32 @@
         <!-- 表单 -->
         <div class="form-col">
           <div class="form-item">
-            <label class="form-label">一句话介绍 <span class="label-sub">最多 30 字</span></label>
+            <label class="form-label">自我介绍 <span class="label-sub">最多 1000 字</span></label>
             <DewInput
               :model-value="form.bio"
               type="textarea"
-              :rows="5"
+              :rows="10"
               resize="none"
-              placeholder="用一句话说说你的方向、能带学员做什么"
+              placeholder="介绍你的经历、擅长的方向、能带学员做什么，以及你期待怎样的伙伴。"
               :disabled="locked"
               @update:model-value="updateBio"
             />
-            <span class="bio-counter">{{ form.bio.length }}/30</span>
+            <span class="bio-counter">{{ Array.from(form.bio).length }}/1000</span>
           </div>
 
           <div class="form-item">
             <label class="form-label">分类标签 <span class="label-sub">点选 1-3 个</span></label>
-            <div class="tag-chips" :class="{ locked }">
-              <span
+            <div class="tag-chips">
+              <DewButton
                 v-for="t in msTags"
                 :key="t"
-                :class="['chip', { on: form.tags.includes(t) }]"
-                @click="!locked && toggleTag(t)"
-              >{{ t }}</span>
+                type="glass"
+                size="sm"
+                :active="form.tags.includes(t)"
+                :aria-pressed="form.tags.includes(t)"
+                :disabled="locked"
+                @click="toggleTag(t)"
+              >{{ t }}</DewButton>
             </div>
           </div>
 
@@ -95,7 +98,7 @@
       <!-- 右：学员视角实时预览（所见即所得，直接复用浏览页的海报卡） -->
       <div class="preview-col">
         <div class="preview-inner">
-          <MsMentorCard :mentor="previewMentor" :index="0" />
+          <MsMentorCard :mentor="previewMentor" :index="0" size="lg" />
           <div class="preview-caption">学员浏览页实时预览</div>
         </div>
       </div>
@@ -158,7 +161,7 @@ function toggleTag(t) {
 }
 
 function updateBio(value) {
-  form.value.bio = String(value || '').slice(0, 30);
+  form.value.bio = String(value || '');
 }
 
 function pickPhoto() {
@@ -194,6 +197,10 @@ async function doUpload(options) {
 }
 
 async function save() {
+  if (Array.from(form.value.bio.trim()).length > 1000) {
+    ElMessage.warning('自我介绍不能超过 1000 字');
+    return;
+  }
   saving.value = true;
   try {
     const r = await campService.saveMsProfile(props.sid, {
@@ -216,7 +223,7 @@ async function load() {
     hasProfile.value = !!p;
     photoFilename.value = p?.photo_url || '';
     form.value = {
-      bio: (p?.bio || '').slice(0, 30),
+      bio: p?.bio || '',
       tags: p?.tags || [],
       capacity: p?.capacity ?? 8,
     };
@@ -236,18 +243,19 @@ watch(() => props.sid, load, { immediate: true });
 .head-hint { font-size: 12px; color: var(--dew-text-muted); }
 .bio-counter { align-self: flex-end; font-size: 11px; color: var(--dew-text-faint); }
 
-.profile-body { display: flex; gap: 24px; align-items: flex-start; }
+.profile-body { display: flex; gap: 32px; align-items: flex-start; }
 @media (max-width: 860px) { .profile-body { flex-direction: column; } }
 
 /* ── 左：编辑区 ── */
-.edit-col { flex: 1; min-width: 0; display: flex; gap: 20px; }
+.edit-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 24px; }
 @media (max-width: 560px) { .edit-col { flex-direction: column; } }
 
-.photo-col { flex: none; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.photo-col { flex: none; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
 .photo-box {
   position: relative;
-  width: 180px;
-  aspect-ratio: 4 / 5;
+  width: 100%;
+  height: 168px;
+  box-sizing: border-box;
   border-radius: 8px;
   overflow: hidden;
   cursor: pointer;
@@ -261,7 +269,7 @@ watch(() => props.sid, load, { immediate: true });
 .photo-box:hover { transform: scale(1.02); border-color: var(--dew-text-faint); }
 .photo-box.drag-over { border-color: var(--color-primary); border-style: solid; }
 .photo-box.locked { cursor: not-allowed; }
-.photo-box img { width: 100%; height: 100%; object-fit: cover; }
+.photo-box img { width: 100%; height: 100%; object-fit: contain; }
 .photo-empty {
   display: flex;
   flex-direction: column;
@@ -296,26 +304,7 @@ watch(() => props.sid, load, { immediate: true });
 .form-hint { font-size: 12px; color: var(--dew-text-faint); }
 .form-actions { display: flex; justify-content: flex-end; }
 
-/* 标签 chips：预设里点选，选中态主色描边 */
 .tag-chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.tag-chips.locked { opacity: 0.6; pointer-events: none; }
-.chip {
-  padding: 4px 14px;
-  border-radius: 999px;
-  font-size: 12.5px;
-  cursor: pointer;
-  color: var(--dew-text-muted);
-  border: 1px solid var(--dew-card-border, rgba(128, 128, 128, 0.25));
-  transition: all 0.2s ease;
-  user-select: none;
-}
-.chip:hover { transform: translateY(-1px); color: var(--dew-text-heading); }
-.chip.on {
-  color: var(--color-primary);
-  border-color: color-mix(in srgb, var(--color-primary) 55%, transparent);
-  background: color-mix(in srgb, var(--color-primary) 9%, transparent);
-  font-weight: 600;
-}
 
 /* 名额步进器 */
 .stepper { display: flex; align-items: center; gap: 10px; }
@@ -329,7 +318,7 @@ watch(() => props.sid, load, { immediate: true });
 }
 
 /* ── 右：实时预览 ── */
-.preview-col { flex: none; width: 238px; }
+.preview-col { flex: none; width: 288px; max-width: 100%; }
 .preview-inner { position: sticky; top: 76px; display: flex; flex-direction: column; gap: 10px; }
 .preview-caption {
   text-align: center;
@@ -337,7 +326,8 @@ watch(() => props.sid, load, { immediate: true });
   color: var(--dew-text-faint);
 }
 @media (max-width: 860px) {
-  .preview-col { width: 100%; }
-  .preview-inner { position: static; align-items: center; }
+  .edit-col { width: 100%; }
+  .preview-col { width: 288px; align-self: center; }
+  .preview-inner { position: static; }
 }
 </style>
