@@ -239,14 +239,11 @@ const api = createApiClient({
 | 优先级 | 项 | 说明 |
 |---|---|---|
 | 高 | admin 用户管理接口缺失 | 后端 `admin.py` 仅 /overview;补齐 CRUD 后恢复 UserManage 操作列 |
-| 高 | MedalManage 勋章图 404 + `:rules` 空绑定 | `/admin/medals/${id}.png` 后端无路由无存储;校验规则对象未定义,校验从未生效 |
-| 中 | user 端 v1 文章双轨下线 | ArticleView/ArticleEditorView(v1)删路由删文件;顺带 `mock/config.js`、空 `components/ui/` |
-| 中 | admin 主 chunk 2429 kB | EP 全量引入;按需引入或 manualChunks |
-| 中 | 注册即登录未闭环 | 后端 /auth/register 返回真 token,前端已存却仍跳 /login(RegisterComponent.vue:195-197),应直接进已登录态 |
-| 低 | LLM 三页深色模式 | 纯浅色硬编码,需整体 token 化重设计 |
-| 低 | HomeView routeMap 补全 | `/editor`、`/llm/*` 面包屑兜底"系统管理";`/public` 路由语义存疑 |
+| 中 | user 端 v1 文章双轨下线 | **v1 不是死码**——旧格式文章(articleVersion≠2)的现役渲染器,StudyHub/收藏夹按版本分流;下线需先做旧文内容迁移(后端配合) |
+| 中 | LLM 三页深色模式 | 纯浅色硬编码(111 处色值),需整体 token 化重设计 |
+| 低 | admin EP 按需引入 | manualChunks 已拆 vendor(主 chunk 2462→1277 kB,09-11);unplugin 按需引入属工程化批 |
 
-(2026-09-11 剔除两条已失效项:导生双选后端分叉——camp_ms 已收敛落地 flask,5002 仅作演示 API 保留;LearningProgress 死码——入口按钮现已可达。)
+(2026-09-11 处置:MedalManage `:rules` 已补+validate 前置,勋章图实测由前端同域静态服务不 404——剔除;注册即登录已闭环(a7a6f6f)——剔除;HomeView routeMap 已补 /editor、/public、/llm/*——剔除;另剔除两条更早的失效项:导生双选后端分叉(camp_ms 已收敛 flask)、LearningProgress 死码(入口已活)。)
 
 ## 12. 新成员 Onboarding
 
