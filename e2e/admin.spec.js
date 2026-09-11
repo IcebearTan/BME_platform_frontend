@@ -145,18 +145,17 @@ test('管理布局壳挂载（侧边栏 + 主区域）', async ({ page }) => {
   await expect(page.locator('.sidebar-container')).toBeVisible()
 })
 
-test('用户管理页只读表格渲染 + 前端搜索', async ({ page }) => {
+test('用户管理页：角色/状态列 + 搜索 + 编辑 + 封禁', async ({ page }) => {
   await loginAsStaff(page)
-  // mock 用户列表数据（loginAsStaff 的统一拦截返回空 data，这里覆盖；level 为 LV1-4 整数）
+  // mock 用户列表（loginAsStaff 统一拦截返回空 data，这里覆盖；level LV1-4、status active/banned）
   await page.route('http://127.0.0.1:5001/user/user_list', (route) =>
     route.fulfill({
       json: [
-        { User_Id: 1, User_Name: 'alice', User_Mode: 'super_admin', join_time: '2026-08-01', User_Email: 'a@b.c', level: 1 },
-        { User_Id: 2, User_Name: 'bob', User_Mode: 'student', join_time: '2026-08-02', User_Email: 'd@e.f', level: 3 },
+        { User_Id: 1, User_Name: 'alice', role: 'super_admin', admin_tag: 'teacher', join_time: '2026-08-01', User_Email: 'a@b.c', level: 1, status: 'active' },
+        { User_Id: 2, User_Name: 'bob', role: 'user', join_time: '2026-08-02', User_Email: 'd@e.f', level: 3, status: 'active' },
       ],
     })
   )
-  // 批次 6 前该页模板引用 7 个不存在的绑定（handleEdit 等），pageerror 监听防回归
   const pageErrors = []
   page.on('pageerror', (e) => pageErrors.push(e.message))
 
@@ -164,27 +163,41 @@ test('用户管理页只读表格渲染 + 前端搜索', async ({ page }) => {
   await expect(page.getByRole('cell', { name: 'alice' })).toBeVisible()
   await expect(page.getByRole('cell', { name: 'bob' })).toBeVisible()
 
-  // 等级列：LV tag 随等级递进取色（alice LV1 / bob LV3）
-  await expect(page.getByText('LV1', { exact: true })).toBeVisible()
+  // 角色/等级/状态列（「管理员」按行定位，避免命中侧栏等处同名文案）
+  await expect(page.getByRole('row', { name: 'alice' }).getByText('管理员')).toBeVisible()
   await expect(page.getByText('LV3', { exact: true })).toBeVisible()
+  await expect(page.getByText('正常', { exact: true })).toHaveCount(2)
 
-  // 前端搜索交互：过滤后 alice 行消失
-  await page.getByPlaceholder(' 输入用户名&权限&id').fill('bob')
-  await page.getByPlaceholder(' 输入用户名&权限&id').press('Enter')
+  // super_admin 行不出封禁按钮（后端拒绝，前端预判隐藏）
+  await expect(page.getByRole('row', { name: 'alice' }).getByRole('button', { name: '封禁' })).toHaveCount(0)
+  await expect(page.getByRole('row', { name: 'bob' }).getByRole('button', { name: '封禁' })).toBeVisible()
+
+  // 前端搜索：过滤后 alice 行消失
+  await page.getByPlaceholder('输入用户名/角色/id').fill('bob')
+  await page.getByPlaceholder('输入用户名/角色/id').press('Enter')
   await expect(page.getByRole('cell', { name: 'bob' })).toBeVisible()
   await expect(page.getByRole('cell', { name: 'alice' })).toHaveCount(0)
 
-  // 调级弹窗：bob LV3 改 LV4，确认发出 PUT（loginAsStaff 统一拦截兜底响应）
-  await page.getByRole('row', { name: 'bob' }).getByRole('button', { name: '调级' }).click()
-  const levelDialog = page.getByRole('dialog', { name: '调整等级' })
-  await expect(levelDialog).toBeVisible()
-  await levelDialog.locator('.el-select').click()
-  await page.locator('.el-select__popper:visible').getByText('LV4', { exact: true }).click()
-  const levelRequest = page.waitForRequest((request) =>
-    request.url() === 'http://127.0.0.1:5001/admin/users/2/level'
+  // 编辑弹窗：合并端点 PUT /admin/users/2（改用户名，角色/等级随行数据回显）
+  await page.getByRole('row', { name: 'bob' }).getByRole('button', { name: '编辑' }).click()
+  const editDialog = page.getByRole('dialog', { name: '编辑用户' })
+  await expect(editDialog).toBeVisible()
+  await editDialog.getByRole('textbox').fill('bob2')
+  const editRequest = page.waitForRequest((request) =>
+    request.url() === 'http://127.0.0.1:5001/admin/users/2'
       && request.method() === 'PUT')
-  await levelDialog.getByRole('button', { name: '确定' }).click()
-  expect((await levelRequest).postDataJSON()).toEqual({ level: 4 })
+  await editDialog.getByRole('button', { name: '确定' }).click()
+  const editPayload = (await editRequest).postDataJSON()
+  expect(editPayload).toMatchObject({ username: 'bob2', role: 'user', level: 3 })
+
+  // 封禁：确认框 → PUT /admin/users/2/status {status:'banned'}
+  await page.getByRole('row', { name: 'bob' }).getByRole('button', { name: '封禁' }).click()
+  await expect(page.locator('.el-message-box')).toContainText('营期归属全部保留')
+  const banRequest = page.waitForRequest((request) =>
+    request.url() === 'http://127.0.0.1:5001/admin/users/2/status'
+      && request.method() === 'PUT')
+  await page.locator('.el-message-box').getByRole('button', { name: '封禁' }).click()
+  expect((await banRequest).postDataJSON()).toEqual({ status: 'banned' })
 
   expect(pageErrors).toEqual([])
 })
