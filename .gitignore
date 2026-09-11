@@ -38,6 +38,7 @@ docs/*
 !docs/ARCHITECTURE.md
 !docs/营期模块-设计与IA规范.md
 !docs/营期升级重构-设计方案.md
+!docs/首页banner-运营规范.md
 
 # Claude Code:仅忽略个人本地设置;.claude/skills/ 随仓库分发
 .claude/settings.local.json

@@ -16,9 +16,20 @@
           :class="{ 'is-outgoing-banner': index === outgoingBannerIndex }"
         >
           <div class="banner-item" @click="handleBannerClick(banner)">
-            <div v-if="!banner.bare" class="banner-overlay">
-              <h3 class="banner-title">{{ banner.title }}</h3>
-              <p class="banner-description">{{ banner.description }}</p>
+            <!-- 学期营帧 = corner 模式：左下角玻璃状态条（避开底图烧录文字区），标题/状态/链接由主推营期驱动 -->
+            <div v-if="!banner.bare" :class="['banner-overlay', { 'overlay-corner': banner.corner }]">
+              <template v-if="banner.corner">
+                <div class="camp-live-chip">
+                  <span v-if="banner.live" class="chip-dot"></span>
+                  <span class="chip-title">{{ banner.title }}</span>
+                  <span class="chip-sep">·</span>
+                  <span class="chip-desc">{{ banner.description }}</span>
+                </div>
+              </template>
+              <template v-else>
+                <h3 class="banner-title">{{ banner.title }}</h3>
+                <p class="banner-description">{{ banner.description }}</p>
+              </template>
             </div>
             <img :src="banner.image" :alt="banner.title" class="banner-image" />
           </div>
@@ -91,6 +102,7 @@ import DewCard from '@bme/dew-ui/DewCard.vue'
 import DewPostCard from '@bme/dew-ui/DewPostCard.vue'
 import SeatBoard from '../SeatMap/SeatBoard.vue'
 import api from '../../api'
+import { campService } from '../../services/campService'
 
 const store = useStore()
 const router = useRouter()
@@ -118,12 +130,16 @@ const entryIcons = {
 }
 
 // 轮播Banner数据
+// 学期营帧（id=1）已状态化（用户 2026-09-11 定）：标题/状态/链接跟随 /camp/featured 主推营期，
+// 换营期零代码零发版；更换方法与底图规范见 docs/首页banner-运营规范.md。
+// 初始为静默帧（bare），featured 返回后切 corner 模式；拉取失败保持静默帧不阻塞首屏。
+const CAMP_BANNER_IMAGE = import.meta.env.BASE_URL + '2026秋季学期营.png';
 const banners = ref([
   {
     id: 1,
-    title: '2026 秋季学期营',
-    description: '在实践中探索，在协作中成长',
-    image: import.meta.env.BASE_URL + '2026秋季学期营.png',
+    title: '营期中心',
+    description: '查看营期与报名',
+    image: CAMP_BANNER_IMAGE,
     route: '/camp',
     bare: true
   },
@@ -269,8 +285,32 @@ const handleEntryClick = (entry) => {
   emit('entry-click', entry)
 }
 
+// 学期营帧状态化：拉主推营期写入第 1 帧（点击一律进该营工作台——成员即工作台、非成员即见 CampJoin 报名页，
+// 报名全站唯一入口在工作台内；不再绕 /camp-home 跳板）。无主推给兜底帧。
+async function applyFeaturedBanner() {
+  try {
+    const f = await campService.fetchFeatured();
+    const s = f?.session;
+    const first = banners.value[0];
+    if (s) {
+      Object.assign(first, {
+        bare: false, corner: true, live: s.status === 'selecting',
+        title: s.name,
+        description: s.status === 'selecting' ? '报名进行中，点击进入' : '即将开放，点击了解',
+        route: `/camp?sid=${s.id}`,
+      });
+    } else {
+      Object.assign(first, {
+        bare: false, corner: true, live: false,
+        title: '新营期筹备中', description: '敬请期待', route: '/camp',
+      });
+    }
+  } catch { /* featured 拉失败保持静默默认帧 */ }
+}
+
 onMounted(() => {
   fetchCommunityPosts()
+  applyFeaturedBanner()
 })
 </script>
 
@@ -345,6 +385,56 @@ onMounted(() => {
   margin: 0;
   opacity: 0.9;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+/* 学期营帧 corner 模式：不整幅压暗底图，只落左下角玻璃状态条（banner 高 160px，chip 需紧凑） */
+.banner-overlay.overlay-corner {
+  justify-content: flex-end;
+  align-items: flex-start;
+  text-align: left;
+  background: none;
+  padding: 0 18px 14px;
+}
+
+.camp-live-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 92%;
+  padding: 5px 13px;
+  border-radius: 999px;
+  background: rgba(15, 23, 32, 0.5);
+  backdrop-filter: blur(12px) saturate(1.3);
+  color: #fff;
+  font-size: 12.5px;
+  line-height: 1.5;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.chip-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--color-success);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-success) 25%, transparent);
+}
+
+.chip-title {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chip-sep {
+  opacity: 0.5;
+}
+
+.chip-desc {
+  opacity: 0.92;
+  flex-shrink: 0;
 }
 
 /* 内容切换器 */
