@@ -226,7 +226,9 @@
               :width="item.width ? item.width : 125" :align="item.align" />
             <el-table-column fixed="right" label="Operations" min-width="120">
               <template #="scoped">
-                <el-button type="primary" size="small"  @click ="configProgress(scoped.row)">编辑组员进度</el-button>
+                <!-- 「课程进度设置」入口已下线（用户 2026-09-11 定）：功能疑似遗留（清债批次 5 曾记为死码），
+                     入口禁用；弹窗与 configProgress 整链代码休眠保留（v-if="false" 可一键恢复），不移除防雪崩 -->
+                <el-button v-if="false" type="primary" size="small"  @click ="configProgress(scoped.row)">编辑组员进度</el-button>
               </template>
             </el-table-column>
           </el-table>

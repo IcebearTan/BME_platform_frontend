@@ -242,7 +242,7 @@ const api = createApiClient({
 | 中 | LLM 三页深色模式 | 纯浅色硬编码(111 处色值),需整体 token 化重设计 |
 | 低 | admin EP 按需引入 | manualChunks 已拆 vendor(主 chunk 2462→1277 kB,09-11);unplugin 按需引入属工程化批 |
 
-(2026-09-11 处置:admin 用户管理已落地——编辑+封禁取代删除(flask 9a4fda8/前端 437494d),UserManage 操作列恢复——剔除;MedalManage `:rules` 已补+validate 前置,勋章图实测由前端同域静态服务不 404——剔除;注册即登录已闭环(a7a6f6f)——剔除;HomeView routeMap 已补 /editor、/public、/llm/*——剔除;另剔除两条更早的失效项:导生双选后端分叉(camp_ms 已收敛 flask)、LearningProgress 死码(入口已活)。)
+(2026-09-11 处置:admin 用户管理已落地——编辑+封禁取代删除(flask 9a4fda8/前端 437494d),UserManage 操作列恢复——剔除;MedalManage `:rules` 已补+validate 前置,勋章图实测由前端同域静态服务不 404——剔除;注册即登录已闭环(a7a6f6f)——剔除;HomeView routeMap 已补 /editor、/public、/llm/*——剔除;导生双选后端分叉(camp_ms 已收敛 flask)——剔除;LearningProgress「课程进度设置」按遗留下线——入口 v-if="false" 禁用,整链代码休眠保留,恢复去掉该开关即可。)**注意:休眠入口代码不是可删死码,动 LearningProgress 前先看本条。**
 
 ## 12. 新成员 Onboarding
 
