@@ -238,12 +238,11 @@ const api = createApiClient({
 
 | 优先级 | 项 | 说明 |
 |---|---|---|
-| 高 | admin 用户管理接口缺失 | 后端 `admin.py` 仅 /overview;补齐 CRUD 后恢复 UserManage 操作列 |
 | 中 | user 端 v1 文章双轨下线 | **v1 不是死码**——旧格式文章(articleVersion≠2)的现役渲染器,StudyHub/收藏夹按版本分流;下线需先做旧文内容迁移(后端配合) |
 | 中 | LLM 三页深色模式 | 纯浅色硬编码(111 处色值),需整体 token 化重设计 |
 | 低 | admin EP 按需引入 | manualChunks 已拆 vendor(主 chunk 2462→1277 kB,09-11);unplugin 按需引入属工程化批 |
 
-(2026-09-11 处置:MedalManage `:rules` 已补+validate 前置,勋章图实测由前端同域静态服务不 404——剔除;注册即登录已闭环(a7a6f6f)——剔除;HomeView routeMap 已补 /editor、/public、/llm/*——剔除;另剔除两条更早的失效项:导生双选后端分叉(camp_ms 已收敛 flask)、LearningProgress 死码(入口已活)。)
+(2026-09-11 处置:admin 用户管理已落地——编辑+封禁取代删除(flask 9a4fda8/前端 437494d),UserManage 操作列恢复——剔除;MedalManage `:rules` 已补+validate 前置,勋章图实测由前端同域静态服务不 404——剔除;注册即登录已闭环(a7a6f6f)——剔除;HomeView routeMap 已补 /editor、/public、/llm/*——剔除;另剔除两条更早的失效项:导生双选后端分叉(camp_ms 已收敛 flask)、LearningProgress 死码(入口已活)。)
 
 ## 12. 新成员 Onboarding
 
