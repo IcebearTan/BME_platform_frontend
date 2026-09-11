@@ -121,10 +121,24 @@ function roleClass(s) {
   return 'role-none';
 }
 
-// 截止/阶段提示（志愿截止优先，其次报名中）
+// 截止/阶段提示（U-2，用户 09-11 定：结束临近给简单提示，别杂乱）
+// 单 span 内并列：报名进行中（selecting）· 仅剩 N 天（结束 ≤7 天，含今日）；非 archived 才提示
 function deadlineText(s) {
-  if (s.status === 'selecting') return '报名进行中';
-  return '';
+  const parts = [];
+  if (s.status === 'selecting') parts.push('报名进行中');
+  const left = daysLeft(s.end_date);
+  if (left != null && left >= 0 && left <= 7 && s.status !== 'archived') {
+    parts.push(left === 0 ? '今日结束' : `仅剩 ${left} 天`);
+  }
+  return parts.join(' · ');
+}
+function daysLeft(end) {
+  if (!end) return null;
+  const d = new Date(`${String(end).slice(0, 10)}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.round((d.getTime() - today.getTime()) / 86400000);
 }
 
 function open(s) {
