@@ -20,7 +20,7 @@ const grantDialogVisible = ref(false);
 const grantStudentId = ref('');
 const grantMedal = ref(null);
 
-// 表单数据（用于新增/编辑勋章）                       
+// 表单数据（用于新增/编辑勋章）
 const form = reactive({
   medal_id: '',
   medal_name: '',
@@ -28,6 +28,14 @@ const form = reactive({
   medal_image: '',
   medal_type: ''
 });
+
+// 表单校验（功能债 #3：模板一直绑着 :rules 但对象从未定义，校验形同虚设——2026-09-11 补齐）
+const formRef = ref(null);
+const rules = {
+  medal_name: [{ required: true, message: '请输入勋章名字', trigger: 'blur' }],
+  medal_description: [{ required: true, message: '请输入勋章内容', trigger: 'blur' }],
+  medal_type: [{ required: true, message: '请选择勋章分类', trigger: 'change' }]
+};
 
 const tableLabel = ref([
   {
@@ -146,6 +154,9 @@ const handleDelete = async (row) => {
 };
 
 const handleSubmit = async () => {
+  // 校验前置（此前 rules 未定义、也从未调用 validate，脏数据直穿后端）；失败静默返回，行内错误由 el-form 展示
+  const ok = await formRef.value?.validate().catch(() => false)
+  if (!ok) return
   try {
     if (action.value === 'add') {
       const response = await api({

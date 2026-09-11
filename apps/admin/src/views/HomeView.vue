@@ -45,7 +45,12 @@ export default {
         '/attendance-report/manage': '出勤报告',
         '/camp/attendance': '营期考勤看板',
         '/camp/sessions': '营期管理',
-        '/camp/sessions/:id': '营期详情'
+        '/camp/sessions/:id': '营期详情',
+        '/editor': '文章编辑',
+        '/public': '文章编辑',
+        '/llm/projects': '大模型·项目管理',
+        '/llm/users': '大模型·用户用量',
+        '/llm/quota-requests': '大模型·增额审批'
       };
       return routeMap[this.$route.path] || '系统管理';
     },
