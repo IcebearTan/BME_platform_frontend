@@ -93,7 +93,9 @@
           <div class="head-row">
             <h3>人员确认</h3>
             <span class="head-hint">
-              已选 {{ rosterInfo?.matched ?? 0 }} / {{ rosterInfo?.capacity ?? 0 }} ·
+              {{ rosterInfo?.capacity === null
+                 ? `已选 ${rosterInfo?.matched ?? 0} · 名额不限`
+                 : `已选 ${rosterInfo?.matched ?? 0} / ${rosterInfo?.capacity ?? 0}` }} ·
               {{ rosterInfo?.writable ? '锁定线下已定的学员，老师也可批量指派' : '营期已归档，名单只读' }}
             </span>
           </div>

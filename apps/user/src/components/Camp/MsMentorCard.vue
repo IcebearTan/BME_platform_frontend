@@ -51,7 +51,7 @@
     <div class="card-meta">
       <div class="name-row">
         <h3 class="name">{{ mentor.username }}</h3>
-        <span class="capacity-total">可带 {{ capacity }} 人</span>
+        <span class="capacity-total">{{ capacity === null ? '名额不限' : `可带 ${capacity} 人` }}</span>
       </div>
 
       <div v-if="visibleTags.length" class="tag-row" aria-label="导生方向">
@@ -98,7 +98,7 @@
       <div class="mentor-detail">
         <div class="detail-heading">
           <h3>{{ mentor.username }}</h3>
-          <span>可带 {{ capacity }} 人</span>
+          <span>{{ capacity === null ? '名额不限' : `可带 ${capacity} 人` }}</span>
         </div>
         <div v-if="mentor.tags?.length" class="detail-tags">
           <DewTag v-for="(tag, index) in mentor.tags" :key="tag" :type="index === 1 ? 'warning' : 'success'" size="sm" round class="mentor-tag" :title="tag"><span class="mentor-tag-text">{{ tag }}</span></DewTag>
@@ -146,7 +146,9 @@ const fallbackThemes = ['fallback-primary', 'fallback-success', 'fallback-warnin
 const full = computed(() => !!props.mentor.full);
 const photoSrc = computed(() => assetUrl(props.mentor.photo_url));
 const initial = computed(() => (props.mentor.username || '?').trim().charAt(0).toUpperCase());
-const capacity = computed(() => Math.max(0, Number(props.mentor.capacity) || 0));
+const capacity = computed(() => (props.mentor.capacity === null || props.mentor.capacity === undefined)
+  ? null   // 不限（09-11 契约：capacity null=不限）
+  : Math.max(0, Number(props.mentor.capacity) || 0));
 const visibleTags = computed(() => (props.mentor.tags || []).slice(0, 3));
 const hiddenTagCount = computed(() => Math.max(0, (props.mentor.tags?.length || 0) - visibleTags.value.length));
 const fallbackTheme = computed(() => fallbackThemes[Math.abs(props.index) % fallbackThemes.length]);

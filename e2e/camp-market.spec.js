@@ -33,7 +33,7 @@ const MENTORS = {
     { user_id: 20, username: '满员导生', photo_url: null, avatar: null,
       capacity: 3, matched: 3, remaining: 0, full: true, tags: ['软件组'], bio: '' },
     { user_id: 21, username: '软件导生', photo_url: null, avatar: null,
-      capacity: 6, matched: 2, remaining: 4, full: false, tags: ['软件组'], bio: '一起做真实项目' },
+      capacity: null, matched: 2, remaining: null, full: false, tags: ['软件组'], bio: '一起做真实项目' },   // capacity null=不限（09-11 契约）
     { user_id: 22, username: 'AI导生', photo_url: null, avatar: null,
       capacity: 4, matched: 1, remaining: 3, full: false, tags: ['人工智能'], bio: '让数据真正帮助人' },
   ],
@@ -117,6 +117,7 @@ test('市集营业：collecting 可逛可收志愿', async ({ page }) => {
   await expect(page.getByRole('dialog')).toContainText('修改时整组替换志愿，以最后一次提交为准。')
   await page.keyboard.press('Escape')
   await expect(page.getByText('可带 8 人', { exact: true })).toBeVisible()
+  await expect(page.getByText('名额不限', { exact: true })).toBeVisible()
   await expect(page.locator('.bio').filter({ hasText: '这位导生有点神秘，先看看标签吧~~' })).not.toHaveClass(/is-multiline/)
   await expect(page.getByText(/已经有.*位同学上车/)).toHaveCount(0)
   await expect(page.getByRole('button', { name: '满员导生 名额已满' })).toBeDisabled()

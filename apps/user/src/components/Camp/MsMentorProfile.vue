@@ -80,11 +80,14 @@
           <div class="form-item form-row">
             <label class="form-label">名额上限</label>
             <div class="stepper">
-              <DewButton type="ghost" size="sm" :disabled="locked || form.capacity <= 1" @click="form.capacity--">−</DewButton>
-              <span class="stepper-num">{{ form.capacity }}</span>
-              <DewButton type="ghost" size="sm" :disabled="locked || form.capacity >= 30" @click="form.capacity++">＋</DewButton>
+              <DewButton type="ghost" size="sm" :disabled="locked || form.capacity === null || form.capacity <= 1" @click="form.capacity--">−</DewButton>
+              <span class="stepper-num" :class="{ unlimited: form.capacity === null }">{{ form.capacity ?? '不限' }}</span>
+              <DewButton type="ghost" size="sm" :disabled="locked || form.capacity === null || form.capacity >= 30" @click="form.capacity++">＋</DewButton>
+              <DewButton type="ghost" size="sm" :active="form.capacity === null"
+                :aria-pressed="form.capacity === null" :disabled="locked"
+                @click="toggleUnlimited">不限</DewButton>
             </div>
-            <span class="form-hint">最多愿意带几位学员</span>
+            <span class="form-hint">最多愿意带几位学员，不设限就点「不限」</span>
           </div>
 
           <div class="form-actions">
@@ -131,7 +134,17 @@ const dragOver = ref(false);
 const photoFilename = ref('');     // 相对路径（/camp/ms/photo/...）
 const hasProfile = ref(false);
 
-const form = ref({ bio: '', tags: [], capacity: 8 });
+const form = ref({ bio: '', tags: [], capacity: null });   // capacity null=不限（09-11 起默认）
+const lastCap = ref(8);                                     // 「不限」↔数字 来回切时记住上次数字
+
+function toggleUnlimited() {
+  if (form.value.capacity === null) {
+    form.value.capacity = lastCap.value;
+  } else {
+    lastCap.value = form.value.capacity;
+    form.value.capacity = null;
+  }
+}
 
 const photoSrc = computed(() => assetUrl(photoFilename.value));
 
@@ -143,7 +156,7 @@ const previewMentor = computed(() => ({
   capacity: form.value.capacity,
   bio: form.value.bio,
   matched: 0,
-  remaining: form.value.capacity,
+  remaining: form.value.capacity === null ? null : form.value.capacity,
   full: false,
 }));
 
@@ -225,7 +238,7 @@ async function load() {
     form.value = {
       bio: p?.bio || '',
       tags: p?.tags || [],
-      capacity: p?.capacity ?? 8,
+      capacity: p?.capacity ?? null,
     };
   } catch {
     ElMessage.error('加载名片失败');

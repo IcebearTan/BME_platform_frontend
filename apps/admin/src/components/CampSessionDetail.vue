@@ -251,12 +251,15 @@
               <el-tag v-else type="warning" size="small">无名片</el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="容量" prop="capacity" width="70" align="center" />
+          <el-table-column label="容量" width="70" align="center">
+            <template #default="{ row }">{{ row.capacity === null ? '不限' : row.capacity }}</template>
+          </el-table-column>
           <el-table-column label="志愿数" prop="chose_r1" width="80" align="center" />
           <el-table-column label="已分配" prop="matched" width="80" align="center" />
           <el-table-column label="剩余" width="70" align="center">
             <template #default="{ row }">
-              <span :style="row.remaining === 0 ? 'color:#e6a23c' : ''">{{ row.remaining }}</span>
+              <span v-if="row.remaining === null">不限</span>
+              <span v-else :style="row.remaining === 0 ? 'color:#e6a23c' : ''">{{ row.remaining }}</span>
             </template>
           </el-table-column>
         </el-table>
