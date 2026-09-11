@@ -56,8 +56,13 @@
 
           <!-- ── 非成员视图（按状态/类型分发；报名在营期工作台内进行）── -->
           <template v-if="current && !current.is_member">
+            <!-- 超管预判：管理员无需报名（后端一律 400），直接给出说明而非表单（挂起小修 09-11） -->
+            <DewCard v-if="isStaff" variant="inset" size="lg" :no-hover="true" class="register-card">
+              <div class="register-title">管理员无需申请加入营期</div>
+              <div class="register-hint">营期成员由你在管理端「营期管理」中直接分配；如需体验报名流程，请使用学员账号。</div>
+            </DewCard>
             <!-- 待开放营 + 资格名单内：导生报名（审核制：通过后才入营） -->
-            <DewCard v-if="current.status === 'upcoming' && current.has_eligibility"
+            <DewCard v-else-if="current.status === 'upcoming' && current.has_eligibility"
                      variant="inset" size="lg" :no-hover="true" class="register-card">
               <!-- 报名待审核：安静态 + 撤回（审核前可反悔重新提交） -->
               <template v-if="isMentorPending(current)">

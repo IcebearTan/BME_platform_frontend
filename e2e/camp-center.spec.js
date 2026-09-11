@@ -41,14 +41,14 @@ const SESSIONS = {
   ],
 }
 
-async function loginAsUser(page, extraMocks = []) {
-  await page.addInitScript(() => {
+async function loginAsUser(page, extraMocks = [], role = 'user') {
+  await page.addInitScript((r) => {
     localStorage.setItem('bme-user-token', 'e2e-mock-token')
     localStorage.setItem('bme-user-state', JSON.stringify({
       token: 'e2e-mock-token', isLogin: true, isDarkMode: false,
-      user: { role: 'user' }, checkinInfo: {},
+      user: { role: r }, checkinInfo: {},
     }))
-  })
+  }, role)
   await page.route('http://127.0.0.1:5001/**', (route) => {
     const url = route.request().url()
     for (const hit of extraMocks) {
@@ -87,6 +87,25 @@ test('营期中心：五分组渲染与身份/主操作', async ({ page }) => {
   // 类型与周期标签
   await expect(page.locator('.card-kind', { hasText: '培训营' }).first()).toBeVisible()
   await expect(page.locator('.card-cycle', { hasText: '2026 暑期' }).first()).toBeVisible()
+
+  expect(errors).toEqual([])
+})
+
+test('超管预判：中心隐藏可报名组，工作台给说明卡不给表单', async ({ page }) => {
+  const errors = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  await loginAsUser(page, [], 'super_admin')
+
+  await page.goto(`${BASE}/camp`, { waitUntil: 'domcontentloaded' })
+  await expect(page.getByRole('heading', { name: '营期中心' })).toBeVisible()
+  // 后端对管理员报名一律 400：中心预判隐藏「可报名」组（少 id22/id26 两卡 → 5 个入口）
+  await expect(page.locator('.group-title', { hasText: '可报名' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: '进入营期' })).toHaveCount(5)
+
+  // 工作台内同样预判：说明卡替代 CampJoin 表单（不再填完表单才吃 400）
+  await page.goto(`${BASE}/camp?sid=22`, { waitUntil: 'domcontentloaded' })
+  await expect(page.getByText('管理员无需申请加入营期')).toBeVisible()
+  await expect(page.getByText(/申请加入「春季招募营」/)).toHaveCount(0)
 
   expect(errors).toEqual([])
 })

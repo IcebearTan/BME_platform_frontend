@@ -97,7 +97,8 @@ const groups = computed(() => {
     define('todo', '待我处理', '导生资格名单内的营，报名后待管理员审核',
       ss.filter((s) => s.status === 'upcoming' && !s.is_member && s.has_eligibility)),
     define('joinable', '可报名', '选择阶段的营，提交申请待审批',
-      ss.filter((s) => s.status === 'selecting' && !s.is_member)),
+      // 超管不显示可报名组（后端 camp.py 管理员报名一律 400，预判入口而非事后报错）
+      ss.filter((s) => s.status === 'selecting' && !s.is_member && !props.isStaff)),
     define('mine', '我的营期', null,
       ss.filter((s) => s.is_member && s.status !== 'archived')),
     define('upcoming', '即将开始', '尚未开放报名的营',
