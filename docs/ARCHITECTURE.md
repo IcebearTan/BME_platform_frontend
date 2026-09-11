@@ -1,8 +1,8 @@
 # BME 平台前端架构设计指南
 
-> 版本:2026-08-24(清债批次 1–6 完成后定稿)
+> 版本:2026-09-11(营期重构 1a/阶段1/2 + jiayuanpush 合并后校准;首版 2026-08-24)
 > 读者:后续开发者与维护成员;也供 AI 辅助开发时作为权威上下文
-> 定位:本文件是前端架构的**单一权威源**。与之冲突的旧文档(含 `docs/legacy/`、`docs/dev-memories/`)以本文件与代码为准。
+> 定位:本文件是前端架构的**单一权威源**。仓内 `docs/` 只放被 git 跟踪并持续维护的规格(本文 + 营期IA规范 + 营期重构设计方案);计划/参考/记录/归档在本地根目录 `../docs/`(不入库,跨机手动同步),与本文冲突处以本文与代码为准。
 
 ---
 
@@ -35,7 +35,7 @@ BME_platform_frontend/
 │   ├── api/       # @bme/api      axios 客户端工厂 + 401 处理器(零 UI 框架硬依赖)
 │   └── editor/    # @bme/editor   md-editor-v3 自托管配置(side-effect 模块)
 ├── e2e/           # Playwright 冒烟安全网(双 webServer)
-└── docs/          # 本指南 + legacy 归档 + dev-memories
+└── docs/          # 规格层(git 跟踪):本指南 + 营期IA规范 + 营期重构设计方案
 ```
 
 **依赖方向**(只允许向下,禁止横向与反向):
@@ -151,6 +151,7 @@ const api = createApiClient({
 - **主题**:`store.isDarkMode` → body 与 `#app` 同步挂 `theme-dark/theme-light`(App.vue watch);
 - **路由守卫**:`meta.requiresAuth` 未登录跳登录页并带 `redirect` 回跳;已登录禁入 login/register;
 - **文章双轨**:v1(ArticleView/ArticleEditorView)与 v2(ArticleViewV2/ArticleEditorV2,md-editor-v3)并存,新功能一律 v2;v1 下线是既定清债项(见 §11)。
+- **营期域**(2026-09 重构后):规范源= `docs/营期模块-设计与IA规范.md`(IA/状态渲染,唯一规范来源)与 `docs/营期升级重构-设计方案.md` v1.2(数据模型/流程,阶段3项目营未实施)。要点:视角纪律=看**营内角色**(`sessions` 回包 `my_role`)而非全局 role(1a 身份解耦后全局仅 super_admin/user,旧 mentor/student 比较一律无效);营期中心 `/camp` 纯导航(五分组卡片),报名唯一入口=营期工作台内 CampJoin;导生市集 `/camp/:sid/market` 是营期域内全出血子路由(IA 规范 §1.2 例外);学员收藏与志愿窗口同门禁(collecting)。
 
 ## 7. admin 端架构要点
 
@@ -180,8 +181,8 @@ const api = createApiClient({
 
 ### 7.2 RBAC 与路由
 
-- 登录响应含 `role`(super_admin/teacher/mentor/student)与 `permissions`;
-- store getters:`role` / `can(perm)`(super_admin 直通)/ `isStaff`(teacher/mentor/super_admin);
+- 两级角色(2026-09「1a 身份解耦」后):登录响应 `role` 只有 `super_admin`/`user`,管理端实际仅 super_admin 登录;历史 teacher/mentor 角色串已清扫,**不要再写 role==='teacher' 类比较**;
+- store getters:`role` / `can(perm)`(super_admin 直通)/ `isStaff`(=super_admin,store.js:46-50);
 - 路由 `meta: { staffOnly: true }` + `router.beforeEach` 守卫防手输 URL 绕过菜单;菜单项用 `v-if="isStaff"` 同步显隐。
 
 ### 7.3 已知的"只读页"
@@ -212,12 +213,12 @@ const api = createApiClient({
 
 ## 10. 质量保障
 
-### 10.1 e2e 冒烟网(16 条,`e2e/*.spec.js`)
+### 10.1 e2e 冒烟网(32 条,6 个 spec,`e2e/*.spec.js`)
 
 - user/admin 测试服务使用独立端口 18081/15173,不复用 8081/5173 的开发或预览进程;
 - 5002 预览 API 有独立契约测试:关键管理数据结构、已知空列表结构、未知路由必须 404;
-- **不依赖后端**:`page.route` 拦截全部 API——`loginAsStaff()` 预置假 token 与 vuex 持久化态、mock `/user/user_index` 返回 super_admin,其余统一 200 空数据;
-- 用例覆盖:两端登录页渲染、user 路由跳转、DewUI 展示页、admin 布局壳、md-editor 挂载、用户管理页、导生市集状态机、营期详情的选导生/成员添加，以及预览 API 契约;
+- **不依赖后端**:`page.route` 拦截全部 API——user 端 mock 登录态恒 `role:'user'`、admin 端 mock `super_admin`(两级角色,**勿再用旧 teacher/mentor/student 角色值,会掩盖漂移**);营期用例的 `sessions` 回包带 `my_role`,其余统一 200 空数据;
+- 用例覆盖:两端登录页渲染、user 路由跳转、DewUI 展示页、admin 布局壳、md-editor 挂载、用户管理页只读、营期中心五分组与报名选组/占位卡/申请撤回、导生市集状态机(志愿收集/结果门禁/打烊/导生勾选)、邮箱式通知收件箱与感谢信(直达/写信/频控),以及预览 API 契约;
 - **新增页面请配一条用例**;pageerror 断言是抓"模板引用不存在绑定"类事故的利器(批次 6 教训)。
 
 ### 10.2 变更检查清单(提交前自查)
@@ -231,18 +232,21 @@ const api = createApiClient({
 - [ ] 无 console.log 残留、无注释掉的死代码块
 - [ ] 新组件/页面无 emoji 图标、无蓝紫渐变
 
-## 11. 已知债务与路线图(2026-08-24 快照)
+## 11. 已知债务与路线图(2026-09-11 校准)
+
+> 全量待办(含非架构项、跨仓项)见本地根目录 `../docs/待办总账.md`(不入库);下表只列架构相关且仍有效的项。
 
 | 优先级 | 项 | 说明 |
 |---|---|---|
 | 高 | admin 用户管理接口缺失 | 后端 `admin.py` 仅 /overview;补齐 CRUD 后恢复 UserManage 操作列 |
-| 高 | 导生双选后端实现分叉 | 正式后端必须收敛到 `BME_platform_flask`;对照 `BME_platform_flask_Icebear_develop` 迁入新模型/接口/迁移脚本并连接真实数据库后，才能移除 5002 预览 API |
-| 高 | MedalManage 勋章图 404 | `/admin/medals/${id}.png` 后端无路由无存储;需设计存储方案 |
-| 中 | LearningProgress ~280 行不可达死码 | 「课程进度设置」dialog 链,入口已注释,可直接删 |
+| 高 | MedalManage 勋章图 404 + `:rules` 空绑定 | `/admin/medals/${id}.png` 后端无路由无存储;校验规则对象未定义,校验从未生效 |
 | 中 | user 端 v1 文章双轨下线 | ArticleView/ArticleEditorView(v1)删路由删文件;顺带 `mock/config.js`、空 `components/ui/` |
 | 中 | admin 主 chunk 2429 kB | EP 全量引入;按需引入或 manualChunks |
+| 中 | 注册即登录未闭环 | 后端 /auth/register 返回真 token,前端已存却仍跳 /login(RegisterComponent.vue:195-197),应直接进已登录态 |
 | 低 | LLM 三页深色模式 | 纯浅色硬编码,需整体 token 化重设计 |
 | 低 | HomeView routeMap 补全 | `/editor`、`/llm/*` 面包屑兜底"系统管理";`/public` 路由语义存疑 |
+
+(2026-09-11 剔除两条已失效项:导生双选后端分叉——camp_ms 已收敛落地 flask,5002 仅作演示 API 保留;LearningProgress 死码——入口按钮现已可达。)
 
 ## 12. 新成员 Onboarding
 
@@ -250,8 +254,8 @@ const api = createApiClient({
 2. 起 Flask 后端(另仓,5001)→ `pnpm dev:all`;
 3. 通读本文件 §2/§5/§7 → 跑 `pnpm test:e2e` 确认环境绿;
 4. 第一个任务建议从"给某管理页加一列"开始,套 §7.1 骨架;
-5. 深入设计语言:读 `docs/dev-memories/bme-dewui-design-language.md` 与 `UiShowcaseView.vue`;
-6. 历史背景:git log(批次提交信息即变更日志)、`docs/legacy/` 审查报告、`docs/dev-memories/MEMORY.md` 索引。
+5. 深入设计语言:对照 `UiShowcaseView.vue` 实例(DewUI 设计语言全文在本地根目录 `../docs/记录/dev-memories/`,未随库分发);
+6. 历史背景:git log(批次提交信息即变更日志);其余计划/归档/记忆都在本地根目录 `../docs/`(计划/参考/记录/归档四区,未随库分发,跨机手动同步)。
 
 ---
 
