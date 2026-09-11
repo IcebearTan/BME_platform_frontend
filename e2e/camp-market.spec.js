@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test'
 
 // 团购导生市集（/camp/:sid/market）+ ms tab 状态机：mock 后端数据，零依赖真实库
-// 规范见 apps/user/docs/营期模块-设计与IA规范.md §1.2 例外 / §2.4
+// 规范见 docs/营期模块-设计与IA规范.md §1.2 例外 / §2.4
 
 const BASE = 'http://127.0.0.1:18081/AMEII'
 

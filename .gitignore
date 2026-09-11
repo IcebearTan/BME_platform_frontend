@@ -33,8 +33,11 @@ public/article-content.css
 apps/*/public/article-content.css
 apps/*/public/md-ext/
 
-# docs/ 本地维护不入库(用户 2026-09-06 定):方案/记忆/归档均属个人工作区,跨机走手动同步
-docs/
+# docs/ 仅设计规格入库(用户 2026-09-11 定):计划/参考/记录/归档移根目录 ../docs 本地维护;仓内 docs 只留被跟踪维护的规格,新增规格需在此追加豁免
+docs/*
+!docs/ARCHITECTURE.md
+!docs/营期模块-设计与IA规范.md
+!docs/营期升级重构-设计方案.md
 
 # Claude Code:仅忽略个人本地设置;.claude/skills/ 随仓库分发
 .claude/settings.local.json

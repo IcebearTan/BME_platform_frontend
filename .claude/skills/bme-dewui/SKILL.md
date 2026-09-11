@@ -5,7 +5,7 @@ description: 在 BME 前端使用/新增 DewUI 组件,或做任何视觉与样�
 
 # DewUI 与视觉调整规程
 
-> 权威源:`docs/ARCHITECTURE.md` §4/§5;设计语言全文:`docs/dev-memories/bme-dewui-design-language.md`。
+> 权威源:`docs/ARCHITECTURE.md` §4/§5;设计语言全文:`../docs/记录/dev-memories/bme-dewui-design-language.md`(根目录 docs)。
 
 ## 高频范式
 
