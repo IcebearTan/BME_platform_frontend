@@ -192,9 +192,13 @@ const submitForm = async () => {
       },
     })
     if (res.data.code === 200) {
+      // 后端注册即登录（返回真 token）：直接进已登录态，不再绕 /login 重登一次
       localStorage.setItem('bme-user-token', res.data.token)
-      ElMessage.success('注册成功')
-      setTimeout(() => router.push('/login'), 500)
+      store.commit('setToken', res.data.token)                 // state.token 只在启动时读 localStorage，session 内需显式同步
+      store.commit('setUser', { ...res.data, role: 'user' })   // 注册回包仅 token+User_Name，新用户恒 user 角色
+      store.commit('setAvatar', 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png')
+      ElMessage.success('注册成功，欢迎加入')
+      setTimeout(() => router.push('/home'), 500)
     } else {
       ElMessage.error(res.data.msg || '注册失败')
     }
