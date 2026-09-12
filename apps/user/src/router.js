@@ -33,6 +33,8 @@ import QuestionBankView from './views/QuestionBankView.vue';
 import ServiceHallView from './views/ServiceHallView.vue';
 import LLMServiceView from './views/LLMServiceView.vue';
 import CommunityView from './views/CommunityView.vue';
+import ProjectSquareView from './views/ProjectSquareView.vue';
+import ProjectDetailView from './views/ProjectDetailView.vue';
 import UiShowcaseView from './views/UiShowcaseView.vue';
 import MyFeedbacksComponent from './components/User/MyFeedbacksComponent.vue';
 import CampView from './views/CampView.vue';
@@ -281,6 +283,19 @@ const router = createRouter({
             path: '/community',
             name: 'community',
             component: CommunityView,
+            meta: { requiresAuth: true }
+        },
+        {
+            // 项目广场（功能扩展轮 §五）：全站项目展示板块，双来源（营期发布投影+自由分享）
+            path: '/projects',
+            name: 'project-square',
+            component: ProjectSquareView,
+            meta: { requiresAuth: true }
+        },
+        {
+            path: '/projects/:id',
+            name: 'project-detail',
+            component: ProjectDetailView,
             meta: { requiresAuth: true }
         },
     ]

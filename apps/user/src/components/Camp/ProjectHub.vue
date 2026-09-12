@@ -37,6 +37,7 @@
               @click="openRoster(p)">管理成员</DewButton>
             <DewButton v-if="!selectingOpen" type="ghost" size="sm"
               :disabled="session.status === 'archived'" @click="openTemplate(p)">项目模板</DewButton>
+            <DewButton type="ghost" size="sm" @click="openPublish(p)">发布到项目广场</DewButton>
           </div>
         </DewCard>
       </div>
@@ -160,6 +161,25 @@
                       @close="tplDlg = false" @changed="reload" />
     </DewDialog>
 
+    <!-- 负责人：发布到项目广场（投影表单：简介/标签/资料链接可覆盖） -->
+    <DewDialog v-model="publishDlg" title="发布到项目广场" width="560px">
+      <div class="publish-form">
+        <div class="pub-note">
+          发布后全站可见（标题与详情自动取自项目档案，下方可覆盖）；结营后自动标「已完成」并挂结营档案引用。
+        </div>
+        <div class="field-label">一句话简介（留空取项目目标）</div>
+        <DewInput v-model="publishForm.summary" type="textarea" :rows="2" />
+        <div class="field-label">标签（逗号分隔，最多 6 个）</div>
+        <DewInput v-model="publishForm.tagsText" placeholder="医工交叉, 硬件" />
+        <div class="field-label">资料链接（每行一条：名称 空格 链接）</div>
+        <DewInput v-model="publishForm.linksText" type="textarea" :rows="2" placeholder="演示视频 https://..." />
+        <div class="form-actions">
+          <DewButton type="ghost" @click="publishDlg = false">取消</DewButton>
+          <DewButton type="glass" :loading="publishing" @click="doPublish">发布</DewButton>
+        </div>
+      </div>
+    </DewDialog>
+
     <!-- 负责人登记成果 -->
     <DewDialog v-model="outcomeDlg" title="登记项目成果" width="520px">
       <div class="outcome-form">
@@ -185,6 +205,7 @@ import { ElMessage } from 'element-plus';
 import { ArrowDown } from '@element-plus/icons-vue';
 import { DewCard, DewButton, DewInput, DewTag, DewDialog, DewSkeleton } from '@bme/dew-ui';
 import { campService } from '../../services/campService';
+import { showcaseService } from '../../services/showcaseService';
 import ProjectRoster from './ProjectRoster.vue';
 import ProjectMilestones from './ProjectMilestones.vue';
 import TemplateEditor from './TemplateEditor.vue';
@@ -304,6 +325,40 @@ const tplUnit = ref(null);
 function openTemplate(p) {
   tplUnit.value = p;
   tplDlg.value = true;
+}
+
+// ── 发布到项目广场（负责人显式动作，v1.3 §五）──
+const publishDlg = ref(false);
+const publishUnit = ref(null);
+const publishForm = ref({ summary: '', tagsText: '', linksText: '' });
+const publishing = ref(false);
+function openPublish(p) {
+  publishUnit.value = p;
+  publishForm.value = { summary: p.goal || '', tagsText: '', linksText: '' };
+  publishDlg.value = true;
+}
+async function doPublish() {
+  if (publishing.value) return;
+  publishing.value = true;
+  try {
+    const links = publishForm.value.linksText.split('\n').map((l) => l.trim()).filter(Boolean)
+      .map((line) => {
+        const m = line.match(/^(\S+)\s+(https?:\/\/\S+)$/);
+        return m ? { label: m[1], url: m[2] } : { label: line.slice(0, 40), url: line };
+      });
+    const r = await showcaseService.publishFromCamp({
+      unit_id: publishUnit.value.unit_id,
+      summary: publishForm.value.summary.trim() || null,
+      tags: publishForm.value.tagsText.split(/[,，]/).map((t) => t.trim()).filter(Boolean),
+      links,
+    });
+    ElMessage.success(r.message || '已发布到项目广场');
+    publishDlg.value = false;
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '发布失败');
+  } finally {
+    publishing.value = false;
+  }
 }
 
 // ── 负责人登记成果 ──
@@ -427,4 +482,7 @@ async function saveOutcome() {
 .outcome-form { display: flex; flex-direction: column; gap: 10px; }
 .outcome-note { font-size: 12px; color: var(--dew-text-faint); }
 .outcome-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
+
+.publish-form { display: flex; flex-direction: column; gap: 10px; }
+.pub-note { font-size: 12px; color: var(--dew-text-faint); line-height: 1.6; }
 </style>

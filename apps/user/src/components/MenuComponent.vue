@@ -198,6 +198,9 @@ const handleUserInfo = () => {
                 <el-menu-item index="/community">
                     社区广场
                 </el-menu-item>
+                <el-menu-item index="/projects">
+                    项目广场
+                </el-menu-item>
                 <el-menu-item index="/service-hall">
                     服务大厅
                 </el-menu-item>
