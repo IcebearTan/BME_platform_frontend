@@ -110,9 +110,8 @@ const props = defineProps({
 defineEmits(['remove', 'move', 'update-note', 'submit']);
 
 const mentorName = (id) => props.mentorNames[id] || `导生#${id}`;
-const canSubmit = computed(() => props.round === 1
-  ? props.picks.length === 3
-  : props.picks.length >= 1 && props.picks.length <= 3);
+// 09-12 用户拍板：志愿数放宽为 1-3（不非得选满三个才可提交；后端同口径 1<=n<=3）
+const canSubmit = computed(() => props.picks.length >= 1 && props.picks.length <= 3);
 
 const trayAnchor = ref(null);
 const isDocked = ref(false);

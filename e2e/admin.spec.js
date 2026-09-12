@@ -116,19 +116,23 @@ async function mockCampSessionDetail(page) {
       code: 200,
       requests: [
         { id: 11, user_id: 401, username: '申请学员', email: 'stu@example.test', role: 'student', apply_role: 'student', reason: '想参加', status: 'pending', created_at: '2026-08-28T10:00:00' },
-        { id: 12, user_id: 402, username: '报名导生', email: 'mentor@example.test', role: 'student', apply_role: 'mentor', reason: '导生报名（候选人池内）', status: 'pending', created_at: '2026-08-28T11:00:00' },
+        { id: 12, user_id: 402, username: '报名导生', email: 'mentor@example.test', role: 'student', apply_role: 'mentor', reason: '导生报名', status: 'pending', created_at: '2026-08-28T11:00:00' },
       ],
       mentors: overviewMentors,
     } })
   )
-  await page.route('http://127.0.0.1:5001/camp/sessions/1/mentor-eligibility', (route) =>
-    route.fulfill({ json: {
-      code: 200,
-      eligibility: [
-        { user_id: 301, username: '方子航', email: 'candidate1@example.test', registered: false, source: 'manual' },
-        { user_id: 302, username: '罗雨薇', email: 'candidate2@example.test', registered: true, source: 'level' },
+  // 2026-09-12 资格名单退役：导入导生=邮箱选人器（按等级填充只读端点）+ members/batch role=mentor 直入营
+  await page.route('http://127.0.0.1:5001/camp/sessions/1/mentor-import/candidates-by-level', (route) =>
+    route.fulfill({ json: { code: 200, data: { min_level: 2, count: 2,
+      emails: ['candidate1@example.test', 'candidate2@example.test'] } } })
+  )
+  await page.route('http://127.0.0.1:5001/camp/sessions/1/mentor-import/preview', (route) =>
+    route.fulfill({ json: { code: 200, data: {
+      matched: [
+        { user_id: 301, email: 'candidate1@example.test', username: '方子航', already_member: false },
+        { user_id: 302, email: 'candidate2@example.test', username: '罗雨薇', already_member: true },
       ],
-    } })
+      unmatched_emails: [] } } })
   )
   // 通用拦截的 data:{} 会破坏 availableCourses 的数组契约（pageerror 断言会抓住），按真实形状补齐
   await page.route('http://127.0.0.1:5001/course/list', (route) =>
@@ -231,27 +235,32 @@ test('营期详情保留选导生与成员添加能力', async ({ page }) => {
   await expect(page.getByRole('row', { name: /申请学员/ }).locator('.el-tag', { hasText: '学员' })).toBeVisible()
   await expect(page.getByRole('row', { name: /报名导生/ }).locator('.el-tag', { hasText: '导生' })).toBeVisible()
 
-  // 培训营（learning）+ 超管：导生候选人 tab（候选人池 = 手工导入 + 按等级生成两种策略）
-  await page.getByRole('tab', { name: '导生候选人' }).click()
-  await expect(page.getByText('候选人列表（2）', { exact: true })).toBeVisible()
-  await expect(page.getByRole('cell', { name: '方子航', exact: true })).toBeVisible()
-  await expect(page.getByText('手工导入', { exact: true })).toBeVisible()
-  await expect(page.getByText('按等级', { exact: true })).toBeVisible()
-
-  // 按等级生成：默认 LV2，请求体携带 min_level
+  // 培训营（learning）+ 超管：导入导生 tab（导入即直接成为本营导生，资格名单已退役；
+  // 邮箱框 + 按等级填充只读选人器 + 预览 + 确认导入走 members/batch role=mentor）
+  await page.getByRole('tab', { name: '导入导生' }).click()
+  // 按等级填充：默认 LV2，请求体携带 min_level，候选邮箱回填导入框
   const genRequest = page.waitForRequest((request) =>
-    request.url() === 'http://127.0.0.1:5001/camp/sessions/1/mentor-candidates/generate-by-level'
+    request.url() === 'http://127.0.0.1:5001/camp/sessions/1/mentor-import/candidates-by-level'
       && request.method() === 'POST')
-  await page.getByRole('button', { name: '按等级生成' }).click()
+  await page.getByRole('button', { name: '按等级填充' }).click()
   expect((await genRequest).postDataJSON()).toEqual({ min_level: 2 })
+  await expect(page.locator('textarea[placeholder*="导生邮箱"]')).toHaveValue(/candidate1@example.test/)
 
-  // 移除候选人：确认框后发 DELETE，命中对应 uid
-  await page.getByRole('row', { name: '方子航' }).getByRole('button', { name: '移除' }).click()
-  const delRequest = page.waitForRequest((request) =>
-    request.url() === 'http://127.0.0.1:5001/camp/sessions/1/mentor-candidates/301'
-      && request.method() === 'DELETE')
-  await page.locator('.el-message-box').getByRole('button', { name: '确定' }).click()
-  expect(await delRequest).toBeTruthy()
+  // 预览：邮箱→账号匹配，已在营者标注跳过
+  await page.getByRole('button', { name: '预览' }).click()
+  await expect(page.getByText('预览结果（2 个邮箱）', { exact: true })).toBeVisible()
+  await expect(page.getByRole('cell', { name: '方子航', exact: true })).toBeVisible()
+  await expect(page.getByText('将导入', { exact: true })).toBeVisible()
+  await expect(page.getByText('已在营', { exact: true })).toBeVisible()
+
+  // 确认导入：members/batch 以导生身份直接入营（已在营的罗雨薇被剔除）
+  const importRequest = page.waitForRequest((request) =>
+    request.url() === 'http://127.0.0.1:5001/camp/sessions/1/members/batch'
+      && request.method() === 'POST')
+  await page.getByRole('button', { name: '确认导入' }).click()
+  expect((await importRequest).postDataJSON()).toEqual(
+    { items: [{ user_id: 301, role: 'mentor' }] })
+  await expect(page.getByText('已加入 1/1 人')).toBeVisible()
 
   await page.getByRole('tab', { name: '选导生' }).click()
   await expect(page.getByText('导生概览', { exact: true })).toBeVisible()

@@ -100,7 +100,7 @@ async function loadFeatured() {
   }
 }
 
-// 报名入口：去营期工作台报名页（CampJoin：意向大组+承诺到岗日+理由，全站唯一报名表单）
+// 报名入口：去营期工作台报名页（CampJoin：承诺到岗日+理由，全站唯一报名表单）
 function goJoin() {
   if (!session.value) return;
   router.push({ path: '/camp', query: { sid: String(session.value.id) } });

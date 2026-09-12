@@ -1,65 +1,67 @@
 import { test, expect } from '@playwright/test'
 
 // 营期中心（/camp 无 sid 时的工作台首页）：分组卡片 / 工作台内报名（选组+到岗日）/ 导生报名 / 中心↔工作台切换
-// mock 后端数据，零依赖真实库；契约对齐后端 session_list（is_member/my_role/has_eligibility）
+// mock 后端数据，零依赖真实库；契约对齐后端 session_list（is_member/my_role；2026-09-12 起
+// 资格名单退役：导生自由报名 LV≥2，session 行不再有 has_eligibility）
 
 const BASE = 'http://127.0.0.1:18081/AMEII'
 
-// 覆盖五个分组 + 项目营报名占位：待我处理(资格内待开放) / 可报名(选择阶段) / 我的营期 / 即将开始 / 历史
+// 覆盖五个分组 + 项目营报名占位：导生可报名(待开放) / 可报名(选择阶段) / 我的营期 / 即将开始 / 历史
 const SESSIONS = {
   code: 200,
   sessions: [
     { id: 21, name: '秋季导生营', category: 'learning', cycle_name: '2026 秋季',
       start_date: '2027-01-11', end_date: '2027-02-11', status: 'upcoming',
-      is_member: false, my_role: null, has_eligibility: true, member_count: 0,
+      is_member: false, my_role: null, member_count: 0,
       mentor_selection_enabled: false },
     { id: 22, name: '春季招募营', category: 'learning', cycle_name: '2027 春季',
       start_date: '2027-03-01', end_date: '2027-03-31', status: 'selecting',
-      is_member: false, my_role: null, has_eligibility: false, member_count: 3,
+      is_member: false, my_role: null, member_count: 3,
       weekdays_only: true, mentor_selection_enabled: false,
       ms_tags: ['软件组', '硬件组'] },
     { id: 23, name: '暑期双选营', category: 'learning', cycle_name: '2026 暑期',
       start_date: '2026-08-26', end_date: '2026-09-30', status: 'selecting',
-      is_member: true, my_role: 'student', has_eligibility: false, member_count: 8,
+      is_member: true, my_role: 'student', member_count: 8,
       mentor_selection_enabled: true },
     { id: 1, name: '进行中的营', category: 'learning', cycle_name: '2026 暑期',
       start_date: '2026-08-26', end_date: '2026-09-30', status: 'running',
-      is_member: true, my_role: 'student', has_eligibility: false, member_count: 5,
+      is_member: true, my_role: 'student', member_count: 5,
       mentor_selection_enabled: false },
     { id: 24, name: '明年暑期营', category: 'learning', cycle_name: '2027 暑期',
       start_date: '2027-07-01', end_date: '2027-08-31', status: 'upcoming',
-      is_member: false, my_role: null, has_eligibility: false, member_count: 0,
+      is_member: false, my_role: null, member_count: 0,
       mentor_selection_enabled: false },
     { id: 25, name: '去年寒假营', category: 'learning', cycle_name: '2026 寒假',
       start_date: '2026-01-10', end_date: '2026-02-10', status: 'archived',
-      is_member: true, my_role: 'student', has_eligibility: false, member_count: 12,
+      is_member: true, my_role: 'student', member_count: 12,
       mentor_selection_enabled: false },
     { id: 26, name: '秋季项目营', category: 'project', cycle_name: '2026 秋季',
       start_date: '2027-01-11', end_date: '2027-02-11', status: 'selecting',
-      is_member: false, my_role: null, has_eligibility: false, member_count: 0,
+      is_member: false, my_role: null, member_count: 0,
       mentor_selection_enabled: false, ms_tags: [],
       policy: { project_limit: 3, capabilities: { attendance: false, leave: false, seat: false } } },
     { id: 27, name: '明年春季项目营', category: 'project', cycle_name: '2027 春季',
       start_date: '2027-03-01', end_date: '2027-04-30', status: 'upcoming',
-      is_member: false, my_role: null, has_eligibility: false, member_count: 0,
+      is_member: false, my_role: null, member_count: 0,
       mentor_selection_enabled: false, ms_tags: [],
       policy: { project_limit: 3, capabilities: { attendance: false, leave: false, seat: false } } },
     { id: 30, name: '在营项目营', category: 'project', cycle_name: '2026 秋季',
       start_date: '2026-09-01', end_date: '2026-12-31', status: 'running',
-      is_member: true, my_role: 'member', has_eligibility: false, member_count: 12,
+      is_member: true, my_role: 'member', member_count: 12,
       mentor_selection_enabled: false, ms_tags: [],
       policy: { project_limit: 3, capabilities: { attendance: false, leave: false, seat: false } } },
   ],
 }
 
-async function loginAsUser(page, extraMocks = [], role = 'user') {
-  await page.addInitScript((r) => {
+// role=全局角色；level=用户等级（导生可报名组/导生报名卡判定：LV≥2 才可见）
+async function loginAsUser(page, extraMocks = [], role = 'user', level = 1) {
+  await page.addInitScript(([r, lv]) => {
     localStorage.setItem('bme-user-token', 'e2e-mock-token')
     localStorage.setItem('bme-user-state', JSON.stringify({
-      token: 'e2e-mock-token', isLogin: true, isDarkMode: false,
+      token: 'e2e-mock-token', isLogin: true, isDarkMode: false, level: lv,
       user: { role: r }, checkinInfo: {},
     }))
-  }, role)
+  }, [role, level])
   await page.route('http://127.0.0.1:5001/**', (route) => {
     const url = route.request().url()
     for (const hit of extraMocks) {
@@ -78,22 +80,24 @@ async function loginAsUser(page, extraMocks = [], role = 'user') {
 test('营期中心：五分组渲染与身份/主操作', async ({ page }) => {
   const errors = []
   page.on('pageerror', (e) => errors.push(e.message))
-  await loginAsUser(page)
+  // LV4：待开放的秋季导生营归「导生可报名」组（自由报名，资格名单已退役）
+  await loginAsUser(page, [], 'user', 4)
 
   await page.goto(`${BASE}/camp`, { waitUntil: 'domcontentloaded' })
   await expect(page.getByRole('heading', { name: '营期中心' })).toBeVisible()
 
-  // 五个分组标题齐备（空组隐藏，本例全覆盖）
-  for (const title of ['待我处理', '可报名', '我的营期', '即将开始', '历史营期']) {
-    await expect(page.locator('.group-title', { hasText: title })).toBeVisible()
+  // 五个分组标题齐备（空组隐藏，本例全覆盖：两所 learning 待开放营进「导生可报名」，
+  // 项目营 upcoming 归「即将开始」）；「导生可报名」含「可报名」子串，须整串锚定
+  for (const title of ['导生可报名', '可报名', '我的营期', '即将开始', '历史营期']) {
+    await expect(page.locator('.group-title').filter({ hasText: new RegExp(`^${title}$`) })).toBeVisible()
   }
   // 卡片一致性：入口按钮统一为「进入营期」，每张卡恰一个（8 营全可见 = 8 个，含项目营×2）；
   // 报名等动作不在中心做，全部进营期工作台完成
   await expect(page.getByRole('button', { name: '进入营期' })).toHaveCount(9)
   await expect(page.getByRole('button', { name: '去报名' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: '报名成为导生' })).toHaveCount(0)
-  // 身份/报名状态只显示在身份行一处
-  await expect(page.locator('.card-role', { hasText: '资格名单内' })).toBeVisible()
+  // 身份/报名状态只显示在身份行一处（两所 learning 待开放营都标「可报导生」）
+  await expect(page.locator('.card-role', { hasText: '可报导生' }).first()).toBeVisible()
   await expect(page.locator('.card-role', { hasText: '学员' }).first()).toBeVisible()
   // 类型与周期标签
   await expect(page.locator('.card-kind', { hasText: '培训营' }).first()).toBeVisible()
@@ -111,6 +115,8 @@ test('超管预判：中心隐藏可报名组，工作台给说明卡不给表�
   await expect(page.getByRole('heading', { name: '营期中心' })).toBeVisible()
   // 后端对管理员报名一律 400：中心预判隐藏「可报名」组（少 id22/id26 两卡 → 6 个入口）
   await expect(page.locator('.group-title', { hasText: '可报名' })).toHaveCount(0)
+  // staff 不参与导生报名：upcoming 营（id21/id24）归「即将开始」组
+  await expect(page.locator('.group-title').filter({ hasText: /^即将开始$/ })).toBeVisible()
   await expect(page.getByRole('button', { name: '进入营期' })).toHaveCount(7)
 
   // 工作台内同样预判：说明卡替代 CampJoin 表单（不再填完表单才吃 400）
@@ -137,17 +143,15 @@ test('可报名：进工作台报名页选大组与到岗日并提交', async ({
   await page.goto(`${BASE}/camp`, { waitUntil: 'domcontentloaded' })
   await page.locator('.camp-card', { hasText: '春季招募营' }).getByRole('button', { name: '进入营期' }).click()
 
-  // 工作台内报名页：意向大组 + 承诺到岗日
+  // 工作台内报名页：承诺到岗日（09-12 砍意向大组——组别随归属导生继承，报名不选组）
   await expect(page).toHaveURL(/sid=22/)
   await expect(page.getByText('申请加入「春季招募营」')).toBeVisible()
-  await expect(page.locator('.field-label', { hasText: '意向大组' })).toBeVisible()
+  await expect(page.locator('.field-label', { hasText: '意向大组' })).toHaveCount(0)
 
-  // 校验链：未选到岗日 → 提示到岗日；选了天数未选组 → 提示选组；补选组后可提交
+  // 校验链：未选到岗日 → 提示到岗日；选了天数即可提交
   await expect(page.getByRole('button', { name: '请先选择到岗日' })).toBeDisabled()
   await page.locator('.day-grid .pick-chip').nth(0).click()
   await page.locator('.day-grid .pick-chip').nth(1).click()
-  await expect(page.getByRole('button', { name: '请先选择意向大组' })).toBeDisabled()
-  await page.locator('.tag-row .pick-chip', { hasText: '软件组' }).click()
   await page.getByRole('button', { name: '提交申请（2 天）' }).click()
 
   await expect(page.getByText('申请已提交，等待审批')).toBeVisible()
@@ -165,10 +169,10 @@ test('可报名：进工作台报名页选大组与到岗日并提交', async ({
   await expect(page.getByText('已撤回申请')).toBeVisible()
   await expect(page.getByText('申请加入「春季招募营」')).toBeVisible()
 
-  // 契约：到岗日数组 + 意向大组
+  // 契约：到岗日数组（无 preferred_tag 字段）
   expect(joinPayload).toBeTruthy()
   expect(joinPayload.selected_days).toHaveLength(2)
-  expect(joinPayload.preferred_tag).toBe('软件组')
+  expect(joinPayload).not.toHaveProperty('preferred_tag')
 
   expect(errors).toEqual([])
 })
@@ -269,7 +273,7 @@ test('项目营 running：交付节点时间轴与版本链（阶段4）', async
   expect(errors).toEqual([])
 })
 
-test('待我处理：进营期后报名成为导生，可撤回重报', async ({ page }) => {
+test('导生可报名：LV≥2 进营期自由报名导生，可撤回重报', async ({ page }) => {
   const errors = []
   page.on('pageerror', (e) => errors.push(e.message))
   await loginAsUser(page, [
@@ -281,28 +285,28 @@ test('待我处理：进营期后报名成为导生，可撤回重报', async ({
       url: '/camp/sessions/21/join-request/cancel',
       json: { code: 200, message: '已撤回申请' },
     },
-  ])
+  ], 'user', 4)
 
   await page.goto(`${BASE}/camp`, { waitUntil: 'domcontentloaded' })
   await page.locator('.camp-card', { hasText: '秋季导生营' }).getByRole('button', { name: '进入营期' }).click()
 
-  // 工作台内导生报名卡（资格名单内可见），提交后转待审核安静态
+  // 工作台内导生报名卡（LV≥2 窗口内自由报名，资格名单已退役），提交后转待审核安静态
   await expect(page).toHaveURL(/sid=21/)
-  await expect(page.getByText('你已在「秋季导生营」的导生资格名单内')).toBeVisible()
+  await expect(page.getByText('报名成为本营导生')).toBeVisible()
   await page.getByRole('button', { name: '报名成为导生' }).click()
 
   await expect(page.getByText('报名已提交，管理员审核通过后即可布置导生名片')).toBeVisible()
-  await expect(page.getByText('报名待审核')).toBeVisible()
+  await expect(page.getByText('导生报名待审核')).toBeVisible()
 
   // 撤回：回到可提交态（手滑可反悔）
   await page.getByRole('button', { name: '撤回报名' }).click()
   await expect(page.getByText('已撤回申请')).toBeVisible()
   await expect(page.getByRole('button', { name: '报名成为导生' })).toBeVisible()
 
-  // 回中心：身份行回到「资格名单内」
+  // 回中心：身份行回到「可报导生」
   await page.locator('.back-center').click()
   await expect(page.locator('.camp-card', { hasText: '秋季导生营' })
-    .locator('.card-role', { hasText: '资格名单内' })).toBeVisible()
+    .locator('.card-role', { hasText: '可报导生' })).toBeVisible()
 
   expect(errors).toEqual([])
 })

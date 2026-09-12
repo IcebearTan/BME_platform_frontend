@@ -52,7 +52,7 @@
           <div class="rules rules-dialog">
             <div class="rule">
               <span class="rule-num">1</span>
-              <div><b>选 3 个志愿</b><p>按你最想去的顺序排列第一、第二、第三志愿。</p></div>
+              <div><b>选 1-3 个志愿</b><p>按你最想去的顺序排列志愿，可选 1 到 3 位，不必选满。</p></div>
             </div>
             <div class="rule">
               <span class="rule-num">2</span>
@@ -224,8 +224,9 @@ function movePick(index, direction) {
 const updateNote = (index, value) => { if (picks.value[index]) picks.value[index].note = value; };
 
 async function submitPicks() {
-  if (picks.value.length !== 3 || expiredByClock.value) {
-    ElMessage.warning('请选择 3 位心仪导生');
+  // 09-12 放宽：1-3 位均可提交（与托盘 canSubmit/后端 1≤n≤3 同口径），仅空选拦截
+  if (!picks.value.length || expiredByClock.value) {
+    ElMessage.warning('请先选择至少 1 位心仪导生');
     return;
   }
   submitting.value = true;

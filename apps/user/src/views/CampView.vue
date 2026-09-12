@@ -8,10 +8,10 @@
         <DewSkeleton variant="rect" width="100%" height="120" rounded="8px" />
       </div>
 
-      <!-- 无选中营期：营期中心（分组卡片：待我处理/可报名/我的营期/即将开始/历史）。
+      <!-- 无选中营期：营期中心（分组卡片：导生可报名/可报名/我的营期/即将开始/历史）。
            卡片只做导航（统一「进入营期」），导生报名/学员报名均在营期工作台内完成 -->
       <CampCenter v-else-if="!sid" :sessions="sessions" :loading="false"
-        :pending="pendingMap" :is-staff="isStaff"
+        :pending="pendingMap" :is-staff="isStaff" :my-level="store.getters.level || 1"
         @open="openCamp" />
 
       <!-- 工作台：具体营期内容；其他营期统一回中心选择 -->
@@ -61,38 +61,42 @@
               <div class="register-title">管理员无需申请加入营期</div>
               <div class="register-hint">营期成员由你在管理端「营期管理」中直接分配；如需体验报名流程，请使用学员账号。</div>
             </DewCard>
-            <!-- 待开放营 + 资格名单内：导生报名（审核制：通过后才入营） -->
-            <DewCard v-else-if="current.status === 'upcoming' && current.has_eligibility"
-                     variant="inset" size="lg" :no-hover="true" class="register-card">
-              <!-- 报名待审核：安静态 + 撤回（审核前可反悔重新提交） -->
-              <template v-if="isMentorPending(current)">
-                <div class="register-title">报名待审核</div>
-                <div class="register-hint">已提交导生报名申请，管理员审核通过后即可布置名片、参与选导生。审核前可撤回。</div>
-                <DewButton type="ghost" :loading="cancellingSid === current.id"
-                  @click="cancelMentorRegister(current)">撤回报名</DewButton>
-              </template>
-              <template v-else>
-                <div class="register-title">你已在「{{ current.name }}」的导生资格名单内</div>
-                <div class="register-hint">你在本营具有报名资格，报名后需管理员审核；审核通过后即可布置名片、参与选导生。</div>
-                <DewButton type="glass" :loading="registeringSid === current.id" @click="registerMentor(current)">
-                  报名成为导生
-                </DewButton>
-              </template>
-            </DewCard>
-            <!-- 项目营待开放=申报期：负责人申报入口（v1.3 阶段3；普通学员报名在选择阶段开放） -->
-            <ProjectApplyCard v-else-if="current.category === 'project' && current.status === 'upcoming'"
-              :session="current" />
-            <!-- 选择阶段：学员报名页（意向大组 + 承诺到岗日 + 理由；项目营表单 CampJoin 内分发） -->
-            <CampJoin v-else-if="current.status === 'selecting'"
-              :session="current" :pending="pendingStudentSids.has(current.id)"
-              @submitted="onJoinSubmitted" @cancelled="onJoinCancelled" />
-            <!-- 其余状态：非成员无可做动作 -->
-            <DewCard v-else variant="inset" size="lg" :no-hover="true" class="register-card">
-              <div class="register-title">尚未加入「{{ current.name }}」</div>
-              <div class="register-hint">
-                该营期当前{{ current.status === 'running' ? '进行中' : '不接受报名' }}（{{ statusLabel(current.status) }}），成员由管理员在营期管理中分配。
-              </div>
-            </DewCard>
+            <template v-else>
+              <!-- 导生自由报名（2026-09-12 起资格名单退役）：learning 营 + 窗口内（upcoming/selecting）+ LV≥2；
+                   选择阶段与下方学员报名表单并存（导生卡在上） -->
+              <DewCard v-if="mentorApplyOpen"
+                       variant="inset" size="lg" :no-hover="true" class="register-card">
+                <!-- 报名待审核：安静态 + 撤回（审核前可反悔重新提交） -->
+                <template v-if="isMentorPending(current)">
+                  <div class="register-title">导生报名待审核</div>
+                  <div class="register-hint">已提交导生报名申请，管理员审核通过后即可布置名片、参与选导生。审核前可撤回。</div>
+                  <DewButton type="ghost" :loading="cancellingSid === current.id"
+                    @click="cancelMentorRegister(current)">撤回报名</DewButton>
+                </template>
+                <template v-else>
+                  <div class="register-title">报名成为本营导生</div>
+                  <div class="register-hint">LV2 及以上可在报名窗口内自助报名导生；报名后需管理员审核，通过后即可布置名片、参与选导生。</div>
+                  <DewButton type="glass" :loading="registeringSid === current.id" @click="registerMentor(current)">
+                    报名成为导生
+                  </DewButton>
+                </template>
+              </DewCard>
+              <!-- 项目营待开放=申报期：负责人申报入口（v1.3 阶段3；普通学员报名在选择阶段开放） -->
+              <ProjectApplyCard v-else-if="current.category === 'project' && current.status === 'upcoming'"
+                :session="current" />
+              <!-- 选择阶段：学员报名页（承诺到岗日 + 理由；项目营表单 CampJoin 内分发；
+                   LV≥2 的导生报名卡在上方并存） -->
+              <CampJoin v-if="current.status === 'selecting'"
+                :session="current" :pending="pendingStudentSids.has(current.id)"
+                @submitted="onJoinSubmitted" @cancelled="onJoinCancelled" />
+              <!-- 其余状态：非成员无可做动作 -->
+              <DewCard v-if="noCampAction" variant="inset" size="lg" :no-hover="true" class="register-card">
+                <div class="register-title">尚未加入「{{ current.name }}」</div>
+                <div class="register-hint">
+                  该营期当前{{ current.status === 'running' ? '进行中' : current.status === 'upcoming' ? '尚未开放报名，开放后可申请以学员身份加入' : '不接受报名' }}（{{ statusLabel(current.status) }}），成员也可由管理员在营期管理中分配。
+                </div>
+              </DewCard>
+            </template>
           </template>
 
           <DewButtonBar v-else v-model="tab" :items="tabItems" style="margin: 16px 0;" />
@@ -286,7 +290,7 @@ watch(() => route.query.sid, (v) => {
   if (n === null || sessions.value.some((s) => s.id === n)) sid.value = n;
 });
 
-// ── 导生自助报名（Q-007 演进：资格名单内用户对 upcoming 营提交报名，2026-09 起改审核制）──
+// ── 导生自由报名（2026-09-12 资格名单机制退役：LV≥2 在 upcoming/selecting 窗口自助提交，管理员审核）──
 const registeringSid = ref(null);
 // 待审核申请的营（进页拉 join-requests/mine 判定 + 本会话内提交过即记入兜底）：
 // mentor = 导生报名待审核；student = 入营申请待审核（营期中心卡片安静态）
@@ -294,6 +298,22 @@ const pendingMentorSids = ref(new Set());
 const pendingStudentSids = ref(new Set());
 const pendingMap = computed(() => ({ mentor: pendingMentorSids.value, student: pendingStudentSids.value }));
 const isMentorPending = (s) => pendingMentorSids.value.has(s.id);
+// 导生报名卡开放条件：learning 营 + 窗口内（upcoming/selecting）+ LV≥2；
+// 学员申请在审时不重复展示（后端 pending 去重不分角色，点了也只是幂等 200）
+const mentorApplyOpen = computed(() => {
+  const s = current.value;
+  return !!(s && s.category === 'learning'
+    && (s.status === 'upcoming' || s.status === 'selecting')
+    && (store.getters.level || 1) >= 2
+    && !pendingStudentSids.value.has(s.id));
+});
+// 兜底卡（无可做动作）：导生卡/申报卡/学员表单均未渲染时
+const noCampAction = computed(() => {
+  const s = current.value;
+  if (!s) return false;
+  const projectApply = s.category === 'project' && s.status === 'upcoming';
+  return !(mentorApplyOpen.value || projectApply || s.status === 'selecting');
+});
 async function registerMentor(s) {
   if (registeringSid.value || isMentorPending(s)) return;
   registeringSid.value = s.id;
@@ -305,7 +325,7 @@ async function registerMentor(s) {
     // 审核制下报名不再直接入营：不重拉营期列表，就地切「报名待审核」安静态
     pendingMentorSids.value.add(s.id);
   } catch (e) {
-    // 名单外 403 / 非 upcoming 400：后端 message 面向用户，直接展示
+    // LV<2 403 / 窗口外 400：后端 message 面向用户，直接展示
     ElMessage.error(e.response?.data?.message || '报名失败，请稍后重试');
   } finally {
     registeringSid.value = null;
@@ -371,7 +391,7 @@ async function loadPendingRequests() {
 .dot-status-running { background: var(--color-success); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-success) 18%, transparent); }
 .dot-status-archived { background: var(--dew-text-faint); opacity: 0.6; }
 
-/* 资格名单内、未报名的待开放营：直链进入工作台时的报名引导卡 */
+/* 窗口内可报导生的营：直链进入工作台时的报名引导卡 */
 .register-card { margin-top: 16px; }
 .register-title { font-size: 16px; font-weight: 600; color: var(--dew-text-heading); margin-bottom: 8px; }
 .register-hint { font-size: 13px; color: var(--dew-text-muted); line-height: 1.7; margin-bottom: 14px; }

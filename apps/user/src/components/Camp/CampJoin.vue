@@ -1,7 +1,7 @@
 <template>
   <!-- 非成员报名页（工作台内）：按营期类型分发表单（方案 §6「公共外壳+类型子视图」）。
-       learning=承诺出勤日+意向大组+理由；project=入池报名（v1.3：考勤能力未开时不收
-       到岗日，仅理由；无大组概念——项目分组走申报+组队，不走 ms_tags）。 -->
+       learning=承诺出勤日+理由（09-12 砍意向大组：组别随归属导生继承，导生组=名片 tags）；
+       project=入池报名（v1.3：考勤能力未开时不收到岗日，仅理由；无大组概念——项目分组走申报+组队）。 -->
   <div class="camp-join">
     <!-- 已提交：安静态 + 撤回（审核前可反悔，撤回后回到表单重新提交） -->
     <DewCard v-if="pending" variant="inset" size="lg" :no-hover="true" class="join-card">
@@ -44,18 +44,8 @@
     <DewCard v-else variant="inset" size="lg" :no-hover="true" class="join-card">
       <div class="join-title">申请加入「{{ session.name }}」</div>
       <div class="join-hint">
-        提交后由管理员审批。请选择意向大组与能到岗的日期（{{ session.weekdays_only ? '本营仅计工作日' : '含周末' }}，至少一天），通过后按到岗日生成考勤承诺。
+        提交后由管理员审批。请选择能到岗的日期（{{ session.weekdays_only ? '本营仅计工作日' : '含周末' }}，至少一天），通过后按到岗日生成考勤承诺；组别随后续归属的导生确定，报名时无需选择。
       </div>
-
-      <!-- 意向大组（本营 ms_tags；未配置标签的营不出现此节） -->
-      <template v-if="tags.length">
-        <div class="field-label">意向大组 <span class="field-req">必选</span></div>
-        <div class="tag-row">
-          <button v-for="t in tags" :key="t" type="button"
-                  :class="['pick-chip', { picked: pickedTag === t }]"
-                  @click="pickedTag = pickedTag === t ? null : t">{{ t }}</button>
-        </div>
-      </template>
 
       <!-- 承诺出勤日 -->
       <div class="field-label">承诺到岗日 <span class="field-req">至少一天</span></div>
@@ -94,8 +84,6 @@ const emit = defineEmits(['submitted', 'cancelled']);
 // submitted → CampView 记 pending、中心卡片身份行转「入营申请待审核」
 // cancelled → 撤回成功，CampView 清 pending，本组件回到表单态
 
-const tags = computed(() => props.session.ms_tags || []);
-const pickedTag = ref(null);
 const reason = ref('');
 const submitting = ref(false);
 
@@ -130,12 +118,9 @@ function toggleDay(v) {
   pickedDays.value = new Set(s);   // 换引用确保响应式更新
 }
 
-const needTag = computed(() => !isProject.value && tags.value.length > 0);
-const canSubmit = computed(() =>
-  (needDays.value ? pickedDays.value.size > 0 : true) && (!needTag.value || !!pickedTag.value));
+const canSubmit = computed(() => (needDays.value ? pickedDays.value.size > 0 : true));
 const submitText = computed(() => {
   if (needDays.value && !pickedDays.value.size) return '请先选择到岗日';
-  if (needTag.value && !pickedTag.value) return '请先选择意向大组';
   return isProject.value ? '提交入池申请' : `提交申请（${pickedDays.value.size} 天）`;
 });
 
@@ -146,8 +131,7 @@ async function submit() {
     const r = await campService.requestJoin(
       props.session.id,
       needDays.value ? [...pickedDays.value].sort() : [],
-      reason.value.trim(),
-      isProject.value ? null : pickedTag.value);
+      reason.value.trim());
     ElMessage.success(r.message || '申请已提交，等待审批');
     emit('submitted', props.session.id);
   } catch (e) {
@@ -183,8 +167,7 @@ async function cancel() {
 .field-label { font-size: 13px; font-weight: 600; color: var(--dew-text-heading); margin: 14px 0 8px; }
 .field-req { font-size: 11px; font-weight: 400; color: var(--color-warning); margin-left: 4px; }
 
-/* 通用选择 chip（大组单选 / 日期多选共用视觉） */
-.tag-row { display: flex; flex-wrap: wrap; gap: 8px; }
+/* 通用选择 chip（日期多选） */
 .day-wrap { max-height: 220px; overflow-y: auto; padding: 2px; }
 .day-grid { display: flex; flex-wrap: wrap; gap: 8px; }
 .no-days { font-size: 12.5px; color: var(--dew-text-faint); padding: 4px 0; }

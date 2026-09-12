@@ -60,7 +60,7 @@
       </div>
     </section>
 
-    <!-- 报名在营期工作台内进行（CampJoin：意向大组 + 承诺到岗日 + 理由），中心只负责导航 -->
+    <!-- 报名在营期工作台内进行（CampJoin：承诺到岗日 + 理由，组别随归属导生继承），中心只负责导航 -->
   </div>
 </template>
 
@@ -75,6 +75,8 @@ const props = defineProps({
   // 待审核申请集合：{ mentor: Set<sid>, student: Set<sid> }（CampView 统一拉 mine）
   pending: { type: Object, required: true },
   isStaff: { type: Boolean, default: false },
+  // 当前用户等级（导生可报名组判定：LV≥2 才分组展示，2026-09-12 自由报名）
+  myLevel: { type: Number, default: 1 },
 });
 const emit = defineEmits(['open']);
 // open(session)：进入营期工作台（CampView 设 sid）。中心只做导航——
@@ -89,20 +91,24 @@ const CATEGORY_LABEL = { learning: '培训营', project: '项目营' };
 const isMentorPending = (s) => props.pending.mentor.has(s.id);
 const isStudentPending = (s) => props.pending.student.has(s.id);
 
-// ── 分组（待我处理 → 可报名 → 我的营期 → 即将开始 → 历史；空组隐藏）──
+// ── 分组（导生可报名 → 可报名 → 我的营期 → 即将开始 → 历史；空组隐藏）──
 const groups = computed(() => {
   const ss = props.sessions;
+  // 导生报名窗口内的待开放营（自由报名，2026-09-12）：LV≥2 才见本组，与「即将开始」互斥；
+  // 仅 learning 营（项目营无导生身份，申报入口在 ProjectApplyCard）
+  const mentorTodo = (s) => s.status === 'upcoming' && !s.is_member
+    && s.category === 'learning' && !props.isStaff && props.myLevel >= 2;
   const define = (key, title, hint, items) => (items.length ? { key, title, hint, items } : null);
   return [
-    define('todo', '待我处理', '导生资格名单内的营，报名后待管理员审核',
-      ss.filter((s) => s.status === 'upcoming' && !s.is_member && s.has_eligibility)),
+    define('todo', '导生可报名', '导生报名窗口开放中，报名后待管理员审核',
+      ss.filter(mentorTodo)),
     define('joinable', '可报名', '选择阶段的营，提交申请待审批',
       // 超管不显示可报名组（后端 camp.py 管理员报名一律 400，预判入口而非事后报错）
       ss.filter((s) => s.status === 'selecting' && !s.is_member && !props.isStaff)),
     define('mine', '我的营期', null,
       ss.filter((s) => s.is_member && s.status !== 'archived')),
     define('upcoming', '即将开始', '尚未开放报名的营',
-      ss.filter((s) => s.status === 'upcoming' && !s.is_member && !s.has_eligibility)),
+      ss.filter((s) => s.status === 'upcoming' && !s.is_member && (!mentorTodo(s)))),
     define('history', '历史营期', null,
       ss.filter((s) => s.is_member && s.status === 'archived')),
   ].filter(Boolean);
@@ -113,7 +119,7 @@ function roleText(s) {
   if (s.is_member) return s.my_role === 'mentor' ? '导生' : '学员';
   if (isMentorPending(s)) return '导生报名待审核';
   if (isStudentPending(s)) return '入营申请待审核';
-  if (s.has_eligibility) return '资格名单内';
+  if (s.status === 'upcoming' && s.category === 'learning' && !props.isStaff && props.myLevel >= 2) return '可报导生';
   return '未参与';
 }
 function roleClass(s) {

@@ -49,7 +49,7 @@
         <!-- 未交志愿：大 CTA -->
         <template v-if="!alreadySubmitted">
           <div class="cta-label">选导生进行中</div>
-          <div class="cta-title">去逛导生市集，交出你的 3 个志愿</div>
+          <div class="cta-title">去逛导生市集，提交你的心仪志愿</div>
           <div class="cta-meta">
             <span v-if="trayDeadline">{{ trayDeadline }} 截止</span>
             <span v-if="trayDeadline && submittedText"> · </span>
@@ -164,7 +164,7 @@ const phaseCaption = computed(() => {
   const p = phaseInfo.value;
   if (!p) return '';
   if (p.phase === 'collecting')
-    return `浏览导生名片，提交 3 个有序志愿 · ${p.deadlines.preference_deadline || ''} 截止${submittedText.value ? ` · ${submittedText.value}` : ''}`;
+    return `浏览导生名片，提交 1-3 个有序志愿 · ${p.deadlines.preference_deadline || ''} 截止${submittedText.value ? ` · ${submittedText.value}` : ''}`;
   if (p.phase === 'done') return '志愿已截止，导生分配由老师协调后公布';
   if (p.phase === 'upcoming') return '导生正在准备名片';
   return '';

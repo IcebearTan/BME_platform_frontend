@@ -113,7 +113,7 @@ test('市集营业：collecting 可逛可收志愿', async ({ page }) => {
   await page.getByRole('button', { name: '全部', exact: true }).click()
   await expect(page.getByRole('button', { name: '查看完整活动海报' })).toHaveCount(0)
   await page.getByRole('button', { name: '选导生规则' }).click()
-  await expect(page.getByRole('dialog')).toContainText('按你最想去的顺序排列第一、第二、第三志愿。')
+  await expect(page.getByRole('dialog')).toContainText('按你最想去的顺序排列志愿，可选 1 到 3 位，不必选满。')
   await expect(page.getByRole('dialog')).toContainText('修改时整组替换志愿，以最后一次提交为准。')
   await page.keyboard.press('Escape')
   await expect(page.getByText('可带 8 人', { exact: true })).toBeVisible()
@@ -159,7 +159,7 @@ test('市集营业：collecting 可逛可收志愿', async ({ page }) => {
   expect(errors).toEqual([])
 })
 
-test('心仪导生栏：左右排序、叉号删除与一轮三志愿约束', async ({ page }) => {
+test('心仪导生栏：左右排序、叉号删除与志愿数 1-3 约束', async ({ page }) => {
   await loginAsStudent(page, phaseOf('collecting', { submittable_round: 1 }))
   await page.goto(`${BASE}/camp/1/market`, { waitUntil: 'domcontentloaded' })
 
@@ -177,6 +177,10 @@ test('心仪导生栏：左右排序、叉号删除与一轮三志愿约束', as
   await expect(page.locator('.tray-item .item-name')).toHaveText(['软件导生', 'test_mentor', 'AI导生'])
   await page.getByRole('button', { name: '移除 test_mentor' }).click()
   await expect(page.getByText('我的心仪导生（2/3）')).toBeVisible()
+  // 09-12 放宽：1-3 个志愿均可提交，不满三个不再禁用（0 个仍禁）
+  await expect(submit).toBeEnabled()
+  await page.getByRole('button', { name: '移除 软件导生' }).click()
+  await page.getByRole('button', { name: '移除 AI导生' }).click()
   await expect(submit).toBeDisabled()
 })
 
@@ -186,7 +190,7 @@ test('未交志愿：ms tab 大 CTA 直达市集', async ({ page }) => {
   await loginAsStudent(page, phaseOf('collecting', { submittable_round: 1 }))
 
   await page.goto(`${BASE}/camp?tab=ms&sid=1`, { waitUntil: 'domcontentloaded' })
-  await expect(page.getByText('去逛导生市集，交出你的 3 个志愿')).toBeVisible()
+  await expect(page.getByText('去逛导生市集，提交你的心仪志愿')).toBeVisible()
   await page.getByRole('button', { name: '进入团购导生' }).click()
   await expect(page).toHaveURL(/\/camp\/1\/market$/)
   await expect(page.locator('.poster-art img')).toBeVisible()

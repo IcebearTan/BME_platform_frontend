@@ -223,11 +223,16 @@ const NEXT_ACTION = {
   running: { action: 'close', label: '结营' },
 }
 function transition(row, { action, label }) {
-  ElMessageBox.confirm(`确定对「${row.name}」执行「${label}」吗？${action === 'close' ? '结营后营期转为只读，不可撤销。' : ''}`, '状态变更', {
+  const extra = action === 'close'
+    ? '结营后营期转为只读，不可撤销。'
+    : action === 'open'
+      ? (row.mentor_selection_enabled ? '开营将同步截止选导生志愿（未分配学员的归属可开营后再指定）。' : '')
+      : '';
+  ElMessageBox.confirm(`确定对「${row.name}」执行「${label}」吗？${extra}`, '状态变更', {
     confirmButtonText: label, cancelButtonText: '取消', type: 'warning',
   }).then(async () => {
-    await api.post(`/camp/sessions/${row.id}/transitions`, { action });
-    ElMessage.success(`已${label}`);
+    const res = await api.post(`/camp/sessions/${row.id}/transitions`, { action });
+    ElMessage.success(res.data?.message || `已${label}`);
     fetchList();
   }).catch((e) => {
     if (e === 'cancel' || e === 'close') return;
