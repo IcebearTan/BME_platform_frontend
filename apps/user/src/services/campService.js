@@ -151,4 +151,26 @@ export const campService = {
   // 结果（done 后）
   fetchMsResults: (sid) =>
     api.get(`/camp/ms/${sid}/results`).then(r => r.data),
+
+  // ── 项目营（阶段3；后端 blueprints/camp_project.py）──
+  // 我的项目工作台汇总：申报（版本历史）/我负责的/我参与的/3 上限余量/可否申报
+  // （只返回本人数据；非成员在申报期 upcoming 也可调用——申报入口卡数据源）
+  fetchProjectMine: (sid) =>
+    api.get(`/camp/projects/${sid}/mine`).then(r => r.data),
+  // 负责人提交申报（仅 upcoming；退回重提=后端自动升版本）
+  submitProjectApplication: (sid, form) =>
+    api.post(`/camp/projects/${sid}/applications`, form).then(r => r.data),
+  // 营内过审项目列表（组队浏览/工作区共用；带 my_role/my_pref_rank/member_count）
+  fetchProjectList: (sid) =>
+    api.get(`/camp/projects/${sid}/list`).then(r => r.data),
+  // 学员项目志愿（单轮 1-3 有序，整组替换；仅 selecting）
+  fetchProjectPreferences: (sid) =>
+    api.get(`/camp/projects/${sid}/preferences/mine`).then(r => r.data),
+  submitProjectPreferences: (sid, preferences) =>
+    api.post(`/camp/projects/${sid}/preferences`, { preferences }).then(r => r.data),
+  // 统一 roster 勾选 API（负责人；expected_version 乐观锁 + 幂等键 + 逐项回报）
+  fetchSelectionRoster: (unitId) =>
+    api.get(`/camp/units/${unitId}/selection-roster`).then(r => r.data),
+  putMemberSelection: (unitId, body) =>
+    api.put(`/camp/units/${unitId}/member-selection`, body).then(r => r.data),
 }

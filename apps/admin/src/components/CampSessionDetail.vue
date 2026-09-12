@@ -293,36 +293,164 @@
           </el-table-column>
         </el-table>
       </el-tab-pane>
+
+      <!-- 项目营：申报审核（v1.3 阶段3；申报窗口仅 upcoming） -->
+      <el-tab-pane v-if="isProjectCamp && canManage" label="项目申报" name="papp">
+        <el-alert :type="session.status === 'upcoming' ? 'success' : 'info'" :closable="false"
+          :title="session.status === 'upcoming'
+            ? '申报期开放中：负责人提交申报，审核通过即建项目、负责人自动入池'
+            : '申报期已结束（项目申报仅在「待开放」阶段进行），此处可查看历史申报'" />
+        <el-table :data="pApps" border size="small" style="margin-top: 12px;" v-loading="pAppsLoading">
+          <el-table-column type="expand">
+            <template #default="{ row }">
+              <div class="papp-expand">
+                <p><b>背景：</b>{{ row.background || '—' }}</p>
+                <p><b>目标：</b>{{ row.goal || '—' }}</p>
+                <p><b>所需能力：</b>{{ row.required_abilities || '—' }}</p>
+                <p><b>招募说明：</b>{{ row.recruit_note || '—' }}</p>
+                <p><b>计划：</b>{{ row.plan || '—' }}</p>
+                <p v-if="row.reject_reason"><b>退回原因：</b>{{ row.reject_reason }}</p>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column label="项目名" prop="name" min-width="150" />
+          <el-table-column label="负责人" prop="leader_name" width="110" />
+          <el-table-column label="版本" prop="version" width="60" align="center" />
+          <el-table-column label="状态" width="90" align="center">
+            <template #default="{ row }">
+              <el-tag :type="row.status === 'approved' ? 'success' : row.status === 'rejected' ? 'danger' : 'warning'"
+                size="small" effect="plain">
+                {{ { pending: '待审核', approved: '已通过', rejected: '已退回' }[row.status] || row.status }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="提交时间" prop="created_at" width="160" />
+          <el-table-column v-if="manageWritable" label="操作" width="150" align="center">
+            <template #default="{ row }">
+              <template v-if="row.status === 'pending'">
+                <el-button size="small" type="success" plain @click="reviewProjectApp(row, 'approve')">通过</el-button>
+                <el-button size="small" type="danger" plain @click="reviewProjectApp(row, 'reject')">退回</el-button>
+              </template>
+              <span v-else class="hint">已处理</span>
+            </template>
+          </el-table-column>
+        </el-table>
+      </el-tab-pane>
+
+      <!-- 项目营：组队总览（回填/变更管理员通道） -->
+      <el-tab-pane v-if="isProjectCamp && canManage" label="项目组队" name="pform">
+        <div style="margin: 12px 0;">
+          <el-button size="small" :loading="pExporting" @click="exportProjectCsv">导出项目志愿 CSV</el-button>
+          <el-button size="small" type="primary" plain :disabled="session.status !== 'selecting'" @click="openProjectBatch">
+            批量回填
+          </el-button>
+          <span class="hint">
+            {{ session.status === 'selecting'
+              ? '选择阶段：导出志愿线下协调后批量回填；负责人也可在工作台自行勾选'
+              : '批量回填仅选择阶段可用；开营后成员变更走下方管理员操作（原因必填留痕）' }}
+          </span>
+        </div>
+
+        <el-table :data="pOverview.projects || []" border size="small" v-loading="pOverviewLoading">
+          <el-table-column type="expand">
+            <template #default="{ row }">
+              <div class="papp-expand">
+                <p v-for="m in row.members" :key="m.user_id">
+                  <el-tag :type="m.role === 'leader' ? 'warning' : 'info'" size="small" effect="plain" style="margin-right:8px">
+                    {{ m.role === 'leader' ? '负责人' : '成员' }}
+                  </el-tag>
+                  {{ m.username }}
+                  <span v-if="m.status === 'ended'" class="hint">（已退出）</span>
+                  <el-button v-else-if="m.role !== 'leader' && manageWritable" size="small" type="danger" text
+                    style="margin-left: 8px;" @click="endProjectMember(row, m)">移除</el-button>
+                </p>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column label="项目" prop="name" min-width="150" />
+          <el-table-column label="负责人" prop="leader_name" width="110" />
+          <el-table-column label="状态" width="80" align="center">
+            <template #default="{ row }">
+              <el-tag :type="{ active: 'success', paused: 'warning', terminated: 'danger' }[row.status]" size="small" effect="plain">
+                {{ { active: '进行中', paused: '已暂停', terminated: '已终止' }[row.status] || row.status }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="成员数" width="70" align="center">
+            <template #default="{ row }">{{ row.members?.filter((m) => m.status === 'active').length ?? 0 }}</template>
+          </el-table-column>
+          <el-table-column v-if="manageWritable" label="管理员操作" width="230" align="center">
+            <template #default="{ row }">
+              <el-button size="small" @click="changeProjectLeader(row)">换负责人</el-button>
+              <el-button v-if="row.status === 'active'" size="small" type="warning" plain @click="setProjectStatus(row, 'paused')">暂停</el-button>
+              <el-button v-else-if="row.status === 'paused'" size="small" type="success" plain @click="setProjectStatus(row, 'active')">恢复</el-button>
+              <el-button v-if="row.status !== 'terminated'" size="small" type="danger" plain @click="setProjectStatus(row, 'terminated')">终止</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+
+        <el-collapse style="margin-top: 14px;">
+          <el-collapse-item :title="`变更事件流（最近 ${pOverview.events?.length ?? 0} 条）`">
+            <el-table :data="pOverview.events || []" border size="small">
+              <el-table-column label="时间" prop="occurred_at" width="160" />
+              <el-table-column label="项目" min-width="120">
+                <template #default="{ row }">{{ pUnitName(row.unit_id) }}</template>
+              </el-table-column>
+              <el-table-column label="对象" prop="username" width="100" />
+              <el-table-column label="动作" width="100" align="center">
+                <template #default="{ row }">
+                  <el-tag size="small" effect="plain">{{ pActionLabel(row.action) }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="来源" width="100" align="center">
+                <template #default="{ row }">
+                  {{ { leader_pick: '负责人勾选', admin_adjust: '管理员', apply: '申报', approve: '过审' }[row.source] || row.source }}
+                </template>
+              </el-table-column>
+              <el-table-column label="原因" prop="reason" min-width="140" show-overflow-tooltip />
+            </el-table>
+          </el-collapse-item>
+        </el-collapse>
+      </el-tab-pane>
     </el-tabs>
 
-    <!-- 加成员（多选批量） -->
+    <!-- 加成员（多选批量；v1.3 阶段3：口径对齐后端=仅拒超管，营内角色显式指定，
+         提交走事务批量端点逐项回报） -->
     <el-dialog v-model="memberDlg.visible" title="加成员" width="520px">
       <el-form :model="memberDlg.form" label-width="80px">
         <el-form-item label="用户" required>
           <el-select v-model="memberDlg.form.user_ids" multiple collapse-tags collapse-tags-tooltip filterable
             placeholder="搜索选择用户（可多选）" style="width: 100%;">
-            <el-option v-for="u in selectableUsers" :key="u.User_Id" :label="`${u.User_Name}（${roleLabel(u.role)}）`" :value="u.User_Id" />
+            <el-option v-for="u in selectableUsers" :key="u.User_Id" :label="`${u.User_Name}（${roleLabel(u.role)}）`" :value="u.User_Id"
+              :disabled="u.role === 'super_admin'" />
           </el-select>
           <el-checkbox v-model="showAllUsers" style="margin-top: 6px; font-size: 12px;">显示教师/超管（不可加入）</el-checkbox>
         </el-form-item>
-        <el-form-item label="已选">
-          <template v-if="selectedRoles.total">
-            <el-tag type="warning" size="small">导生 × {{ selectedRoles.mentor }}</el-tag>
-            <el-tag v-if="selectedRoles.student" type="success" size="small" style="margin-left: 6px;">学员 × {{ selectedRoles.student }}</el-tag>
-          </template>
-          <span v-else style="color: #909399; font-size: 12px;">选择后按各自身份自动确定角色</span>
+        <el-form-item label="营内角色" required>
+          <el-select v-model="memberDlg.form.role" style="width: 100%;">
+            <template v-if="isProjectCamp">
+              <el-option label="成员（项目营通用身份）" value="member" />
+            </template>
+            <template v-else>
+              <el-option label="学员" value="student" />
+              <el-option label="导生" value="mentor" />
+            </template>
+          </el-select>
+          <div style="width: 100%; color: #909399; font-size: 12px; line-height: 1.5;">
+            身份解耦后全局角色不再决定营内身份，加入时须显式指定
+          </div>
         </el-form-item>
-        <el-form-item v-if="selectedRoles.total && selectedRoles.mentor === 0" label="归属导生">
+        <el-form-item v-if="!isProjectCamp && memberDlg.form.role === 'student'" label="归属导生">
           <el-select v-model="memberDlg.form.team_mentor_id" clearable placeholder="统一指定（可选）" style="width: 100%;">
             <el-option v-for="m in mentorMembers" :key="m.user_id" :label="m.username" :value="m.user_id" />
           </el-select>
-          <div style="width: 100%; color: #909399; font-size: 12px; line-height: 1.5;">将应用到本次全部学员；混选导生时不指定，加入后可在成员列表改派</div>
+          <div style="width: 100%; color: #909399; font-size: 12px; line-height: 1.5;">将应用到本次全部学员；加入后可在成员列表改派</div>
         </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="memberDlg.visible = false">取消</el-button>
         <el-button type="primary" :loading="memberDlg.submitting" @click="submitAddMember">
-          加入{{ selectedRoles.total ? `（${selectedRoles.total}）` : '' }}
+          加入{{ memberDlg.form.user_ids.length ? `（${memberDlg.form.user_ids.length}）` : '' }}
         </el-button>
       </template>
     </el-dialog>
@@ -393,6 +521,43 @@
         </div>
       </template>
     </el-dialog>
+
+    <!-- 批量回填项目成员（线下协调结果；逐项回报） -->
+    <el-dialog v-model="pBatchDlg.visible" title="批量回填项目成员" width="720px">
+      <el-alert type="info" :closable="false" style="margin-bottom: 10px;"
+        title="为成员逐行选择项目后提交；已在项目内、达 3 上限、失败的行会就地标注结果" />
+      <div v-if="!pBatchDlg.rows.length" class="hint" style="padding: 10px 0;">本营暂无可回填成员</div>
+      <el-table v-else :data="pBatchDlg.rows" border size="small" max-height="420">
+        <el-table-column label="成员" prop="username" min-width="100" />
+        <el-table-column label="已参与" width="80" align="center">
+          <template #default="{ row }">{{ row._count }}</template>
+        </el-table-column>
+        <el-table-column label="加入项目" min-width="200">
+          <template #default="{ row }">
+            <el-select v-model="row._unit" size="small" placeholder="选择项目" style="width: 100%;" :disabled="!!row._result">
+              <el-option v-for="p in pActiveProjects" :key="p.unit_id" :label="`${p.name}（${p.leader_name}）`" :value="p.unit_id" />
+            </el-select>
+          </template>
+        </el-table-column>
+        <el-table-column label="结果" min-width="200">
+          <template #default="{ row }">
+            <template v-if="row._result">
+              <el-tag :type="pBatchStatusMeta(row._result.status).tag" size="small" effect="plain">
+                {{ pBatchStatusMeta(row._result.status).label }}
+              </el-tag>
+              <span class="batch-msg">{{ row._result.message }}</span>
+            </template>
+            <span v-else class="hint">—</span>
+          </template>
+        </el-table-column>
+      </el-table>
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="pBatchDlg.visible = false">关闭</el-button>
+          <el-button type="primary" :loading="pBatchDlg.submitting" @click="submitProjectBatch">提交回填</el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -437,26 +602,17 @@ const joinRequests = ref([]);
 const joinMentors = ref([]);
 
 const mentorMembers = computed(() => members.value.filter((m) => m.role === 'mentor'));
-// 加成员：用户按全局 role 过滤（默认仅学员/导生），营期角色由所选用户派生
+// 加成员：口径对齐后端（camp.py _assign_member）——仅拒 super_admin，营内角色显式指定，
+// 不再从全局 user.role 派生（身份解耦残留 gate 修复，总账 §六.2 首单）
 const showAllUsers = ref(false);
-const roleLabel = (r) => ({ student: '学员', mentor: '导生', teacher: '教师', super_admin: '超管' }[r] || r || '—');
+const roleLabel = (r) => ({ student: '学员', mentor: '导生', user: '用户', teacher: '教师', super_admin: '超管' }[r] || r || '—');
+const isProjectCamp = computed(() => session.value.category === 'project');
 const selectableUsers = computed(() => {
   const memberIds = new Set(members.value.map((member) => member.user_id));
   const candidates = showAllUsers.value
     ? users.value
-    : users.value.filter((user) => user.role === 'student' || user.role === 'mentor');
+    : users.value.filter((user) => user.role !== 'super_admin');
   return candidates.filter((user) => !memberIds.has(user.User_Id));
-});
-// 已选用户的身份汇总：驱动「已选」标签展示，及「全学员才可统一归属导生」
-const selectedRoles = computed(() => {
-  const c = { mentor: 0, student: 0, total: 0 };
-  for (const id of memberDlg.form.user_ids || []) {
-    const u = users.value.find((x) => x.User_Id === id);
-    if (!u) continue;
-    if (u.role === 'mentor') { c.mentor += 1; c.total += 1; }
-    else if (u.role === 'student') { c.student += 1; c.total += 1; }
-  }
-  return c;
 });
 const studentMembers = computed(() => members.value.filter((m) => m.role === 'student'));
 const availableCourses = computed(() => {
@@ -514,35 +670,40 @@ async function fetchOptions() {
 
 // ── 成员 ──
 function openAddMember() {
-  memberDlg.form = { user_ids: [], team_mentor_id: null };
+  memberDlg.form = { user_ids: [], role: isProjectCamp.value ? 'member' : 'student', team_mentor_id: null };
   memberDlg.visible = true;
 }
+// 事务批量端点（v1.3）：单请求逐项回报，部分成功不吞
 async function submitAddMember() {
   const ids = memberDlg.form.user_ids || [];
   if (!ids.length) { ElMessage.warning('请选择用户'); return; }
-  const picked = ids.map((id) => users.value.find((u) => u.User_Id === id)).filter(Boolean);
-  const invalid = picked.filter((u) => u.role !== 'student' && u.role !== 'mentor');
-  if (invalid.length) {
-    ElMessage.warning(`「${invalid.map((u) => u.User_Name).join('、')}」不是学员/导生，不能加入营期`);
-    return;
-  }
-  // 仅全部为学员时可统一归属导生；混选导生时学员不带归属（加入后在成员列表改派）
-  const teamMentorId = picked.every((u) => u.role === 'student') ? memberDlg.form.team_mentor_id : null;
   memberDlg.submitting = true;
-  const results = await Promise.allSettled(picked.map((u) =>
-    api.post(`/camp/sessions/${campId}/members`, { user_id: u.User_Id, team_mentor_id: teamMentorId })));
-  memberDlg.submitting = false;
-  const fails = [];
-  results.forEach((r, i) => {
-    if (r.status === 'rejected') fails.push(`${picked[i].User_Name}：${r.reason?.response?.data?.message || '失败'}`);
-  });
-  const ok = results.length - fails.length;
-  if (ok) {
-    ElMessage.success(`已加入 ${ok} 人`);
-    memberDlg.visible = false;
-    fetchAll();
+  try {
+    const res = await api.post(`/camp/sessions/${campId}/members/batch`, {
+      items: ids.map((id) => ({
+        user_id: id, role: memberDlg.form.role,
+        team_mentor_id: (!isProjectCamp.value && memberDlg.form.role === 'student')
+          ? memberDlg.form.team_mentor_id : null,
+      })),
+    });
+    const { added, results } = res.data || {};
+    const nameOf = (uid) => users.value.find((u) => u.User_Id === uid)?.User_Name || `#${uid}`;
+    const fails = (results || []).filter((r) => r.status === 'failed');
+    if (added) {
+      ElMessage.success(`已加入 ${added} 人`);
+      memberDlg.visible = false;
+      fetchAll();
+    }
+    if (fails.length) {
+      ElMessage.error(`加入失败 ${fails.length} 人 —— ${fails.map((f) => `${nameOf(f.user_id)}：${f.message}`).join('；')}`);
+    } else if (!added) {
+      ElMessage.warning('无人加入（见失败原因）');
+    }
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '批量加入失败');
+  } finally {
+    memberDlg.submitting = false;
   }
-  if (fails.length) ElMessage.error(`加入失败 ${fails.length} 人 —— ${fails.join('；')}`);
 }
 function removeMember(row) {
   ElMessageBox.confirm(`确定移除「${row.username}」吗？（其承诺出勤日一并删除）`, '提示', {
@@ -826,6 +987,11 @@ function removeCandidate(row) {
 
 // 进入「导生候选人」tab 时拉取候选人列表
 watch(activeTab, (t) => { if (t === 'eligibility') fetchEligibility(); });
+watch(activeTab, (t) => {
+  if (!isProjectCamp.value || !canManage.value) return;
+  if (t === 'papp') fetchProjectApps();
+  if (t === 'pform') fetchProjectOverview();
+});
 
 // ── 选导生（overview / 提前截止 / 志愿导出 / 指派）──
 const msOverview = ref(null);
@@ -963,6 +1129,183 @@ async function assignStudent(row, mentorId) {
 
 // overview 不依赖 session 先加载：未启用时后端 400 被 catch 吞掉，无副作用
 onMounted(() => { fetchAll(); fetchOptions(); if (canManage.value) { fetchJoinRequests(); fetchMsOverview(); } });
+
+// ── 项目营（v1.3 阶段3）：申报审核 / 组队总览 / 批量回填 / 变更管理员通道 ──
+const pApps = ref([]);
+const pAppsLoading = ref(false);
+const pOverview = reactive({ projects: [], events: [] });
+const pOverviewLoading = ref(false);
+const pExporting = ref(false);
+const pBatchDlg = reactive({ visible: false, rows: [], submitting: false });
+
+const pActiveProjects = computed(() => (pOverview.projects || []).filter((p) => p.status === 'active'));
+const pUnitName = (unitId) => pOverview.projects?.find((p) => p.unit_id === unitId)?.name || `#${unitId}`;
+const pActionLabel = (a) => ({
+  select: '加入', deselect: '移出', exit: '退出', remove: '移除',
+  adjust: '调剂', leader_change: '换负责人', unit_status: '状态变更',
+}[a] || a);
+const pBatchStatusMeta = (s) => ({
+  assigned: { tag: 'success', label: '已加入' }, skipped: { tag: 'info', label: '跳过' },
+  conflict: { tag: 'warning', label: '达上限' }, error: { tag: 'danger', label: '失败' },
+}[s] || { tag: 'info', label: s });
+
+async function fetchProjectApps() {
+  pAppsLoading.value = true;
+  try {
+    const res = await api.get(`/camp/projects/${campId}/applications`);
+    pApps.value = res.data.applications || [];
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '加载申报列表失败');
+  } finally { pAppsLoading.value = false; }
+}
+
+async function fetchProjectOverview() {
+  pOverviewLoading.value = true;
+  try {
+    const res = await api.get(`/camp/projects/${campId}/overview`);
+    pOverview.projects = res.data.projects || [];
+    pOverview.events = res.data.events || [];
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '加载组队总览失败');
+  } finally { pOverviewLoading.value = false; }
+}
+
+async function reviewProjectApp(row, action) {
+  try {
+    let body = { action };
+    if (action === 'reject') {
+      const { value } = await ElMessageBox.prompt('退回原因（负责人重提时可见）', '退回申报', {
+        confirmButtonText: '退回', cancelButtonText: '取消',
+        inputValidator: (v) => !!(v && v.trim()) || '原因必填',
+      });
+      body.reason = value.trim();
+    } else {
+      await ElMessageBox.confirm(
+        `通过「${row.name}」？将创建项目、${row.leader_name} 自动入池成为负责人`, '审核通过', {
+          confirmButtonText: '通过', cancelButtonText: '取消', type: 'info',
+        });
+    }
+    const res = await api.post(`/camp/projects/${campId}/applications/${row.id}/review`, body);
+    ElMessage.success(res.data.message || '已处理');
+    fetchProjectApps();
+    if (activeTab.value === 'pform') fetchProjectOverview();
+    fetchAll();   // 过审自动入池会改变成员表
+  } catch (e) {
+    if (e === 'cancel' || e === 'close') return;
+    ElMessage.error(e.response?.data?.message || '操作失败');
+  }
+}
+
+async function exportProjectCsv() {
+  pExporting.value = true;
+  try {
+    const res = await api.get(`/camp/projects/${campId}/export`, { responseType: 'blob' });
+    const url = URL.createObjectURL(res.data);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `camp_${campId}_project_preferences.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    ElMessage.error('导出失败，请稍后重试');
+  } finally { pExporting.value = false; }
+}
+
+function openProjectBatch() {
+  // 行=营期池内成员（member/student），显示已参与项目数；成员表来自成员 tab 的 members
+  const countOf = (uid) => (pOverview.projects || []).filter(
+    (p) => p.members?.some((m) => m.user_id === uid && m.status === 'active')).length;
+  pBatchDlg.rows = members.value
+    .filter((m) => m.role === 'member' || m.role === 'student')
+    .map((m) => ({ user_id: m.user_id, username: m.username, _unit: null, _result: null, _count: countOf(m.user_id) }));
+  pBatchDlg.visible = true;
+}
+
+async function submitProjectBatch() {
+  const rows = pBatchDlg.rows.filter((r) => r._unit && !r._result);
+  if (!rows.length) { ElMessage.warning('请先为至少一行选择项目'); return; }
+  pBatchDlg.submitting = true;
+  try {
+    const res = await api.post(`/camp/projects/${campId}/assign/batch`, {
+      items: rows.map((r) => ({ unit_id: r._unit, user_id: r.user_id })),
+    });
+    const results = res.data.results || [];
+    const byKey = new Map(results.map((r) => [`${r.unit_id}:${r.user_id}`, r]));
+    for (const r of rows) r._result = byKey.get(`${r._unit}:${r.user_id}`) || null;
+    const ok = results.filter((r) => r.status === 'assigned').length;
+    if (ok) ElMessage.success(`已加入 ${ok} 人`);
+    const bad = results.filter((r) => r.status !== 'assigned');
+    if (bad.length) ElMessage.warning(`${bad.length} 项未成功，结果已就地标注`);
+    fetchProjectOverview();
+    fetchAll();
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '批量回填失败');
+  } finally { pBatchDlg.submitting = false; }
+}
+
+// 变更管理员通道（H-005：开营前后通用，原因必填+事件留痕）
+async function endProjectMember(unit, m) {
+  try {
+    const { value } = await ElMessageBox.prompt(
+      `移除「${m.username}」出「${unit.name}」？（历史贡献保留、参与名额即时释放）\n填写原因：`,
+      '移除项目成员', {
+        confirmButtonText: '移除', cancelButtonText: '取消',
+        inputValidator: (v) => !!(v && v.trim()) || '原因必填',
+      });
+    await api.post(`/camp/units/${unit.unit_id}/members/${m.user_id}/end`,
+      { reason: value.trim(), kind: 'remove' });
+    ElMessage.success('已移除');
+    fetchProjectOverview();
+  } catch (e) {
+    if (e === 'cancel' || e === 'close') return;
+    ElMessage.error(e.response?.data?.message || '移除失败');
+  }
+}
+
+async function changeProjectLeader(unit) {
+  try {
+    const { value } = await ElMessageBox.prompt(
+      `变更「${unit.name}」负责人（当前：${unit.leader_name}）。\n输入新负责人的用户 ID（可从成员列表查）：`,
+      '变更负责人', {
+        confirmButtonText: '变更', cancelButtonText: '取消',
+        inputPattern: /^\d+$/, inputErrorMessage: '请输入用户 ID（数字）',
+      });
+    const uid = Number(value);
+    const target = members.value.find((m) => m.user_id === uid);
+    const { value: reason } = await ElMessageBox.prompt('变更原因：', '变更负责人', {
+      confirmButtonText: '确定', cancelButtonText: '取消',
+      inputValidator: (v) => !!(v && v.trim()) || '原因必填',
+    });
+    await api.post(`/camp/units/${unit.unit_id}/leader`,
+      { new_leader_id: uid, reason: reason.trim() });
+    ElMessage.success(`负责人已变更${target ? `（${target.username}）` : ''}`);
+    fetchProjectOverview();
+    fetchAll();
+  } catch (e) {
+    if (e === 'cancel' || e === 'close') return;
+    ElMessage.error(e.response?.data?.message || '变更失败');
+  }
+}
+
+const P_STATUS_TEXT = { paused: '暂停', terminated: '终止', active: '恢复' };
+async function setProjectStatus(unit, status) {
+  try {
+    const { value } = await ElMessageBox.prompt(
+      status === 'terminated'
+        ? `终止「${unit.name}」？全员退出（历史保留）、不可恢复。填写原因：`
+        : `${P_STATUS_TEXT[status]}「${unit.name}」。填写原因：`,
+      `${P_STATUS_TEXT[status]}项目`, {
+        confirmButtonText: '确定', cancelButtonText: '取消',
+        inputValidator: (v) => !!(v && v.trim()) || '原因必填',
+      });
+    await api.post(`/camp/units/${unit.unit_id}/status`, { status, reason: value.trim() });
+    ElMessage.success('已处理');
+    fetchProjectOverview();
+  } catch (e) {
+    if (e === 'cancel' || e === 'close') return;
+    ElMessage.error(e.response?.data?.message || '操作失败');
+  }
+}
 </script>
 
 <style scoped>
@@ -972,6 +1315,9 @@ onMounted(() => { fetchAll(); fetchOptions(); if (canManage.value) { fetchJoinRe
 .hint { margin-left: 12px; color: #909399; font-size: 12px; }
 .ms-sec-title { margin: 16px 0 8px; font-size: 14px; font-weight: 600; }
 .batch-msg { margin-left: 6px; font-size: 12px; color: #909399; }
+/* 项目申报/组队 expand 行内容 */
+.papp-expand { padding: 4px 12px; }
+.papp-expand p { margin: 4px 0; font-size: 12.5px; line-height: 1.7; color: #606266; }
 /* 候选池工具栏：间距统一交给 flex gap（覆盖 el-button 相邻默认 margin） */
 .elig-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 10px 0 4px; }
 .elig-toolbar :deep(.el-button + .el-button) { margin-left: 0; }

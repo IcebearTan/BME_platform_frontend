@@ -1,7 +1,7 @@
 <template>
-  <!-- 非成员报名页（工作台内）：按营期类型分发表单。
-       learning=承诺出勤日+意向大组+理由；project=报名机制阶段 3 开放（占位预留，
-       到时在此分发，勿建 if-category 万能页——方案 §6「公共外壳+类型子视图」）。 -->
+  <!-- 非成员报名页（工作台内）：按营期类型分发表单（方案 §6「公共外壳+类型子视图」）。
+       learning=承诺出勤日+意向大组+理由；project=入池报名（v1.3：考勤能力未开时不收
+       到岗日，仅理由；无大组概念——项目分组走申报+组队，不走 ms_tags）。 -->
   <div class="camp-join">
     <!-- 已提交：安静态 + 撤回（审核前可反悔，撤回后回到表单重新提交） -->
     <DewCard v-if="pending" variant="inset" size="lg" :no-hover="true" class="join-card">
@@ -10,10 +10,34 @@
       <DewButton type="ghost" :loading="cancelling" @click="cancel">撤回申请</DewButton>
     </DewCard>
 
-    <!-- 项目营：报名机制阶段 3 开放（Q-005 项目营闭环），先占位不留死链 -->
-    <DewCard v-else-if="session.category === 'project'" variant="inset" size="lg" :no-hover="true" class="join-card">
-      <div class="join-title">项目营报名即将开放</div>
-      <div class="join-hint">项目营通过项目申报与负责人组队开展，报名机制将在项目营开放时上线。</div>
+    <!-- 项目营报名表单：入池（过审后参加组队/志愿） -->
+    <DewCard v-else-if="isProject" variant="inset" size="lg" :no-hover="true" class="join-card">
+      <div class="join-title">申请加入「{{ session.name }}」</div>
+      <div class="join-hint">
+        提交后由管理员审批入池。入池后可浏览本期项目并提交 1-3 个项目意向；一人最多参与 {{ projectLimit || 3 }} 个项目（自己负责的计入），最终由老师线下协调、负责人确认组队。
+      </div>
+
+      <!-- 承诺到岗日（仅当本营开启考勤能力；项目营默认关闭不出现此节） -->
+      <template v-if="needDays">
+        <div class="field-label">承诺到岗日 <span class="field-req">至少一天</span></div>
+        <div class="day-wrap">
+          <div v-if="!days.length" class="no-days">营期范围内已无可选的未来日期。</div>
+          <div v-else class="day-grid">
+            <button v-for="d in days" :key="d.value" type="button"
+                    :class="['pick-chip', { picked: pickedDays.has(d.value) }]"
+                    @click="toggleDay(d.value)">{{ d.label }}</button>
+          </div>
+        </div>
+      </template>
+
+      <!-- 理由 -->
+      <div class="field-label">申请理由</div>
+      <DewInput v-model="reason" type="textarea" :rows="2" placeholder="选填，给审批老师看（感兴趣的方向、能投入的时间等）" />
+
+      <div class="join-actions">
+        <DewButton size="lg" :loading="submitting" :disabled="!canSubmit"
+          @click="submit">{{ submitText }}</DewButton>
+      </div>
     </DewCard>
 
     <!-- 学习营报名表单 -->
@@ -75,6 +99,12 @@ const pickedTag = ref(null);
 const reason = ref('');
 const submitting = ref(false);
 
+// ── 项目营分支（v1.3 阶段3）：入池报名，考勤能力未开时不收到岗日/大组 ──
+const isProject = computed(() => props.session.category === 'project');
+const caps = computed(() => props.session.policy?.capabilities || {});
+const needDays = computed(() => !isProject.value || !!caps.value.attendance);
+const projectLimit = computed(() => props.session.policy?.project_limit);
+
 // 承诺到岗日候选：今天起、营期范围内；工作日营剔除周末（后端同口径兜底校验）
 const days = computed(() => {
   const out = [];
@@ -100,12 +130,13 @@ function toggleDay(v) {
   pickedDays.value = new Set(s);   // 换引用确保响应式更新
 }
 
-const needTag = computed(() => tags.value.length > 0);
-const canSubmit = computed(() => pickedDays.value.size > 0 && (!needTag.value || !!pickedTag.value));
+const needTag = computed(() => !isProject.value && tags.value.length > 0);
+const canSubmit = computed(() =>
+  (needDays.value ? pickedDays.value.size > 0 : true) && (!needTag.value || !!pickedTag.value));
 const submitText = computed(() => {
-  if (!pickedDays.value.size) return '请先选择到岗日';
+  if (needDays.value && !pickedDays.value.size) return '请先选择到岗日';
   if (needTag.value && !pickedTag.value) return '请先选择意向大组';
-  return `提交申请（${pickedDays.value.size} 天）`;
+  return isProject.value ? '提交入池申请' : `提交申请（${pickedDays.value.size} 天）`;
 });
 
 async function submit() {
@@ -113,7 +144,10 @@ async function submit() {
   submitting.value = true;
   try {
     const r = await campService.requestJoin(
-      props.session.id, [...pickedDays.value].sort(), reason.value.trim(), pickedTag.value);
+      props.session.id,
+      needDays.value ? [...pickedDays.value].sort() : [],
+      reason.value.trim(),
+      isProject.value ? null : pickedTag.value);
     ElMessage.success(r.message || '申请已提交，等待审批');
     emit('submitted', props.session.id);
   } catch (e) {

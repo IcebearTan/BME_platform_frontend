@@ -37,7 +37,13 @@ const SESSIONS = {
     { id: 26, name: '秋季项目营', category: 'project', cycle_name: '2026 秋季',
       start_date: '2027-01-11', end_date: '2027-02-11', status: 'selecting',
       is_member: false, my_role: null, has_eligibility: false, member_count: 0,
-      mentor_selection_enabled: false, ms_tags: [] },
+      mentor_selection_enabled: false, ms_tags: [],
+      policy: { project_limit: 3, capabilities: { attendance: false, leave: false, seat: false } } },
+    { id: 27, name: '明年春季项目营', category: 'project', cycle_name: '2027 春季',
+      start_date: '2027-03-01', end_date: '2027-04-30', status: 'upcoming',
+      is_member: false, my_role: null, has_eligibility: false, member_count: 0,
+      mentor_selection_enabled: false, ms_tags: [],
+      policy: { project_limit: 3, capabilities: { attendance: false, leave: false, seat: false } } },
   ],
 }
 
@@ -76,9 +82,9 @@ test('营期中心：五分组渲染与身份/主操作', async ({ page }) => {
   for (const title of ['待我处理', '可报名', '我的营期', '即将开始', '历史营期']) {
     await expect(page.locator('.group-title', { hasText: title })).toBeVisible()
   }
-  // 卡片一致性：入口按钮统一为「进入营期」，每张卡恰一个（7 营全可见 = 7 个）；
+  // 卡片一致性：入口按钮统一为「进入营期」，每张卡恰一个（8 营全可见 = 8 个，含项目营×2）；
   // 报名等动作不在中心做，全部进营期工作台完成
-  await expect(page.getByRole('button', { name: '进入营期' })).toHaveCount(7)
+  await expect(page.getByRole('button', { name: '进入营期' })).toHaveCount(8)
   await expect(page.getByRole('button', { name: '去报名' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: '报名成为导生' })).toHaveCount(0)
   // 身份/报名状态只显示在身份行一处
@@ -98,9 +104,9 @@ test('超管预判：中心隐藏可报名组，工作台给说明卡不给表�
 
   await page.goto(`${BASE}/camp`, { waitUntil: 'domcontentloaded' })
   await expect(page.getByRole('heading', { name: '营期中心' })).toBeVisible()
-  // 后端对管理员报名一律 400：中心预判隐藏「可报名」组（少 id22/id26 两卡 → 5 个入口）
+  // 后端对管理员报名一律 400：中心预判隐藏「可报名」组（少 id22/id26 两卡 → 6 个入口）
   await expect(page.locator('.group-title', { hasText: '可报名' })).toHaveCount(0)
-  await expect(page.getByRole('button', { name: '进入营期' })).toHaveCount(5)
+  await expect(page.getByRole('button', { name: '进入营期' })).toHaveCount(6)
 
   // 工作台内同样预判：说明卡替代 CampJoin 表单（不再填完表单才吃 400）
   await page.goto(`${BASE}/camp?sid=22`, { waitUntil: 'domcontentloaded' })
@@ -162,7 +168,7 @@ test('可报名：进工作台报名页选大组与到岗日并提交', async ({
   expect(errors).toEqual([])
 })
 
-test('项目营报名：工作台出示占位卡（机制阶段3开放）', async ({ page }) => {
+test('项目营报名：selecting 出示入池表单（无到岗日/大组）', async ({ page }) => {
   const errors = []
   page.on('pageerror', (e) => errors.push(e.message))
   await loginAsUser(page)
@@ -171,9 +177,34 @@ test('项目营报名：工作台出示占位卡（机制阶段3开放）', asyn
   await page.locator('.camp-card', { hasText: '秋季项目营' }).getByRole('button', { name: '进入营期' }).click()
 
   await expect(page).toHaveURL(/sid=26/)
-  await expect(page.getByText('项目营报名即将开放')).toBeVisible()
-  // 不出现学习营报名表单
+  // v1.3 阶段3：项目营入池表单（考勤能力关→不收到岗日；无大组概念）
+  await expect(page.getByText('申请加入「秋季项目营」')).toBeVisible()
+  await expect(page.getByRole('button', { name: '提交入池申请' })).toBeVisible()
   await expect(page.locator('.field-label', { hasText: '意向大组' })).toHaveCount(0)
+  await expect(page.locator('.field-label', { hasText: '承诺到岗日' })).toHaveCount(0)
+
+  expect(errors).toEqual([])
+})
+
+test('项目营申报：upcoming 出示申报表单（负责人入口）', async ({ page }) => {
+  const errors = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  await loginAsUser(page, [
+    {
+      url: '/camp/projects/27/mine',
+      json: { code: 200, applications: [], leading: [], joining: [],
+              project_count: 0, project_limit: 3, remaining_slots: 3, can_apply: true },
+    },
+  ])
+
+  await page.goto(`${BASE}/camp`, { waitUntil: 'domcontentloaded' })
+  await page.locator('.camp-card', { hasText: '明年春季项目营' }).getByRole('button', { name: '进入营期' }).click()
+
+  await expect(page).toHaveURL(/sid=27/)
+  // 申报期（upcoming）：申报入口卡 + 表单字段
+  await expect(page.getByText('申报一个新项目')).toBeVisible()
+  await expect(page.locator('.field-label', { hasText: '项目名称' })).toBeVisible()
+  await expect(page.getByRole('button', { name: '提交申报' })).toBeDisabled()
 
   expect(errors).toEqual([])
 })

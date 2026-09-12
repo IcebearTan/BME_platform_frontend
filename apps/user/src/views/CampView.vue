@@ -79,7 +79,10 @@
                 </DewButton>
               </template>
             </DewCard>
-            <!-- 选择阶段：学员报名页（意向大组 + 承诺到岗日 + 理由；项目营表单 CampJoin 内分发预留） -->
+            <!-- 项目营待开放=申报期：负责人申报入口（v1.3 阶段3；普通学员报名在选择阶段开放） -->
+            <ProjectApplyCard v-else-if="current.category === 'project' && current.status === 'upcoming'"
+              :session="current" />
+            <!-- 选择阶段：学员报名页（意向大组 + 承诺到岗日 + 理由；项目营表单 CampJoin 内分发） -->
             <CampJoin v-else-if="current.status === 'selecting'"
               :session="current" :pending="pendingStudentSids.has(current.id)"
               @submitted="onJoinSubmitted" @cancelled="onJoinCancelled" />
@@ -94,7 +97,14 @@
 
           <DewButtonBar v-else v-model="tab" :items="tabItems" style="margin: 16px 0;" />
           <CampOverview v-if="tab === 'overview' && current && current.is_member" :sid="sid" :my-role="current.my_role" />
-          <template v-if="isMentor && current?.is_member">
+          <!-- 项目营成员视图（v1.3：category 组装——身份中性的成员/负责人视图，不读全局角色；
+               考勤/请假 tab 由 policy capabilities 决定，项目营首期默认全关） -->
+          <template v-if="isProject && current?.is_member">
+            <ProjectHub v-if="tab === 'project'" :sid="sid" :session="current" />
+            <CampAttendance v-else-if="tab === 'attendance'" :sid="sid" />
+            <LeaveApply v-else-if="tab === 'leave'" :sid="sid" />
+          </template>
+          <template v-else-if="isMentor && current?.is_member">
           <MsMentorDesk v-if="tab === 'ms'" :sid="sid" />
           <MentorDashboard v-else-if="tab === 'dashboard'" :sid="sid" />
           <MentorLeave v-else-if="tab === 'leave'" :sid="sid" />
@@ -134,6 +144,8 @@ import MsStudentPick from '../components/Camp/MsStudentPick.vue';
 import MsMentorDesk from '../components/Camp/MsMentorDesk.vue';
 import CampCenter from '../components/Camp/CampCenter.vue';
 import CampJoin from '../components/Camp/CampJoin.vue';
+import ProjectHub from '../components/Camp/ProjectHub.vue';
+import ProjectApplyCard from '../components/Camp/ProjectApplyCard.vue';
 
 const store = useStore();
 const route = useRoute();
@@ -151,30 +163,46 @@ const isStaff = computed(() => store.getters.role === 'super_admin');
 // 故 current 必须声明在它们之前，否则 TDZ 报错 Cannot access 'current' before initialization
 const current = computed(() => sessions.value.find((s) => s.id === sid.value));
 const isMentor = computed(() => current.value?.my_role === 'mentor');
+// v1.3 category 组装：项目营=身份中性视图（负责人身份在单元层，由 ProjectHub 自行区分）；
+// 考勤/请假 tab 由 policy capabilities 决定（learning 默认开、project 首期关，营期行可覆盖）
+const isProject = computed(() => current.value?.category === 'project');
+const caps = computed(() => current.value?.policy?.capabilities || {});
 // 看板为默认 tab（营期概要+仪表盘，自 CampHome 成员视图迁入）；
 // 选导生为开营前置阶段，启用时紧随看板（session 数据来自 _session_dict 的 mentor_selection_enabled）
 const studentTabs = computed(() => {
   const t = [
     { value: 'overview', label: '看板' },
     { value: 'selection', label: '选课' },
-    { value: 'attendance', label: '我的考勤' },
-    { value: 'leave', label: '请假' },
   ];
+  if (caps.value.attendance) t.push({ value: 'attendance', label: '我的考勤' });
+  if (caps.value.leave) t.push({ value: 'leave', label: '请假' });
   if (current.value?.mentor_selection_enabled) t.splice(1, 0, { value: 'ms', label: '选导生' });
   return t;
 });
 const mentorTabs = computed(() => {
   const t = [
     { value: 'overview', label: '看板' },
-    { value: 'dashboard', label: '团队考勤' },
-    { value: 'leave', label: '请假审批' },
+  ];
+  if (caps.value.attendance) t.push({ value: 'dashboard', label: '团队考勤' });
+  if (caps.value.leave) t.push({ value: 'leave', label: '请假审批' });
+  t.push(
     { value: 'reward', label: '发奖励' },
     { value: 'members', label: '团队成员' },
-  ];
+  );
   if (current.value?.mentor_selection_enabled) t.splice(1, 0, { value: 'ms', label: '选导生' });
   return t;
 });
-const tabItems = computed(() => (isMentor.value ? mentorTabs.value : studentTabs.value));
+const projectTabs = computed(() => {
+  const t = [
+    { value: 'overview', label: '看板' },
+    { value: 'project', label: '项目' },
+  ];
+  if (caps.value.attendance) t.push({ value: 'attendance', label: '我的考勤' });
+  if (caps.value.leave) t.push({ value: 'leave', label: '请假' });
+  return t;
+});
+const tabItems = computed(() => (isProject.value ? projectTabs.value
+  : isMentor.value ? mentorTabs.value : studentTabs.value));
 const tab = ref((tabItems.value.find((t) => t.value === route.query.tab) || tabItems.value[0]).value);
 
 const statusLabel = (s) => ({

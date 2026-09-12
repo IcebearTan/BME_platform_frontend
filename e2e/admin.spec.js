@@ -83,6 +83,10 @@ async function mockCampSessionDetail(page) {
     }
     return route.fulfill({ json: { code: 200, members: [...mentors, ...students] } })
   })
+  // v1.3 阶段3：事务批量加成员（逐项回报）
+  await page.route('http://127.0.0.1:5001/camp/sessions/1/members/batch', (route) =>
+    route.fulfill({ json: { code: 200, message: '已加入 1/1 人', added: 1,
+      results: [{ user_id: 301, status: 'added', member_id: 9001 }] } }))
   await page.route('http://127.0.0.1:5001/user/user_list', (route) =>
     route.fulfill({
       json: [
@@ -264,16 +268,20 @@ test('营期详情保留选导生与成员添加能力', async ({ page }) => {
   await page.getByRole('tab', { name: '成员' }).click()
   await page.getByRole('button', { name: '加成员', exact: true }).click()
   const addDialog = page.getByRole('dialog', { name: '加成员' })
+  // 身份解耦后口径：候选=非超管全员（gate 修复），营内角色显式指定（默认学员）
   await addDialog.locator('.el-select').first().click()
   const dropdown = page.locator('.el-select__popper:visible')
   await expect(dropdown.getByText('方子航（学员）', { exact: true })).toBeVisible()
   await expect(dropdown.getByText('林泽宇（导生）', { exact: true })).toHaveCount(0)
   await dropdown.getByText('方子航（学员）', { exact: true }).click()
+  await expect(addDialog.getByText('营内角色', { exact: true })).toBeVisible()
 
+  // v1.3：事务批量端点逐项回报，营内角色随 items 显式携带
   const addRequest = page.waitForRequest((request) =>
-    request.url() === 'http://127.0.0.1:5001/camp/sessions/1/members'
+    request.url() === 'http://127.0.0.1:5001/camp/sessions/1/members/batch'
       && request.method() === 'POST')
   await page.getByRole('button', { name: '加入（1）', exact: true }).click()
-  expect((await addRequest).postDataJSON()).toEqual({ user_id: 301, team_mentor_id: null })
+  expect((await addRequest).postDataJSON()).toEqual(
+    { items: [{ user_id: 301, role: 'student', team_mentor_id: null }] })
   expect(pageErrors).toEqual([])
 })
