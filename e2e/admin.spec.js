@@ -285,3 +285,58 @@ test('营期详情保留选导生与成员添加能力', async ({ page }) => {
     { items: [{ user_id: 301, role: 'student', team_mentor_id: null }] })
   expect(pageErrors).toEqual([])
 })
+
+test('社团干事管理页：列表渲染 + 任命提交 + 卸任弹窗', async ({ page }) => {
+  await loginAsStaff(page)
+  const pageErrors = []
+  page.on('pageerror', (e) => pageErrors.push(e.message))
+
+  // 任职列表（默认在任视图）+ 用户名单；任命/卸任捕获请求体
+  await page.route('http://127.0.0.1:5001/admin/officers**', (route) => {
+    if (route.request().method() === 'GET') {
+      return route.fulfill({ json: { code: 200, message: 'ok', data: {
+        officers: [
+          { id: 1, user_id: 11, username: '陈嘉树', avatar: '', title: '社长', department: null,
+            term_start: '2026-09-01', term_end: null, status: 'active', end_reason: null,
+            created_at: '2026-09-12T10:00:00' },
+        ], total: 1, page: 1, per_page: 20 } } })
+    }
+    return route.fulfill({ json: { code: 200, message: 'ok', data: { id: 9 } } })
+  })
+  await page.route('http://127.0.0.1:5001/user/user_list', (route) =>
+    route.fulfill({ json: [{ User_Id: 21, User_Name: '苏晚晴' }, { User_Id: 22, User_Name: '顾亦深' }] }))
+
+  await page.goto(`${BASE}/officer/manage`)
+  await expect(page.locator('.page-title', { hasText: '社团干事' })).toBeVisible()
+  await expect(page.getByRole('cell', { name: '陈嘉树' })).toBeVisible()
+  await expect(page.getByRole('cell', { name: '在任', exact: true })).toBeVisible()
+
+  // 任命：选成员 + 选职位 → 提交体带 user_id/title
+  await page.getByRole('button', { name: '任命' }).click()
+  const dialog = page.locator('.el-dialog').filter({ hasText: '任命干事' })
+  await expect(dialog).toBeVisible()
+  await dialog.locator('.el-select').first().click()
+  const memberDropdown = page.locator('.el-select__popper:visible')
+  await memberDropdown.getByText('苏晚晴', { exact: true }).click()
+  await dialog.locator('.el-select').nth(1).click()
+  const titleDropdown = page.locator('.el-select__popper:visible')
+  await titleDropdown.getByText('副社长', { exact: true }).click()
+  const appointRequest = page.waitForRequest((request) =>
+    request.url() === 'http://127.0.0.1:5001/admin/officers' && request.method() === 'POST')
+  await dialog.getByRole('button', { name: '确认' }).click()
+  const appointBody = (await appointRequest).postDataJSON()
+  expect(appointBody.user_id).toBe(21)
+  expect(appointBody.title).toBe('副社长')
+  expect(appointBody.term_start).toBeTruthy()
+
+  // 卸任：行内按钮开弹窗，默认今天 + 原因选填
+  await page.getByRole('button', { name: '卸任' }).first().click()
+  const endDialog = page.locator('.el-dialog').filter({ hasText: '卸任（记录保留）' })
+  await expect(endDialog).toBeVisible()
+  const endRequest = page.waitForRequest((request) =>
+    request.url() === 'http://127.0.0.1:5001/admin/officers/1/end' && request.method() === 'POST')
+  await endDialog.getByRole('button', { name: '确认卸任' }).click()
+  expect((await endRequest).postDataJSON().term_end).toBeTruthy()
+
+  expect(pageErrors).toEqual([])
+})

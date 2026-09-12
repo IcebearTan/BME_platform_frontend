@@ -136,3 +136,88 @@ test('首页卡片轮播：正反切换时环形侧卡不覆盖退出卡', async
   ))
   expect(reverseToFirstLayers).toEqual([3, 2, 1])
 })
+
+// ── 社团干事身份（功能扩展轮 §四）：主页身份卡 + 社区卡片徽章 ──
+
+async function loginAsUser(page) {
+  await page.addInitScript(() => {
+    localStorage.setItem('bme-user-token', 'e2e-mock-token')
+    localStorage.setItem('bme-user-state', JSON.stringify({
+      token: 'e2e-mock-token', isLogin: true, isDarkMode: false,
+      user: { username: 'e2e_user', role: 'user', User_Id: '0000021' }, checkinInfo: {},
+    }))
+  })
+}
+
+test('个人主页：社团身份卡渲染，同职位多组合并', async ({ page }) => {
+  await loginAsUser(page)
+  const pageErrors = []
+  page.on('pageerror', (e) => pageErrors.push(e.message))
+
+  await page.route('http://127.0.0.1:5001/**', (route) => {
+    const url = route.request().url()
+    if (url.includes('/user/user_index')) {
+      return route.fulfill({ json: { code: 200, message: 'ok', User_Name: 'e2e_user', User_Id: '0000021',
+        officers: [
+          { title: '社长', department: null, term_start: '2026-09-01' },
+          { title: '副团支书', department: '品牌建设组', term_start: '2026-09-05' },
+          { title: '副团支书', department: '行业交流组', term_start: '2026-09-05' },
+        ] } })
+    }
+    return route.fulfill({ json: { code: 200 } })
+  })
+
+  await page.goto(`${BASE}/user`)
+  await expect(page.getByText('社团身份')).toBeVisible()
+  // 社长无组 → 统筹全局 + 任期起 2026.09
+  await expect(page.getByText('统筹全局')).toBeVisible()
+  await expect(page.getByText('2026.09 起').first()).toBeVisible()
+  // 副团支书两行合并为一行：品牌建设组 / 行业交流组
+  await expect(page.getByText('品牌建设组 / 行业交流组')).toBeVisible()
+  expect(pageErrors).toEqual([])
+})
+
+test('个人主页：无任职不渲染身份卡（普通社员）', async ({ page }) => {
+  await loginAsUser(page)
+  await page.route('http://127.0.0.1:5001/**', (route) => {
+    const url = route.request().url()
+    if (url.includes('/user/user_index')) {
+      return route.fulfill({ json: { code: 200, message: 'ok', User_Name: 'e2e_user', User_Id: '0000021', officers: [] } })
+    }
+    return route.fulfill({ json: { code: 200 } })
+  })
+  await page.goto(`${BASE}/user`)
+  await page.waitForTimeout(600)
+  await expect(page.getByText('社团身份')).toHaveCount(0)
+})
+
+test('社区广场：讨论卡与文章卡作者徽章', async ({ page }) => {
+  await loginAsUser(page)
+  const pageErrors = []
+  page.on('pageerror', (e) => pageErrors.push(e.message))
+
+  await page.route('http://127.0.0.1:5001/**', (route) => {
+    const url = route.request().url()
+    if (url.includes('/community/feed')) {
+      return route.fulfill({ json: { code: 200, data: [
+        { type: 'discussion', id: 31, title: '打卡挑战周报', summary: '本周打卡汇总',
+          author_id: 11, author_name: '陈嘉树', author_avatar: '', author_badge: '社长',
+          created_at: '2026-09-12 09:00:00', reply_count: 2, like_count: 1, view_count: 9,
+          is_pinned: false, replies: [] },
+        { type: 'article', id: 41, article_id: 41, article_version: 2, title: '柔性电子入门',
+          summary: '器件与制备工艺综述', author_id: 12, author_name: '林知遥', author_avatar: '',
+          author_badge: '组长', created_at: '2026-09-11 20:00:00', reply_count: 0, like_count: 3,
+          view_count: 20, is_pinned: false },
+      ], total: 2, page: 1, per_page: 10, pages: 1 } })
+    }
+    return route.fulfill({ json: { code: 200 } })
+  })
+
+  await page.goto(`${BASE}/community`)
+  await expect(page.getByText('打卡挑战周报')).toBeVisible()
+  // 讨论卡作者行徽章
+  await expect(page.locator('.dc-author').filter({ hasText: '陈嘉树' }).getByText('社长')).toBeVisible()
+  // 文章卡作者行徽章
+  await expect(page.locator('.ac-author').filter({ hasText: '林知遥' }).getByText('组长')).toBeVisible()
+  expect(pageErrors).toEqual([])
+})

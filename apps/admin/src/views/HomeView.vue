@@ -7,7 +7,7 @@ import {
   Document, User, ChatLineRound, Trophy, Setting,
   Grid, Fold, Bell, ArrowDown, Clock, TrendCharts,
   List, Plus, Cpu, DataLine, Key, Tickets,
-  Sunny, Moon, Collection, Folder, School, SetUp
+  Sunny, Moon, Collection, Folder, School, SetUp, Avatar
 } from '@element-plus/icons-vue';
 
 export default {
@@ -31,6 +31,7 @@ export default {
         '/': '仪表盘',
         '/dashboard': '仪表盘',
         '/user-manage/users': '用户管理',
+        '/officer/manage': '社团干事',
         '/article/manage': '文章管理',
         '/group/manage': '小组管理',
         '/course/manage': '课程管理',
@@ -205,6 +206,9 @@ export default {
             </template>
             <el-menu-item index="/user-manage/users" @click="router.push('/user-manage/users')" class="submenu-item">
               <el-icon><User /></el-icon><span>管理用户</span>
+            </el-menu-item>
+            <el-menu-item index="/officer/manage" @click="router.push('/officer/manage')" class="submenu-item">
+              <el-icon><Avatar /></el-icon><span>社团干事</span>
             </el-menu-item>
             <el-menu-item index="/group/manage" @click="router.push('/group/manage')" class="submenu-item">
               <el-icon><ChatLineRound /></el-icon><span>小组管理</span>

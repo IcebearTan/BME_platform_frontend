@@ -25,7 +25,13 @@
     <div class="dc-author" @click.stop="onAuthorClick">
       <el-avatar :size="32" :src="discussion.author_avatar">{{ (discussion.author || '?').charAt(0) }}</el-avatar>
       <div class="dc-author-info">
-        <span class="dc-author-name">{{ discussion.author }}</span>
+        <div class="dc-author-line">
+          <span class="dc-author-name">{{ discussion.author }}</span>
+          <!-- 干事徽章：作者当前主职（无任职后端不下发，不渲染） -->
+          <DewTag v-if="discussion.author_badge" type="warning" size="sm" round class="dc-author-badge">
+            {{ discussion.author_badge }}
+          </DewTag>
+        </div>
         <span class="dc-time">{{ discussion.publishTime }}</span>
       </div>
     </div>
@@ -340,6 +346,17 @@ const handleDelete = async () => {
   font-weight: 600;
   font-size: 14px;
   color: var(--dew-text-heading);
+}
+
+.dc-author-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.dc-author-badge {
+  flex-shrink: 0;
 }
 
 .dc-time {

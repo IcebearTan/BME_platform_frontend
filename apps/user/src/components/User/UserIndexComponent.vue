@@ -33,6 +33,22 @@ const skillTags = computed(() => {
 const tagTypes = ['primary', 'success', 'info', 'warning', 'danger']
 const getTagType = index => tagTypes[index % tagTypes.length]
 
+// 社团身份（user_index/profile 回包 officers；无任职=空数组整卡不渲染）。
+// 同职位多组归属合并为一行（如副团支书挂两组）；管理职位在前的排序由后端保证。
+const officerGroups = computed(() => {
+  const rows = Array.isArray(User_Info.value.officers) ? User_Info.value.officers : []
+  const map = new Map()
+  for (const o of rows) {
+    if (!map.has(o.title)) map.set(o.title, { title: o.title, departments: [], term_start: null })
+    const g = map.get(o.title)
+    if (o.department) g.departments.push(o.department)
+    if (o.term_start && (!g.term_start || o.term_start < g.term_start)) g.term_start = o.term_start
+  }
+  return [...map.values()]
+})
+// 任期起显示为 2026.09 样式
+const termLabel = (iso) => (iso ? `${iso.slice(0, 4)}.${iso.slice(5, 7)}` : '')
+
 // 获取用户信息：有 userId 查别人(/user/profile/:id)，否则自己(/user/user_index)
 const fetchUserInfo = async () => {
   try {
@@ -156,6 +172,18 @@ watch(() => props.userId, async () => {
           </div>
         </div>
       </DewCard>
+
+      <!-- 社团身份卡（无任职不渲染，普通社员主页不变） -->
+      <DewCard v-if="!loading && officerGroups.length" size="lg" divided class="identity-card">
+        <template #header><span class="profile-title">社团身份</span></template>
+        <div v-for="g in officerGroups" :key="g.title" class="identity-row">
+          <DewTag type="warning" size="sm" round class="identity-tag">{{ g.title }}</DewTag>
+          <div class="identity-meta">
+            <span class="identity-dept">{{ g.departments.join(' / ') || '统筹全局' }}</span>
+            <span class="identity-term" v-if="termLabel(g.term_start)">{{ termLabel(g.term_start) }} 起</span>
+          </div>
+        </div>
+      </DewCard>
     </div>
 
     <!-- 右：出勤日历 + 勋章展示（自己与他人都显示，按 userId 取数） -->
@@ -204,6 +232,47 @@ watch(() => props.userId, async () => {
 /* 个人简介卡片：DewCard 负责玻璃表面，这里只排版 */
 .profile-card {
   width: 100%;
+}
+
+/* 社团身份卡：与个人简介卡同列，紧凑排布 */
+.identity-card {
+  width: 100%;
+  margin-top: 16px;
+}
+
+.identity-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 0;
+}
+
+.identity-row + .identity-row {
+  border-top: 1px dashed var(--dew-card-divider, rgba(0, 0, 0, 0.06));
+}
+
+.identity-tag {
+  flex-shrink: 0;
+}
+
+.identity-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.identity-dept {
+  font-size: 13px;
+  color: var(--dew-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.identity-term {
+  font-size: 12px;
+  color: var(--dew-text-faint);
 }
 
 .profile-intro {

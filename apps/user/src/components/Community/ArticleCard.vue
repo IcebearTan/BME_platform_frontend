@@ -26,6 +26,10 @@
       <div class="ac-author" @click.stop="onAuthorClick">
         <el-avatar :size="24" :src="article.author_avatar">{{ (article.author_name || '?').charAt(0) }}</el-avatar>
         <span class="ac-name">{{ article.author_name }}</span>
+        <!-- 干事徽章：作者当前主职（无任职后端不下发，不渲染） -->
+        <DewTag v-if="article.author_badge" type="warning" size="sm" round class="ac-badge">
+          {{ article.author_badge }}
+        </DewTag>
       </div>
       <!-- 个人主页作者本人传入的编辑/删除操作（社区复用不传则不渲染） -->
       <div v-if="$slots.actions" class="ac-actions" @click.stop>
@@ -48,7 +52,7 @@
 <script setup>
 import { computed } from 'vue'
 import { Document, ChatDotRound, ArrowRight } from '@element-plus/icons-vue'
-import { DewCard } from '@bme/dew-ui'
+import { DewCard, DewTag } from '@bme/dew-ui'
 
 const props = defineProps({
   /** 聚合信息流中的文章项（/community/feed 返回，type==='article'） */
@@ -165,6 +169,10 @@ function formatTimeAgo(dateStr) {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.ac-badge {
+  flex-shrink: 0;
 }
 
 .ac-meta {

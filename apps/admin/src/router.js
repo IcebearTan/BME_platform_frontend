@@ -26,6 +26,7 @@ import CampAttendanceBoard from './components/CampAttendanceBoard.vue';
 import CampSessionList from './components/CampSessionList.vue';
 import CampSessionDetail from './components/CampSessionDetail.vue';
 import PlatformTemplates from './components/PlatformTemplates.vue';
+import OfficerManage from './components/OfficerManage.vue';
 import store from './store';
 
 const router = createRouter({
@@ -40,6 +41,11 @@ const router = createRouter({
                     path: '/user-manage/users',
                     name: 'user_manage_users',
                     component: UserManage
+                },
+                {
+                    path: '/officer/manage',
+                    name: 'officer_manage',
+                    component: OfficerManage
                 },
                 {
                     path: '',
