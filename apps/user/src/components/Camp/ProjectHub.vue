@@ -35,6 +35,8 @@
           <div class="card-actions">
             <DewButton type="glass" size="sm" :disabled="p.status !== 'active' || session.status === 'archived'"
               @click="openRoster(p)">管理成员</DewButton>
+            <DewButton v-if="!selectingOpen" type="ghost" size="sm"
+              :disabled="session.status === 'archived'" @click="openTemplate(p)">项目模板</DewButton>
           </div>
         </DewCard>
       </div>
@@ -102,27 +104,46 @@
       </template>
     </template>
 
-    <!-- running/archived：我参与的项目 -->
+    <!-- running/archived：我参与的项目（交付区） -->
     <template v-if="!selectingOpen">
       <div class="section-title">我参与的项目</div>
       <DewCard v-if="!mine.joining?.length && !mine.leading?.length" variant="flat" class="empty-card">
         <div class="empty-text">{{ session.status === 'upcoming' ? '组队尚未开始——项目意向在选择阶段提交。' : '你本期未加入任何项目。' }}</div>
       </DewCard>
-      <div v-else class="project-grid">
+      <div v-else class="deliver-list">
         <DewCard v-for="p in [...(mine.leading || []), ...(mine.joining || [])]" :key="p.unit_id"
-                 variant="default" :no-hover="true" class="project-card">
-          <div class="card-head">
-            <div class="card-name">{{ p.name }}</div>
+                 variant="default" :no-hover="true" class="deliver-card">
+          <button type="button" class="deliver-head" @click="toggleUnit(p.unit_id)">
+            <span class="card-name">{{ p.name }}</span>
             <DewTag v-if="p.status !== 'active'" size="sm" round>{{ unitStatusText[p.status] || p.status }}</DewTag>
+            <span class="card-meta">
+              {{ p.my_role === 'leader' ? '我是负责人' : '成员' }} · 成员 {{ p.member_count }} 人 · 负责人 {{ p.leader_name }}
+            </span>
+            <el-icon class="unit-caret" :class="{ open: openUnits.has(p.unit_id) }"><ArrowDown /></el-icon>
+          </button>
+          <div v-if="openUnits.has(p.unit_id)" class="deliver-body">
+            <ProjectMilestones :unit-id="p.unit_id" :camp-status="session.status"
+                               :editable="session.status !== 'archived' && p.status === 'active'"
+                               :owner-user-id="p.leader_user_id" @changed="reload" />
+            <!-- 成果区 -->
+            <div class="outcome-sec">
+              <div class="outcome-head">
+                <span class="outcome-title">项目成果</span>
+                <DewButton v-if="p.my_role === 'leader' && session.status !== 'archived' && p.status === 'active'"
+                           type="ghost" size="sm" @click="openOutcome(p)">登记成果</DewButton>
+              </div>
+              <div v-if="!outcomes[p.unit_id]?.length" class="outcome-empty">
+                {{ p.my_role === 'leader' ? '尚无成果登记——结题材料验收后在此登记，管理员核验后入档' : '负责人尚未登记成果' }}
+              </div>
+              <div v-else class="outcome-list">
+                <div v-for="o in outcomes[p.unit_id]" :key="o.id" class="outcome-item">
+                  <span class="outcome-name">{{ o.title }}</span>
+                  <span :class="['outcome-status', `os-${o.status}`]">{{ OUTCOME_TEXT[o.status] || o.status }}</span>
+                  <span v-if="o.reject_reason" class="outcome-reason">驳回原因：{{ o.reject_reason }}</span>
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="card-meta">
-            <span>{{ p.my_role === 'leader' ? '我是负责人' : '成员' }}</span>
-            <span class="dot">·</span>
-            <span>成员 {{ p.member_count }} 人</span>
-            <span class="dot">·</span>
-            <span>负责人 {{ p.leader_name }}</span>
-          </div>
-          <p v-if="p.goal" class="card-desc">{{ p.goal }}</p>
         </DewCard>
       </div>
     </template>
@@ -132,15 +153,41 @@
       <ProjectRoster v-if="rosterDlg && rosterUnit" :unit-id="rosterUnit.unit_id"
                      :camp-status="session.status" @changed="reload" />
     </DewDialog>
+
+    <!-- 负责人项目模板（三起点+节点编辑） -->
+    <DewDialog v-model="tplDlg" :title="`项目模板 · ${tplUnit?.name || ''}`" width="680px">
+      <TemplateEditor v-if="tplDlg && tplUnit" :unit-id="tplUnit.unit_id" :sid="sid"
+                      @close="tplDlg = false" @changed="reload" />
+    </DewDialog>
+
+    <!-- 负责人登记成果 -->
+    <DewDialog v-model="outcomeDlg" title="登记项目成果" width="520px">
+      <div class="outcome-form">
+        <div class="field-label">成果标题 <span class="field-req">必填</span></div>
+        <DewInput v-model="outcomeForm.title" size="lg" placeholder="如：样机一台 / 论文一篇 / 开源仓库" />
+        <div class="field-label">说明</div>
+        <DewInput v-model="outcomeForm.description" type="textarea" :rows="3"
+                  placeholder="成果形态与完成情况（核验与结营档案可见）" />
+        <div class="outcome-note">提交后由管理员核验；未核验的成果不进入结营档案。</div>
+        <div class="outcome-actions">
+          <DewButton type="ghost" @click="outcomeDlg = false">取消</DewButton>
+          <DewButton type="glass" :loading="outcomeSaving" :disabled="!outcomeForm.title.trim()"
+                     @click="saveOutcome">提交登记</DewButton>
+        </div>
+      </div>
+    </DewDialog>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
+import { ArrowDown } from '@element-plus/icons-vue';
 import { DewCard, DewButton, DewInput, DewTag, DewDialog, DewSkeleton } from '@bme/dew-ui';
 import { campService } from '../../services/campService';
 import ProjectRoster from './ProjectRoster.vue';
+import ProjectMilestones from './ProjectMilestones.vue';
+import TemplateEditor from './TemplateEditor.vue';
 
 const props = defineProps({
   sid: { type: Number, required: true },
@@ -232,6 +279,60 @@ function openRoster(p) {
   rosterUnit.value = p;
   rosterDlg.value = true;
 }
+
+// ── 交付区（running 期）：单元展开 + 成果 ──
+const openUnits = ref(new Set());
+const outcomes = ref({});            // unit_id → outcomes[]
+const OUTCOME_TEXT = { submitted: '待核验', verified: '已核验', rejected: '已驳回' };
+
+function toggleUnit(unitId) {
+  const s = new Set(openUnits.value);
+  s.has(unitId) ? s.delete(unitId) : s.add(unitId);
+  openUnits.value = s;
+  if (s.has(unitId)) loadOutcomes(unitId);
+}
+async function loadOutcomes(unitId) {
+  try {
+    const d = await campService.fetchOutcomes(unitId);
+    outcomes.value = { ...outcomes.value, [unitId]: d.outcomes || [] };
+  } catch { /* 静默：成果区显示空态 */ }
+}
+
+// ── 负责人模板编辑弹窗 ──
+const tplDlg = ref(false);
+const tplUnit = ref(null);
+function openTemplate(p) {
+  tplUnit.value = p;
+  tplDlg.value = true;
+}
+
+// ── 负责人登记成果 ──
+const outcomeDlg = ref(false);
+const outcomeUnit = ref(null);
+const outcomeForm = ref({ title: '', description: '' });
+const outcomeSaving = ref(false);
+function openOutcome(p) {
+  outcomeUnit.value = p;
+  outcomeForm.value = { title: '', description: '' };
+  outcomeDlg.value = true;
+}
+async function saveOutcome() {
+  if (outcomeSaving.value || !outcomeForm.value.title.trim()) return;
+  outcomeSaving.value = true;
+  try {
+    const r = await campService.registerOutcome(outcomeUnit.value.unit_id, {
+      title: outcomeForm.value.title.trim(),
+      description: outcomeForm.value.description.trim() || null,
+    });
+    ElMessage.success(r.message || '已登记，等待核验');
+    outcomeDlg.value = false;
+    loadOutcomes(outcomeUnit.value.unit_id);
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '登记失败');
+  } finally {
+    outcomeSaving.value = false;
+  }
+}
 </script>
 
 <style scoped>
@@ -297,4 +398,33 @@ function openRoster(p) {
 }
 .tray-remove:hover { color: var(--color-danger, #e5484d); }
 .tray-actions { margin-top: 14px; }
+
+/* ── 交付区（running 期项目卡）── */
+.deliver-list { display: flex; flex-direction: column; gap: 12px; }
+.deliver-card { padding-block: 0; }
+.deliver-head {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 14px 16px; border: none; background: transparent; cursor: pointer; text-align: left;
+}
+.deliver-head:hover { background: color-mix(in srgb, var(--dew-text-muted) 5%, transparent); }
+.unit-caret { font-size: 13px; color: var(--dew-text-faint); margin-left: auto; transition: transform 0.2s ease; }
+.unit-caret.open { transform: rotate(180deg); }
+.deliver-body { padding: 0 16px 16px; display: flex; flex-direction: column; gap: 14px; }
+
+.outcome-sec { border-top: 1px solid var(--dew-card-border); padding-top: 12px; }
+.outcome-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.outcome-title { font-size: 13.5px; font-weight: 650; color: var(--dew-text-heading); }
+.outcome-empty { font-size: 12.5px; color: var(--dew-text-faint); }
+.outcome-list { display: flex; flex-direction: column; gap: 6px; }
+.outcome-item { display: flex; align-items: center; gap: 10px; font-size: 13px; flex-wrap: wrap; }
+.outcome-name { font-weight: 600; color: var(--dew-text-heading); }
+.outcome-status { font-size: 12px; font-weight: 600; }
+.os-submitted { color: var(--color-warning); }
+.os-verified { color: var(--color-success); }
+.os-rejected { color: var(--color-danger, #e5484d); }
+.outcome-reason { font-size: 12px; color: var(--dew-text-faint); }
+
+.outcome-form { display: flex; flex-direction: column; gap: 10px; }
+.outcome-note { font-size: 12px; color: var(--dew-text-faint); }
+.outcome-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
 </style>

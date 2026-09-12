@@ -44,6 +44,11 @@ const SESSIONS = {
       is_member: false, my_role: null, has_eligibility: false, member_count: 0,
       mentor_selection_enabled: false, ms_tags: [],
       policy: { project_limit: 3, capabilities: { attendance: false, leave: false, seat: false } } },
+    { id: 30, name: '在营项目营', category: 'project', cycle_name: '2026 秋季',
+      start_date: '2026-09-01', end_date: '2026-12-31', status: 'running',
+      is_member: true, my_role: 'member', has_eligibility: false, member_count: 12,
+      mentor_selection_enabled: false, ms_tags: [],
+      policy: { project_limit: 3, capabilities: { attendance: false, leave: false, seat: false } } },
   ],
 }
 
@@ -84,7 +89,7 @@ test('营期中心：五分组渲染与身份/主操作', async ({ page }) => {
   }
   // 卡片一致性：入口按钮统一为「进入营期」，每张卡恰一个（8 营全可见 = 8 个，含项目营×2）；
   // 报名等动作不在中心做，全部进营期工作台完成
-  await expect(page.getByRole('button', { name: '进入营期' })).toHaveCount(8)
+  await expect(page.getByRole('button', { name: '进入营期' })).toHaveCount(9)
   await expect(page.getByRole('button', { name: '去报名' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: '报名成为导生' })).toHaveCount(0)
   // 身份/报名状态只显示在身份行一处
@@ -106,7 +111,7 @@ test('超管预判：中心隐藏可报名组，工作台给说明卡不给表�
   await expect(page.getByRole('heading', { name: '营期中心' })).toBeVisible()
   // 后端对管理员报名一律 400：中心预判隐藏「可报名」组（少 id22/id26 两卡 → 6 个入口）
   await expect(page.locator('.group-title', { hasText: '可报名' })).toHaveCount(0)
-  await expect(page.getByRole('button', { name: '进入营期' })).toHaveCount(6)
+  await expect(page.getByRole('button', { name: '进入营期' })).toHaveCount(7)
 
   // 工作台内同样预判：说明卡替代 CampJoin 表单（不再填完表单才吃 400）
   await page.goto(`${BASE}/camp?sid=22`, { waitUntil: 'domcontentloaded' })
@@ -205,6 +210,61 @@ test('项目营申报：upcoming 出示申报表单（负责人入口）', async
   await expect(page.getByText('申报一个新项目')).toBeVisible()
   await expect(page.locator('.field-label', { hasText: '项目名称' })).toBeVisible()
   await expect(page.getByRole('button', { name: '提交申报' })).toBeDisabled()
+
+  expect(errors).toEqual([])
+})
+
+test('项目营 running：交付节点时间轴与版本链（阶段4）', async ({ page }) => {
+  const errors = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  // running 项目营：成员视角，参与 1 个项目（unit 41），两个交付节点
+  await loginAsUser(page, [
+    {
+      url: '/camp/projects/30/mine',
+      json: { code: 200, applications: [], leading: [], joining: [
+        { unit_id: 41, name: '智能输液监护', status: 'active', my_role: 'member',
+          leader_user_id: 61, leader_name: 'proj_leader', member_count: 4, my_pref_rank: null },
+      ], project_count: 1, project_limit: 3, remaining_slots: 2, can_apply: false },
+    },
+    {
+      url: '/camp/units/41/milestones',
+      json: { code: 200, my_role: 'member', milestones: [
+        { id: 501, unit_id: 41, title: '开题调研', submit_mode: 'team', status: 'approved',
+          due_date: '2027-02-01', order_no: 1, submissions: [] },
+        { id: 502, unit_id: 41, title: '个人周报', submit_mode: 'member', status: 'returned',
+          due_date: null, order_no: 2, submissions: [
+            { id: 9001, milestone_id: 502, version: 1, submitted_by: 62, content: '第一周',
+              status: 'returned', review_note: '写详细些', attachments: [], created_at: '2026-09-10T10:00:00' },
+          ] },
+      ] },
+    },
+    {
+      url: '/camp/units/41/outcomes',
+      json: { code: 200, outcomes: [
+        { id: 7001, title: '样机一台', status: 'submitted', contributors: [] },
+      ] },
+    },
+  ])
+
+  await page.goto(`${BASE}/camp?sid=30&tab=project`, { waitUntil: 'domcontentloaded' })
+  await expect(page.getByText('我参与的项目')).toBeVisible()
+  await page.locator('.deliver-head', { hasText: '智能输液监护' }).click()
+
+  // 节点行：状态聚合 + 双模式标签
+  await expect(page.locator('.ms-row', { hasText: '开题调研' }).locator('.ms-status')).toHaveText('已通过')
+  await expect(page.locator('.ms-row', { hasText: '个人周报' }).locator('.ms-status')).toHaveText('已退回')
+  // 展开 member 节点：版本链 + 退回意见 + 个人重提入口
+  await page.locator('.ms-head', { hasText: '个人周报' }).click()
+  await expect(page.getByText('v1', { exact: true })).toBeVisible()
+  await expect(page.getByText('审核意见：写详细些')).toBeVisible()
+  await expect(page.locator('.ms-row', { hasText: '个人周报' }).getByRole('button', { name: '重提新版本' })).toBeVisible()
+  // team 节点已验收：成员看到节点关闭而非提交框（整队交付由负责人统一提交）
+  await page.locator('.ms-head', { hasText: '开题调研' }).click()
+  await expect(page.locator('.ms-row', { hasText: '开题调研' }).getByText('已验收通过，节点关闭')).toBeVisible()
+  await expect(page.locator('.ms-row', { hasText: '开题调研' }).getByRole('button', { name: '提交' })).toHaveCount(0)
+  // 成果区
+  await expect(page.getByText('样机一台')).toBeVisible()
+  await expect(page.getByText('待核验', { exact: true })).toBeVisible()
 
   expect(errors).toEqual([])
 })

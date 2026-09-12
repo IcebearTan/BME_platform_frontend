@@ -15,7 +15,7 @@
         <el-table :data="members" border size="small">
           <el-table-column label="用户" prop="username" min-width="120" />
           <el-table-column label="角色" width="80">
-            <template #default="{ row }">{{ row.role === 'mentor' ? '导生' : '学员' }}</template>
+            <template #default="{ row }">{{ { mentor: '导生', member: '成员' }[row.role] || '学员' }}</template>
           </el-table-column>
           <el-table-column label="归属导生" min-width="140">
             <template #default="{ row }">
@@ -55,7 +55,7 @@
       </el-tab-pane>
 
       <!-- ③ 出勤计划 -->
-      <el-tab-pane label="出勤计划" name="plan">
+      <el-tab-pane v-if="capOn('attendance')" label="出勤计划" name="plan">
         <el-alert type="info" :closable="false"
           :title="`本营 ${studentMembers.length} 名学员；承诺出勤日按营期范围内工作日（${session.weekdays_only ? '仅周一~周五' : '含周末'}）展开`" />
         <div style="margin-top: 12px;">
@@ -65,7 +65,7 @@
       </el-tab-pane>
 
       <!-- ④ 座位 -->
-      <el-tab-pane label="座位" name="seats">
+      <el-tab-pane v-if="capOn('seat')" label="座位" name="seats">
         <div style="margin-bottom: 12px;">
           <el-button v-if="manageWritable" type="primary" size="small" @click="openAssignSeat">分配座位</el-button>
         </div>
@@ -78,7 +78,7 @@
       </el-tab-pane>
 
       <!-- ⑤ 请假审批 -->
-      <el-tab-pane label="请假审批" name="leave">
+      <el-tab-pane v-if="capOn('leave')" label="请假审批" name="leave">
         <el-table :data="leaves" border size="small">
           <el-table-column label="学员" prop="username" width="100" />
           <el-table-column label="日期段" min-width="170">
@@ -335,6 +335,82 @@
             </template>
           </el-table-column>
         </el-table>
+      </el-tab-pane>
+
+      <!-- 项目营：交付审核（v1.3 阶段4：待审材料队列 + 成果核验 + 结营档案） -->
+      <el-tab-pane v-if="isProjectCamp && canManage" label="交付审核" name="pdeli">
+        <h4 class="ms-sec-title">待审核材料（{{ pd.pending.length }}）</h4>
+        <div v-if="!pd.pending.length" class="hint" style="padding: 8px 0 4px;">没有待你审核的材料</div>
+        <el-table v-else :data="pd.pending" border size="small">
+          <el-table-column label="项目" prop="unit_name" min-width="120" />
+          <el-table-column label="节点" prop="milestone_title" min-width="110" />
+          <el-table-column label="提交人" prop="submitted_by_name" width="100" />
+          <el-table-column label="版本" prop="version" width="60" align="center" />
+          <el-table-column label="内容" min-width="200" show-overflow-tooltip>
+            <template #default="{ row }">{{ row.content || '（仅附件）' }}</template>
+          </el-table-column>
+          <el-table-column label="附件" width="90" align="center">
+            <template #default="{ row }">
+              <span v-if="!row.attachments?.length" class="hint">—</span>
+              <a v-for="a in row.attachments" :key="a.id" :href="`/api/camp/submissions/attachments/${a.id}`"
+                 target="_blank" style="font-size: 12px; margin-right: 6px;">{{ a.filename }}</a>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="130" align="center">
+            <template #default="{ row }">
+              <el-button size="small" type="success" plain @click="reviewDelivery(row, 'approve')">通过</el-button>
+              <el-button size="small" type="danger" plain @click="reviewDelivery(row, 'return')">退回</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+
+        <h4 class="ms-sec-title" style="margin-top: 16px;">成果核验（{{ pd.outcomes.length }}）</h4>
+        <div v-if="!pd.outcomes.length" class="hint" style="padding: 8px 0 4px;">尚无成果登记（负责人在项目工作台登记）</div>
+        <el-table v-else :data="pd.outcomes" border size="small">
+          <el-table-column label="项目" prop="unit_name" min-width="120" />
+          <el-table-column label="成果" prop="title" min-width="150" />
+          <el-table-column label="说明" prop="description" min-width="200" show-overflow-tooltip />
+          <el-table-column label="状态" width="90" align="center">
+            <template #default="{ row }">
+              <el-tag :type="{ verified: 'success', rejected: 'danger', submitted: 'warning' }[row.status]" size="small" effect="plain">
+                {{ { verified: '已核验', rejected: '已驳回', submitted: '待核验' }[row.status] || row.status }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column v-if="manageWritable" label="操作" width="130" align="center">
+            <template #default="{ row }">
+              <template v-if="row.status !== 'verified'">
+                <el-button size="small" type="success" plain @click="verifyOutcome(row, 'verify')">核验</el-button>
+                <el-button size="small" type="danger" plain @click="verifyOutcome(row, 'reject')">驳回</el-button>
+              </template>
+              <span v-else class="hint">已入档</span>
+            </template>
+          </el-table-column>
+        </el-table>
+
+        <h4 class="ms-sec-title" style="margin-top: 16px;">结营档案</h4>
+        <div v-if="session.status !== 'archived'" class="hint" style="padding: 8px 0 4px;">
+          结营（running → archived）时自动冻结档案快照（成员/项目/里程碑终态/已核验成果），冻结后全端点只读
+        </div>
+        <template v-else>
+          <div v-if="!pd.archive" class="hint" style="padding: 8px 0 4px;">档案加载中或未冻结（历史结营营不补建）</div>
+          <template v-else>
+            <div class="hint" style="padding: 4px 0;">
+              冻结于 {{ pd.archive.frozen_at }} · 版本 v{{ pd.archive.version }} · 修正 {{ pd.archive.revisions.length }} 次
+              <el-button v-if="manageWritable" size="small" style="margin-left: 8px;" @click="reviseArchive">登记修正</el-button>
+            </div>
+            <el-collapse>
+              <el-collapse-item title="档案快照（关键事实）">
+                <pre class="archive-snap">{{ JSON.stringify(pd.archive.snapshot, null, 2) }}</pre>
+              </el-collapse-item>
+              <el-collapse-item v-if="pd.archive.revisions.length" :title="`修正记录（${pd.archive.revisions.length}）`">
+                <div v-for="r in pd.archive.revisions" :key="r.version" class="hint" style="padding: 4px 0;">
+                  v{{ r.version }} · {{ r.created_at }} · {{ r.reason }}
+                </div>
+              </el-collapse-item>
+            </el-collapse>
+          </template>
+        </template>
       </el-tab-pane>
 
       <!-- 项目营：组队总览（回填/变更管理员通道） -->
@@ -607,6 +683,8 @@ const mentorMembers = computed(() => members.value.filter((m) => m.role === 'men
 const showAllUsers = ref(false);
 const roleLabel = (r) => ({ student: '学员', mentor: '导生', user: '用户', teacher: '教师', super_admin: '超管' }[r] || r || '—');
 const isProjectCamp = computed(() => session.value.category === 'project');
+// 能力开关（v1.3）：tab 渲染跟随营期 policy（learning 默认全开；旧 mock 无 policy 时回退开）
+const capOn = (k) => session.value?.policy?.capabilities?.[k] ?? true;
 const selectableUsers = computed(() => {
   const memberIds = new Set(members.value.map((member) => member.user_id));
   const candidates = showAllUsers.value
@@ -632,18 +710,19 @@ const goBack = () => router.push('/camp/sessions');
 async function fetchAll() {
   loading.value = true;
   try {
+    // 逐项容错：项目营的座位/请假被 capability 门禁 400（正常态），不能拖挂整页数据
     const [s, m, c, st, lv] = await Promise.all([
-      api.get(`/camp/sessions/${campId}`),
-      api.get(`/camp/sessions/${campId}/members`),
-      api.get(`/camp/sessions/${campId}/courses`),
-      api.get(`/camp/sessions/${campId}/seats`),
-      api.get(`/camp/sessions/${campId}/leave`),
+      api.get(`/camp/sessions/${campId}`).catch(() => null),
+      api.get(`/camp/sessions/${campId}/members`).catch(() => null),
+      api.get(`/camp/sessions/${campId}/courses`).catch(() => null),
+      api.get(`/camp/sessions/${campId}/seats`).catch(() => null),
+      api.get(`/camp/sessions/${campId}/leave`).catch(() => null),
     ]);
-    session.value = s.data.session || {};
-    members.value = m.data.members || [];
-    courses.value = c.data.courses || [];
-    seats.value = st.data.seats || [];
-    leaves.value = lv.data.leaves || [];
+    session.value = s?.data?.session || {};
+    members.value = m?.data?.members || [];
+    courses.value = c?.data?.courses || [];
+    seats.value = st?.data?.seats || [];
+    leaves.value = lv?.data?.leaves || [];
   } catch (e) {
     ElMessage.error(e.response?.data?.message || '加载营期详情失败');
   } finally {
@@ -991,6 +1070,7 @@ watch(activeTab, (t) => {
   if (!isProjectCamp.value || !canManage.value) return;
   if (t === 'papp') fetchProjectApps();
   if (t === 'pform') fetchProjectOverview();
+  if (t === 'pdeli') fetchDeliveryAdmin();
 });
 
 // ── 选导生（overview / 提前截止 / 志愿导出 / 指派）──
@@ -1306,6 +1386,81 @@ async function setProjectStatus(unit, status) {
     ElMessage.error(e.response?.data?.message || '操作失败');
   }
 }
+
+// ── 项目营交付审核（v1.3 阶段4）：待审队列 + 成果核验 + 结营档案 ──
+const pd = reactive({ pending: [], outcomes: [], archive: null });
+
+async function fetchDeliveryAdmin() {
+  try {
+    const res = await api.get(`/camp/sessions/${campId}/delivery-admin`);
+    pd.pending = res.data.pending_reviews || [];
+    pd.outcomes = res.data.outcomes || [];
+    if (session.value.status === 'archived') {
+      pd.archive = (await api.get(`/camp/sessions/${campId}/archive`).catch(() => ({ data: {} }))).data.archive || null;
+    } else {
+      pd.archive = null;
+    }
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '加载交付审核数据失败');
+  }
+}
+
+async function reviewDelivery(row, action) {
+  try {
+    let body = { action };
+    if (action === 'return') {
+      const { value } = await ElMessageBox.prompt('退回说明（提交人重提时可见）：', '退回材料', {
+        confirmButtonText: '退回', cancelButtonText: '取消',
+        inputValidator: (v) => !!(v && v.trim()) || '说明必填',
+      });
+      body.note = value.trim();
+    }
+    await api.post(`/camp/submissions/${row.submission_id}/review`, body);
+    ElMessage.success(action === 'approve' ? '已验收' : '已退回');
+    fetchDeliveryAdmin();
+  } catch (e) {
+    if (e === 'cancel' || e === 'close') return;
+    ElMessage.error(e.response?.data?.message || '操作失败');
+  }
+}
+
+async function verifyOutcome(row, action) {
+  try {
+    let body = { action };
+    if (action === 'reject') {
+      const { value } = await ElMessageBox.prompt('驳回原因：', '驳回成果', {
+        confirmButtonText: '驳回', cancelButtonText: '取消',
+        inputValidator: (v) => !!(v && v.trim()) || '原因必填',
+      });
+      body.reason = value.trim();
+    }
+    await api.post(`/camp/outcomes/${row.id}/verify`, body);
+    ElMessage.success(action === 'verify' ? '已核验' : '已驳回');
+    fetchDeliveryAdmin();
+  } catch (e) {
+    if (e === 'cancel' || e === 'close') return;
+    ElMessage.error(e.response?.data?.message || '操作失败');
+  }
+}
+
+async function reviseArchive() {
+  if (!pd.archive) return;
+  try {
+    const { value } = await ElMessageBox.prompt(
+      `登记档案修正（当前 v${pd.archive.version}，修正后版本递增；快照原文不可变，修正以记录留痕）：`, '档案修正', {
+        confirmButtonText: '登记', cancelButtonText: '取消',
+        inputValidator: (v) => !!(v && v.trim()) || '修正原因必填',
+      });
+    const res = await api.post(`/camp/sessions/${campId}/archive/revisions`, {
+      reason: value.trim(), expected_version: pd.archive.version,
+    });
+    ElMessage.success(res.data.message || '已登记');
+    fetchDeliveryAdmin();
+  } catch (e) {
+    if (e === 'cancel' || e === 'close') return;
+    ElMessage.error(e.response?.data?.message || '登记失败');
+  }
+}
 </script>
 
 <style scoped>
@@ -1318,6 +1473,12 @@ async function setProjectStatus(unit, status) {
 /* 项目申报/组队 expand 行内容 */
 .papp-expand { padding: 4px 12px; }
 .papp-expand p { margin: 4px 0; font-size: 12.5px; line-height: 1.7; color: #606266; }
+/* 交付审核：档案快照 */
+.archive-snap {
+  max-height: 320px; overflow: auto; margin: 0; padding: 10px;
+  font-size: 12px; line-height: 1.6; border-radius: 6px;
+  background: var(--fill-color-light, #f5f7fa); color: var(--text-regular, #606266);
+}
 /* 候选池工具栏：间距统一交给 flex gap（覆盖 el-button 相邻默认 margin） */
 .elig-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 10px 0 4px; }
 .elig-toolbar :deep(.el-button + .el-button) { margin-left: 0; }

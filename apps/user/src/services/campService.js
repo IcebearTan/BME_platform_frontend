@@ -173,4 +173,47 @@ export const campService = {
     api.get(`/camp/units/${unitId}/selection-roster`).then(r => r.data),
   putMemberSelection: (unitId, body) =>
     api.put(`/camp/units/${unitId}/member-selection`, body).then(r => r.data),
+
+  // ── 项目营交付（阶段4；后端 blueprints/camp_delivery.py）──
+  // 平台默认模板（负责人选起点可读 active 列表）
+  fetchPlatformTemplates: () =>
+    api.get('/camp/project-templates').then(r => r.data),
+  // 项目模板：查（含 instantiated 标记）/ 三起点创建（blank|platform|clone，创建即实例化里程碑）/ 编辑
+  fetchUnitTemplate: (unitId) =>
+    api.get(`/camp/units/${unitId}/template`).then(r => r.data),
+  fetchTemplateSources: (sid) =>
+    api.get(`/camp/sessions/${sid}/template-sources`).then(r => r.data),
+  createUnitTemplate: (unitId, body) =>
+    api.post(`/camp/units/${unitId}/template`, body).then(r => r.data),
+  updateUnitTemplate: (unitId, body) =>
+    api.put(`/camp/units/${unitId}/template`, body).then(r => r.data),
+  // 里程碑：列表（带请求者可见版本链与 my_role）/ 负责人增删改
+  fetchMilestones: (unitId) =>
+    api.get(`/camp/units/${unitId}/milestones`).then(r => r.data),
+  addMilestone: (unitId, body) =>
+    api.post(`/camp/units/${unitId}/milestones`, body).then(r => r.data),
+  updateMilestone: (mid, body) =>
+    api.put(`/camp/milestones/${mid}`, body).then(r => r.data),
+  deleteMilestone: (mid) =>
+    api.delete(`/camp/milestones/${mid}`).then(r => r.data),
+  // 提交（multipart：content + Files[] 附件）/ 版本链 / 审核（approve|return）
+  submitMilestone: (mid, content, files = []) => {
+    const fd = new FormData()
+    if (content) fd.append('content', content)
+    files.forEach((f) => fd.append('Files', f))
+    return api.post(`/camp/milestones/${mid}/submissions`, fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }).then(r => r.data)
+  },
+  reviewSubmission: (subId, body) =>
+    api.post(`/camp/submissions/${subId}/review`, body).then(r => r.data),
+  attachmentUrl: (aid) => `${API_URL}/camp/submissions/attachments/${aid}`,
+  // 成果：登记（负责人）/ 核验（admin）
+  fetchOutcomes: (unitId) =>
+    api.get(`/camp/units/${unitId}/outcomes`).then(r => r.data),
+  registerOutcome: (unitId, body) =>
+    api.post(`/camp/units/${unitId}/outcomes`, body).then(r => r.data),
+  // 结营档案（成员可读；修正 admin）
+  fetchArchive: (sid) =>
+    api.get(`/camp/sessions/${sid}/archive`).then(r => r.data),
 }

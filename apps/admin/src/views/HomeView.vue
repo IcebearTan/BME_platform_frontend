@@ -7,7 +7,7 @@ import {
   Document, User, ChatLineRound, Trophy, Setting,
   Grid, Fold, Bell, ArrowDown, Clock, TrendCharts,
   List, Plus, Cpu, DataLine, Key, Tickets,
-  Sunny, Moon, Collection, Folder, School
+  Sunny, Moon, Collection, Folder, School, SetUp
 } from '@element-plus/icons-vue';
 
 export default {
@@ -46,6 +46,7 @@ export default {
         '/camp/attendance': '营期考勤看板',
         '/camp/sessions': '营期管理',
         '/camp/sessions/:id': '营期详情',
+        '/camp/templates': '平台项目模板',
         '/editor': '文章编辑',
         '/public': '文章编辑',
         '/llm/projects': '大模型·项目管理',
@@ -247,6 +248,9 @@ export default {
             </el-menu-item>
             <el-menu-item v-if="isStaff" index="/camp/sessions" @click="router.push('/camp/sessions')" class="submenu-item">
               <el-icon><List /></el-icon><span>营期列表</span>
+            </el-menu-item>
+            <el-menu-item v-if="isStaff" index="/camp/templates" @click="router.push('/camp/templates')" class="submenu-item">
+              <el-icon><SetUp /></el-icon><span>平台项目模板</span>
             </el-menu-item>
           </el-sub-menu>
 

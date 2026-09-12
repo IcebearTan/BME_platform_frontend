@@ -25,6 +25,7 @@ import AttendanceReportManage from './components/AttendanceReportManage.vue';
 import CampAttendanceBoard from './components/CampAttendanceBoard.vue';
 import CampSessionList from './components/CampSessionList.vue';
 import CampSessionDetail from './components/CampSessionDetail.vue';
+import PlatformTemplates from './components/PlatformTemplates.vue';
 import store from './store';
 
 const router = createRouter({
@@ -141,6 +142,12 @@ const router = createRouter({
                     path: '/camp/sessions/:id',
                     name: 'camp_session_detail',
                     component: CampSessionDetail,
+                    meta: { staffOnly: true }
+                },
+                {
+                    path: '/camp/templates',
+                    name: 'camp_platform_templates',
+                    component: PlatformTemplates,
                     meta: { staffOnly: true }
                 }
             ]
