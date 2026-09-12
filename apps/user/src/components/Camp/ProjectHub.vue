@@ -1,10 +1,9 @@
 <template>
-  <!-- 项目营「项目」tab（v1.3 阶段3）：按营期状态呈现组队/志愿/我的项目。
-       selecting = 项目墙 + 志愿托盘（复用市集「卡片墙+托盘」模式）；
-       running/archived = 我的项目列表（负责的+参与的）；
-       负责人任何阶段都有工作区入口（成员勾选走统一 roster API）。 -->
+  <!-- 项目营成员工作台（09-13 二次拍板：营期层「看板/项目」tab 退役，本组件即全部）。
+       buttonbar：项目意向=选择期临时默认项；我负责的=有负责项目才出现；我参加的；请假=能力位。
+       考勤以项目为单位进各看板（活动考勤区）；周打卡为个人数据，收敛为顶部状态条。 -->
   <div class="project-hub">
-    <!-- 名额状态条 -->
+    <!-- 名额 + 周打卡状态条 -->
     <DewCard variant="inset" size="lg" :no-hover="true" class="quota-card">
       <div class="quota-row">
         <div class="quota-main">
@@ -12,39 +11,19 @@
           <span class="quota-num">{{ mine.project_count ?? '—' }}<template v-if="mine.project_limit"> / {{ mine.project_limit }}</template></span>
           <span v-if="remainingHint" class="quota-hint">{{ remainingHint }}</span>
         </div>
-        <div v-if="selectingOpen" class="quota-side">组队进行中 · 可提交/修改项目意向</div>
-        <div v-else-if="session.status === 'running'" class="quota-side">项目进行中</div>
+        <div v-if="attOn && weekly?.mode === 'weekly'" class="quota-side">
+          累计出勤 {{ weekly.total_days || 0 }} 次 · {{ weekly.total_hours || 0 }}h
+        </div>
+        <div v-else-if="selectingOpen" class="quota-side">组队进行中 · 可提交/修改项目意向</div>
       </div>
     </DewCard>
 
-    <!-- 负责人：我负责的项目（工作区） -->
-    <template v-if="mine.leading?.length">
-      <div class="section-title">我负责的项目</div>
-      <div class="project-grid">
-        <DewCard v-for="p in mine.leading" :key="p.unit_id" variant="default" :no-hover="true" class="project-card">
-          <div class="card-head">
-            <div class="card-name">{{ p.name }}</div>
-            <DewTag v-if="p.status !== 'active'" size="sm" round>{{ unitStatusText[p.status] || p.status }}</DewTag>
-          </div>
-          <div class="card-meta">
-            <span>成员 {{ p.member_count }} 人</span>
-            <span class="dot">·</span>
-            <span>负责人 {{ p.leader_name }}</span>
-          </div>
-          <p v-if="p.recruit_note" class="card-desc">{{ p.recruit_note }}</p>
-          <div class="card-actions">
-            <DewButton type="glass" size="sm" :disabled="p.status !== 'active' || session.status === 'archived'"
-              @click="openRoster(p)">管理成员</DewButton>
-            <DewButton v-if="!selectingOpen" type="ghost" size="sm"
-              :disabled="session.status === 'archived'" @click="openTemplate(p)">项目模板</DewButton>
-            <DewButton type="ghost" size="sm" @click="openPublish(p)">发布到项目广场</DewButton>
-          </div>
-        </DewCard>
-      </div>
-    </template>
+    <div v-if="viewItems.length" class="hub-bar-scroll">
+      <DewButtonBar v-model="view" :items="viewItems" class="hub-bar" />
+    </div>
 
-    <!-- selecting：项目墙 + 志愿托盘 -->
-    <template v-if="selectingOpen">
+    <!-- ① 项目意向（选择期临时视图：项目墙 + 意向托盘，按钮驱动） -->
+    <template v-if="view === 'pref'">
       <div class="section-title">本期项目</div>
       <div v-if="loading" class="hub-loading"><DewSkeleton variant="rect" width="100%" height="200" rounded="8px" /></div>
       <DewCard v-else-if="!projects.length" variant="flat" class="empty-card">
@@ -54,7 +33,7 @@
         <div class="project-grid">
           <DewCard v-for="p in projects" :key="p.unit_id" variant="default"
                    :tinted="picked(p.unit_id)" :accent="picked(p.unit_id) ? 'primary' : null"
-                   class="project-card pickable" @click="togglePick(p)">
+                   class="project-card">
             <div class="card-head">
               <div class="card-name">{{ p.name }}</div>
               <DewTag v-if="p.status !== 'active'" size="sm" round>{{ unitStatusText[p.status] || p.status }}</DewTag>
@@ -63,8 +42,6 @@
               <span>负责人 {{ p.leader_name }}</span>
               <span class="dot">·</span>
               <span>成员 {{ p.member_count }} 人</span>
-              <span v-if="p.my_role" class="dot">·</span>
-              <span v-if="p.my_role" class="role-mark">{{ p.my_role === 'leader' ? '我是负责人' : '已加入' }}</span>
             </div>
             <p v-if="p.required_abilities" class="card-desc"><span class="desc-label">需要：</span>{{ p.required_abilities }}</p>
             <p v-if="p.recruit_note" class="card-desc"><span class="desc-label">招募：</span>{{ p.recruit_note }}</p>
@@ -76,6 +53,15 @@
               <p v-if="p.goal"><span class="desc-label">目标：</span>{{ p.goal }}</p>
               <p v-if="p.plan"><span class="desc-label">计划：</span>{{ p.plan }}</p>
             </div>
+            <div class="card-actions">
+              <!-- 已在项目内（自己负责/已加入）：不可进意向（09-13 修复：自选自项目无意义） -->
+              <span v-if="p.my_role" class="joined-mark">{{ p.my_role === 'leader' ? '我是负责人' : '已在本项目' }}</span>
+              <template v-else>
+                <DewButton v-if="picked(p.unit_id)" type="glass" size="sm" @click="togglePick(p)">移出意向</DewButton>
+                <DewButton v-else type="ghost" size="sm" :disabled="trayFull || p.status === 'terminated'"
+                           @click="togglePick(p)">加入意向</DewButton>
+              </template>
+            </div>
             <div class="pick-mark" v-if="picked(p.unit_id)">志愿 {{ pickRank(p.unit_id) }}</div>
           </DewCard>
         </div>
@@ -86,13 +72,13 @@
             <div class="tray-title">我的项目意向</div>
             <div class="tray-sub">按意愿排序，最多 {{ limit || 3 }} 个；整组提交，截止前可修改</div>
           </div>
-          <div v-if="!tray.length" class="tray-empty">点击上方项目卡片加入意向</div>
+          <div v-if="!tray.length" class="tray-empty">点项目卡上的「加入意向」按钮</div>
           <div v-else class="tray-list">
             <div v-for="(t, i) in tray" :key="t.unit_id" class="tray-item">
               <span class="tray-rank">{{ i + 1 }}</span>
               <span class="tray-name">{{ t.name }}</span>
               <DewInput v-model="t.note" size="sm" class="tray-note"
-                        placeholder="选填：给负责人的留言" @click.stop />
+                        placeholder="选填：给负责人的留言" />
               <button type="button" class="tray-remove" @click.stop="removePick(t.unit_id)">移出</button>
             </div>
           </div>
@@ -105,110 +91,38 @@
       </template>
     </template>
 
-    <!-- running/archived：我参与的项目（交付区） -->
-    <template v-if="!selectingOpen">
-      <div class="section-title">我参与的项目</div>
-      <DewCard v-if="!mine.joining?.length && !mine.leading?.length" variant="flat" class="empty-card">
-        <div class="empty-text">{{ session.status === 'upcoming' ? '组队尚未开始——项目意向在选择阶段提交。' : '你本期未加入任何项目。' }}</div>
-      </DewCard>
-      <div v-else class="deliver-list">
-        <DewCard v-for="p in [...(mine.leading || []), ...(mine.joining || [])]" :key="p.unit_id"
-                 variant="default" :no-hover="true" class="deliver-card">
-          <button type="button" class="deliver-head" @click="toggleUnit(p.unit_id)">
-            <span class="card-name">{{ p.name }}</span>
-            <DewTag v-if="p.status !== 'active'" size="sm" round>{{ unitStatusText[p.status] || p.status }}</DewTag>
-            <span class="card-meta">
-              {{ p.my_role === 'leader' ? '我是负责人' : '成员' }} · 成员 {{ p.member_count }} 人 · 负责人 {{ p.leader_name }}
-            </span>
-            <el-icon class="unit-caret" :class="{ open: openUnits.has(p.unit_id) }"><ArrowDown /></el-icon>
-          </button>
-          <div v-if="openUnits.has(p.unit_id)" class="deliver-body">
-            <ProjectMilestones :unit-id="p.unit_id" :camp-status="session.status"
-                               :editable="session.status !== 'archived' && p.status === 'active'"
-                               :owner-user-id="p.leader_user_id" @changed="reload" />
-            <!-- 成果区 -->
-            <div class="outcome-sec">
-              <div class="outcome-head">
-                <span class="outcome-title">项目成果</span>
-                <DewButton v-if="p.my_role === 'leader' && session.status !== 'archived' && p.status === 'active'"
-                           type="ghost" size="sm" @click="openOutcome(p)">登记成果</DewButton>
-              </div>
-              <div v-if="!outcomes[p.unit_id]?.length" class="outcome-empty">
-                {{ p.my_role === 'leader' ? '尚无成果登记——结题材料验收后在此登记，管理员核验后入档' : '负责人尚未登记成果' }}
-              </div>
-              <div v-else class="outcome-list">
-                <div v-for="o in outcomes[p.unit_id]" :key="o.id" class="outcome-item">
-                  <span class="outcome-name">{{ o.title }}</span>
-                  <span :class="['outcome-status', `os-${o.status}`]">{{ OUTCOME_TEXT[o.status] || o.status }}</span>
-                  <span v-if="o.reject_reason" class="outcome-reason">驳回原因：{{ o.reject_reason }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </DewCard>
-      </div>
+    <!-- ② 我负责的（单项目看板：成员管理/关键节点/活动考勤/成果/发布） -->
+    <template v-else-if="view === 'lead'">
+      <ProjectBoard v-if="mine.leading?.length" :sid="sid" :session="session"
+                    :units="mine.leading" role="leader" @changed="reload" />
     </template>
 
-    <!-- 负责人成员管理（统一 roster API） -->
-    <DewDialog v-model="rosterDlg" :title="`成员管理 · ${rosterUnit?.name || ''}`" width="720px">
-      <ProjectRoster v-if="rosterDlg && rosterUnit" :unit-id="rosterUnit.unit_id"
-                     :camp-status="session.status" @changed="reload" />
-    </DewDialog>
+    <!-- ③ 我参加的（同款看板，无管理区） -->
+    <template v-else-if="view === 'join'">
+      <ProjectBoard v-if="mine.joining?.length" :sid="sid" :session="session"
+                    :units="mine.joining" role="member" @changed="reload" />
+    </template>
 
-    <!-- 负责人项目模板（三起点+节点编辑） -->
-    <DewDialog v-model="tplDlg" :title="`项目模板 · ${tplUnit?.name || ''}`" width="680px">
-      <TemplateEditor v-if="tplDlg && tplUnit" :unit-id="tplUnit.unit_id" :sid="sid"
-                      @close="tplDlg = false" @changed="reload" />
-    </DewDialog>
+    <!-- ④ 请假 -->
+    <LeaveApply v-else-if="view === 'leave'" :sid="sid" />
 
-    <!-- 负责人：发布到项目广场（投影表单：简介/标签/资料链接可覆盖） -->
-    <DewDialog v-model="publishDlg" title="发布到项目广场" width="560px">
-      <div class="publish-form">
-        <div class="pub-note">
-          发布后全站可见（标题与详情自动取自项目档案，下方可覆盖）；结营后自动标「已完成」并挂结营档案引用。
-        </div>
-        <div class="field-label">一句话简介（留空取项目目标）</div>
-        <DewInput v-model="publishForm.summary" type="textarea" :rows="2" />
-        <div class="field-label">标签（逗号分隔，最多 6 个）</div>
-        <DewInput v-model="publishForm.tagsText" placeholder="医工交叉, 硬件" />
-        <div class="field-label">资料链接（每行一条：名称 空格 链接）</div>
-        <DewInput v-model="publishForm.linksText" type="textarea" :rows="2" placeholder="演示视频 https://..." />
-        <div class="form-actions">
-          <DewButton type="ghost" @click="publishDlg = false">取消</DewButton>
-          <DewButton type="glass" :loading="publishing" @click="doPublish">发布</DewButton>
-        </div>
+    <!-- 没有任何可落视图（非选择期且未参与项目且无请假）：整体空态 -->
+    <DewCard v-if="!viewItems.length" variant="flat" class="empty-card">
+      <div class="empty-text">
+        {{ session.status === 'upcoming' ? '申报期尚未结束——项目过审并开营后，这里会出现你的项目工作区。'
+           : '你本期未加入任何项目。' }}
       </div>
-    </DewDialog>
-
-    <!-- 负责人登记成果 -->
-    <DewDialog v-model="outcomeDlg" title="登记项目成果" width="520px">
-      <div class="outcome-form">
-        <div class="field-label">成果标题 <span class="field-req">必填</span></div>
-        <DewInput v-model="outcomeForm.title" size="lg" placeholder="如：样机一台 / 论文一篇 / 开源仓库" />
-        <div class="field-label">说明</div>
-        <DewInput v-model="outcomeForm.description" type="textarea" :rows="3"
-                  placeholder="成果形态与完成情况（核验与结营档案可见）" />
-        <div class="outcome-note">提交后由管理员核验；未核验的成果不进入结营档案。</div>
-        <div class="outcome-actions">
-          <DewButton type="ghost" @click="outcomeDlg = false">取消</DewButton>
-          <DewButton type="glass" :loading="outcomeSaving" :disabled="!outcomeForm.title.trim()"
-                     @click="saveOutcome">提交登记</DewButton>
-        </div>
-      </div>
-    </DewDialog>
+    </DewCard>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { ElMessage } from 'element-plus';
-import { ArrowDown } from '@element-plus/icons-vue';
-import { DewCard, DewButton, DewInput, DewTag, DewDialog, DewSkeleton } from '@bme/dew-ui';
+import { DewCard, DewButton, DewInput, DewTag, DewButtonBar, DewSkeleton } from '@bme/dew-ui';
 import { campService } from '../../services/campService';
-import { showcaseService } from '../../services/showcaseService';
-import ProjectRoster from './ProjectRoster.vue';
-import ProjectMilestones from './ProjectMilestones.vue';
-import TemplateEditor from './TemplateEditor.vue';
+import ProjectBoard from './ProjectBoard.vue';
+import LeaveApply from './LeaveApply.vue';
 
 const props = defineProps({
   sid: { type: Number, required: true },
@@ -226,17 +140,35 @@ const submittedOnce = ref(false);
 const unitStatusText = { active: '进行中', paused: '已暂停', terminated: '已终止' };
 const limit = computed(() => mine.value.project_limit);
 const selectingOpen = computed(() => props.session.status === 'selecting');
+const attOn = computed(() => !!props.session.policy?.capabilities?.attendance);
+const leaveOn = computed(() => !!props.session.policy?.capabilities?.leave);
 const remainingHint = computed(() => {
   if (mine.value.project_limit == null) return '';
   const left = mine.value.remaining_slots ?? 0;
   return left ? `还可参与 ${left} 个` : '已达上限';
 });
 
+// ── 视图切换（选择期多「项目意向」临时项设默认；我负责的=有负责项目才出现）──
+const view = ref(null);
+const viewItems = computed(() => {
+  const items = [];
+  if (selectingOpen.value) items.push({ value: 'pref', label: '项目意向' });
+  if (mine.value.leading?.length) items.push({ value: 'lead', label: '我负责的' });
+  if (mine.value.joining?.length || !selectingOpen.value) items.push({ value: 'join', label: '我参加的' });
+  if (leaveOn.value) items.push({ value: 'leave', label: '请假' });
+  return items;
+});
+watch(viewItems, (items) => {
+  if (!items.some((t) => t.value === view.value)) view.value = items[0]?.value ?? null;
+}, { immediate: true });
+
 const picked = (unitId) => tray.value.some((t) => t.unit_id === unitId);
 const pickRank = (unitId) => tray.value.findIndex((t) => t.unit_id === unitId) + 1;
+const trayFull = computed(() => limit.value != null && tray.value.length >= limit.value);
 
+// 意向只走按钮（09-13 拍板：点卡功能砍掉）；自己负责/已加入的项目不进意向
 function togglePick(p) {
-  if (p.status === 'terminated') return;
+  if (p.my_role || p.status === 'terminated') return;
   const i = tray.value.findIndex((t) => t.unit_id === p.unit_id);
   if (i >= 0) { tray.value.splice(i, 1); return; }
   if (limit.value != null && tray.value.length >= limit.value) {
@@ -293,101 +225,14 @@ async function submitPrefs() {
   }
 }
 
-// ── 负责人成员管理弹窗 ──
-const rosterDlg = ref(false);
-const rosterUnit = ref(null);
-function openRoster(p) {
-  rosterUnit.value = p;
-  rosterDlg.value = true;
-}
-
-// ── 交付区（running 期）：单元展开 + 成果 ──
-const openUnits = ref(new Set());
-const outcomes = ref({});            // unit_id → outcomes[]
-const OUTCOME_TEXT = { submitted: '待核验', verified: '已核验', rejected: '已驳回' };
-
-function toggleUnit(unitId) {
-  const s = new Set(openUnits.value);
-  s.has(unitId) ? s.delete(unitId) : s.add(unitId);
-  openUnits.value = s;
-  if (s.has(unitId)) loadOutcomes(unitId);
-}
-async function loadOutcomes(unitId) {
-  try {
-    const d = await campService.fetchOutcomes(unitId);
-    outcomes.value = { ...outcomes.value, [unitId]: d.outcomes || [] };
-  } catch { /* 静默：成果区显示空态 */ }
-}
-
-// ── 负责人模板编辑弹窗 ──
-const tplDlg = ref(false);
-const tplUnit = ref(null);
-function openTemplate(p) {
-  tplUnit.value = p;
-  tplDlg.value = true;
-}
-
-// ── 发布到项目广场（负责人显式动作，v1.3 §五）──
-const publishDlg = ref(false);
-const publishUnit = ref(null);
-const publishForm = ref({ summary: '', tagsText: '', linksText: '' });
-const publishing = ref(false);
-function openPublish(p) {
-  publishUnit.value = p;
-  publishForm.value = { summary: p.goal || '', tagsText: '', linksText: '' };
-  publishDlg.value = true;
-}
-async function doPublish() {
-  if (publishing.value) return;
-  publishing.value = true;
-  try {
-    const links = publishForm.value.linksText.split('\n').map((l) => l.trim()).filter(Boolean)
-      .map((line) => {
-        const m = line.match(/^(\S+)\s+(https?:\/\/\S+)$/);
-        return m ? { label: m[1], url: m[2] } : { label: line.slice(0, 40), url: line };
-      });
-    const r = await showcaseService.publishFromCamp({
-      unit_id: publishUnit.value.unit_id,
-      summary: publishForm.value.summary.trim() || null,
-      tags: publishForm.value.tagsText.split(/[,，]/).map((t) => t.trim()).filter(Boolean),
-      links,
-    });
-    ElMessage.success(r.message || '已发布到项目广场');
-    publishDlg.value = false;
-  } catch (e) {
-    ElMessage.error(e.response?.data?.message || '发布失败');
-  } finally {
-    publishing.value = false;
-  }
-}
-
-// ── 负责人登记成果 ──
-const outcomeDlg = ref(false);
-const outcomeUnit = ref(null);
-const outcomeForm = ref({ title: '', description: '' });
-const outcomeSaving = ref(false);
-function openOutcome(p) {
-  outcomeUnit.value = p;
-  outcomeForm.value = { title: '', description: '' };
-  outcomeDlg.value = true;
-}
-async function saveOutcome() {
-  if (outcomeSaving.value || !outcomeForm.value.title.trim()) return;
-  outcomeSaving.value = true;
-  try {
-    const r = await campService.registerOutcome(outcomeUnit.value.unit_id, {
-      title: outcomeForm.value.title.trim(),
-      description: outcomeForm.value.description.trim() || null,
-    });
-    ElMessage.success(r.message || '已登记，等待核验');
-    outcomeDlg.value = false;
-    loadOutcomes(outcomeUnit.value.unit_id);
-  } catch (e) {
-    ElMessage.error(e.response?.data?.message || '登记失败');
-  } finally {
-    outcomeSaving.value = false;
-  }
-}
+// ── 周打卡（个人数据，收敛为顶部状态条；活动考勤在各项目看板内）──
+const weekly = ref(null);
+onMounted(() => {
+  if (!attOn.value) return;
+  campService.fetchMyAttendance(props.sid)
+    .then((d) => { weekly.value = d; })
+    .catch(() => { weekly.value = null; });
+});
 </script>
 
 <style scoped>
@@ -401,23 +246,27 @@ async function saveOutcome() {
 .quota-hint { font-size: 12px; color: var(--dew-text-faint); }
 .quota-side { font-size: 12.5px; color: var(--color-primary); }
 
+/* DewButtonBar 容器范式（照市集 market-filter-scroll 抄）：外层滚动容器隐藏滚动条，
+   bar 本体 max-content 贴内容——防 flex column 交叉轴拉伸，窄屏滚动不破版不露滚动条 */
+.hub-bar-scroll { min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.hub-bar-scroll::-webkit-scrollbar { display: none; }
+.hub-bar { width: max-content; margin-bottom: 2px; }
+
 .section-title { font-size: 14.5px; font-weight: 700; color: var(--dew-text-heading); margin-top: 4px; }
 
 .project-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
-.project-card { display: flex; flex-direction: column; gap: 8px; }
-.project-card.pickable { cursor: pointer; transition: transform 0.2s var(--dew-bounce, ease); }
-.project-card.pickable:hover { transform: translateY(-2px); }
+.project-card { display: flex; flex-direction: column; gap: 8px; position: relative; }
 .card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .card-name { font-size: 15.5px; font-weight: 650; color: var(--dew-text-heading); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card-meta { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--dew-text-muted); flex-wrap: wrap; }
 .card-meta .dot { color: var(--dew-text-faint); }
-.role-mark { color: var(--color-primary); font-weight: 600; }
 .card-desc { font-size: 12.5px; color: var(--dew-text-muted); line-height: 1.6; margin: 0;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .desc-label { color: var(--dew-text-faint); }
 .card-more { font-size: 12px; color: var(--color-primary); cursor: pointer; width: fit-content; }
 .card-expand p { font-size: 12.5px; color: var(--dew-text-muted); line-height: 1.6; margin: 4px 0 0; }
 .card-actions { margin-top: auto; }
+.joined-mark { font-size: 12.5px; color: var(--dew-text-faint); }
 .pick-mark {
   position: absolute; top: 10px; right: 12px;
   font-size: 11.5px; font-weight: 700; color: var(--color-primary);
@@ -425,7 +274,6 @@ async function saveOutcome() {
   border: 1px solid color-mix(in srgb, var(--color-primary) 40%, transparent);
   background: color-mix(in srgb, var(--color-primary) 10%, transparent);
 }
-.project-card { position: relative; }
 
 .hub-loading { padding: 4px 0; }
 .empty-card { padding: 26px 0; }
@@ -453,36 +301,4 @@ async function saveOutcome() {
 }
 .tray-remove:hover { color: var(--color-danger, #e5484d); }
 .tray-actions { margin-top: 14px; }
-
-/* ── 交付区（running 期项目卡）── */
-.deliver-list { display: flex; flex-direction: column; gap: 12px; }
-.deliver-card { padding-block: 0; }
-.deliver-head {
-  display: flex; align-items: center; gap: 10px; width: 100%;
-  padding: 14px 16px; border: none; background: transparent; cursor: pointer; text-align: left;
-}
-.deliver-head:hover { background: color-mix(in srgb, var(--dew-text-muted) 5%, transparent); }
-.unit-caret { font-size: 13px; color: var(--dew-text-faint); margin-left: auto; transition: transform 0.2s ease; }
-.unit-caret.open { transform: rotate(180deg); }
-.deliver-body { padding: 0 16px 16px; display: flex; flex-direction: column; gap: 14px; }
-
-.outcome-sec { border-top: 1px solid var(--dew-card-border); padding-top: 12px; }
-.outcome-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-.outcome-title { font-size: 13.5px; font-weight: 650; color: var(--dew-text-heading); }
-.outcome-empty { font-size: 12.5px; color: var(--dew-text-faint); }
-.outcome-list { display: flex; flex-direction: column; gap: 6px; }
-.outcome-item { display: flex; align-items: center; gap: 10px; font-size: 13px; flex-wrap: wrap; }
-.outcome-name { font-weight: 600; color: var(--dew-text-heading); }
-.outcome-status { font-size: 12px; font-weight: 600; }
-.os-submitted { color: var(--color-warning); }
-.os-verified { color: var(--color-success); }
-.os-rejected { color: var(--color-danger, #e5484d); }
-.outcome-reason { font-size: 12px; color: var(--dew-text-faint); }
-
-.outcome-form { display: flex; flex-direction: column; gap: 10px; }
-.outcome-note { font-size: 12px; color: var(--dew-text-faint); }
-.outcome-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
-
-.publish-form { display: flex; flex-direction: column; gap: 10px; }
-.pub-note { font-size: 12px; color: var(--dew-text-faint); line-height: 1.6; }
 </style>

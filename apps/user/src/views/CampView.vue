@@ -99,14 +99,12 @@
             </template>
           </template>
 
-          <DewButtonBar v-else v-model="tab" :items="tabItems" style="margin: 16px 0;" />
-          <CampOverview v-if="tab === 'overview' && current && current.is_member" :sid="sid" :my-role="current.my_role" />
-          <!-- 项目营成员视图（v1.3：category 组装——身份中性的成员/负责人视图，不读全局角色；
-               考勤/请假 tab 由 policy capabilities 决定，项目营首期默认全关） -->
+          <!-- 09-13 项目营拍板：营期层「看板/项目」tab 退役——成员工作台直接渲染 ProjectHub，
+               其自带 buttonbar（项目意向=选择期临时 / 我负责的 / 我参加的 / 请假） -->
+          <DewButtonBar v-else-if="!isProject" v-model="tab" :items="tabItems" style="margin: 16px 0;" />
+          <CampOverview v-if="tab === 'overview' && !isProject && current && current.is_member" :sid="sid" :my-role="current.my_role" />
           <template v-if="isProject && current?.is_member">
-            <ProjectHub v-if="tab === 'project'" :sid="sid" :session="current" />
-            <CampAttendance v-else-if="tab === 'attendance'" :sid="sid" />
-            <LeaveApply v-else-if="tab === 'leave'" :sid="sid" />
+            <ProjectHub :sid="sid" :session="current" style="margin-top: 16px;" />
           </template>
           <template v-else-if="isMentor && current?.is_member">
           <MsMentorDesk v-if="tab === 'ms'" :sid="sid" />
@@ -196,18 +194,11 @@ const mentorTabs = computed(() => {
   if (current.value?.mentor_selection_enabled) t.splice(1, 0, { value: 'ms', label: '选导生' });
   return t;
 });
-const projectTabs = computed(() => {
-  const t = [
-    { value: 'overview', label: '看板' },
-    { value: 'project', label: '项目' },
-  ];
-  if (caps.value.attendance) t.push({ value: 'attendance', label: '我的考勤' });
-  if (caps.value.leave) t.push({ value: 'leave', label: '请假' });
-  return t;
-});
-const tabItems = computed(() => (isProject.value ? projectTabs.value
+const tabItems = computed(() => (isProject.value ? []
   : isMentor.value ? mentorTabs.value : studentTabs.value));
-const tab = ref((tabItems.value.find((t) => t.value === route.query.tab) || tabItems.value[0]).value);
+// 项目营营期层无 tab（工作台=ProjectHub 自带 buttonbar）；tab 仅供 learning 分支
+const tab = ref((tabItems.value.find((t) => t.value === route.query.tab)
+  || tabItems.value[0] || { value: 'overview' }).value);
 
 const statusLabel = (s) => ({
   draft: '草稿', upcoming: '待开放', selecting: '选择阶段', running: '进行中', archived: '已结营',
@@ -247,7 +238,8 @@ watch(tabItems, (items) => {
   if (want && items.some((t) => t.value === want) && tab.value !== want) {
     tab.value = want;
   } else if (!items.some((t) => t.value === tab.value)) {
-    tab.value = items[0].value;
+    // 项目营营期层无 tab（items 空）——置 null，视图由 ProjectHub 自理
+    tab.value = items[0]?.value ?? null;
   }
 });
 

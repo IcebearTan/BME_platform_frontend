@@ -167,6 +167,16 @@ export const campService = {
   // 营内过审项目列表（组队浏览/工作区共用；带 my_role/my_pref_rank/member_count）
   fetchProjectList: (sid) =>
     api.get(`/camp/projects/${sid}/list`).then(r => r.data),
+  // 组长活动考勤（09-13）：我参与的各项目活动 + 出席态；负责的项目带 is_leader
+  fetchProjectActivities: (sid) =>
+    api.get(`/camp/projects/${sid}/activities`).then(r => r.data),
+  createProjectActivity: (unitId, body) =>
+    api.post(`/camp/units/${unitId}/activities`, body).then(r => r.data),
+  deleteProjectActivity: (activityId) =>
+    api.delete(`/camp/units/activities/${activityId}`).then(r => r.data),
+  markProjectActivity: (activityId, presentUserIds) =>
+    api.put(`/camp/units/activities/${activityId}/attendance`,
+      { present_user_ids: presentUserIds }).then(r => r.data),
   // 学员项目志愿（单轮 1-3 有序，整组替换；仅 selecting）
   fetchProjectPreferences: (sid) =>
     api.get(`/camp/projects/${sid}/preferences/mine`).then(r => r.data),

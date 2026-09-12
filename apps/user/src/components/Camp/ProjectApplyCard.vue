@@ -1,7 +1,7 @@
 <template>
   <!-- 项目营申报期（upcoming）非成员视图：负责人申报入口（v1.3 阶段3）。
        状态机：可申报→表单 / 待审核→安静态 / 被退回→原因+重提表单（新版本）。
-       普通学员提示报名在选择阶段开放（申报与入池窗口分离，09-12 拍板「仅 upcoming」）。 -->
+       普通学员提示报名在选择阶段开放（申报与入营窗口分离，09-12 拍板「仅 upcoming」）。 -->
   <div class="apply-card-wrap">
     <DewCard v-if="loading" variant="inset" size="lg" :no-hover="true" class="apply-card">
       <DewSkeleton variant="text" width="40%" />
@@ -9,7 +9,7 @@
     </DewCard>
 
     <template v-else>
-      <!-- 已是某个项目的负责人（过审自动入池，正常不会走到非成员视图；兜底展示） -->
+      <!-- 已是某个项目的负责人（过审自动入营，正常不会走到非成员视图；兜底展示） -->
       <DewCard v-if="mine.leading?.length" variant="inset" size="lg" :no-hover="true" class="apply-card">
         <div class="apply-title">你已是 {{ mine.leading.length }} 个项目的负责人</div>
         <div class="apply-hint">项目工作台已对你开放，请从营期成员视图进入。</div>
@@ -19,7 +19,7 @@
       <DewCard v-else-if="pendingApp" variant="inset" size="lg" :no-hover="true" class="apply-card">
         <div class="apply-title">申报待审核</div>
         <div class="apply-hint">
-          已提交项目「{{ pendingApp.name }}」（第 {{ pendingApp.version }} 版），管理员审核通过后项目即创建、你自动入池成为负责人。
+          已提交项目「{{ pendingApp.name }}」（第 {{ pendingApp.version }} 版），管理员审核通过后项目即创建、你自动入营成为负责人。
         </div>
       </DewCard>
 
@@ -31,7 +31,7 @@
         </template>
         <div v-else class="apply-title">申报一个新项目</div>
         <div class="apply-hint">
-          项目负责人由老师线下沟通后在此申报（一人本期最多负责 1 个项目）；管理员审核通过后项目创建并对全营展示，你自动入池开始组队。
+          项目负责人由老师线下沟通后在此申报（一人本期最多负责 1 个项目）；管理员审核通过后项目创建并对全营展示，你自动入营开始组队。
         </div>
 
         <div class="field-label">项目名称 <span class="field-req">必填</span></div>

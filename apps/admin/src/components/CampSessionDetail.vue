@@ -382,7 +382,7 @@
       <el-tab-pane v-if="isProjectCamp && canManage" label="项目申报" name="papp">
         <el-alert :type="session.status === 'upcoming' ? 'success' : 'info'" :closable="false"
           :title="session.status === 'upcoming'
-            ? '申报期开放中：负责人提交申报，审核通过即建项目、负责人自动入池'
+            ? '申报期开放中：负责人提交申报，审核通过即建项目、负责人自动入营'
             : '申报期已结束（项目申报仅在「待开放」阶段进行），此处可查看历史申报'" />
         <el-table :data="pApps" border size="small" style="margin-top: 12px;" v-loading="pAppsLoading">
           <el-table-column type="expand">
@@ -1529,7 +1529,7 @@ async function reviewProjectApp(row, action) {
       body.reason = value.trim();
     } else {
       await ElMessageBox.confirm(
-        `通过「${row.name}」？将创建项目、${row.leader_name} 自动入池成为负责人`, '审核通过', {
+        `通过「${row.name}」？将创建项目、${row.leader_name} 自动入营成为负责人`, '审核通过', {
           confirmButtonText: '通过', cancelButtonText: '取消', type: 'info',
         });
     }
@@ -1537,7 +1537,7 @@ async function reviewProjectApp(row, action) {
     ElMessage.success(res.data.message || '已处理');
     fetchProjectApps();
     if (activeTab.value === 'pform') fetchProjectOverview();
-    fetchAll();   // 过审自动入池会改变成员表
+    fetchAll();   // 过审自动入营会改变成员表
   } catch (e) {
     if (e === 'cancel' || e === 'close') return;
     ElMessage.error(e.response?.data?.message || '操作失败');

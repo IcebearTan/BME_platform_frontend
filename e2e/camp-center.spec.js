@@ -183,7 +183,7 @@ test('可报名：进工作台报名页选大组与到岗日并提交', async ({
   expect(errors).toEqual([])
 })
 
-test('项目营报名：selecting 出示入池表单（无到岗日/大组）', async ({ page }) => {
+test('项目营报名：selecting 出示入营表单（无到岗日/大组）', async ({ page }) => {
   const errors = []
   page.on('pageerror', (e) => errors.push(e.message))
   await loginAsUser(page)
@@ -192,9 +192,9 @@ test('项目营报名：selecting 出示入池表单（无到岗日/大组）', 
   await page.locator('.camp-card', { hasText: '秋季项目营' }).getByRole('button', { name: '进入营期' }).click()
 
   await expect(page).toHaveURL(/sid=26/)
-  // v1.3 阶段3：项目营入池表单（考勤能力关→不收到岗日；无大组概念）
+  // v1.3 阶段3：项目营入营表单（考勤能力关→不收到岗日；无大组概念；09-13 入池改称入营）
   await expect(page.getByText('申请加入「秋季项目营」')).toBeVisible()
-  await expect(page.getByRole('button', { name: '提交入池申请' })).toBeVisible()
+  await expect(page.getByRole('button', { name: '提交入营申请' })).toBeVisible()
   await expect(page.locator('.field-label', { hasText: '意向大组' })).toHaveCount(0)
   await expect(page.locator('.field-label', { hasText: '承诺到岗日' })).toHaveCount(0)
 
@@ -254,11 +254,17 @@ test('项目营 running：交付节点时间轴与版本链（阶段4）', async
         { id: 7001, title: '样机一台', status: 'submitted', contributors: [] },
       ] },
     },
+    {
+      url: '/camp/projects/30/activities',
+      json: { code: 200, units: [] },
+    },
   ])
 
-  await page.goto(`${BASE}/camp?sid=30&tab=project`, { waitUntil: 'domcontentloaded' })
-  await expect(page.getByText('我参与的项目')).toBeVisible()
-  await page.locator('.deliver-head', { hasText: '智能输液监护' }).click()
+  await page.goto(`${BASE}/camp?sid=30`, { waitUntil: 'domcontentloaded' })
+  // 09-13 二次拍板：项目营营期层无 tab，工作台=buttonbar；running 无负责项目时
+  // 默认落「我参加的」单项目看板，节点直接平铺（旧手风琴废弃）
+  await expect(page.getByRole('button', { name: '我参加的' })).toBeVisible()
+  await expect(page.locator('.project-board').getByText('智能输液监护')).toBeVisible()
 
   // 节点行：状态聚合 + 双模式标签
   await expect(page.locator('.ms-row', { hasText: '开题调研' }).locator('.ms-status')).toHaveText('已通过')
