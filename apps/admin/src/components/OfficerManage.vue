@@ -161,7 +161,7 @@ import api from '../api'
 
 // ── 常量（与后端 blueprints/officers.py 同源；换届重组只改此处）──
 const TITLE_MANAGEMENT = ['社长', '副社长', '团支书', '副团支书']
-const TITLE_CHOICES = [...TITLE_MANAGEMENT, '组长']
+const TITLE_CHOICES = [...TITLE_MANAGEMENT, '组长', '组员']
 const isManagement = (t) => TITLE_MANAGEMENT.includes(t)
 
 // 组织树：三级，任一节点可选（级联存叶子/所选组名，组名全树唯一）
@@ -270,7 +270,7 @@ const submitAppointOrEdit = async () => {
   const f = dlg.form
   if (!dlg.id && !f.user_id) return ElMessage.warning('请选择成员')
   if (!f.title) return ElMessage.warning('请选择职位')
-  if (f.title === '组长' && !f.department) return ElMessage.warning('组长必须归属一个组')
+  if ((f.title === '组长' || f.title === '组员') && !f.department) return ElMessage.warning(`${f.title}必须归属一个组`)
   if (!f.term_start) return ElMessage.warning('请选择任期起')
 
   dlg.submitting = true

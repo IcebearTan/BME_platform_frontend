@@ -340,3 +340,41 @@ test('社团干事管理页：列表渲染 + 任命提交 + 卸任弹窗', async
 
   expect(pageErrors).toEqual([])
 })
+
+test('社团干事管理页：组员任命走三级级联选组', async ({ page }) => {
+  await loginAsStaff(page)
+  const pageErrors = []
+  page.on('pageerror', (e) => pageErrors.push(e.message))
+
+  await page.route('http://127.0.0.1:5001/admin/officers**', (route) => {
+    if (route.request().method() === 'GET') {
+      return route.fulfill({ json: { code: 200, message: 'ok', data: { officers: [], total: 0, page: 1, per_page: 20 } } })
+    }
+    return route.fulfill({ json: { code: 200, message: 'ok', data: { id: 9 } } })
+  })
+  await page.route('http://127.0.0.1:5001/user/user_list', (route) =>
+    route.fulfill({ json: [{ User_Id: 22, User_Name: '顾亦深' }] }))
+
+  await page.goto(`${BASE}/officer/manage`)
+  await page.getByRole('button', { name: '任命' }).click()
+  const dialog = page.locator('.el-dialog').filter({ hasText: '任命干事' })
+  await dialog.locator('.el-select').first().click()
+  await page.locator('.el-select__popper:visible').getByText('顾亦深', { exact: true }).click()
+  await dialog.locator('.el-select').nth(1).click()
+  await page.locator('.el-select__popper:visible').getByText('组员', { exact: true }).click()
+  // 组织树三级路径：项目运营组 → 培训组 → 硬件组（checkStrictly 任一节点可选，emitPath 只存叶子组名）
+  await dialog.locator('.el-cascader').click()
+  await page.locator('.el-cascader-menu:visible').first().getByText('项目运营组', { exact: true }).click()
+  await page.locator('.el-cascader-menu:visible').nth(1).getByText('培训组', { exact: true }).click()
+  await page.locator('.el-cascader-menu:visible').nth(2).getByText('硬件组', { exact: true }).click()
+  await page.keyboard.press('Escape')   // checkStrictly 面板不自动收起，Escape 关闭保留所选
+  const appointRequest = page.waitForRequest((request) =>
+    request.url() === 'http://127.0.0.1:5001/admin/officers' && request.method() === 'POST')
+  await dialog.getByRole('button', { name: '确认' }).click()
+  const body = (await appointRequest).postDataJSON()
+  expect(body.user_id).toBe(22)
+  expect(body.title).toBe('组员')
+  expect(body.department).toBe('硬件组')
+
+  expect(pageErrors).toEqual([])
+})
