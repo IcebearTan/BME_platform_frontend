@@ -5,16 +5,21 @@
       <el-select v-model="sid" placeholder="选择营期" @change="onSessionChange" style="width: 220px">
         <el-option v-for="s in sessions" :key="s.id" :label="s.name" :value="s.id" />
       </el-select>
-      <el-date-picker v-model="dateRange" type="daterange" range-separator="至"
+      <!-- 日期范围仅每日模式有意义；按周累计固定营期范围 -->
+      <el-date-picker v-if="board.mode !== 'weekly'" v-model="dateRange" type="daterange" range-separator="至"
         start-placeholder="开始日期" end-placeholder="结束日期" value-format="YYYY-MM-DD"
         @change="fetchBoard" style="margin-left: 12px" />
+      <el-tag v-else-if="board.range" type="info" style="margin-left: 12px">
+        按周累计 · {{ board.range.from }} ~ {{ board.range.to }}
+      </el-tag>
       <el-tag type="info" style="margin-left: 12px" v-if="sid">
         当前可见 {{ (board.rows || []).length }} 名学员
         <span v-if="role === 'super_admin'">（全营）</span>
       </el-tag>
+      <el-button size="small" style="margin-left: auto" :loading="exporting" @click="exportCsv">导出 CSV</el-button>
     </div>
 
-    <!-- 汇总条 -->
+    <!-- 汇总条（每日模式） -->
     <div class="summary-bar" v-if="board.summary">
       <el-tag type="success">出勤 {{ (board.summary.present || 0) + (board.summary.late || 0) }}{{ board.summary.late ? `（迟到 ${board.summary.late}）` : '' }}</el-tag>
       <el-tag type="warning">未达标 {{ (board.summary.short_hours || 0) + (board.summary.late_and_short || 0) }}{{ board.summary.late_and_short ? `（迟到 ${board.summary.late_and_short}）` : '' }}</el-tag>
@@ -23,8 +28,32 @@
       <el-tag>达标率 {{ pct(board.summary.attendance_rate) }}</el-tag>
     </div>
 
-    <!-- 学生×日期 矩阵（动态日期列 + 单元格色块） -->
-    <el-table :data="board.rows || []" v-loading="loading" border stripe
+    <!-- 汇总条（按周累计模式） -->
+    <div class="summary-bar" v-if="board.mode === 'weekly' && (board.rows || []).length">
+      <el-tag type="success">累计打卡 {{ weeklyTotals.days }} 次</el-tag>
+      <el-tag>累计时长 {{ weeklyTotals.hours }}h</el-tag>
+      <el-tag type="info">按周考察次数与时长，无承诺日/达标率</el-tag>
+    </div>
+
+    <!-- 按周累计（学期校区）：学员×周 矩阵，格=次数，tooltip=周范围+时长 -->
+    <el-table v-if="board.mode === 'weekly'" :data="board.rows || []" v-loading="loading" border stripe
+      :empty-text="sid ? '该营期暂无学员或打卡数据' : '请先选择营期'">
+      <el-table-column label="学员" prop="username" fixed="left" min-width="100" />
+      <el-table-column v-for="wl in weekCols" :key="wl" :label="wl" min-width="76" align="center">
+        <template #default="{ row }">
+          <div v-if="row._byWeek && row._byWeek[wl]" class="cell cell-present"
+               :title="`${row._byWeek[wl].start?.slice(5)} ~ ${row._byWeek[wl].end?.slice(5)} · ${row._byWeek[wl].hours}h`">
+            {{ row._byWeek[wl].days }} 次
+          </div>
+        </template>
+      </el-table-column>
+      <el-table-column label="累计" fixed="right" width="120" align="center">
+        <template #default="{ row }">{{ row.total_days ?? 0 }} 次 · {{ row.total_hours ?? 0 }}h</template>
+      </el-table-column>
+    </el-table>
+
+    <!-- 学生×日期 矩阵（每日模式：动态日期列 + 单元格色块） -->
+    <el-table v-else :data="board.rows || []" v-loading="loading" border stripe
       :empty-text="sid ? '该范围无承诺出勤日数据' : '请先选择营期'">
       <el-table-column label="学员" prop="username" fixed="left" min-width="100" />
       <el-table-column v-for="d in (board.dates || [])" :key="d" :label="label(d)"
@@ -103,6 +132,49 @@ const tip = (c) => {
 
 const pct = (r) => (r == null ? '-' : (r * 100).toFixed(0) + '%');
 
+// ── 按周累计（09-13 管理端补盲）：周列 = 全体学员周分桶的并集，行内 _byWeek 索引在 fetchBoard 挂 ──
+const weekCols = computed(() => {
+  const labels = new Set();
+  for (const r of board.value.rows || []) {
+    for (const w of r.weeks || []) labels.add(w.label);
+  }
+  return [...labels].sort();
+});
+const weeklyTotals = computed(() => (board.value.rows || []).reduce(
+  (acc, r) => ({ days: acc.days + (r.total_days || 0), hours: Math.round((acc.hours + (r.total_hours || 0)) * 100) / 100 }),
+  { days: 0, hours: 0 }));
+
+// ── 考勤导出（09-13）：daily 带当前日期范围，weekly 固定营期范围 ──
+const exporting = ref(false);
+async function exportCsv() {
+  if (!sid.value) { ElMessage.warning('请先选择营期'); return; }
+  exporting.value = true;
+  try {
+    const params = {};
+    if (board.value.mode !== 'weekly' && dateRange.value && dateRange.value.length === 2) {
+      params.from = dateRange.value[0];
+      params.to = dateRange.value[1];
+    }
+    const res = await api.get(`/camp/attendance/export/${sid.value}`, { params, responseType: 'blob' });
+    const url = URL.createObjectURL(res.data);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `camp_${sid.value}_attendance.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    // 失败响应也是 blob：尽量解析出后端 message
+    let msg = '导出失败，请稍后重试';
+    try {
+      const text = await e.response?.data?.text();
+      if (text) msg = JSON.parse(text).message || msg;
+    } catch { /* 非 JSON 响应体，保持通用文案 */ }
+    ElMessage.error(msg);
+  } finally {
+    exporting.value = false;
+  }
+}
+
 async function fetchSessions() {
   try {
     const res = await api.get('/camp/sessions');
@@ -141,6 +213,10 @@ async function fetchBoard() {
     }
     const res = await api.get(`/camp/attendance/dashboard/${sid.value}`, { params });
     if (res.data.code === 200) {
+      // weekly 行挂周索引（模板按 label 取格子）
+      for (const r of res.data.rows || []) {
+        r._byWeek = Object.fromEntries((r.weeks || []).map((w) => [w.label, w]));
+      }
       board.value = res.data;
     } else {
       ElMessage.error(res.data.message || '加载看板失败');

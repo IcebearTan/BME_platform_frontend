@@ -322,6 +322,12 @@
         <h4 class="ms-sec-title">导生概览</h4>
         <el-table :data="msOverview?.mentors || []" border size="small">
           <el-table-column label="导生" prop="username" min-width="110" />
+          <el-table-column label="方向" width="100" align="center">
+            <template #default="{ row }">
+              <el-tag v-if="row.direction" size="small" effect="plain">{{ row.direction }}</el-tag>
+              <span v-else style="color:#c0c4cc">—</span>
+            </template>
+          </el-table-column>
           <el-table-column label="名片" width="80" align="center">
             <template #default="{ row }">
               <el-tag v-if="row.has_profile" type="success" size="small">已发布</el-tag>
@@ -640,12 +646,20 @@
       </template>
     </el-dialog>
 
-    <!-- 批量指派导生（线下协调结果回填） -->
+    <!-- 批量指派导生（线下协调结果回填：导入 JSON/CSV 批量预填，或逐行手选） -->
     <el-dialog v-model="batchDlg.visible" title="批量指派导生" width="680px">
       <el-alert type="info" :closable="false" style="margin-bottom: 10px;"
-        title="为未分配学员逐行选择导师后提交；已分配、冲突、失败的行会就地标注结果" />
+        title="导入线下协调结果批量填充（也可逐行手选）；已分配、冲突、失败的行会就地标注结果" />
+      <el-input v-model="batchDlg.raw" type="textarea" :rows="3"
+        placeholder="粘贴协调结果：CSV 每行「学员,导生」（可含表头行），或 JSON [{&quot;student&quot;:&quot;姓名&quot;,&quot;mentor&quot;:&quot;姓名&quot;}] / {&quot;学员&quot;:&quot;导生&quot;}；姓名与用户ID均可匹配" />
+      <div class="batch-import-bar">
+        <el-button size="small" @click="importBatchText">解析填充</el-button>
+        <el-button size="small" @click="batchFileRef?.click()">上传文件（.json / .csv / .txt）</el-button>
+        <input ref="batchFileRef" type="file" accept=".json,.csv,.txt" style="display:none" @change="onBatchFile" />
+        <span v-if="batchDlg.importNote" class="batch-import-note">{{ batchDlg.importNote }}</span>
+      </div>
       <div v-if="!batchDlg.rows.length" class="hint" style="padding: 10px 0;">本营暂无未分配学员</div>
-      <el-table v-else :data="batchDlg.rows" border size="small" max-height="420">
+      <el-table v-else :data="batchDlg.rows" border size="small" max-height="360">
         <el-table-column label="学员" prop="username" min-width="100" />
         <el-table-column label="指派导师" min-width="190">
           <template #default="{ row }">
@@ -1310,8 +1324,8 @@ async function exportMsCsv() {
   }
 }
 
-// ── 批量指派（线下协调结果回填，逐行独立结果）──
-const batchDlg = reactive({ visible: false, submitting: false, rows: [] });
+// ── 批量指派（线下协调结果回填，逐行独立结果；支持 JSON/CSV 导入预填）──
+const batchDlg = reactive({ visible: false, submitting: false, rows: [], raw: '', importNote: null });
 const BATCH_STATUS = {
   assigned: { label: '已指派', tag: 'success' },
   skipped: { label: '跳过', tag: 'info' },
@@ -1319,12 +1333,93 @@ const BATCH_STATUS = {
   error: { label: '失败', tag: 'danger' },
 };
 const batchStatusMeta = (status) => BATCH_STATUS[status] || { label: status, tag: 'info' };
+const batchFileRef = ref(null);
 
 function openBatchAssign() {
   batchDlg.rows = (msOverview.value?.students || [])
     .filter((s) => !s.matched)
     .map((s) => ({ ...s, _mentor: null, _result: null }));
+  batchDlg.raw = '';
+  batchDlg.importNote = null;
   batchDlg.visible = true;
+}
+
+// 导入文本 → [{student, mentor}]（字符串姓名或用户ID；JSON 数组/对象、CSV 均可）
+function parseBatchText(text) {
+  const pairs = [];
+  const t = String(text || '').replace(/^\uFEFF/, '').trim();
+  if (!t) return pairs;
+  if (t.startsWith('{') || t.startsWith('[')) {
+    const data = JSON.parse(t);   // 格式错抛给调用方提示
+    if (Array.isArray(data)) {
+      for (const it of data) {
+        if (Array.isArray(it) && it.length >= 2) {
+          pairs.push({ student: String(it[0]).trim(), mentor: String(it[1]).trim() });
+        } else if (it && typeof it === 'object') {
+          const s = it.student ?? it.学员;
+          const m = it.mentor ?? it.导师 ?? it.导生;
+          if (s != null && m != null) pairs.push({ student: String(s).trim(), mentor: String(m).trim() });
+        }
+      }
+    } else if (typeof data === 'object') {
+      for (const [s, m] of Object.entries(data)) {
+        pairs.push({ student: String(s).trim(), mentor: String(m).trim() });
+      }
+    }
+  } else {
+    for (const line of t.split(/\r?\n/)) {
+      const cells = line.split(/[,，;；\t]/).map((c) => c.trim()).filter(Boolean);
+      if (cells.length < 2) continue;
+      if (!pairs.length && /^(学员|学生|student|姓名)$/i.test(cells[0]) && /^(导生|导师|mentor)$/i.test(cells[1])) continue;
+      pairs.push({ student: cells[0], mentor: cells[1] });
+    }
+  }
+  return pairs;
+}
+
+// 匹配并预填各行下拉；未匹配名单就地提示（不在营/已分配的学员、不存在的导生）
+function applyBatchImport(text) {
+  let pairs;
+  try {
+    pairs = parseBatchText(text);
+  } catch {
+    ElMessage.error('JSON 解析失败，请检查格式');
+    return;
+  }
+  if (!pairs.length) { ElMessage.warning('没有解析到「学员,导生」数据对'); return; }
+  const mentors = msOverview.value?.mentors || [];
+  const mByName = new Map(mentors.map((m) => [m.username, m]));
+  const mById = new Map(mentors.map((m) => [String(m.user_id), m]));
+  const sByName = new Map(batchDlg.rows.map((r) => [r.username, r]));
+  const sById = new Map(batchDlg.rows.map((r) => [String(r.user_id), r]));
+  let filled = 0;
+  const missStudent = [], missMentor = [];
+  for (const { student, mentor } of pairs) {
+    const row = sByName.get(student) || sById.get(student);
+    const m = mByName.get(mentor) || mById.get(mentor);
+    if (!row) { missStudent.push(student); continue; }
+    if (!m) { missMentor.push(mentor); continue; }
+    if (!row._result) { row._mentor = m.user_id; filled += 1; }
+  }
+  const notes = [];
+  if (missStudent.length) notes.push(`未匹配学员：${missStudent.join('、')}（不在本营或已分配）`);
+  if (missMentor.length) notes.push(`未匹配导生：${missMentor.join('、')}`);
+  batchDlg.importNote = notes.join('；') || null;
+  ElMessage.success(`已填充 ${filled} 行`);
+}
+
+function importBatchText() { applyBatchImport(batchDlg.raw); }
+
+function onBatchFile(ev) {
+  const f = ev.target.files?.[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    batchDlg.raw = String(reader.result || '');
+    applyBatchImport(batchDlg.raw);
+  };
+  reader.readAsText(f);
+  ev.target.value = '';   // 允许重复选择同一文件
 }
 
 async function submitBatchAssign() {
@@ -1643,6 +1738,10 @@ async function reviseArchive() {
 .hint { margin-left: 12px; color: #909399; font-size: 12px; }
 .ms-sec-title { margin: 16px 0 8px; font-size: 14px; font-weight: 600; }
 .batch-msg { margin-left: 6px; font-size: 12px; color: #909399; }
+/* 批量指派导入条 */
+.batch-import-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 8px 0 12px; }
+.batch-import-bar :deep(.el-button + .el-button) { margin-left: 0; }
+.batch-import-note { font-size: 12px; color: #e6a23c; line-height: 1.5; }
 /* 项目申报/组队 expand 行内容 */
 .papp-expand { padding: 4px 12px; }
 .papp-expand p { margin: 4px 0; font-size: 12.5px; line-height: 1.7; color: #606266; }
