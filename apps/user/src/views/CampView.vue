@@ -117,7 +117,7 @@
         </template>
         <template v-else-if="current?.is_member">
           <MsStudentPick v-if="tab === 'ms'" :sid="sid" :camp-status="current.status" />
-          <CampSelection v-else-if="tab === 'selection'" :sid="sid" />
+          <CampStudyCard v-else-if="tab === 'study'" :sid="sid" />
           <CampAttendance v-else-if="tab === 'attendance'" :sid="sid" />
           <LeaveApply v-else-if="tab === 'leave'" :sid="sid" />
         </template>
@@ -137,7 +137,7 @@ import { ElMessage } from 'element-plus';
 import { ArrowLeft } from '@element-plus/icons-vue';
 import { campService, MS_PHASE_LABEL } from '../services/campService';
 import CampOverview from '../components/Camp/CampOverview.vue';
-import CampSelection from '../components/Camp/CampSelection.vue';
+import CampStudyCard from '../components/Camp/CampStudyCard.vue';
 import CampAttendance from '../components/Camp/CampAttendance.vue';
 import LeaveApply from '../components/Camp/LeaveApply.vue';
 import MentorDashboard from '../components/Camp/MentorDashboard.vue';
@@ -176,7 +176,7 @@ const caps = computed(() => current.value?.policy?.capabilities || {});
 const studentTabs = computed(() => {
   const t = [
     { value: 'overview', label: '看板' },
-    { value: 'selection', label: '选课' },
+    { value: 'study', label: '学习方向' },
   ];
   if (caps.value.attendance) t.push({ value: 'attendance', label: '我的考勤' });
   if (caps.value.leave) t.push({ value: 'leave', label: '请假' });

@@ -403,3 +403,64 @@ test('导生人员确认：志愿截止后可锁定/释放学员', async ({ page
 
   expect(errors).toEqual([])
 })
+
+test('团队与学习认证：导生按章认证学员进度，可撤销', async ({ page }) => {
+  const errors = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  await loginAsUser(page, phaseOf('done', {
+    role: 'mentor', has_profile: true, profile_locked: true,
+    matched_count: 1, remaining: null,
+  }), 'user', [
+    { url: '/camp/sessions', json: SESSIONS_MENTOR },
+    { url: '/records/yearly', json: { code: 200, data: [] } },
+  ])
+
+  // 方向制（09-12）：团队进度读端点 + 认证/撤销写端点（内存名单闭环，回读最新态）
+  const chapters = [
+    { chapter_id: 11, name: 'GPIO 点灯', order: 1, lessons: 3, lessons_completed: 3, certified: true, certified_at: '2026-09-12 10:00', certified_by: 1 },
+    { chapter_id: 12, name: '串口通信', order: 2, lessons: 4, lessons_completed: 2, certified: false, certified_at: null, certified_by: null },
+  ]
+  const progressJson = () => ({
+    code: 200, direction: '硬件组', course_id: 7, course_title: '嵌入式入门',
+    students: [{
+      student_user_id: 201, username: '学员小张',
+      chapters, certified_chapters: chapters.filter((c) => c.certified).length,
+      total_chapters: chapters.length, course_status: 'active',
+    }],
+  })
+  await page.route('**/camp/sessions/1/team/progress', (route) => route.fulfill({ json: progressJson() }))
+  const certifyRequest = page.waitForRequest((req) =>
+    req.url().includes('/camp/sessions/1/team/progress/certify') && req.method() === 'POST')
+  await page.route('**/camp/sessions/1/team/progress/certify', (route) => {
+    const body = route.request().postDataJSON()
+    const ch = chapters.find((c) => c.chapter_id === body.chapter_id)
+    if (route.request().method() === 'DELETE') {
+      ch.certified = false; ch.certified_at = null
+      return route.fulfill({ json: { code: 200, message: '已撤销认证' } })
+    }
+    ch.certified = true; ch.certified_at = '2026-09-12 21:00'
+    return route.fulfill({ json: { code: 200, message: '已认证' } })
+  })
+
+  await page.goto(`${BASE}/camp?tab=members&sid=1`, { waitUntil: 'domcontentloaded' })
+
+  // 方向 chip + 学员行（1/2 章已认证）
+  await expect(page.getByText('团队与学习认证')).toBeVisible()
+  await expect(page.locator('.dir-chip', { hasText: '硬件组' })).toBeVisible()
+  await expect(page.getByText('章节认证 1/2')).toBeVisible()
+
+  // 展开学员 → 章节列表：已认证章带时间，未认证章有「认证」按钮
+  await page.locator('.row-head', { hasText: '学员小张' }).click()
+  await expect(page.locator('.ch-row', { hasText: 'GPIO 点灯' }).getByText(/已认证/)).toBeVisible()
+  await page.locator('.ch-row', { hasText: '串口通信' }).getByRole('button', { name: '认证' }).click()
+  expect((await certifyRequest).postDataJSON()).toEqual({ student_user_id: 201, chapter_id: 12 })
+
+  // 认证后回读：2/2 全章认证齐
+  await expect(page.getByText('章节认证 2/2')).toBeVisible()
+
+  // 撤销回到未认证态
+  await page.locator('.ch-row', { hasText: 'GPIO 点灯' }).getByRole('button', { name: '撤销' }).click()
+  await expect(page.getByText('章节认证 1/2')).toBeVisible()
+
+  expect(errors).toEqual([])
+})

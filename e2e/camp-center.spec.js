@@ -337,3 +337,40 @@ test('中心↔工作台：顶部入口和工作台返回均收敛到中心', as
 
   expect(errors).toEqual([])
 })
+
+test('学习方向卡：学员查看随导生继承的方向课程与章节认证进度', async ({ page }) => {
+  const errors = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  await loginAsUser(page, [
+    {
+      // id 23 暑期双选营（成员学员视角）：方向制卡（09-12，取代原选课 tab）
+      url: '/camp/sessions/23/my-direction',
+      json: {
+        code: 200, direction: '硬件组', mentor_name: '导生阿明',
+        course: { course_id: 7, title: '嵌入式入门', difficulty: 2 },
+        chapters: [
+          { chapter_id: 11, name: 'GPIO 点灯', lessons: 3, lessons_completed: 3, certified: true, certified_at: '2026-09-12 10:00' },
+          { chapter_id: 12, name: '串口通信', lessons: 4, lessons_completed: 2, certified: false, certified_at: null },
+        ],
+        certified_chapters: 1, total_chapters: 2, course_status: 'active',
+      },
+    },
+  ])
+
+  await page.goto(`${BASE}/camp?tab=study&sid=23`, { waitUntil: 'domcontentloaded' })
+
+  // 方向 + 课程 + 认证进度（选课 tab 已砍：无「选课」入口）
+  await expect(page.getByText('硬件组', { exact: true })).toBeVisible()
+  await expect(page.getByText('嵌入式入门')).toBeVisible()
+  await expect(page.getByText(/章节认证 1\/2/)).toBeVisible()
+  await expect(page.getByText('随归属导生（导生阿明）继承')).toBeVisible()
+  await expect(page.locator('.chapter-row', { hasText: 'GPIO 点灯' }).getByText('已认证')).toBeVisible()
+  await expect(page.locator('.chapter-row', { hasText: '串口通信' }).getByText('未认证')).toBeVisible()
+  await expect(page.getByRole('button', { name: '选课' })).toHaveCount(0)
+
+  // 去学习：跳课程详情（from=camp 返回时回学习方向 tab）
+  await page.getByRole('button', { name: '去学习' }).click()
+  await expect(page).toHaveURL(/\/study\/details\?id=7&from=camp/)
+
+  expect(errors).toEqual([])
+})

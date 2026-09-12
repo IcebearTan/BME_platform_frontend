@@ -310,9 +310,9 @@ const breadcrumbItems = computed(() => [
 
 // 返回学习中心
 const goBack = () => {
-  // 从营期选课跳来时，返回回到营期选课 Tab
+  // 从营期学习方向卡跳来时，返回回到营期学习方向 Tab（09-12 方向制，原选课 tab 已砍）
   const from = router.currentRoute.value.query.from
-  router.push(from === 'camp' ? '/camp?tab=selection' : '/study')
+  router.push(from === 'camp' ? '/camp?tab=study' : '/study')
 }
 </script>
 

@@ -62,7 +62,7 @@
           </div>
 
           <div class="form-item">
-            <label class="form-label">分类标签 <span class="label-sub">点选 1-3 个</span></label>
+            <label class="form-label">分类方向 <span class="label-sub">选择 1 个（学员将继承此方向与课程）</span></label>
             <div class="tag-chips">
               <DewButton
                 v-for="t in msTags"
@@ -161,16 +161,13 @@ const previewMentor = computed(() => ({
 }));
 
 function toggleTag(t) {
+  // 09-12 方向制：单选——再点切换，点已选中项取消
   const i = form.value.tags.indexOf(t);
   if (i >= 0) {
     form.value.tags.splice(i, 1);
     return;
   }
-  if (form.value.tags.length >= 3) {
-    ElMessage.warning('最多选 3 个标签，先取消一个');
-    return;
-  }
-  form.value.tags.push(t);
+  form.value.tags = [t];
 }
 
 function updateBio(value) {

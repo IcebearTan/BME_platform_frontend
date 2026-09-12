@@ -38,8 +38,8 @@
         </el-table>
       </el-tab-pane>
 
-      <!-- ② 课程目录 -->
-      <el-tab-pane label="课程目录" name="courses">
+      <!-- ② 课程目录（09-12 方向制砍双源：learning 营课程由分类方向定义，此 tab 仅项目营） -->
+      <el-tab-pane v-if="session.category === 'project'" label="课程目录" name="courses">
         <div style="margin-bottom: 12px;">
           <el-button v-if="manageWritable" type="primary" size="small" @click="openAddCourse" :disabled="!availableCourses.length">加课程</el-button>
         </div>
@@ -125,23 +125,12 @@
         </el-form>
       </el-tab-pane>
 
-      <!-- ⑦ 加入申请（仅老师/超管；mentor 无审批权，隐藏入口） -->
-      <el-tab-pane v-if="canManage" label="加入申请" name="join">
-        <el-alert v-if="!joinRequests.length" type="info" :closable="false" title="暂无待审批的加入申请" />
-        <el-table :data="joinRequests" border size="small" style="margin-top: 12px;">
+      <!-- ⑦ 学员申请（仅老师/超管；09-12 重组：导生报名挪「选导生」tab，此处纯学员/成员申请） -->
+      <el-tab-pane v-if="canManage" label="学员申请" name="join">
+        <el-alert v-if="!studentJoinRequests.length" type="info" :closable="false" title="暂无待审批的学员申请" />
+        <el-table :data="studentJoinRequests" border size="small" style="margin-top: 12px;">
           <el-table-column label="申请人" prop="username" width="110" />
           <el-table-column label="邮箱" prop="email" min-width="160" show-overflow-tooltip />
-          <el-table-column label="身份" width="80">
-            <template #default="{ row }">{{ row.role === 'mentor' ? '导生' : '学员' }}</template>
-          </el-table-column>
-          <!-- 申请类型：导生报名（apply_role=mentor，审核通过以导生身份入营）/ 学员申请 -->
-          <el-table-column label="类型" width="70" align="center">
-            <template #default="{ row }">
-              <el-tag :type="row.apply_role === 'mentor' ? 'warning' : 'success'" size="small">
-                {{ row.apply_role === 'mentor' ? '导生' : '学员' }}
-              </el-tag>
-            </template>
-          </el-table-column>
           <!-- 09-12 砍学员报名意向大组：组别随归属导生继承（导生组=名片 tags），申请列表不再展示 -->
           <el-table-column label="事由" prop="reason" min-width="140" show-overflow-tooltip />
           <el-table-column label="提交时间" width="110">
@@ -164,49 +153,127 @@
         </el-table>
       </el-tab-pane>
 
-      <!-- ⑧ 导入导生（培训营 + 超管：导入即直接成为本营导生，绕过报名；2026-09-12 资格名单机制退役，
-           池子改纯选人器；导生也可在报名窗口内 LV≥2 自助报名走审核） -->
-      <el-tab-pane v-if="session.category === 'learning' && isSuperAdmin" label="导入导生" name="eligibility">
-        <h4 class="ms-sec-title">导入邮箱</h4>
-        <el-input v-model="eligibility.raw" type="textarea" :rows="4"
-          placeholder="粘贴导生邮箱，换行或逗号分隔均可，自动去重" />
-        <div class="elig-toolbar">
-          <el-button size="small" :loading="eligibility.previewing" @click="previewEligibility">预览</el-button>
-          <el-button size="small" type="primary" :loading="eligibility.confirming" @click="confirmEligibility">确认导入</el-button>
-          <el-divider direction="vertical" />
-          <el-select v-model="eligibility.minLevel" size="small" class="elig-level-select">
-            <el-option v-for="n in [2, 3, 4]" :key="n" :label="`LV${n} 及以上`" :value="n" />
-          </el-select>
-          <el-button size="small" :loading="eligibility.generating" @click="generateByLevel">按等级填充</el-button>
-          <span class="hint">导入即直接成为本营导生（不经报名审核）；成员增删也可在成员管理操作。LV1 为普通学员默认等级，不作候选</span>
-        </div>
-
-        <template v-if="eligibility.preview">
-          <h4 class="ms-sec-title">预览结果（{{ eligibility.emails.length }} 个邮箱）</h4>
-          <el-alert v-if="eligibility.preview.unmatched_emails?.length" type="warning" :closable="false"
-            :title="`未匹配账号：${eligibility.preview.unmatched_emails.join('、')}`" style="margin-bottom: 8px;" />
-          <el-table :data="eligibility.preview.matched" border size="small">
-            <el-table-column label="姓名" prop="username" min-width="110" />
-            <el-table-column label="邮箱" prop="email" min-width="180" show-overflow-tooltip />
-            <el-table-column label="状态" width="100" align="center">
+      <!-- ⑧ 选导生（learning 营老师/超管恒显；09-12 重组：导生全生命周期一页——
+           招募（待审导生报名+导入）→ 方向与配置 → 选导生流程运营；建营弹窗只收基本信息） -->
+      <el-tab-pane v-if="canManage && session.category === 'learning'" label="选导生" name="ms">
+        <!-- ── ① 导生招募：待审导生报名（自由报名走审核）+ 导入即导生（超管） ── -->
+        <h4 class="ms-sec-title">导生招募</h4>
+        <template v-if="mentorJoinRequests.length">
+          <el-table :data="mentorJoinRequests" border size="small">
+            <el-table-column label="报名导生" prop="username" width="110" />
+            <el-table-column label="邮箱" prop="email" min-width="160" show-overflow-tooltip />
+            <el-table-column label="事由" prop="reason" min-width="120" show-overflow-tooltip />
+            <el-table-column label="提交时间" width="110">
+              <template #default="{ row }">{{ row.created_at ? row.created_at.slice(0, 10) : '' }}</template>
+            </el-table-column>
+            <el-table-column label="操作" width="140">
               <template #default="{ row }">
-                <el-tag v-if="row.already_member" type="info" size="small">已在营</el-tag>
-                <el-tag v-else type="success" size="small">将导入</el-tag>
+                <el-button size="small" type="success" link @click="approveJoin(row)">批准</el-button>
+                <el-button size="small" type="danger" link @click="rejectJoin(row)">拒绝</el-button>
               </template>
             </el-table-column>
           </el-table>
         </template>
-      </el-tab-pane>
+        <el-alert v-else type="info" :closable="false" title="暂无待审的导生报名（LV≥2 学员可在报名窗口内自助报名）" style="margin-bottom: 10px;" />
 
-      <!-- ⑨ 选导生（启用且老师/超管可见） -->
-      <el-tab-pane v-if="canManage && session.mentor_selection_enabled" label="选导生" name="ms">
+        <template v-if="isSuperAdmin">
+          <h4 class="ms-sec-title">导入导生（直接入营，不经报名审核）</h4>
+          <el-input v-model="eligibility.raw" type="textarea" :rows="3"
+            placeholder="粘贴导生邮箱，换行或逗号分隔均可，自动去重" />
+          <div class="elig-toolbar">
+            <el-button size="small" :loading="eligibility.previewing" @click="previewEligibility">预览</el-button>
+            <el-button size="small" type="primary" :loading="eligibility.confirming" @click="confirmEligibility">确认导入</el-button>
+            <el-divider direction="vertical" />
+            <el-select v-model="eligibility.minLevel" size="small" class="elig-level-select">
+              <el-option v-for="n in [2, 3, 4]" :key="n" :label="`LV${n} 及以上`" :value="n" />
+            </el-select>
+            <el-button size="small" :loading="eligibility.generating" @click="generateByLevel">按等级填充</el-button>
+          </div>
+
+          <template v-if="eligibility.preview">
+            <h4 class="ms-sec-title">预览结果（{{ eligibility.emails.length }} 个邮箱）</h4>
+            <el-alert v-if="eligibility.preview.unmatched_emails?.length" type="warning" :closable="false"
+              :title="`未匹配账号：${eligibility.preview.unmatched_emails.join('、')}`" style="margin-bottom: 8px;" />
+            <el-table :data="eligibility.preview.matched" border size="small">
+              <el-table-column label="姓名" prop="username" min-width="110" />
+              <el-table-column label="邮箱" prop="email" min-width="180" show-overflow-tooltip />
+              <el-table-column label="状态" width="100" align="center">
+                <template #default="{ row }">
+                  <el-tag v-if="row.already_member" type="info" size="small">已在营</el-tag>
+                  <el-tag v-else type="success" size="small">将导入</el-tag>
+                </template>
+              </el-table-column>
+            </el-table>
+          </template>
+        </template>
+
+
+        <!-- 方向制配置卡：draft/upcoming 可编辑（选导生开跑后锁定只读） -->
+        <div class="ms-cfg-card">
+          <div class="ms-cfg-head">
+            <h4 class="ms-sec-title" style="margin:0;">选导生与方向配置</h4>
+            <span v-if="!msCfgEditable" class="hint">选导生已开跑（{{ statusLabel(session.status) }}），配置锁定只读</span>
+          </div>
+
+          <template v-if="msCfgEditable">
+            <el-form label-width="90px" size="small" style="margin-top:10px;">
+              <el-form-item label="启用选导生">
+                <el-switch v-model="msCfg.enabled" />
+                <span class="hint" style="margin-left:8px;">导生发名片选方向，学员交 1-3 志愿，双方互选后开营</span>
+              </el-form-item>
+              <template v-if="msCfg.enabled">
+                <el-form-item label="志愿起止" required>
+                  <el-date-picker v-model="msCfg.start" type="datetime" value-format="YYYY-MM-DD HH:mm"
+                    format="MM-DD HH:mm" placeholder="开始" style="width:46%" />
+                  <span style="margin:0 4px;">至</span>
+                  <el-date-picker v-model="msCfg.deadline" type="datetime" value-format="YYYY-MM-DD HH:mm"
+                    format="MM-DD HH:mm" placeholder="截止（后进线下协调）" style="width:46%" />
+                </el-form-item>
+                <el-form-item label="分类方向" required>
+                  <div class="ms-cfg-dirs">
+                    <div v-for="(d, i) in msCfg.directions" :key="i" class="ms-cfg-dir-row">
+                      <el-input v-model="d.name" placeholder="方向名（如 硬件组）" style="flex:1" />
+                      <el-select v-model="d.course_id" filterable placeholder="关联课程（必选）" style="flex:1.4">
+                        <el-option v-for="c in allCourses" :key="c.Course_Id" :label="c.Course_title" :value="Number(c.Course_Id)" />
+                      </el-select>
+                      <el-button size="small" type="danger" link :disabled="msCfg.directions.length <= 1"
+                        @click="msCfg.directions.splice(i, 1)">删除</el-button>
+                    </div>
+                    <el-button size="small" @click="msCfg.directions.push({ name: '', course_id: null })">+ 添加方向</el-button>
+                    <div class="hint">每个方向必须绑定一门课程作为开课内容；导生只选一个方向，学员随归属导生继承方向与课程</div>
+                  </div>
+                </el-form-item>
+              </template>
+            </el-form>
+            <div style="margin-top:6px;">
+              <el-button type="primary" size="small" :loading="msCfg.saving" @click="saveMsConfig">保存配置</el-button>
+            </div>
+          </template>
+
+          <!-- 只读态：方向 + 课程一览（含未启用时也不显示方向） -->
+          <template v-else-if="session.mentor_selection_enabled">
+            <div class="ms-cfg-readonly">
+              <div v-for="d in sessionDirections" :key="d.name" class="ms-cfg-dir-view">
+                <span class="dir-name">{{ d.name }}</span>
+                <span class="dir-course">{{ courseTitle(d.course_id) || '未绑定课程' }}</span>
+              </div>
+              <div v-if="!sessionDirections.length" class="hint">尚未配置方向</div>
+              <div class="hint" style="margin-top:6px;">
+                志愿窗口：{{ session.ms_preference_start || '—' }} ~ {{ session.ms_preference_deadline || '—' }}
+              </div>
+            </div>
+          </template>
+          <div v-else class="hint" style="margin-top:8px;">未启用选导生（草稿/待开放阶段可开启并配置方向）</div>
+        </div>
+
         <!-- 阶段状态 + 手动推进（复用 session_update 改 deadline = 提前截止） -->
-        <el-alert
+        <el-alert v-if="session.mentor_selection_enabled"
           :type="msPhaseAlertType"
           :closable="false"
           :title="`当前阶段：${msPhaseLabel} · 志愿 ${msOverview?.deadlines?.preference_deadline || '—'} 截止`"
         />
-        <el-alert v-if="msOverview?.config_error" type="error" :closable="false" title="配置不完整：启用但缺少时间点，请到「营期列表 → 编辑」补齐" style="margin-top:8px" />
+        <el-alert v-if="msOverview?.config_error" type="error" :closable="false" title="配置不完整：启用但缺少时间点/方向课程，请在上方配置卡补齐" style="margin-top:8px" />
+        <template v-if="session.mentor_selection_enabled">
         <div v-if="manageWritable" style="margin: 12px 0;">
           <el-button v-if="msOverview?.phase === 'collecting'" size="small" @click="advanceMs">立即截止志愿</el-button>
           <el-button v-if="isSuperAdmin" size="small" :loading="exporting" @click="exportMsCsv">导出志愿 CSV</el-button>
@@ -265,6 +332,7 @@
             </template>
           </el-table-column>
         </el-table>
+        </template>
       </el-tab-pane>
 
       <!-- 项目营：申报审核（v1.3 阶段3；申报窗口仅 upcoming） -->
@@ -649,6 +717,9 @@ const rewardForm = reactive({ user_id: null, medal_id: null, description: '' });
 const rewardSubmitting = ref(false);
 const joinRequests = ref([]);
 const joinMentors = ref([]);
+// 09-12 重组：学员申请 tab 纯学员（导生报名挪「选导生」tab 招募区）
+const studentJoinRequests = computed(() => joinRequests.value.filter((r) => r.apply_role !== 'mentor'));
+const mentorJoinRequests = computed(() => joinRequests.value.filter((r) => r.apply_role === 'mentor'));
 
 const mentorMembers = computed(() => members.value.filter((m) => m.role === 'mentor'));
 // 加成员：口径对齐后端（camp.py _assign_member）——仅拒 super_admin，营内角色显式指定，
@@ -679,6 +750,70 @@ const leaveStatusLabel = (s) => ({ pending: '待审批', approved: '已批准', 
 const leaveStatusType = (s) => ({ pending: 'warning', approved: 'success', rejected: 'info' }[s] || 'info');
 
 const goBack = () => router.push('/camp/sessions');
+
+// ── 选导生与方向配置（09-12 定稿：配置从建营弹窗迁到详情；draft/upcoming 可编辑，开跑后锁定）──
+const msCfg = reactive({
+  enabled: false, start: null, deadline: null,
+  directions: [{ name: '', course_id: null }],
+  saving: false, loaded: false,
+});
+const msCfgEditable = computed(() => manageWritable.value
+  && ['draft', 'upcoming'].includes(session.value.status));
+const sessionDirections = computed(() => session.value.ms_directions || []);
+const courseTitle = (cid) => {
+  const c = allCourses.value.find((x) => Number(x.Course_Id) === Number(cid));
+  return c?.Course_title || '';
+};
+// session 加载后回填配置卡（一次；切营由路由重建组件）
+watch(session, (s) => {
+  if (!msCfg.loaded && s?.id) {
+    msCfg.loaded = true;
+    msCfg.enabled = !!s.mentor_selection_enabled;
+    msCfg.start = s.ms_preference_start || null;
+    msCfg.deadline = s.ms_preference_deadline || null;
+    const dirs = (s.ms_directions && s.ms_directions.length)
+      ? s.ms_directions : [];
+    msCfg.directions = dirs.length
+      ? dirs.map((d) => ({ name: d.name || '', course_id: d.course_id ?? null }))
+      : [{ name: '', course_id: null }];
+  }
+});
+async function saveMsConfig() {
+  if (msCfg.enabled && (!msCfg.start || !msCfg.deadline)) {
+    ElMessage.warning('启用选导生需设置志愿开始 / 截止时间');
+    return;
+  }
+  const tags = msCfg.enabled
+    ? msCfg.directions.map((d) => ({ name: (d.name || '').trim(), course_id: d.course_id }))
+    : null;
+  if (tags) {
+    if (!tags.length || tags.some((d) => !d.name || !d.course_id)) {
+      ElMessage.warning('请完整填写每个分类方向（方向名 + 关联课程）');
+      return;
+    }
+    if (new Set(tags.map((d) => d.name)).size !== tags.length) {
+      ElMessage.warning('分类方向名称不能重复');
+      return;
+    }
+  }
+  msCfg.saving = true;
+  try {
+    const body = {
+      mentor_selection_enabled: msCfg.enabled,
+      ms_preference_start: msCfg.enabled ? msCfg.start : null,
+      ms_preference_deadline: msCfg.enabled ? msCfg.deadline : null,
+      ...(tags ? { ms_tags: tags } : {}),
+    };
+    await api.put(`/camp/sessions/${campId}`, body);
+    ElMessage.success('配置已保存');
+    await fetchAll();
+    msCfg.loaded = false;   // 让 watch 重新回填最新 session
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '保存失败');
+  } finally {
+    msCfg.saving = false;
+  }
+}
 
 async function fetchAll() {
   loading.value = true;
@@ -1444,4 +1579,14 @@ async function reviseArchive() {
 .elig-toolbar :deep(.el-divider--vertical) { margin: 0; }
 .elig-toolbar .hint { margin-left: 4px; }
 .elig-level-select { width: 88px; }
+
+/* 选导生与方向配置卡（09-12：配置从建营弹窗迁入详情） */
+.ms-cfg-card { border: 1px solid var(--el-border-color-light, #e4e7ed); border-radius: 6px; padding: 12px 14px; margin-bottom: 14px; }
+.ms-cfg-head { display: flex; align-items: center; justify-content: space-between; }
+.ms-cfg-dirs { width: 100%; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.ms-cfg-dir-row { display: flex; gap: 8px; align-items: center; width: 100%; }
+.ms-cfg-readonly { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.ms-cfg-dir-view { display: flex; gap: 10px; font-size: 13px; }
+.ms-cfg-dir-view .dir-name { font-weight: 600; min-width: 90px; }
+.ms-cfg-dir-view .dir-course { color: #909399; }
 </style>

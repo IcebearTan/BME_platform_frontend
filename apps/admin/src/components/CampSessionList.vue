@@ -70,27 +70,8 @@
           <el-switch v-model="dlg.form.weekdays_only" />
         </el-form-item>
 
-        <el-divider content-position="left">选导生（开营前置 · 可选）</el-divider>
-        <el-form-item label="启用选导生">
-          <el-switch v-model="dlg.form.mentor_selection_enabled" />
-          <span class="ms-tip">导生发名片，学员交 3 志愿，双方互选后开营</span>
-        </el-form-item>
-        <template v-if="dlg.form.mentor_selection_enabled">
-          <el-form-item label="志愿开始" required>
-            <el-date-picker v-model="dlg.form.ms_preference_start" type="datetime"
-              value-format="YYYY-MM-DD HH:mm" format="MM-DD HH:mm" placeholder="选导生开始" style="width:100%" />
-          </el-form-item>
-          <el-form-item label="志愿截止" required>
-            <el-date-picker v-model="dlg.form.ms_preference_deadline" type="datetime"
-              value-format="YYYY-MM-DD HH:mm" format="MM-DD HH:mm" placeholder="截止后老师线下协调" style="width:100%" />
-          </el-form-item>
-          <el-form-item label="分类标签">
-            <el-select v-model="dlg.form.ms_tags" multiple filterable allow-create default-first-option
-              placeholder="导生名片的可选分类，可输入自定义" style="width:100%">
-              <el-option v-for="t in MS_TAG_PRESETS" :key="t" :label="t" :value="t" />
-            </el-select>
-          </el-form-item>
-        </template>
+        <!-- 09-12 定稿：弹窗只收基本信息——选导生/方向/课程绑定全部在创建后的
+             营期详情「选导生」tab 配置（draft 状态的意义所在） -->
       </el-form>
       <template #footer>
         <el-button @click="dlg.visible = false">取消</el-button>
@@ -126,17 +107,6 @@ const categoryLabel = (c) => ({ learning: '培训营', project: '项目营' }[c]
 const statusLabel = (s) => ({ draft: '草稿', upcoming: '待开放', selecting: '选择阶段', running: '进行中', archived: '已结营' }[s] || s);
 const statusType = (s) => ({ draft: 'info', upcoming: 'primary', selecting: 'warning', running: 'success', archived: 'info' }[s] || 'info');
 
-// 选导生默认标签（后端 MS_DEFAULT_TAGS 同款；营级可改）
-const MS_TAG_PRESETS = ['硬件组', '软件组', '深度学习', '机械设计', '其他'];
-
-function msEmptyForm() {
-  return {
-    mentor_selection_enabled: false,
-    ms_preference_start: null, ms_preference_deadline: null,
-    ms_tags: [...MS_TAG_PRESETS],
-  };
-}
-
 async function fetchCycles() {
   try {
     const res = await api.get('/camp/cycles');
@@ -158,7 +128,7 @@ async function fetchList() {
 
 function openCreate() {
   dlg.editId = null;
-  dlg.form = { name: '', category: 'learning', cycle_id: null, expected_check_in: null, min_daily_hours: 6, weekdays_only: true, ...msEmptyForm() };
+  dlg.form = { name: '', category: 'learning', cycle_id: null, expected_check_in: null, min_daily_hours: 6, weekdays_only: true };
   dateRange.value = null;
   dlg.visible = true;
 }
@@ -170,10 +140,6 @@ function openEdit(row) {
     expected_check_in: row.expected_check_in ? String(row.expected_check_in).slice(0, 5) : null,
     min_daily_hours: row.min_daily_hours,
     weekdays_only: row.weekdays_only,
-    mentor_selection_enabled: !!row.mentor_selection_enabled,
-    ms_preference_start: row.ms_preference_start || null,
-    ms_preference_deadline: row.ms_preference_deadline || null,
-    ms_tags: (row.ms_tags && row.ms_tags.length) ? [...row.ms_tags] : [...MS_TAG_PRESETS],
   };
   dateRange.value = [row.start_date, row.end_date];
   dlg.visible = true;
@@ -187,11 +153,6 @@ async function submit() {
   // 建营必须挂教学周期（后端强校验）；编辑时周期可改
   if (!dlg.form.cycle_id) {
     ElMessage.warning('请选择教学周期（没有可选时请先让管理员创建周期）');
-    return;
-  }
-  if (dlg.form.mentor_selection_enabled
-    && (!dlg.form.ms_preference_start || !dlg.form.ms_preference_deadline)) {
-    ElMessage.warning('启用选导生需设置：志愿开始 / 志愿截止');
     return;
   }
   dlg.submitting = true;

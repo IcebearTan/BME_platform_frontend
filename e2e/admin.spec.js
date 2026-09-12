@@ -230,14 +230,16 @@ test('营期详情保留选导生与成员添加能力', async ({ page }) => {
   await expect(page.getByRole('cell', { name: '林泽宇', exact: true }).first()).toBeVisible()
   await expect(page.getByRole('cell', { name: '测试学员20', exact: true })).toBeVisible()
 
-  // 加入申请：类型列按 apply_role 区分学员申请与导生报名（导生报名走审核制）
-  await page.getByRole('tab', { name: '加入申请' }).click()
-  await expect(page.getByRole('row', { name: /申请学员/ }).locator('.el-tag', { hasText: '学员' })).toBeVisible()
-  await expect(page.getByRole('row', { name: /报名导生/ }).locator('.el-tag', { hasText: '导生' })).toBeVisible()
+  // 学员申请：纯学员列表（09-12 重组——导生报名挪「选导生」tab 招募区）
+  await page.getByRole('tab', { name: '学员申请' }).click()
+  await expect(page.getByRole('row', { name: /申请学员/ })).toBeVisible()
+  await expect(page.getByRole('row', { name: /报名导生/ })).toHaveCount(0)
 
-  // 培训营（learning）+ 超管：导入导生 tab（导入即直接成为本营导生，资格名单已退役；
-  // 邮箱框 + 按等级填充只读选人器 + 预览 + 确认导入走 members/batch role=mentor）
-  await page.getByRole('tab', { name: '导入导生' }).click()
+  // 选导生 tab：导生全生命周期一页——招募（待审导生报名 + 导入即导生）→ 方向配置 → 流程运营
+  await page.getByRole('tab', { name: '选导生' }).click()
+  await expect(page.getByText('导生招募', { exact: true })).toBeVisible()
+  await expect(page.getByRole('row', { name: /mentor@example.test/ })).toBeVisible()
+
   // 按等级填充：默认 LV2，请求体携带 min_level，候选邮箱回填导入框
   const genRequest = page.waitForRequest((request) =>
     request.url() === 'http://127.0.0.1:5001/camp/sessions/1/mentor-import/candidates-by-level'
@@ -262,7 +264,6 @@ test('营期详情保留选导生与成员添加能力', async ({ page }) => {
     { items: [{ user_id: 301, role: 'mentor' }] })
   await expect(page.getByText('已加入 1/1 人')).toBeVisible()
 
-  await page.getByRole('tab', { name: '选导生' }).click()
   await expect(page.getByText('导生概览', { exact: true })).toBeVisible()
   await expect(page.getByText('学员配对（0 / 20）', { exact: true })).toBeVisible()
 
