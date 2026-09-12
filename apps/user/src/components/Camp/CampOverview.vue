@@ -32,7 +32,26 @@
 
     <!-- ━━ 学员：我的出勤仪表盘 + 日历 + 规则 ━━ -->
     <template v-else>
-      <DewCard variant="default" size="lg" :no-hover="true" class="dashboard-card">
+      <!-- 09-12 模式 C（按周累计）：无承诺日/达标率，给周统计简卡 -->
+      <DewCard v-if="attMode === 'weekly'" variant="default" size="lg" :no-hover="true" class="dashboard-card">
+        <template #header>
+          <div class="card-title-row">
+            <h3>我的出勤（按周累计）</h3>
+            <span class="card-hint">累计 {{ weeklyAtt?.total_days || 0 }} 次 · {{ weeklyAtt?.total_hours || 0 }}h</span>
+          </div>
+        </template>
+        <div v-if="loading" v-loading="true" style="min-height: 80px;"></div>
+        <div v-else-if="weeklyWeeks.length" class="ov-weekly">
+          <div v-for="w in weeklyWeeks" :key="w.label" class="ov-week-row">
+            <span class="ov-w-label">{{ w.label }}</span>
+            <span class="ov-w-range">{{ (w.start || '').slice(5) }} ~ {{ (w.end || '').slice(5) }}</span>
+            <span class="ov-w-val">{{ w.days }} 次 · {{ w.hours }}h</span>
+          </div>
+        </div>
+        <div v-else class="ov-weekly-empty">还没有出勤记录，打卡后按周汇总在这里</div>
+      </DewCard>
+
+      <DewCard v-else variant="default" size="lg" :no-hover="true" class="dashboard-card">
         <template #header>
           <div class="card-title-row">
             <h3>我的出勤</h3>
@@ -58,7 +77,7 @@
         </div>
       </DewCard>
 
-      <DewCard variant="default" size="lg" :no-hover="true" class="heatmap-card">
+      <DewCard v-if="attMode !== 'weekly'" variant="default" size="lg" :no-hover="true" class="heatmap-card">
         <template #header>
           <div class="card-title-row">
             <h3>出勤日历</h3>
@@ -113,6 +132,10 @@ const loading = ref(false);
 const personal = ref(null);
 const daily = ref({});
 const dates = ref([]);
+// 09-12 三模式：按周累计（weekly）下 personal/daily 为空，渲染周统计简卡
+const attMode = ref('daily');
+const weeklyAtt = ref(null);
+const weeklyWeeks = computed(() => [...(weeklyAtt.value?.weeks || [])].reverse());
 const teamSummary = ref(null);   // 导生：本团队 dashboard.summary
 const teamLeaves = ref([]);      // 导生：本团队请假
 
@@ -192,9 +215,12 @@ async function load() {
       teamLeaves.value = lv.leaves || [];
     } else {
       const att = await campService.fetchMyAttendance(props.sid);
+      attMode.value = att.mode || 'daily';
       personal.value = att.personal || null;
       daily.value = att.daily || {};
       dates.value = att.dates || [];
+      weeklyAtt.value = att.weeks
+        ? { weeks: att.weeks, total_days: att.total_days, total_hours: att.total_hours } : null;
     }
   } catch {
     ElMessage.error('加载看板数据失败');
@@ -212,6 +238,14 @@ watch(() => props.sid, load, { immediate: true });
 .card-title-row { display: flex; justify-content: space-between; align-items: baseline; }
 .card-title-row h3 { margin: 0; font-size: 15px; }
 .card-hint { font-size: 12px; color: var(--dew-text-faint); }
+
+/* 按周累计简卡（09-12 模式 C） */
+.ov-weekly { display: flex; flex-direction: column; gap: 6px; }
+.ov-week-row { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 8px; background: rgba(148, 163, 184, .06); font-size: 13px; }
+.ov-w-label { width: 90px; font-weight: 600; }
+.ov-w-range { flex: 1; color: var(--dew-text-muted); }
+.ov-w-val { color: var(--dew-text-heading); font-weight: 600; }
+.ov-weekly-empty { color: var(--dew-text-muted); padding: 12px 0; }
 
 /* dashboard */
 .dashboard-body { display: flex; align-items: center; gap: 28px; flex-wrap: wrap; }

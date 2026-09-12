@@ -230,6 +230,10 @@ test('营期详情保留选导生与成员添加能力', async ({ page }) => {
   await expect(page.getByRole('cell', { name: '林泽宇', exact: true }).first()).toBeVisible()
   await expect(page.getByRole('cell', { name: '测试学员20', exact: true })).toBeVisible()
 
+  // 出勤 tab（09-12 三模式：考勤模式设置卡所在，旧数据无 policy 回退 daily）
+  await page.getByRole('tab', { name: '出勤' }).click()
+  await expect(page.getByText(/假期营 · 每日承诺出勤/)).toBeVisible()
+
   // 学员申请：纯学员列表（09-12 重组——导生报名挪「选导生」tab 招募区）
   await page.getByRole('tab', { name: '学员申请' }).click()
   await expect(page.getByRole('row', { name: /申请学员/ })).toBeVisible()

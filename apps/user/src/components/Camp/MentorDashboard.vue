@@ -1,30 +1,54 @@
 <template>
   <div class="mentor-dashboard">
-    <DewCard v-if="summary" variant="default" size="lg" :no-hover="true" style="margin-bottom: 16px;">
-      <template #header><h3>本团队出勤汇总</h3></template>
-      <div class="summary">
-        <DewBadge type="success">出勤 {{ (summary.present || 0) + (summary.late || 0) }}<template v-if="summary.late">（迟到 {{ summary.late }}）</template></DewBadge>
-        <DewBadge type="warning">未达标 {{ (summary.short_hours || 0) + (summary.late_and_short || 0) }}<template v-if="summary.late_and_short">（迟到 {{ summary.late_and_short }}）</template></DewBadge>
-        <DewBadge type="danger">缺勤 {{ summary.absent || 0 }}</DewBadge>
-        <DewBadge type="primary">请假 {{ summary.on_leave || 0 }}</DewBadge>
-        <span class="rate">达标率 {{ pct(summary.attendance_rate) }}</span>
-      </div>
-    </DewCard>
+    <!-- 09-12 模式 C（学期校区·按周累计）：学员 × 周次数/时长，无承诺日矩阵 -->
+    <template v-if="mode === 'weekly'">
+      <DewCard variant="default" size="lg" :no-hover="true">
+        <template #header><h3>团队出勤周报（{{ weeklyRows.length }} 名学员 · 按周累计）</h3></template>
+        <div v-if="!weeklyRows.length" class="empty">本团队暂无学员</div>
+        <el-table v-else :data="weeklyRows" border stripe size="small" v-loading="loading">
+          <el-table-column label="学员" prop="username" fixed="left" min-width="100" />
+          <el-table-column v-for="w in weekLabels" :key="w.label" min-width="86" align="center">
+            <template #header>{{ w.label }}<div class="th-sub">{{ w.range }}</div></template>
+            <template #default="{ row }">
+              <span v-if="row.weekMap[w.label]">{{ row.weekMap[w.label].days }} 次 · {{ row.weekMap[w.label].hours }}h</span>
+              <span v-else class="dim">—</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="累计" fixed="right" min-width="110" align="center">
+            <template #default="{ row }">{{ row.total_days }} 次 · {{ row.total_hours }}h</template>
+          </el-table-column>
+        </el-table>
+      </DewCard>
+    </template>
 
-    <DewCard variant="default" size="lg" :no-hover="true">
-      <template #header><h3>考勤明细（{{ rows.length }} 名学员）</h3></template>
-      <div v-if="!rows.length" class="empty">本团队暂无承诺出勤数据</div>
-      <el-table v-else :data="rows" border stripe size="small" v-loading="loading">
-        <el-table-column label="学员" prop="username" fixed="left" min-width="90" />
-        <el-table-column v-for="d in dates" :key="d" :label="label(d)" min-width="50" align="center">
-          <template #default="{ row }">
-            <div v-if="row.daily && row.daily[d]"
-                 :class="['cell', 'cell-' + campVisualKey(row.daily[d].status, d === todayIso), { 'is-late': !!row.daily[d].is_late }]"
-                 :title="tip(row.daily[d])">{{ glyph(row.daily[d].status) }}</div>
-          </template>
-        </el-table-column>
-      </el-table>
-    </DewCard>
+    <!-- 模式 A（假期营·每日承诺出勤）：原矩阵视图 -->
+    <template v-else>
+      <DewCard v-if="summary" variant="default" size="lg" :no-hover="true" style="margin-bottom: 16px;">
+        <template #header><h3>本团队出勤汇总</h3></template>
+        <div class="summary">
+          <DewBadge type="success">出勤 {{ (summary.present || 0) + (summary.late || 0) }}<template v-if="summary.late">（迟到 {{ summary.late }}）</template></DewBadge>
+          <DewBadge type="warning">未达标 {{ (summary.short_hours || 0) + (summary.late_and_short || 0) }}<template v-if="summary.late_and_short">（迟到 {{ summary.late_and_short }}）</template></DewBadge>
+          <DewBadge type="danger">缺勤 {{ summary.absent || 0 }}</DewBadge>
+          <DewBadge type="primary">请假 {{ summary.on_leave || 0 }}</DewBadge>
+          <span class="rate">达标率 {{ pct(summary.attendance_rate) }}</span>
+        </div>
+      </DewCard>
+
+      <DewCard variant="default" size="lg" :no-hover="true">
+        <template #header><h3>考勤明细（{{ rows.length }} 名学员）</h3></template>
+        <div v-if="!rows.length" class="empty">本团队暂无承诺出勤数据</div>
+        <el-table v-else :data="rows" border stripe size="small" v-loading="loading">
+          <el-table-column label="学员" prop="username" fixed="left" min-width="90" />
+          <el-table-column v-for="d in dates" :key="d" :label="label(d)" min-width="50" align="center">
+            <template #default="{ row }">
+              <div v-if="row.daily && row.daily[d]"
+                   :class="['cell', 'cell-' + campVisualKey(row.daily[d].status, d === todayIso), { 'is-late': !!row.daily[d].is_late }]"
+                   :title="tip(row.daily[d])">{{ glyph(row.daily[d].status) }}</div>
+            </template>
+          </el-table-column>
+        </el-table>
+      </DewCard>
+    </template>
   </div>
 </template>
 
@@ -38,10 +62,25 @@ const props = defineProps({ sid: { type: [Number, String], required: true } });
 
 const loading = ref(false);
 const board = ref({});
+const mode = ref('daily');
 const summary = computed(() => board.value.summary || null);
 const dates = computed(() => board.value.dates || []);
 const rows = computed(() => board.value.rows || []);
 const todayIso = todayLocal();
+
+// weekly 形状：rows=[{username, weeks:[{label,...}], total_*}] → 展平成列标签 + 行索引
+const weeklyRows = computed(() => (board.value.rows || []).map((r) => ({
+  ...r,
+  weekMap: Object.fromEntries((r.weeks || []).map((w) => [w.label, w])),
+})));
+const weekLabels = computed(() => {
+  const seen = new Map();
+  for (const r of board.value.rows || []) {
+    for (const w of r.weeks || []) seen.set(w.label, w);
+  }
+  return [...seen.values()].sort((a, b) => a.label.localeCompare(b.label))
+    .map((w) => ({ label: w.label, range: `${(w.start || '').slice(5)}~${(w.end || '').slice(5)}` }));
+});
 
 // 字形按归类渲染（迟到不再单独占字形，以角标叠加）
 const GLYPH = { present: '✓', late: '✓', short_hours: '短', late_and_short: '短', absent: '✗',
@@ -60,7 +99,7 @@ const tip = (c) => {
 
 async function load() {
   loading.value = true;
-  try { board.value = await campService.fetchDashboard(props.sid); }
+  try { board.value = await campService.fetchDashboard(props.sid); mode.value = board.value.mode || 'daily'; }
   catch { ElMessage.error('加载团队考勤失败'); }
   finally { loading.value = false; }
 }
@@ -71,6 +110,8 @@ watch(() => props.sid, load, { immediate: true });
 .summary { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .summary .rate { margin-left: 8px; font-weight: 600; }
 .empty { color: var(--dew-text-muted); padding: 16px 0; }
+.th-sub { font-weight: 400; font-size: 11px; color: #909399; }
+.dim { color: #c0c4cc; }
 .cell { height: 26px; line-height: 26px; text-align: center; border-radius: 4px; font-size: 12px; font-weight: 600; position: relative; }
 .cell-present { background: rgba(16, 185, 129, .18); color: #10b981; }
 .cell-insufficient { background: rgba(245, 158, 11, .18); color: #f59e0b; }

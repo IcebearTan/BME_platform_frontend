@@ -18,7 +18,13 @@ const SESSIONS = {
       start_date: '2027-03-01', end_date: '2027-03-31', status: 'selecting',
       is_member: false, my_role: null, member_count: 3,
       weekdays_only: true, mentor_selection_enabled: false,
-      ms_tags: ['软件组', '硬件组'] },
+      ms_tags: ['软件组', '硬件组'],
+      policy: { attendance_mode: 'daily', capabilities: { attendance: true, leave: true, seat: true } } },
+    { id: 28, name: '学期周考营', category: 'learning', cycle_name: '2026 秋季',
+      start_date: '2026-09-14', end_date: '2027-01-15', status: 'selecting',
+      is_member: false, my_role: null, member_count: 6,
+      weekdays_only: true, mentor_selection_enabled: false,
+      policy: { attendance_mode: 'weekly', capabilities: { attendance: true, leave: true, seat: true } } },
     { id: 23, name: '暑期双选营', category: 'learning', cycle_name: '2026 暑期',
       start_date: '2026-08-26', end_date: '2026-09-30', status: 'selecting',
       is_member: true, my_role: 'student', member_count: 8,
@@ -91,9 +97,9 @@ test('营期中心：五分组渲染与身份/主操作', async ({ page }) => {
   for (const title of ['导生可报名', '可报名', '我的营期', '即将开始', '历史营期']) {
     await expect(page.locator('.group-title').filter({ hasText: new RegExp(`^${title}$`) })).toBeVisible()
   }
-  // 卡片一致性：入口按钮统一为「进入营期」，每张卡恰一个（8 营全可见 = 8 个，含项目营×2）；
+  // 卡片一致性：入口按钮统一为「进入营期」，每张卡恰一个（9 营全可见 = 9 个，含项目营×2+周考营）；
   // 报名等动作不在中心做，全部进营期工作台完成
-  await expect(page.getByRole('button', { name: '进入营期' })).toHaveCount(9)
+  await expect(page.getByRole('button', { name: '进入营期' })).toHaveCount(10)
   await expect(page.getByRole('button', { name: '去报名' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: '报名成为导生' })).toHaveCount(0)
   // 身份/报名状态只显示在身份行一处（两所 learning 待开放营都标「可报导生」）
@@ -113,7 +119,7 @@ test('超管预判：中心隐藏可报名组，工作台给说明卡不给表�
 
   await page.goto(`${BASE}/camp`, { waitUntil: 'domcontentloaded' })
   await expect(page.getByRole('heading', { name: '营期中心' })).toBeVisible()
-  // 后端对管理员报名一律 400：中心预判隐藏「可报名」组（少 id22/id26 两卡 → 6 个入口）
+  // 后端对管理员报名一律 400：中心预判隐藏「可报名」组（id22/26/28 三卡不显示 → 7 个入口）
   await expect(page.locator('.group-title', { hasText: '可报名' })).toHaveCount(0)
   // staff 不参与导生报名：upcoming 营（id21/id24）归「即将开始」组
   await expect(page.locator('.group-title').filter({ hasText: /^即将开始$/ })).toBeVisible()
@@ -371,6 +377,36 @@ test('学习方向卡：学员查看随导生继承的方向课程与章节认�
   // 去学习：跳课程详情（from=camp 返回时回学习方向 tab）
   await page.getByRole('button', { name: '去学习' }).click()
   await expect(page).toHaveURL(/\/study\/details\?id=7&from=camp/)
+
+  expect(errors).toEqual([])
+})
+
+test('周考模式：学期校区营报名不收承诺日（按周累计）', async ({ page }) => {
+  const errors = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  let joinPayload = null
+  await loginAsUser(page)
+  await page.route('http://127.0.0.1:5001/camp/sessions/28/join-request', (route) => {
+    if (route.request().method() === 'POST' && !route.request().url().includes('cancel')) {
+      joinPayload = route.request().postDataJSON()
+      return route.fulfill({ json: { code: 200, message: '申请已提交，等待审批' } })
+    }
+    return route.fulfill({ json: { code: 200, message: '已撤回申请' } })
+  })
+
+  await page.goto(`${BASE}/camp?sid=28`, { waitUntil: 'domcontentloaded' })
+
+  // 09-12 三模式：attendance_mode=weekly（学期校区）——报名表单无承诺到岗日节，可直接提交
+  await expect(page.getByText('申请加入「学期周考营」')).toBeVisible()
+  await expect(page.locator('.field-label', { hasText: '承诺到岗日' })).toHaveCount(0)
+  const submit = page.getByRole('button', { name: '提交申请', exact: true })
+  await expect(submit).toBeEnabled()
+  await submit.click()
+
+  await expect(page.getByText('申请已提交，等待审批')).toBeVisible()
+  expect(joinPayload).toBeTruthy()
+  expect(joinPayload.selected_days).toEqual([])
+  expect(joinPayload).not.toHaveProperty('preferred_tag')
 
   expect(errors).toEqual([])
 })

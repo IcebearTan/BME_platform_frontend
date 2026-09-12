@@ -44,19 +44,21 @@
     <DewCard v-else variant="inset" size="lg" :no-hover="true" class="join-card">
       <div class="join-title">申请加入「{{ session.name }}」</div>
       <div class="join-hint">
-        提交后由管理员审批。请选择能到岗的日期（{{ session.weekdays_only ? '本营仅计工作日' : '含周末' }}，至少一天），通过后按到岗日生成考勤承诺；组别随后续归属的导生确定，报名时无需选择。
+        提交后由管理员审批。<template v-if="needDays">请选择能到岗的日期（{{ session.weekdays_only ? '本营仅计工作日' : '含周末' }}，至少一天），通过后按到岗日生成考勤承诺；</template>组别随后续归属的导生确定，报名时无需选择。
       </div>
 
-      <!-- 承诺出勤日 -->
-      <div class="field-label">承诺到岗日 <span class="field-req">至少一天</span></div>
-      <div class="day-wrap">
-        <div v-if="!days.length" class="no-days">营期范围内已无可选的未来日期。</div>
-        <div v-else class="day-grid">
-          <button v-for="d in days" :key="d.value" type="button"
-                  :class="['pick-chip', { picked: pickedDays.has(d.value) }]"
-                  @click="toggleDay(d.value)">{{ d.label }}</button>
+      <!-- 承诺出勤日（09-12 三模式：仅假期营·每日模式收取） -->
+      <template v-if="needDays">
+        <div class="field-label">承诺到岗日 <span class="field-req">至少一天</span></div>
+        <div class="day-wrap">
+          <div v-if="!days.length" class="no-days">营期范围内已无可选的未来日期。</div>
+          <div v-else class="day-grid">
+            <button v-for="d in days" :key="d.value" type="button"
+                    :class="['pick-chip', { picked: pickedDays.has(d.value) }]"
+                    @click="toggleDay(d.value)">{{ d.label }}</button>
+          </div>
         </div>
-      </div>
+      </template>
 
       <!-- 理由 -->
       <div class="field-label">申请理由</div>
@@ -87,10 +89,12 @@ const emit = defineEmits(['submitted', 'cancelled']);
 const reason = ref('');
 const submitting = ref(false);
 
-// ── 项目营分支（v1.3 阶段3）：入池报名，考勤能力未开时不收到岗日/大组 ──
+// ── 考勤模式分支（09-12 三模式）：承诺到岗日仅模式 A（假期营·每日）收集；
+// 按周累计（学期校区）/不考勤（学期远程）不收——learning/project 同一口径 ──
 const isProject = computed(() => props.session.category === 'project');
 const caps = computed(() => props.session.policy?.capabilities || {});
-const needDays = computed(() => !isProject.value || !!caps.value.attendance);
+const needDays = computed(() =>
+  !!caps.value.attendance && (props.session.policy?.attendance_mode || 'daily') === 'daily');
 const projectLimit = computed(() => props.session.policy?.project_limit);
 
 // 承诺到岗日候选：今天起、营期范围内；工作日营剔除周末（后端同口径兜底校验）
@@ -121,7 +125,8 @@ function toggleDay(v) {
 const canSubmit = computed(() => (needDays.value ? pickedDays.value.size > 0 : true));
 const submitText = computed(() => {
   if (needDays.value && !pickedDays.value.size) return '请先选择到岗日';
-  return isProject.value ? '提交入池申请' : `提交申请（${pickedDays.value.size} 天）`;
+  if (!needDays.value) return isProject.value ? '提交入池申请' : '提交申请';
+  return `提交申请（${pickedDays.value.size} 天）`;
 });
 
 async function submit() {

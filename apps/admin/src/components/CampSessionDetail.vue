@@ -54,14 +54,51 @@
         </el-table>
       </el-tab-pane>
 
-      <!-- ③ 出勤计划 -->
-      <el-tab-pane v-if="capOn('attendance')" label="出勤计划" name="plan">
-        <el-alert type="info" :closable="false"
-          :title="`本营 ${studentMembers.length} 名学员；承诺出勤日按营期范围内工作日（${session.weekdays_only ? '仅周一~周五' : '含周末'}）展开`" />
-        <div style="margin-top: 12px;">
-          <el-button v-if="manageWritable" type="primary" @click="regenPlan">重生成承诺出勤日</el-button>
-          <span class="hint">加入新学员时自动生成；此处可手动重生成（幂等，自动清理范围外/范围内周末的旧承诺日）</span>
+      <!-- ③ 出勤（09-12 三模式：模式设置 + daily 模式的承诺出勤日管理） -->
+      <el-tab-pane v-if="capOn('attendance') || attCfg.mode === 'off'" label="出勤" name="plan">
+        <!-- 考勤模式设置卡：三选一（假期营每日 / 学期校区按周 / 学期远程不考勤）+ A 模式考勤参数 -->
+        <div class="att-cfg-card">
+          <h4 class="ms-sec-title" style="margin:0 0 10px;">考勤模式</h4>
+          <el-radio-group v-model="attCfg.mode" :disabled="!manageWritable" style="flex-direction: column; align-items: stretch; gap: 8px;">
+            <el-radio value="daily">假期营 · 每日承诺出勤——报名选到岗日，按日打卡评估出勤/迟到/时长</el-radio>
+            <el-radio value="weekly">学期 · 校区培训 · 按周累计——不收承诺日，考察每周打卡次数与时长</el-radio>
+            <el-radio value="off">学期 · 远程培训 · 不考勤</el-radio>
+          </el-radio-group>
+
+          <!-- A 模式考勤参数（09-12 从建营弹窗迁入：仅每日模式需要） -->
+          <el-form v-if="attCfg.mode === 'daily' && manageWritable" label-width="90px" size="small" style="margin-top: 12px; max-width: 480px;">
+            <el-form-item label="期望到岗">
+              <el-time-picker v-model="attCfg.expectedCheckIn" value-format="HH:mm" format="HH:mm"
+                placeholder="如 09:00（判迟到基准，不填不判）" style="width: 100%;" />
+            </el-form-item>
+            <el-form-item label="最低时长">
+              <el-input-number v-model="attCfg.minDailyHours" :min="0" :step="0.5" /> 小时/日
+              <span class="hint" style="margin-left: 6px;">不填不判达标</span>
+            </el-form-item>
+            <el-form-item label="仅工作日">
+              <el-switch v-model="attCfg.weekdaysOnly" />
+              <span class="hint" style="margin-left: 6px;">承诺出勤日 = 营期范围内工作日</span>
+            </el-form-item>
+          </el-form>
+
+          <div style="margin-top: 10px;">
+            <el-button v-if="manageWritable" type="primary" size="small" :loading="attCfg.saving" @click="saveAttMode">保存</el-button>
+            <span class="hint" style="margin-left:8px;">切换出「每日」会清空本营承诺出勤日；切回需手动重生成</span>
+          </div>
         </div>
+
+        <template v-if="attModeSaved === 'daily'">
+          <el-alert type="info" :closable="false"
+            :title="`本营 ${studentMembers.length} 名学员；承诺出勤日按营期范围内工作日（${session.weekdays_only ? '仅周一~周五' : '含周末'}）展开`" />
+          <div style="margin-top: 12px;">
+            <el-button v-if="manageWritable" type="primary" @click="regenPlan">重生成承诺出勤日</el-button>
+            <span class="hint">加入新学员时自动生成；此处可手动重生成（幂等，自动清理范围外/范围内周末的旧承诺日）</span>
+          </div>
+        </template>
+        <el-alert v-else type="info" :closable="false" style="margin-top: 12px;"
+          :title="attModeSaved === 'weekly'
+            ? '按周累计模式：学员报名不收承诺日，出勤看板按周统计打卡次数与时长'
+            : '本营不考勤：报名/工作台均不出考勤入口，保存后考勤能力关闭'" />
       </el-tab-pane>
 
       <!-- ④ 座位 -->
@@ -750,6 +787,48 @@ const leaveStatusLabel = (s) => ({ pending: '待审批', approved: '已批准', 
 const leaveStatusType = (s) => ({ pending: 'warning', approved: 'success', rejected: 'info' }[s] || 'info');
 
 const goBack = () => router.push('/camp/sessions');
+
+// ── 考勤三模式（09-12）：本地编辑态 attCfg；保存后回读 session 驱动渲染。
+// A 模式考勤参数（期望到岗/最低时长/仅工作日）随模式一并保存（09-12 从建营弹窗迁入）──
+const attCfg = reactive({
+  mode: 'daily', saving: false,
+  expectedCheckIn: null, minDailyHours: null, weekdaysOnly: true,
+});
+const attModeSaved = computed(() => {
+  const caps = session.value.policy?.capabilities;
+  if (caps && caps.attendance === false) return 'off';
+  return session.value.policy?.attendance_mode || 'daily';
+});
+watch(attModeSaved, (m) => { attCfg.mode = m; }, { immediate: true });
+watch(session, (s) => {
+  if (!s?.id) return;
+  attCfg.expectedCheckIn = s.expected_check_in ? String(s.expected_check_in).slice(0, 5) : null;
+  attCfg.minDailyHours = s.min_daily_hours ?? null;
+  attCfg.weekdaysOnly = !!s.weekdays_only;
+}, { immediate: true });
+async function saveAttMode() {
+  attCfg.saving = true;
+  try {
+    const mode = attCfg.mode;
+    await api.put(`/camp/sessions/${campId}`, {
+      policy: {
+        attendance_mode: mode === 'off' ? 'daily' : mode,   // off 由能力位承载，mode 落 daily
+        attendance_enabled: mode !== 'off',
+      },
+      ...(mode === 'daily' ? {
+        expected_check_in: attCfg.expectedCheckIn || null,
+        min_daily_hours: attCfg.minDailyHours,
+        weekdays_only: attCfg.weekdaysOnly,
+      } : {}),
+    });
+    ElMessage.success('考勤设置已保存');
+    await fetchAll();
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '保存失败');
+  } finally {
+    attCfg.saving = false;
+  }
+}
 
 // ── 选导生与方向配置（09-12 定稿：配置从建营弹窗迁到详情；draft/upcoming 可编辑，开跑后锁定）──
 const msCfg = reactive({
@@ -1589,4 +1668,9 @@ async function reviseArchive() {
 .ms-cfg-dir-view { display: flex; gap: 10px; font-size: 13px; }
 .ms-cfg-dir-view .dir-name { font-weight: 600; min-width: 90px; }
 .ms-cfg-dir-view .dir-course { color: #909399; }
+
+/* 考勤模式设置卡（09-12 三模式） */
+.att-cfg-card { border: 1px solid var(--el-border-color-light, #e4e7ed); border-radius: 6px; padding: 12px 14px; margin-bottom: 14px; }
+.att-cfg-card :deep(.el-radio) { height: auto; align-items: flex-start; margin-right: 0; }
+
 </style>

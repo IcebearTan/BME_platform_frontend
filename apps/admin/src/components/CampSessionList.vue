@@ -44,7 +44,7 @@
         </el-form-item>
         <el-form-item label="营期类型" required>
           <el-select v-model="dlg.form.category" :disabled="!!dlg.editId" style="width:100%">
-            <el-option label="培训营（学习型）" value="learning" />
+            <el-option label="培训营" value="learning" />
             <el-option label="项目营" value="project" />
           </el-select>
           <div v-if="dlg.editId" class="field-tip">存量营的营期类型不可修改</div>
@@ -59,19 +59,9 @@
           <el-date-picker v-model="dateRange" type="daterange" range-separator="至"
             start-placeholder="开始" end-placeholder="结束" value-format="YYYY-MM-DD" style="width:100%" />
         </el-form-item>
-        <el-form-item label="期望到岗">
-          <el-time-picker v-model="dlg.form.expected_check_in" value-format="HH:mm"
-            format="HH:mm" placeholder="如 09:00" style="width:100%" />
-        </el-form-item>
-        <el-form-item label="每日最低时长">
-          <el-input-number v-model="dlg.form.min_daily_hours" :min="0" :step="0.5" /> 小时
-        </el-form-item>
-        <el-form-item label="仅工作日">
-          <el-switch v-model="dlg.form.weekdays_only" />
-        </el-form-item>
 
-        <!-- 09-12 定稿：弹窗只收基本信息——选导生/方向/课程绑定全部在创建后的
-             营期详情「选导生」tab 配置（draft 状态的意义所在） -->
+        <!-- 09-12 定稿：弹窗只收基本信息——选导生/方向/课程绑定在详情「选导生」tab，
+             期望到岗/最低时长/仅工作日（A 模式考勤参数）在详情「出勤」tab（draft 状态的意义所在） -->
       </el-form>
       <template #footer>
         <el-button @click="dlg.visible = false">取消</el-button>
@@ -98,7 +88,7 @@ const dateRange = ref(null);
 
 const dlg = reactive({
   visible: false, submitting: false, editId: null,
-  form: { name: '', category: 'learning', cycle_id: null, expected_check_in: null, min_daily_hours: 6, weekdays_only: true },
+  form: { name: '', category: 'learning', cycle_id: null },
 });
 
 // 教学周期选项（GET /camp/cycles 全员可读；创建营期必须挂一个周期）
@@ -128,7 +118,7 @@ async function fetchList() {
 
 function openCreate() {
   dlg.editId = null;
-  dlg.form = { name: '', category: 'learning', cycle_id: null, expected_check_in: null, min_daily_hours: 6, weekdays_only: true };
+  dlg.form = { name: '', category: 'learning', cycle_id: null };
   dateRange.value = null;
   dlg.visible = true;
 }
@@ -137,9 +127,6 @@ function openEdit(row) {
   dlg.editId = row.id;
   dlg.form = {
     name: row.name, category: row.category || 'learning', cycle_id: row.cycle_id || null, status: row.status,
-    expected_check_in: row.expected_check_in ? String(row.expected_check_in).slice(0, 5) : null,
-    min_daily_hours: row.min_daily_hours,
-    weekdays_only: row.weekdays_only,
   };
   dateRange.value = [row.start_date, row.end_date];
   dlg.visible = true;
