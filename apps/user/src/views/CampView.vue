@@ -353,7 +353,6 @@ async function loadPendingRequests() {
     for (const r of data.requests || []) {
       if (r.status !== 'pending') continue;
       if (r.apply_role === 'mentor') pendingMentorSids.value.add(r.camp_session_id);
-      else if (r.apply_role === 'leader') continue;   // 负责人资格申请：申报卡自理，不占入营/导生报名 pending 位
       else pendingStudentSids.value.add(r.camp_session_id);
     }
   } catch { /* 静默 */ }

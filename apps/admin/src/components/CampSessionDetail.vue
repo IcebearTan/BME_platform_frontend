@@ -189,13 +189,6 @@
         <el-alert v-if="!studentJoinRequests.length" type="info" :closable="false" title="暂无待审批的学员申请" />
         <el-table :data="studentJoinRequests" border size="small" style="margin-top: 12px;">
           <el-table-column label="申请人" prop="username" width="110" />
-          <el-table-column label="类型" width="110">
-            <template #default="{ row }">
-              <!-- 09-13 项目营两段式：负责人资格申请（通过=可申报项目，不入营）与入营申请同区审批 -->
-              <el-tag v-if="row.apply_role === 'leader'" type="warning" size="small">负责人资格</el-tag>
-              <el-tag v-else type="info" size="small">入营</el-tag>
-            </template>
-          </el-table-column>
           <el-table-column label="邮箱" prop="email" min-width="160" show-overflow-tooltip />
           <!-- 09-12 砍学员报名意向大组：组别随归属导生继承（导生组=名片 tags），申请列表不再展示 -->
           <el-table-column label="事由" prop="reason" min-width="140" show-overflow-tooltip />
@@ -204,7 +197,7 @@
           </el-table-column>
           <el-table-column label="归属导生" width="140">
             <template #default="{ row }">
-              <el-select v-if="row.role === 'student' && row.apply_role !== 'leader'" v-model="row._mentor" size="small" placeholder="选导生(可选)" style="width:100%">
+              <el-select v-if="row.role === 'student'" v-model="row._mentor" size="small" placeholder="选导生(可选)" style="width:100%">
                 <el-option v-for="m in joinMentors" :key="m.user_id" :label="m.username" :value="m.user_id" />
               </el-select>
               <span v-else>—</span>

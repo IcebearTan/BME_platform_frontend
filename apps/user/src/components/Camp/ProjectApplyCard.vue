@@ -1,8 +1,8 @@
 <template>
-  <!-- 项目营申报期（upcoming）非成员视图（09-13 两段式：先申请负责人资格，过审后才能申报）。
-       资格态：无申请→申请表单 / 待审核→安静态可撤回 / 被拒→重新申请；
-       资格过审→申报表单 / 待审核→安静态 / 被退回→原因+重提表单（新版本）。
-       存量豁免：有申报历史的老用户不受新资格门槛卡（后端同口径）。
+  <!-- 项目营申报期（upcoming）非成员视图：负责人申报入口（v1.3 阶段3）。
+       状态机：可申报→表单 / 待审核→安静态 / 被退回→原因+重提表单（新版本）。
+       09-13 复盘定稿：申报即资格——申报通过只是在对应项目中作为负责人，
+       不设全营「负责人资格」前置环节（两段式方案当日撤案）。
        普通学员提示报名在选择阶段开放（申报与入营窗口分离，09-12 拍板「仅 upcoming」）。 -->
   <div class="apply-card-wrap">
     <DewCard v-if="loading" variant="inset" size="lg" :no-hover="true" class="apply-card">
@@ -17,7 +17,7 @@
         <div class="apply-hint">项目工作台已对你开放，请从营期成员视图进入。</div>
       </DewCard>
 
-      <!-- 申报待审核：安静态（审核前管理员可退回，退回后回到表单态重提） -->
+      <!-- 待审核：安静态（审核前管理员可退回，退回后回到表单态重提） -->
       <DewCard v-else-if="pendingApp" variant="inset" size="lg" :no-hover="true" class="apply-card">
         <div class="apply-title">申报待审核</div>
         <div class="apply-hint">
@@ -25,7 +25,7 @@
         </div>
       </DewCard>
 
-      <!-- 申报表单：资格过审 or 被退回重提 -->
+      <!-- 申报表单：可申报 or 被退回重提 -->
       <DewCard v-else-if="mine.can_apply || rejectedApp" variant="inset" size="lg" :no-hover="true" class="apply-card">
         <template v-if="rejectedApp">
           <div class="apply-title">上次申报被退回，可修改后重提</div>
@@ -66,39 +66,6 @@
         </div>
       </DewCard>
 
-      <!-- ── 负责人资格申请（09-13 两段式前置；need_leader_request=upcoming 且无资格）── -->
-      <DewCard v-else-if="needLeaderRequest" variant="inset" size="lg" :no-hover="true" class="apply-card">
-        <!-- 资格待审核：安静态 + 撤回（撤回后回到申请表单） -->
-        <template v-if="leaderPending">
-          <div class="apply-title">负责人资格申请待审核</div>
-          <div class="apply-hint">
-            已提交项目负责人资格申请，管理员审核通过后即可在此申报项目。审核前可撤回后重新提交。
-          </div>
-          <DewButton type="ghost" :loading="cancelling" @click="cancelLeader">撤回申请</DewButton>
-        </template>
-
-        <!-- 资格被拒：提示 + 重新申请 -->
-        <template v-else-if="leaderRejected">
-          <div class="apply-title">上次资格申请未通过，可重新申请</div>
-          <div class="reject-note">如有疑问请联系老师了解原因；补充说明后可再次提交。</div>
-        </template>
-        <div v-else class="apply-title">申请成为项目负责人</div>
-
-        <div class="apply-hint">
-          申报项目前需先取得项目负责人资格：管理员审核通过后，即可在「待开放」阶段申报项目（申报内容另审）。以学员身份参加无需资格，选择阶段开放报名。
-        </div>
-
-        <div class="field-label">申请理由 <span class="field-req">必填</span></div>
-        <DewInput v-model="leaderReason" type="textarea" :rows="3"
-                  placeholder="想负责的方向、相关经历与可投入时间" :disabled="leaderSubmitting" />
-
-        <div class="apply-actions">
-          <DewButton size="lg" :loading="leaderSubmitting" :disabled="!leaderReason.trim()" @click="submitLeader">
-            {{ leaderRejected ? '重新提交申请' : '提交资格申请' }}
-          </DewButton>
-        </div>
-      </DewCard>
-
       <!-- 窗口已过（非 upcoming 或已负责/已申报完）：说明卡 -->
       <DewCard v-else variant="inset" size="lg" :no-hover="true" class="apply-card">
         <div class="apply-title">项目申报</div>
@@ -124,22 +91,13 @@ const mine = ref({});
 const submitting = ref(false);
 const form = ref({ name: '', background: '', goal: '', required_abilities: '', recruit_note: '', plan: '' });
 
-// ── 负责人资格（09-13 两段式：资格态由 mine.leader_request 驱动）──
-const leaderReason = ref('');
-const leaderSubmitting = ref(false);
-const cancelling = ref(false);
-const needLeaderRequest = computed(() => !!mine.value.need_leader_request);
-const leaderPending = computed(() => mine.value.leader_request?.status === 'pending');
-const leaderRejected = computed(() => mine.value.leader_request?.status === 'rejected'
-  && !leaderPending.value);
-
 const pendingApp = computed(() => mine.value.applications?.find((a) => a.status === 'pending'));
 const rejectedApp = computed(() => {
   const apps = mine.value.applications || [];
   return apps.length && apps[0].status === 'rejected' ? apps[0] : null;   // mine 按版本倒序
 });
 const closedHint = computed(() => {
-  if (props.session.status !== 'upcoming') return '申报期已结束（负责人资格申请与项目申报均在「待开放」阶段进行）。';
+  if (props.session.status !== 'upcoming') return '申报期已结束（项目申报在「待开放」阶段进行）。';
   return '你已申报或已负责项目，本期不能再申报。';
 });
 
@@ -166,34 +124,6 @@ async function submit() {
     ElMessage.error(e.response?.data?.message || '提交失败，请稍后重试');
   } finally {
     submitting.value = false;
-  }
-}
-
-async function submitLeader() {
-  if (leaderSubmitting.value || !leaderReason.value.trim()) return;
-  leaderSubmitting.value = true;
-  try {
-    const r = await campService.submitLeaderRequest(props.session.id, leaderReason.value.trim());
-    ElMessage.success(r.message || '资格申请已提交，等待管理员审核');
-    await load();   // 回到待审核安静态
-  } catch (e) {
-    ElMessage.error(e.response?.data?.message || '提交失败，请稍后重试');
-  } finally {
-    leaderSubmitting.value = false;
-  }
-}
-
-async function cancelLeader() {
-  if (cancelling.value) return;
-  cancelling.value = true;
-  try {
-    const r = await campService.cancelJoin(props.session.id);   // 撤回通用（按营+人定位 pending 行）
-    ElMessage.success(r.message || '已撤回申请');
-    await load();   // 回到申请表单态
-  } catch (e) {
-    ElMessage.error(e.response?.data?.message || '撤回失败，请稍后重试');
-  } finally {
-    cancelling.value = false;
   }
 }
 </script>

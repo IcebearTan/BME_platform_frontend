@@ -161,10 +161,7 @@ export const campService = {
   // （只返回本人数据；非成员在申报期 upcoming 也可调用——申报入口卡数据源）
   fetchProjectMine: (sid) =>
     api.get(`/camp/projects/${sid}/mine`).then(r => r.data),
-  // 申请项目负责人资格（09-13 两段式：资格审人→申报审项目；撤回复用 cancelJoin）
-  submitLeaderRequest: (sid, reason) =>
-    api.post(`/camp/projects/${sid}/leader-requests`, { reason }).then(r => r.data),
-  // 负责人提交申报（仅 upcoming；退回重提=后端自动升版本；前置负责人资格）
+  // 负责人提交申报（仅 upcoming；退回重提=后端自动升版本）
   submitProjectApplication: (sid, form) =>
     api.post(`/camp/projects/${sid}/applications`, form).then(r => r.data),
   // 营内过审项目列表（组队浏览/工作区共用；带 my_role/my_pref_rank/member_count）
