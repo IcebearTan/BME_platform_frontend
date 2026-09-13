@@ -1,10 +1,8 @@
 <template>
-  <!-- 项目营申报（09-13 复盘放宽：可同时申报/负责多个项目）。
-       申报即资格（upcoming 人人可报、admin 审申报）；待审不阻塞继续申报；
-       被拒的项目直接用表单重报（升版本）。参与总数受上限约束（负责的计入），
-       在管理员批准时校验。
-       双入口：非成员视图（CampView upcoming）+ 成员工作台（ProjectHub 申报 view）。
-       普通学员报名在选择阶段开放（申报与入营窗口分离，09-12 拍板「仅 upcoming」）。 -->
+  <!-- 项目营申报（09-13 申报即设计模板：节点序列替代「计划」栏，三起点=空白/平台默认/复制历史）。
+       过审时节点自动建项目模板+实例化里程碑——项目落地自带完整交付流程；审核时管理员可见。
+       可多申报/多负责/多加入（参与不设上限）；双入口：非成员视图（CampView upcoming）+
+       成员工作台（ProjectHub 申报 view）。普通学员报名在选择阶段开放。 -->
   <div class="apply-card-wrap">
     <DewCard v-if="loading" variant="inset" size="lg" :no-hover="true" class="apply-card">
       <DewSkeleton variant="text" width="40%" />
@@ -18,6 +16,7 @@
         <div class="pending-list">
           <div v-for="a in pendingApps" :key="a.id" class="pending-item">
             <span class="pending-name">「{{ a.name }}」</span>
+            <span class="pending-nodes">{{ a.template_nodes?.length || 0 }} 节点</span>
             <span class="pending-date">{{ (a.created_at || '').slice(0, 10) }}</span>
           </div>
         </div>
@@ -52,12 +51,54 @@
         <DewInput v-model="form.recruit_note" type="textarea" :rows="2"
                   placeholder="打算招几个人、怎么分工" :disabled="submitting" />
 
-        <div class="field-label">计划</div>
-        <DewInput v-model="form.plan" type="textarea" :rows="2"
-                  placeholder="阶段划分与时间安排" :disabled="submitting" />
+        <!-- ── 交付节点（申报即模板：替代「计划」栏；过审自动实例化）── -->
+        <div class="field-label">交付节点 <span class="field-req">至少 1 个</span>
+          <span class="field-hint">项目流程的施工图——过审即按此生成里程碑；结题后可发布到项目广场供人借鉴</span>
+        </div>
+
+        <div v-if="!platformList.length && !sourceList.length" class="start-hint">
+          可直接在下方添加节点；平台默认模板与历史项目模板上线后，可一键预填起步。
+        </div>
+        <template v-else>
+          <div class="start-row">
+            <button type="button" :class="['start-chip', { on: startMode === 'blank' }]"
+                    @click="pickStart('blank')">空白自建</button>
+            <button v-if="platformList.length" type="button"
+                    :class="['start-chip', { on: startMode === 'platform' }]"
+                    @click="pickStart('platform')">平台默认模板</button>
+            <button v-if="sourceList.length" type="button"
+                    :class="['start-chip', { on: startMode === 'clone' }]"
+                    @click="pickStart('clone')">复制历史项目</button>
+          </div>
+          <DewSelect v-if="startMode !== 'blank'" v-model="sourceId" size="sm"
+                     :options="sourceOptions" placeholder="选择模板源（预填后可再改）"
+                     @update:model-value="applySource" />
+        </template>
+
+        <div class="node-list">
+          <div v-for="(n, i) in form.template_nodes" :key="i" class="node-item">
+            <span class="node-order">{{ i + 1 }}</span>
+            <div class="node-main">
+              <div class="node-grid">
+                <DewInput v-model="n.title" size="sm" placeholder="节点标题（如：开题报告）" />
+                <DewSelect v-model="n.submit_mode" size="sm" :options="MODE_OPTS" />
+              </div>
+              <DewInput v-model="n.deliverable_req" size="sm" placeholder="交付要求（选填，如：报告+演示）" />
+            </div>
+            <div class="node-ops">
+              <DewButton type="ghost" size="sm" :disabled="i === 0" @click="moveNode(i, -1)">上移</DewButton>
+              <DewButton type="ghost" size="sm" :disabled="i === form.template_nodes.length - 1" @click="moveNode(i, 1)">下移</DewButton>
+              <DewButton type="ghost" size="sm" @click="form.template_nodes.splice(i, 1)">删除</DewButton>
+            </div>
+          </div>
+          <DewButton type="ghost" size="sm" class="add-node"
+                     @click="form.template_nodes.push({ title: '', deliverable_req: '', submit_mode: 'team' })">
+            ＋ 添加节点
+          </DewButton>
+        </div>
 
         <div class="apply-actions">
-          <DewButton size="lg" :loading="submitting" :disabled="!form.name.trim()" @click="submit">
+          <DewButton size="lg" :loading="submitting" :disabled="!canSubmit" @click="submit">
             提交申报
           </DewButton>
         </div>
@@ -83,7 +124,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
-import { DewCard, DewButton, DewInput, DewSkeleton } from '@bme/dew-ui';
+import { DewCard, DewButton, DewInput, DewSelect, DewSkeleton } from '@bme/dew-ui';
 import { campService } from '../../services/campService';
 
 const props = defineProps({
@@ -91,13 +132,52 @@ const props = defineProps({
 });
 const emit = defineEmits(['submitted']);
 
+const MODE_OPTS = [
+  { label: '整队交付（负责人交·老师审）', value: 'team' },
+  { label: '个人交付（成员交·负责人审）', value: 'member' },
+];
+const blankNodes = () => [{ title: '', deliverable_req: '', submit_mode: 'team' }];
+
 const loading = ref(true);
 const mine = ref({});
 const submitting = ref(false);
-const form = ref({ name: '', background: '', goal: '', required_abilities: '', recruit_note: '', plan: '' });
+const form = ref({ name: '', background: '', goal: '', required_abilities: '', recruit_note: '',
+                   template_nodes: blankNodes() });
+
+// ── 模板三起点（与过审后 TemplateEditor 同构：空白 / 平台默认 / 复制历史）──
+const startMode = ref('blank');
+const sourceId = ref(null);
+const platformList = ref([]);
+const sourceList = ref([]);
+const sourceOptions = computed(() => (startMode.value === 'platform'
+  ? platformList.value.map((t) => ({ label: `${t.name}${t.category ? `（${t.category}）` : ''} · ${t.nodes.length} 节点`, value: t.id }))
+  : sourceList.value.map((s) => ({ label: `${s.name} · ${s.camp_name}${s.archived ? '（往届）' : ''} · ${s.node_count} 节点`, value: s.unit_id }))));
+
+function pickStart(mode) {
+  startMode.value = mode;
+  sourceId.value = null;
+  if (mode === 'blank') form.value.template_nodes = blankNodes();
+}
+function applySource() {
+  if (startMode.value === 'platform') {
+    const t = platformList.value.find((x) => x.id === sourceId.value);
+    if (t) form.value.template_nodes = t.nodes.map((n) => ({
+      title: n.title || '', deliverable_req: n.deliverable_req || '', submit_mode: n.submit_mode || 'team' }));
+  } else if (startMode.value === 'clone') {
+    const s = sourceList.value.find((x) => x.unit_id === sourceId.value);
+    if (s?.nodes?.length) form.value.template_nodes = s.nodes.map((n) => ({
+      title: n.title || '', deliverable_req: n.deliverable_req || '', submit_mode: n.submit_mode || 'team' }));
+  }
+}
+function moveNode(i, delta) {
+  const arr = form.value.template_nodes;
+  [arr[i], arr[i + delta]] = [arr[i + delta], arr[i]];
+}
 
 const pendingApps = computed(() => mine.value.applications?.filter((a) => a.status === 'pending') || []);
 const rejectedApps = computed(() => mine.value.applications?.filter((a) => a.status === 'rejected') || []);
+const canSubmit = computed(() => !!form.value.name.trim()
+  && form.value.template_nodes.some((n) => n.title.trim()));
 
 async function load() {
   loading.value = true;
@@ -106,18 +186,33 @@ async function load() {
   } catch { /* 静默：卡在骨架态，用户刷新重试 */ }
   finally { loading.value = false; }
 }
-onMounted(load);
+onMounted(() => {
+  load();
+  // 模板源（预填起点；拉不到静默降级为空白自建）
+  campService.fetchPlatformTemplates().then((d) => { platformList.value = d.templates || []; }).catch(() => {});
+  campService.fetchTemplateSources(props.session.id).then((d) => { sourceList.value = d.sources || []; }).catch(() => {});
+});
 
 async function submit() {
-  if (submitting.value || !form.value.name.trim()) return;
+  if (submitting.value || !canSubmit.value) return;
   submitting.value = true;
   try {
-    const payload = Object.fromEntries(
-      Object.entries(form.value).map(([k, v]) => [k, (v || '').trim() || null]));
+    const nodes = form.value.template_nodes
+      .filter((n) => n.title.trim())
+      .map((n) => ({ title: n.title.trim(), deliverable_req: n.deliverable_req.trim() || null,
+                     submit_mode: n.submit_mode }));
+    const payload = {
+      name: form.value.name.trim(), background: form.value.background, goal: form.value.goal,
+      required_abilities: form.value.required_abilities, recruit_note: form.value.recruit_note,
+      template_nodes: nodes,
+    };
     const r = await campService.submitProjectApplication(props.session.id, payload);
     ElMessage.success(r.message || '申报已提交，等待管理员审核');
     emit('submitted');
-    form.value = { name: '', background: '', goal: '', required_abilities: '', recruit_note: '', plan: '' };
+    form.value = { name: '', background: '', goal: '', required_abilities: '', recruit_note: '',
+                   template_nodes: blankNodes() };
+    startMode.value = 'blank';
+    sourceId.value = null;
     await load();   // 刷新待审列表，表单留空可继续报下一个
   } catch (e) {
     ElMessage.error(e.response?.data?.message || '提交失败，请稍后重试');
@@ -134,7 +229,8 @@ async function submit() {
 .pending-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
 .pending-item { display: flex; align-items: baseline; gap: 10px; font-size: 13.5px; }
 .pending-name { font-weight: 600; color: var(--dew-text-heading); }
-.pending-date { font-size: 12px; color: var(--dew-text-faint); }
+.pending-nodes { font-size: 12px; color: var(--dew-text-faint); }
+.pending-date { font-size: 12px; color: var(--dew-text-faint); margin-left: auto; }
 .reject-note {
   font-size: 12.5px; color: var(--color-warning); line-height: 1.6; margin-bottom: 8px;
   padding: 8px 12px; border-radius: 8px;
@@ -143,5 +239,35 @@ async function submit() {
 .reject-note:last-child { margin-bottom: 0; }
 .field-label { font-size: 13px; font-weight: 600; color: var(--dew-text-heading); margin: 12px 0 6px; }
 .field-req { font-size: 11px; font-weight: 400; color: var(--color-warning); margin-left: 4px; }
+.field-hint { display: block; font-size: 11.5px; font-weight: 400; color: var(--dew-text-faint); margin-top: 2px; }
 .apply-actions { margin-top: 16px; }
+
+/* 模板起点 */
+.start-hint { font-size: 12.5px; color: var(--dew-text-faint); margin: 4px 0 8px; }
+.start-row { display: flex; gap: 8px; margin: 6px 0; flex-wrap: wrap; }
+.start-chip {
+  border: 1px solid var(--dew-card-border); border-radius: 6px; background: transparent;
+  padding: 5px 12px; font-size: 12.5px; color: var(--dew-text-muted); cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+.start-chip:hover { border-color: var(--dew-text-faint); }
+.start-chip.on {
+  color: var(--color-primary); border-color: color-mix(in srgb, var(--color-primary) 45%, transparent);
+  background: color-mix(in srgb, var(--color-primary) 9%, transparent); font-weight: 600;
+}
+
+/* 节点序列 */
+.node-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.node-item { display: flex; gap: 8px; align-items: flex-start; }
+.node-order {
+  width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; margin-top: 4px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; color: var(--dew-text-muted);
+  border: 1px solid var(--dew-card-border);
+}
+.node-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.node-grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 8px; }
+.node-ops { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.add-node { align-self: flex-start; margin-top: 2px; }
+@media (max-width: 640px) { .node-grid { grid-template-columns: 1fr; } }
 </style>

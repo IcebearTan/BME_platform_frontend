@@ -414,7 +414,14 @@
                 <p><b>目标：</b>{{ row.goal || '—' }}</p>
                 <p><b>所需能力：</b>{{ row.required_abilities || '—' }}</p>
                 <p><b>招募说明：</b>{{ row.recruit_note || '—' }}</p>
-                <p><b>计划：</b>{{ row.plan || '—' }}</p>
+                <!-- 09-13 申报即模板：节点序列替代「计划」栏（过审即实例化里程碑） -->
+                <p v-if="row.template_nodes?.length">
+                  <b>交付节点：</b>
+                  <span v-for="(n, i) in row.template_nodes" :key="i" class="papp-node">
+                    {{ i + 1 }}. {{ n.title }}（{{ n.submit_mode === 'member' ? '个人交付' : '整队交付' }}）
+                  </span>
+                </p>
+                <p v-else-if="row.plan"><b>计划：</b>{{ row.plan }}<span class="hint">（存量申报，过审后由负责人自建模板）</span></p>
                 <p v-if="row.reject_reason"><b>退回原因：</b>{{ row.reject_reason }}</p>
               </div>
             </template>
@@ -1786,6 +1793,10 @@ async function reviseArchive() {
 /* 项目申报/组队 expand 行内容 */
 .papp-expand { padding: 4px 12px; }
 .papp-expand p { margin: 4px 0; font-size: 12.5px; line-height: 1.7; color: #606266; }
+.papp-node {
+  display: inline-block; margin: 2px 6px 2px 0; padding: 1px 8px; border-radius: 4px;
+  font-size: 12px; background: var(--el-fill-color-light, #f5f7fa);
+}
 /* 交付审核：档案快照 */
 .archive-snap {
   max-height: 320px; overflow: auto; margin: 0; padding: 10px;
