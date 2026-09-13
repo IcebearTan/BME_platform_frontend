@@ -106,6 +106,9 @@
     <!-- ④ 请假 -->
     <LeaveApply v-else-if="view === 'leave'" :sid="sid" />
 
+    <!-- ⑤ 申报项目（09-13 放宽：可同时申报/负责多个——已入营负责人追加申报入口） -->
+    <ProjectApplyCard v-else-if="view === 'apply'" :session="session" @submitted="reload" />
+
     <!-- 没有任何可落视图（非选择期且未参与项目且无请假）：整体空态 -->
     <DewCard v-if="!viewItems.length" variant="flat" class="empty-card">
       <div class="empty-text">
@@ -123,6 +126,7 @@ import { DewCard, DewButton, DewInput, DewTag, DewButtonBar, DewSkeleton } from 
 import { campService } from '../../services/campService';
 import ProjectBoard from './ProjectBoard.vue';
 import LeaveApply from './LeaveApply.vue';
+import ProjectApplyCard from './ProjectApplyCard.vue';
 
 const props = defineProps({
   sid: { type: Number, required: true },
@@ -148,7 +152,8 @@ const remainingHint = computed(() => {
   return left ? `还可参与 ${left} 个` : '已达上限';
 });
 
-// ── 视图切换（选择期多「项目意向」临时项设默认；我负责的=有负责项目才出现）──
+// ── 视图切换（选择期多「项目意向」临时项设默认；我负责的=有负责项目才出现；
+//    申报期恒显「申报项目」——已入营负责人可继续申报，未入营者走营期层申报卡）──
 const view = ref(null);
 const viewItems = computed(() => {
   const items = [];
@@ -156,6 +161,7 @@ const viewItems = computed(() => {
   if (mine.value.leading?.length) items.push({ value: 'lead', label: '我负责的' });
   if (mine.value.joining?.length || !selectingOpen.value) items.push({ value: 'join', label: '我参加的' });
   if (leaveOn.value) items.push({ value: 'leave', label: '请假' });
+  if (props.session.status === 'upcoming') items.push({ value: 'apply', label: '申报项目' });
   return items;
 });
 watch(viewItems, (items) => {

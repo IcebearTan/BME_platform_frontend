@@ -1,9 +1,10 @@
 <template>
-  <!-- 项目营申报期（upcoming）非成员视图：负责人申报入口（v1.3 阶段3）。
-       状态机：可申报→表单 / 待审核→安静态 / 被退回→原因+重提表单（新版本）。
-       09-13 复盘定稿：申报即资格——申报通过只是在对应项目中作为负责人，
-       不设全营「负责人资格」前置环节（两段式方案当日撤案）。
-       普通学员提示报名在选择阶段开放（申报与入营窗口分离，09-12 拍板「仅 upcoming」）。 -->
+  <!-- 项目营申报（09-13 复盘放宽：可同时申报/负责多个项目）。
+       申报即资格（upcoming 人人可报、admin 审申报）；待审不阻塞继续申报；
+       被拒的项目直接用表单重报（升版本）。参与总数受上限约束（负责的计入），
+       在管理员批准时校验。
+       双入口：非成员视图（CampView upcoming）+ 成员工作台（ProjectHub 申报 view）。
+       普通学员报名在选择阶段开放（申报与入营窗口分离，09-12 拍板「仅 upcoming」）。 -->
   <div class="apply-card-wrap">
     <DewCard v-if="loading" variant="inset" size="lg" :no-hover="true" class="apply-card">
       <DewSkeleton variant="text" width="40%" />
@@ -11,29 +12,25 @@
     </DewCard>
 
     <template v-else>
-      <!-- 已是某个项目的负责人（过审自动入营，正常不会走到非成员视图；兜底展示） -->
-      <DewCard v-if="mine.leading?.length" variant="inset" size="lg" :no-hover="true" class="apply-card">
-        <div class="apply-title">你已是 {{ mine.leading.length }} 个项目的负责人</div>
-        <div class="apply-hint">项目工作台已对你开放，请从营期成员视图进入。</div>
-      </DewCard>
-
-      <!-- 待审核：安静态（审核前管理员可退回，退回后回到表单态重提） -->
-      <DewCard v-else-if="pendingApp" variant="inset" size="lg" :no-hover="true" class="apply-card">
-        <div class="apply-title">申报待审核</div>
-        <div class="apply-hint">
-          已提交项目「{{ pendingApp.name }}」（第 {{ pendingApp.version }} 版），管理员审核通过后项目即创建、你自动入营成为负责人。
+      <!-- 待审列表：安静态，不阻塞继续申报 -->
+      <DewCard v-if="pendingApps.length" variant="inset" size="lg" :no-hover="true" class="apply-card">
+        <div class="apply-title">{{ pendingApps.length }} 个申报待审核</div>
+        <div class="pending-list">
+          <div v-for="a in pendingApps" :key="a.id" class="pending-item">
+            <span class="pending-name">「{{ a.name }}」</span>
+            <span class="pending-date">{{ (a.created_at || '').slice(0, 10) }}</span>
+          </div>
+        </div>
+        <div class="apply-hint" style="margin-bottom: 0;">
+          管理员逐个审核：通过即创建项目、你自动入营成为该项目负责人。审核期间可继续申报其他项目。
         </div>
       </DewCard>
 
-      <!-- 申报表单：可申报 or 被退回重提 -->
-      <DewCard v-else-if="mine.can_apply || rejectedApp" variant="inset" size="lg" :no-hover="true" class="apply-card">
-        <template v-if="rejectedApp">
-          <div class="apply-title">上次申报被退回，可修改后重提</div>
-          <div class="reject-note">退回原因：{{ rejectedApp.reject_reason || '未填写' }}</div>
-        </template>
-        <div v-else class="apply-title">申报一个新项目</div>
+      <!-- 申报表单（upcoming 恒开；被拒项目直接重报即可） -->
+      <DewCard v-if="mine.can_apply" variant="inset" size="lg" :no-hover="true" class="apply-card">
+        <div class="apply-title">申报一个新项目</div>
         <div class="apply-hint">
-          项目负责人由老师线下沟通后在此申报（一人本期最多负责 1 个项目）；管理员审核通过后项目创建并对全营展示，你自动入营开始组队。
+          管理员审核通过后项目创建并对全营展示，你自动入营开始组队；可申报多个项目，参与总数有上限（自己负责的计入）。
         </div>
 
         <div class="field-label">项目名称 <span class="field-req">必填</span></div>
@@ -61,15 +58,23 @@
 
         <div class="apply-actions">
           <DewButton size="lg" :loading="submitting" :disabled="!form.name.trim()" @click="submit">
-            {{ rejectedApp ? '重提申报（新版本）' : '提交申报' }}
+            提交申报
           </DewButton>
         </div>
       </DewCard>
 
-      <!-- 窗口已过（非 upcoming 或已负责/已申报完）：说明卡 -->
-      <DewCard v-else variant="inset" size="lg" :no-hover="true" class="apply-card">
+      <!-- 申报历史（被拒可见原因，重报走上方表单） -->
+      <DewCard v-if="rejectedApps.length" variant="inset" size="lg" :no-hover="true" class="apply-card">
+        <div class="apply-title">被退回的申报</div>
+        <div v-for="a in rejectedApps" :key="a.id" class="reject-note">
+          「{{ a.name }}」：{{ a.reject_reason || '未填写原因' }}——可修改后用上方表单重新申报
+        </div>
+      </DewCard>
+
+      <!-- 窗口已过且无待审：说明卡 -->
+      <DewCard v-if="!mine.can_apply && !pendingApps.length" variant="inset" size="lg" :no-hover="true" class="apply-card">
         <div class="apply-title">项目申报</div>
-        <div class="apply-hint">{{ closedHint }}</div>
+        <div class="apply-hint">申报期已结束（项目申报在「待开放」阶段进行）。</div>
       </DewCard>
     </template>
   </div>
@@ -91,15 +96,8 @@ const mine = ref({});
 const submitting = ref(false);
 const form = ref({ name: '', background: '', goal: '', required_abilities: '', recruit_note: '', plan: '' });
 
-const pendingApp = computed(() => mine.value.applications?.find((a) => a.status === 'pending'));
-const rejectedApp = computed(() => {
-  const apps = mine.value.applications || [];
-  return apps.length && apps[0].status === 'rejected' ? apps[0] : null;   // mine 按版本倒序
-});
-const closedHint = computed(() => {
-  if (props.session.status !== 'upcoming') return '申报期已结束（项目申报在「待开放」阶段进行）。';
-  return '你已申报或已负责项目，本期不能再申报。';
-});
+const pendingApps = computed(() => mine.value.applications?.filter((a) => a.status === 'pending') || []);
+const rejectedApps = computed(() => mine.value.applications?.filter((a) => a.status === 'rejected') || []);
 
 async function load() {
   loading.value = true;
@@ -119,7 +117,8 @@ async function submit() {
     const r = await campService.submitProjectApplication(props.session.id, payload);
     ElMessage.success(r.message || '申报已提交，等待管理员审核');
     emit('submitted');
-    await load();   // 回到待审核态
+    form.value = { name: '', background: '', goal: '', required_abilities: '', recruit_note: '', plan: '' };
+    await load();   // 刷新待审列表，表单留空可继续报下一个
   } catch (e) {
     ElMessage.error(e.response?.data?.message || '提交失败，请稍后重试');
   } finally {
@@ -132,11 +131,16 @@ async function submit() {
 .apply-card { margin-top: 16px; }
 .apply-title { font-size: 16px; font-weight: 600; color: var(--dew-text-heading); margin-bottom: 8px; }
 .apply-hint { font-size: 13px; color: var(--dew-text-muted); line-height: 1.7; margin-bottom: 14px; }
+.pending-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.pending-item { display: flex; align-items: baseline; gap: 10px; font-size: 13.5px; }
+.pending-name { font-weight: 600; color: var(--dew-text-heading); }
+.pending-date { font-size: 12px; color: var(--dew-text-faint); }
 .reject-note {
-  font-size: 12.5px; color: var(--color-warning); line-height: 1.6; margin-bottom: 12px;
+  font-size: 12.5px; color: var(--color-warning); line-height: 1.6; margin-bottom: 8px;
   padding: 8px 12px; border-radius: 8px;
   background: color-mix(in srgb, var(--color-warning) 8%, transparent);
 }
+.reject-note:last-child { margin-bottom: 0; }
 .field-label { font-size: 13px; font-weight: 600; color: var(--dew-text-heading); margin: 12px 0 6px; }
 .field-req { font-size: 11px; font-weight: 400; color: var(--color-warning); margin-left: 4px; }
 .apply-actions { margin-top: 16px; }
