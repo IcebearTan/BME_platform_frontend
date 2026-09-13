@@ -95,7 +95,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { ArrowDown } from '@element-plus/icons-vue';
 import { DewButton, DewInput, DewSelect, DewTag, DewSkeleton } from '@bme/dew-ui';
@@ -150,6 +150,8 @@ function myLatest(m) {
 
 async function load() {
   loading.value = true;
+  expanded.value = new Set();      // 切换项目时收起展开态/追加面板，防跨项目残留
+  adding.value = false;
   try {
     const d = await campService.fetchMilestones(props.unitId);
     milestones.value = d.milestones || [];
@@ -162,6 +164,8 @@ async function load() {
   }
 }
 onMounted(load);
+// 看板切换项目（unitId 变化）须重载——多项目时 DewSelect 切换不重挂载组件
+watch(() => props.unitId, load);
 
 function onFiles(mid, e) {
   drafts.value[mid].files = [...e.target.files];

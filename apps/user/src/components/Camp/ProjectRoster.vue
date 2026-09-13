@@ -65,7 +65,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import { DewButton, DewInput, DewTag, DewSkeleton } from '@bme/dew-ui';
 import { campService } from '../../services/campService';
@@ -113,6 +113,8 @@ async function load() {
   }
 }
 onMounted(load);
+// 看板切换项目（unitId 变化）须重载——多项目时 DewSelect 切换不重挂载组件
+watch(() => props.unitId, load);
 
 const RESULT_TEXT = {
   added: '已加入', removed: '已移出', unchanged: '无变化（已在目标状态）',
