@@ -3,14 +3,10 @@
        buttonbar：项目意向=选择期临时默认项；我负责的=有负责项目才出现；我参加的；请假=能力位。
        考勤以项目为单位进各看板（活动考勤区）；周打卡为个人数据，收敛为顶部状态条。 -->
   <div class="project-hub">
-    <!-- 名额 + 周打卡状态条 -->
-    <DewCard variant="inset" size="lg" :no-hover="true" class="quota-card">
+    <!-- 状态条（09-13 参与不设上限后仅剩出勤/组队提示；两侧皆空不渲染） -->
+    <DewCard v-if="(attOn && weekly?.mode === 'weekly') || selectingOpen"
+             variant="inset" size="lg" :no-hover="true" class="quota-card">
       <div class="quota-row">
-        <div class="quota-main">
-          <span class="quota-label">加入项目</span>
-          <span class="quota-num">{{ mine.project_count ?? '—' }}<template v-if="mine.project_limit"> / {{ mine.project_limit }}</template></span>
-          <span v-if="remainingHint" class="quota-hint">{{ remainingHint }}</span>
-        </div>
         <div v-if="attOn && weekly?.mode === 'weekly'" class="quota-side">
           累计出勤 {{ weekly.total_days || 0 }} 次 · {{ weekly.total_hours || 0 }}h
         </div>
@@ -70,7 +66,7 @@
         <DewCard variant="inset" size="lg" :no-hover="true" class="tray-card">
           <div class="tray-head">
             <div class="tray-title">我的项目意向</div>
-            <div class="tray-sub">按意愿排序，最多 {{ limit || 3 }} 个；整组提交，截止前可修改</div>
+            <div class="tray-sub">按意愿排序，最多 {{ limit }} 个；整组提交，截止前可修改</div>
           </div>
           <div v-if="!tray.length" class="tray-empty">点项目卡上的「加入意向」按钮</div>
           <div v-else class="tray-list">
@@ -142,15 +138,12 @@ const submittingPrefs = ref(false);
 const submittedOnce = ref(false);
 
 const unitStatusText = { active: '进行中', paused: '已暂停', terminated: '已终止' };
-const limit = computed(() => mine.value.project_limit);
+// 意向托盘上限=志愿提交口径（后端 preference_submit 硬校验 1-3），与参与上限无关
+// （09-13 参与不设上限，project_limit 退役）
+const limit = 3;
 const selectingOpen = computed(() => props.session.status === 'selecting');
 const attOn = computed(() => !!props.session.policy?.capabilities?.attendance);
 const leaveOn = computed(() => !!props.session.policy?.capabilities?.leave);
-const remainingHint = computed(() => {
-  if (mine.value.project_limit == null) return '';
-  const left = mine.value.remaining_slots ?? 0;
-  return left ? `还可加入 ${left} 个（负责的不计）` : '加入数已满（负责的不计）';
-});
 
 // ── 视图切换（选择期多「项目意向」临时项设默认；我负责的=有负责项目才出现；
 //    申报期恒显「申报项目」——已入营负责人可继续申报，未入营者走营期层申报卡）──
@@ -170,15 +163,15 @@ watch(viewItems, (items) => {
 
 const picked = (unitId) => tray.value.some((t) => t.unit_id === unitId);
 const pickRank = (unitId) => tray.value.findIndex((t) => t.unit_id === unitId) + 1;
-const trayFull = computed(() => limit.value != null && tray.value.length >= limit.value);
+const trayFull = computed(() => tray.value.length >= limit);
 
 // 意向只走按钮（09-13 拍板：点卡功能砍掉）；自己负责/已加入的项目不进意向
 function togglePick(p) {
   if (p.my_role || p.status === 'terminated') return;
   const i = tray.value.findIndex((t) => t.unit_id === p.unit_id);
   if (i >= 0) { tray.value.splice(i, 1); return; }
-  if (limit.value != null && tray.value.length >= limit.value) {
-    ElMessage.warning(`最多提交 ${limit.value} 个意向`);
+  if (tray.value.length >= limit) {
+    ElMessage.warning(`最多提交 ${limit} 个意向`);
     return;
   }
   tray.value.push({ unit_id: p.unit_id, name: p.name, note: '' });
