@@ -90,7 +90,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, h } from 'vue'
 import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
 import { ElCarousel, ElCarouselItem, ElIcon } from 'element-plus'
@@ -106,6 +106,28 @@ import { campService } from '../../services/campService'
 
 const store = useStore()
 const router = useRouter()
+
+// XLAB 入口图标：Lucide brain-circuit（ISC，@license lucide-static v1.45.0）——EP 无大脑类图标，
+// 按「图标走 EP 或 SVG」约束内联；描边吃 currentColor，随入口色走
+const IconBrainCircuit = () => h('svg', {
+  xmlns: 'http://www.w3.org/2000/svg', viewBox: '0 0 24 24',
+  width: '1em', height: '1em', fill: 'none', stroke: 'currentColor',
+  'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round',
+}, [
+  h('path', { d: 'M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z' }),
+  h('path', { d: 'M9 13a4.5 4.5 0 0 0 3-4' }),
+  h('path', { d: 'M6.003 5.125A3 3 0 0 0 6.401 6.5' }),
+  h('path', { d: 'M3.477 10.896a4 4 0 0 1 .585-.396' }),
+  h('path', { d: 'M6 18a4 4 0 0 1-1.967-.516' }),
+  h('path', { d: 'M12 13h4' }),
+  h('path', { d: 'M12 18h6a2 2 0 0 1 2 2v1' }),
+  h('path', { d: 'M12 8h8' }),
+  h('path', { d: 'M16 8V5a2 2 0 0 1 2-2' }),
+  h('circle', { cx: 16, cy: 13, r: 0.5 }),
+  h('circle', { cx: 18, cy: 3, r: 0.5 }),
+  h('circle', { cx: 20, cy: 21, r: 0.5 }),
+  h('circle', { cx: 20, cy: 8, r: 0.5 }),
+])
 
 // 获取主题状态
 const isDarkMode = computed(() => store.getters.isDarkMode)
@@ -127,6 +149,7 @@ const entryIcons = {
   resources: Files,
   '3d-print': Box,
   'llm': MagicStick,
+  'xlab': IconBrainCircuit,
 }
 
 // 轮播Banner数据
@@ -166,15 +189,16 @@ const handleBannerChange = (_currentIndex, previousIndex) => {
   outgoingBannerIndex.value = previousIndex
 }
 
-// 学习功能入口数据
+// 学习功能入口数据（可点入口在前，未上线 disabled 置底）
 const studyEntries = ref([
   { id: 'courses', title: '课程', description: '系统化的课程学习', route: '/study', color: '#409EFF' },
-  { id: 'question-bank', title: '题库', description: '练习巩固知识点', route: '/question-bank', color: '#67C23A', disabled: true },
   { id: 'camp', title: '营期中心', description: '查看报名与我的营期', route: '/camp', color: '#7c3aed' },
-  { id: 'exams', title: '考核评估', description: '检验学习效果', route: '/exam', color: '#F56C6C', disabled: true },
-  { id: 'resources', title: '学习资源', description: '丰富的学习材料', route: '/resources', color: '#909399', disabled: true },
   { id: '3d-print', title: '3D打印', description: '3D 模型打印预约', external: '/3dfarm/', color: '#06b6d4' },
   { id: 'llm', title: '大模型', description: '大模型 API 接口平台', route: '/ai-service', color: '#ec4899' },
+  { id: 'xlab', title: 'XLAB', description: '营期项目 × 自由分享', route: '/projects', color: '#00ff9c' },
+  { id: 'question-bank', title: '题库', description: '练习巩固知识点', route: '/question-bank', color: '#67C23A', disabled: true },
+  { id: 'exams', title: '考核评估', description: '检验学习效果', route: '/exam', color: '#F56C6C', disabled: true },
+  { id: 'resources', title: '学习资源', description: '丰富的学习材料', route: '/resources', color: '#909399', disabled: true },
 ])
 
 // ── 社区广场：推送最新帖子（真实 API + mock 兜底） ──
