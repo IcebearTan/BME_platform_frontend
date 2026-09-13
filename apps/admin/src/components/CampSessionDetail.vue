@@ -292,14 +292,15 @@
                   <div class="ms-cfg-dirs">
                     <div v-for="(d, i) in msCfg.directions" :key="i" class="ms-cfg-dir-row">
                       <el-input v-model="d.name" placeholder="方向名（如 硬件组）" style="flex:1" />
-                      <el-select v-model="d.course_id" filterable placeholder="关联课程（必选）" style="flex:1.4">
+                      <el-select v-model="d.course_ids" multiple filterable collapse-tags collapse-tags-tooltip
+                        placeholder="关联课程（至少一门）" style="flex:1.6">
                         <el-option v-for="c in allCourses" :key="c.Course_Id" :label="c.Course_title" :value="Number(c.Course_Id)" />
                       </el-select>
                       <el-button size="small" type="danger" link :disabled="msCfg.directions.length <= 1"
                         @click="msCfg.directions.splice(i, 1)">删除</el-button>
                     </div>
-                    <el-button size="small" @click="msCfg.directions.push({ name: '', course_id: null })">+ 添加方向</el-button>
-                    <div class="hint">每个方向必须绑定一门课程作为开课内容；导生只选一个方向，学员随归属导生继承方向与课程</div>
+                    <el-button size="small" @click="msCfg.directions.push({ name: '', course_ids: [] })">+ 添加方向</el-button>
+                    <div class="hint">每个方向至少绑定一门课程（可多门）；导生只选一个方向，学员随归属导生继承方向全部课程，导生逐课按章认证进度（0-100 评分）</div>
                   </div>
                 </el-form-item>
               </template>
@@ -314,7 +315,7 @@
             <div class="ms-cfg-readonly">
               <div v-for="d in sessionDirections" :key="d.name" class="ms-cfg-dir-view">
                 <span class="dir-name">{{ d.name }}</span>
-                <span class="dir-course">{{ courseTitle(d.course_id) || '未绑定课程' }}</span>
+                <span class="dir-course">{{ (d.course_ids || []).map(courseTitle).filter(Boolean).join(' / ') || '未绑定课程' }}</span>
               </div>
               <div v-if="!sessionDirections.length" class="hint">尚未配置方向</div>
               <div class="hint" style="margin-top:6px;">
@@ -894,7 +895,7 @@ async function saveAttMode() {
 // ── 选导生与方向配置（09-12 定稿：配置从建营弹窗迁到详情；draft/upcoming 可编辑，开跑后锁定）──
 const msCfg = reactive({
   enabled: false, start: null, deadline: null,
-  directions: [{ name: '', course_id: null }],
+  directions: [{ name: '', course_ids: [] }],
   saving: false, loaded: false,
 });
 const msCfgEditable = computed(() => manageWritable.value
@@ -913,9 +914,12 @@ watch(session, (s) => {
     msCfg.deadline = s.ms_preference_deadline || null;
     const dirs = (s.ms_directions && s.ms_directions.length)
       ? s.ms_directions : [];
+    // 09-13 多课制：course_ids 数组；旧单课回显标量兜底为单元素数组
     msCfg.directions = dirs.length
-      ? dirs.map((d) => ({ name: d.name || '', course_id: d.course_id ?? null }))
-      : [{ name: '', course_id: null }];
+      ? dirs.map((d) => ({ name: d.name || '',
+        course_ids: Array.isArray(d.course_ids) ? [...d.course_ids]
+          : (d.course_id != null ? [Number(d.course_id)] : []) }))
+      : [{ name: '', course_ids: [] }];
   }
 });
 async function saveMsConfig() {
@@ -924,11 +928,11 @@ async function saveMsConfig() {
     return;
   }
   const tags = msCfg.enabled
-    ? msCfg.directions.map((d) => ({ name: (d.name || '').trim(), course_id: d.course_id }))
+    ? msCfg.directions.map((d) => ({ name: (d.name || '').trim(), course_ids: d.course_ids || [] }))
     : null;
   if (tags) {
-    if (!tags.length || tags.some((d) => !d.name || !d.course_id)) {
-      ElMessage.warning('请完整填写每个分类方向（方向名 + 关联课程）');
+    if (!tags.length || tags.some((d) => !d.name || !d.course_ids.length)) {
+      ElMessage.warning('请完整填写每个分类方向（方向名 + 至少一门关联课程）');
       return;
     }
     if (new Set(tags.map((d) => d.name)).size !== tags.length) {

@@ -404,7 +404,7 @@ test('导生人员确认：志愿截止后可锁定/释放学员', async ({ page
   expect(errors).toEqual([])
 })
 
-test('团队与学习认证：导生按章认证学员进度，可撤销', async ({ page }) => {
+test('团队与学习认证：多课程按章认证+评分（0-100），可撤销/改分', async ({ page }) => {
   const errors = []
   page.on('pageerror', (e) => errors.push(e.message))
   await loginAsUser(page, phaseOf('done', {
@@ -415,52 +415,77 @@ test('团队与学习认证：导生按章认证学员进度，可撤销', async
     { url: '/records/yearly', json: { code: 200, data: [] } },
   ])
 
-  // 方向制（09-12）：团队进度读端点 + 认证/撤销写端点（内存名单闭环，回读最新态）
-  const chapters = [
-    { chapter_id: 11, name: 'GPIO 点灯', order: 1, lessons: 3, lessons_completed: 3, certified: true, certified_at: '2026-09-12 10:00', certified_by: 1 },
-    { chapter_id: 12, name: '串口通信', order: 2, lessons: 4, lessons_completed: 2, certified: false, certified_at: null, certified_by: null },
+  // 09-13 多课制+按章评分：方向两门课，各自章节/认证/评分；写端点内存闭环回读最新态
+  const courses = [
+    { course_id: 7, course_title: '嵌入式入门', chapters: [
+      { chapter_id: 11, name: 'GPIO 点灯', order: 1, lessons: 3, lessons_completed: 3, certified: true, certified_at: '2026-09-12 10:00', certified_by: 1, score: 88 },
+      { chapter_id: 12, name: '串口通信', order: 2, lessons: 4, lessons_completed: 2, certified: false, certified_at: null, certified_by: null, score: null },
+    ] },
+    { course_id: 8, course_title: '电路基础', chapters: [
+      { chapter_id: 21, name: '欧姆定律', order: 1, lessons: 2, lessons_completed: 2, certified: false, certified_at: null, certified_by: null, score: null },
+    ] },
   ]
+  const block = (c) => ({
+    course_id: c.course_id, course_title: c.course_title, difficulty: 2,
+    chapters: c.chapters,
+    certified_chapters: c.chapters.filter((x) => x.certified).length,
+    total_chapters: c.chapters.length,
+    score_avg: (() => {
+      const s = c.chapters.filter((x) => x.certified && x.score != null).map((x) => x.score)
+      return s.length ? Math.round(s.reduce((a, b) => a + b, 0) / s.length) : null
+    })(),
+    course_status: 'active',
+  })
   const progressJson = () => ({
-    code: 200, direction: '硬件组', course_id: 7, course_title: '嵌入式入门',
-    students: [{
-      student_user_id: 201, username: '学员小张',
-      chapters, certified_chapters: chapters.filter((c) => c.certified).length,
-      total_chapters: chapters.length, course_status: 'active',
-    }],
+    code: 200, direction: '硬件组',
+    courses: courses.map((c) => ({ course_id: c.course_id, course_title: c.course_title })),
+    students: [{ student_user_id: 201, username: '学员小张', courses: courses.map(block) }],
   })
   await page.route('**/camp/sessions/1/team/progress', (route) => route.fulfill({ json: progressJson() }))
-  const certifyRequest = page.waitForRequest((req) =>
-    req.url().includes('/camp/sessions/1/team/progress/certify') && req.method() === 'POST')
+  let lastBody = null
   await page.route('**/camp/sessions/1/team/progress/certify', (route) => {
     const body = route.request().postDataJSON()
-    const ch = chapters.find((c) => c.chapter_id === body.chapter_id)
+    lastBody = body
+    const ch = courses.flatMap((c) => c.chapters).find((c) => c.chapter_id === body.chapter_id)
     if (route.request().method() === 'DELETE') {
-      ch.certified = false; ch.certified_at = null
+      ch.certified = false; ch.certified_at = null; ch.score = null
       return route.fulfill({ json: { code: 200, message: '已撤销认证' } })
     }
     ch.certified = true; ch.certified_at = '2026-09-12 21:00'
+    if (body.score != null) ch.score = body.score
     return route.fulfill({ json: { code: 200, message: '已认证' } })
   })
 
   await page.goto(`${BASE}/camp?tab=members&sid=1`, { waitUntil: 'domcontentloaded' })
 
-  // 方向 chip + 学员行（1/2 章已认证）
+  // 方向 chip + 学员行两门课各自的进度 chip
   await expect(page.getByText('团队与学习认证')).toBeVisible()
   await expect(page.locator('.dir-chip', { hasText: '硬件组' })).toBeVisible()
-  await expect(page.getByText('章节认证 1/2')).toBeVisible()
+  await expect(page.getByText('嵌入式入门 1/2 · 均 88')).toBeVisible()
+  await expect(page.getByText('电路基础 0/1')).toBeVisible()
 
-  // 展开学员 → 章节列表：已认证章带时间，未认证章有「认证」按钮
+  // 展开学员 → 已认证章带分数；跨课认证：电路基础未认证章，弹评分框填 95
   await page.locator('.row-head', { hasText: '学员小张' }).click()
-  await expect(page.locator('.ch-row', { hasText: 'GPIO 点灯' }).getByText(/已认证/)).toBeVisible()
-  await page.locator('.ch-row', { hasText: '串口通信' }).getByRole('button', { name: '认证' }).click()
-  expect((await certifyRequest).postDataJSON()).toEqual({ student_user_id: 201, chapter_id: 12 })
+  await expect(page.locator('.ch-row', { hasText: 'GPIO 点灯' }).getByText('已认证 · 88 分')).toBeVisible()
+  await page.locator('.course-sec', { hasText: '电路基础' })
+    .locator('.ch-row', { hasText: '欧姆定律' }).getByRole('button', { name: '认证' }).click()
+  await page.locator('.el-message-box__input input').fill('95')
+  await page.locator('.el-message-box__btns').getByRole('button', { name: '认证' }).click()
+  await expect.poll(() => lastBody).toEqual({ student_user_id: 201, chapter_id: 21, score: 95 })
 
-  // 认证后回读：2/2 全章认证齐
-  await expect(page.getByText('章节认证 2/2')).toBeVisible()
+  // 回读：电路基础 1/1 · 均 95
+  await expect(page.getByText('电路基础 1/1 · 均 95')).toBeVisible()
+
+  // 改分：GPIO 88 → 92（重复 POST 带 score）
+  await page.locator('.ch-row', { hasText: 'GPIO 点灯' }).getByRole('button', { name: '改分' }).click()
+  await page.locator('.el-message-box__input input').fill('92')
+  await page.locator('.el-message-box__btns').getByRole('button', { name: '保存' }).click()
+  await expect.poll(() => lastBody).toEqual({ student_user_id: 201, chapter_id: 11, score: 92 })
+  await expect(page.getByText('已认证 · 92 分')).toBeVisible()
 
   // 撤销回到未认证态
-  await page.locator('.ch-row', { hasText: 'GPIO 点灯' }).getByRole('button', { name: '撤销' }).click()
-  await expect(page.getByText('章节认证 1/2')).toBeVisible()
+  await page.locator('.ch-row', { hasText: '欧姆定律' }).getByRole('button', { name: '撤销' }).click()
+  await expect(page.getByText('电路基础 0/1')).toBeVisible()
 
   expect(errors).toEqual([])
 })

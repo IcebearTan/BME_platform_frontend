@@ -350,38 +350,49 @@ test('中心↔工作台：顶部入口和工作台返回均收敛到中心', as
   expect(errors).toEqual([])
 })
 
-test('学习方向卡：学员查看随导生继承的方向课程与章节认证进度', async ({ page }) => {
+test('学习方向卡：学员查看随导生继承的多课程与章节认证进度/评分', async ({ page }) => {
   const errors = []
   page.on('pageerror', (e) => errors.push(e.message))
   await loginAsUser(page, [
     {
-      // id 23 暑期双选营（成员学员视角）：方向制卡（09-12，取代原选课 tab）
+      // id 23 暑期双选营（成员学员视角）：方向制卡（09-12；09-13 多课+评分，取代原选课 tab）
       url: '/camp/sessions/23/my-direction',
       json: {
         code: 200, direction: '硬件组', mentor_name: '导生阿明',
-        course: { course_id: 7, title: '嵌入式入门', difficulty: 2 },
-        chapters: [
-          { chapter_id: 11, name: 'GPIO 点灯', lessons: 3, lessons_completed: 3, certified: true, certified_at: '2026-09-12 10:00' },
-          { chapter_id: 12, name: '串口通信', lessons: 4, lessons_completed: 2, certified: false, certified_at: null },
+        courses: [
+          { course_id: 7, course_title: '嵌入式入门', difficulty: 2,
+            chapters: [
+              { chapter_id: 11, name: 'GPIO 点灯', lessons: 3, lessons_completed: 3, certified: true, certified_at: '2026-09-12 10:00', score: 88 },
+              { chapter_id: 12, name: '串口通信', lessons: 4, lessons_completed: 2, certified: false, certified_at: null, score: null },
+            ],
+            certified_chapters: 1, total_chapters: 2, score_avg: 88, course_status: 'active' },
+          { course_id: 8, course_title: '电路基础', difficulty: 1,
+            chapters: [
+              { chapter_id: 21, name: '欧姆定律', lessons: 2, lessons_completed: 2, certified: true, certified_at: '2026-09-12 11:00', score: 90 },
+            ],
+            certified_chapters: 1, total_chapters: 1, score_avg: 90, course_status: 'completed' },
         ],
-        certified_chapters: 1, total_chapters: 2, course_status: 'active',
       },
     },
   ])
 
   await page.goto(`${BASE}/camp?tab=study&sid=23`, { waitUntil: 'domcontentloaded' })
 
-  // 方向 + 课程 + 认证进度（选课 tab 已砍：无「选课」入口）
+  // 方向 + 双课程块（各课认证进度/均分/完成态；选课 tab 已砍：无「选课」入口）
   await expect(page.getByText('硬件组', { exact: true })).toBeVisible()
-  await expect(page.getByText('嵌入式入门')).toBeVisible()
-  await expect(page.getByText(/章节认证 1\/2/)).toBeVisible()
+  await expect(page.getByText('2 门课程')).toBeVisible()
   await expect(page.getByText('随归属导生（导生阿明）继承')).toBeVisible()
-  await expect(page.locator('.chapter-row', { hasText: 'GPIO 点灯' }).getByText('已认证')).toBeVisible()
-  await expect(page.locator('.chapter-row', { hasText: '串口通信' }).getByText('未认证')).toBeVisible()
+  const embedded = page.locator('.course-block', { hasText: '嵌入式入门' })
+  await expect(embedded.getByText(/章节认证 1\/2 · 均分 88/)).toBeVisible()
+  await expect(embedded.locator('.chapter-row', { hasText: 'GPIO 点灯' }).getByText('已认证（88 分）')).toBeVisible()
+  await expect(embedded.locator('.chapter-row', { hasText: '串口通信' }).getByText('未认证')).toBeVisible()
+  const circuit = page.locator('.course-block', { hasText: '电路基础' })
+  await expect(circuit.getByText(/章节认证 1\/1 · 均分 90/)).toBeVisible()
+  await expect(circuit.getByText('已完成')).toBeVisible()
   await expect(page.getByRole('button', { name: '选课' })).toHaveCount(0)
 
-  // 去学习：跳课程详情（from=camp 返回时回学习方向 tab）
-  await page.getByRole('button', { name: '去学习' }).click()
+  // 去学习（第一门课）：跳课程详情（from=camp 返回时回学习方向 tab）
+  await embedded.getByRole('button', { name: '去学习' }).click()
   await expect(page).toHaveURL(/\/study\/details\?id=7&from=camp/)
 
   expect(errors).toEqual([])

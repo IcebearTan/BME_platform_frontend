@@ -56,8 +56,10 @@ export const campService = {
 
   // 团队进度与按章认证（导生）
   fetchTeamProgress: (sid) => api.get(`/camp/sessions/${sid}/team/progress`).then(r => r.data),
-  certifyChapter: (sid, student_user_id, chapter_id) =>
-    api.post(`/camp/sessions/${sid}/team/progress/certify`, { student_user_id, chapter_id }).then(r => r.data),
+  // 09-13 按章评分：score=0-100 可空（null 只认证不打分；已认证行带 score 重 POST=改分）
+  certifyChapter: (sid, student_user_id, chapter_id, score = null) =>
+    api.post(`/camp/sessions/${sid}/team/progress/certify`,
+      { student_user_id, chapter_id, ...(score != null && { score }) }).then(r => r.data),
   revokeChapterCertification: (sid, student_user_id, chapter_id) =>
     api.delete(`/camp/sessions/${sid}/team/progress/certify`, { data: { student_user_id, chapter_id } }).then(r => r.data),
 
