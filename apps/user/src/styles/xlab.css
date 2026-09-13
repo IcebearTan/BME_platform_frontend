@@ -1,0 +1,120 @@
+/* XLab 页面族共享主题（黑白 + 荧光绿/荧光粉，纯扁平；页面级豁免 DewUI tokens）
+   引用方：ProjectSquareView / ProjectDetailView。
+   纪律：全部选择器 xl-/xlab- 前缀或限定在 .xlab-root 下，不泄漏到其他页面；
+   弹层经 Teleport 到 body，必须自带前缀。 */
+
+.xlab-root {
+  --xl-bg: #050505;
+  --xl-panel: #0b0b0b;
+  --xl-panel-2: #0d0d0d;
+  --xl-line: rgba(255, 255, 255, 0.12);
+  --xl-line-strong: rgba(255, 255, 255, 0.32);
+  --xl-dim: rgba(255, 255, 255, 0.6);
+  --xl-faint: rgba(255, 255, 255, 0.35);
+  --xl-green: #00ff9c;
+  --xl-pink: #ff2e97;
+  --xl-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+
+  min-height: 100vh;
+  background: var(--xl-bg);
+  color: #fff;
+}
+
+/* ── 按钮（扁平 + 硬投影）── */
+.xl-btn {
+  font-family: var(--xl-mono); font-size: 13px; font-weight: 700; letter-spacing: 0.05em;
+  padding: 10px 20px; border: 1px solid var(--xl-line-strong); border-radius: 0;
+  background: transparent; color: #fff; cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s, background 0.15s, color 0.15s, border-color 0.15s;
+}
+.xl-btn.sm { padding: 7px 14px; font-size: 12px; }
+.xl-btn.primary { background: var(--xl-green); color: #000; border-color: var(--xl-green); box-shadow: 4px 4px 0 rgba(0, 255, 156, 0.25); }
+.xl-btn.primary:hover:not(:disabled) { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 rgba(0, 255, 156, 0.3); }
+.xl-btn.primary:active:not(:disabled) { transform: translate(1px, 1px); box-shadow: 1px 1px 0 rgba(0, 255, 156, 0.25); }
+.xl-btn.primary:disabled { box-shadow: none; }
+.xl-btn.pink { background: var(--xl-pink); color: #000; border-color: var(--xl-pink); box-shadow: 4px 4px 0 rgba(255, 46, 151, 0.25); }
+.xl-btn.pink:hover:not(:disabled) { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 rgba(255, 46, 151, 0.3); }
+.xl-btn.ghost:hover { background: #fff; color: #000; border-color: #fff; }
+.xl-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* ── 输入 ── */
+.xl-input {
+  width: 100%; box-sizing: border-box;
+  background: var(--xl-panel-2); border: 1px solid var(--xl-line); border-radius: 0;
+  color: #fff; padding: 9px 12px; font-size: 13.5px; font-family: inherit; outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.xl-input:focus { border-color: var(--xl-green); box-shadow: 3px 3px 0 rgba(0, 255, 156, 0.14); }
+.xl-input::placeholder { color: var(--xl-faint); }
+textarea.xl-input { resize: vertical; line-height: 1.6; }
+
+/* ── chips（筛选/状态选择）── */
+.xl-chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.xl-chip {
+  font-family: var(--xl-mono); font-size: 12px; padding: 5px 14px;
+  border: 1px solid var(--xl-line); border-radius: 0; background: transparent;
+  color: var(--xl-dim); cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.xl-chip:hover { border-color: var(--xl-line-strong); color: #fff; }
+.xl-chip.on { background: var(--xl-green); border-color: var(--xl-green); color: #000; font-weight: 700; }
+.xl-chip.tag.on { background: var(--xl-pink); border-color: var(--xl-pink); }
+
+/* ── 展示语义徽标/状态（限定 XLab 页面，防跨页泄漏）── */
+.xlab-root .src-badge {
+  display: inline-flex; align-items: center;
+  font-family: var(--xl-mono); font-size: 10.5px; letter-spacing: 0.08em; font-weight: 600;
+  padding: 2px 8px; color: var(--xl-green);
+  background: rgba(0, 0, 0, 0.6); border: 1px solid rgba(0, 255, 156, 0.4);
+}
+.xlab-root .src-community { color: var(--xl-pink); border-color: rgba(255, 46, 151, 0.4); }
+.xlab-root .p-status { font-family: var(--xl-mono); font-size: 11px; font-weight: 600; letter-spacing: 0.06em; flex-shrink: 0; }
+.xlab-root .ps-idea { color: var(--xl-faint); }
+.xlab-root .ps-ongoing { color: var(--xl-green); }
+.xlab-root .ps-done { color: var(--xl-pink); }
+
+/* ── 区块标签 / 空态 / 骨架 ── */
+.xl-sec-label { font-family: var(--xl-mono); font-size: 11.5px; letter-spacing: 0.12em; color: var(--xl-green); }
+.xl-empty { border: 1px dashed rgba(255, 255, 255, 0.22); padding: 56px 24px; text-align: center; }
+.xl-empty-code { font-family: var(--xl-mono); font-size: 15px; letter-spacing: 0.14em; color: var(--xl-faint); margin-bottom: 10px; }
+.xl-empty-hint { font-size: 12.5px; color: var(--xl-faint); line-height: 1.7; }
+.xl-skel {
+  height: 292px; border: 1px solid var(--xl-line);
+  background: linear-gradient(90deg, var(--xl-panel) 25%, #141414 50%, var(--xl-panel) 75%);
+  background-size: 200% 100%;
+  animation: xlab-shimmer 1.3s linear infinite;
+}
+@keyframes xlab-shimmer { to { background-position: -200% 0; } }
+
+/* ── 弹层（Teleport 到 body，自带前缀）── */
+.xdlg-overlay {
+  position: fixed; inset: 0; z-index: 2000;
+  background: rgba(0, 0, 0, 0.78);
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 8vh 16px 24px; overflow-y: auto;
+}
+.xlab-dialog { width: min(560px, 100%); background: #0a0a0a; border: 1px solid var(--xl-line-strong); box-shadow: 8px 8px 0 rgba(0, 255, 156, 0.12); }
+.xdlg-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 13px 16px; border-bottom: 1px solid var(--xl-line); }
+.xdlg-title { font-family: var(--xl-mono); font-size: 12px; font-weight: 700; letter-spacing: 0.1em; color: var(--xl-green); }
+.xdlg-close { display: flex; background: transparent; border: 1px solid transparent; color: var(--xl-dim); cursor: pointer; padding: 4px; }
+.xdlg-close:hover { color: #fff; border-color: var(--xl-line); }
+
+/* ── 弹层表单字段 ── */
+.xl-field { font-family: var(--xl-mono); font-size: 12px; letter-spacing: 0.06em; color: #fff; display: flex; align-items: baseline; gap: 8px; }
+.xl-no { color: var(--xl-green); font-size: 10.5px; }
+.xl-req { font-style: normal; font-size: 10px; letter-spacing: 0.1em; color: var(--xl-pink); }
+.xl-opt { font-style: normal; font-size: 10.5px; color: var(--xl-faint); }
+.xl-note { font-size: 12px; color: var(--xl-faint); line-height: 1.6; }
+.xl-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
+
+/* ── 页脚 ── */
+.xlab-foot { border-top: 1px solid var(--xl-line); }
+.xlab-foot-inner {
+  max-width: 1280px; margin: 0 auto; padding: 18px 20px 26px;
+  display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  font-family: var(--xl-mono); font-size: 10.5px; letter-spacing: 0.12em; color: var(--xl-faint);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .xl-skel { animation: none; }
+}

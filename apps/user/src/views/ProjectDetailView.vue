@@ -1,46 +1,49 @@
 <template>
-  <!-- 项目广场·详情：溯源行（营期项目带营期名/周期）+ 简介/详情 + 资料区 + 成员 + 收藏
-       + 讨论区（discussion scope=project）+ 管理操作（创建人/发布人/admin：编辑/上下架）。 -->
-  <div :class="['square-view', 'dew-page-background', isDarkMode ? 'theme-dark' : 'theme-light']">
+  <!-- XLab·详情（原项目广场·详情）：溯源行（营期项目带营期名/周期）+ 简介/详情 + 资料区 + 成员 + 收藏
+       + 讨论区（discussion scope=project）+ 管理操作（创建人/发布人/admin：编辑/上下架）。
+       视觉沿用 XLab 主题，共享 tokens 见 ../styles/xlab.css。 -->
+  <div class="xlab-root">
     <div style="height: 60px;"></div>
     <MenuComponent />
     <div class="detail-wrap">
       <button type="button" class="back" @click="router.push('/projects')">
-        <el-icon><ArrowLeft /></el-icon><span>项目广场</span>
+        <el-icon><ArrowLeft /></el-icon><span>XLAB // INDEX</span>
       </button>
 
-      <div v-if="loading" class="d-loading"><DewSkeleton variant="rect" width="100%" height="240" rounded="12px" /></div>
-      <DewCard v-else-if="!p" variant="flat" class="empty-card">
-        <div class="empty-text">项目不存在或已下架</div>
-      </DewCard>
+      <div v-if="loading" class="d-loading"><div class="xl-skel d-skel"></div></div>
+      <div v-else-if="!p" class="xl-empty">
+        <div class="xl-empty-code">// SIGNAL_LOST</div>
+        <div class="xl-empty-hint">项目不存在或已下架</div>
+      </div>
 
       <template v-else>
         <!-- 头部 -->
         <header class="d-hero">
+          <div class="d-eyebrow">// PROJECT_FILE — #{{ String(p.id).padStart(4, '0') }}</div>
           <div class="d-title-row">
             <h1 class="d-title">{{ p.title }}</h1>
             <span :class="['src-badge', `src-${p.source}`]">{{ p.source_text }}</span>
             <span :class="['p-status', `ps-${p.project_status}`]">{{ p.project_status_text }}</span>
-            <span v-if="p.status === 'hidden'" class="hidden-mark">已下架</span>
+            <span v-if="p.status === 'hidden'" class="hidden-tag">已下架</span>
           </div>
           <div class="d-meta">
             <span v-if="p.camp_name" class="d-camp">来自营期「{{ p.camp_name }}」<template v-if="p.camp_cycle"> · {{ p.camp_cycle }}</template></span>
-            <span class="dot">·</span>
-            <span>{{ p.owner_name }}</span>
-            <span class="dot">·</span>
-            <span>{{ p.view_count }} 浏览</span>
-            <span class="dot">·</span>
+            <span class="m-sep">//</span>
+            <span>@{{ p.owner_name }}</span>
+            <span class="m-sep">//</span>
+            <span>{{ p.view_count }} VIEWS</span>
+            <span class="m-sep">//</span>
             <span>{{ (p.created_at || '').slice(0, 10) }}</span>
           </div>
-          <div class="d-actions">
-            <DewButton :type="p.favorited ? 'glass' : 'ghost'" size="sm" @click="toggleFav">
+          <div class="xl-actions d-actions">
+            <button type="button" :class="['xl-btn', 'sm', p.favorited ? 'pink' : 'ghost']" @click="toggleFav">
               {{ p.favorited ? '已收藏' : '收藏' }}
-            </DewButton>
+            </button>
             <template v-if="p.can_manage">
-              <DewButton type="ghost" size="sm" @click="openEdit">编辑</DewButton>
-              <DewButton type="ghost" size="sm" @click="toggleStatus">
+              <button type="button" class="xl-btn sm ghost" @click="openEdit">编辑</button>
+              <button type="button" class="xl-btn sm ghost" @click="toggleStatus">
                 {{ p.status === 'visible' ? '下架' : '恢复上架' }}
-              </DewButton>
+              </button>
             </template>
           </div>
         </header>
@@ -48,19 +51,19 @@
         <!-- 正文两栏：主内容 + 侧栏 -->
         <div class="d-layout">
           <div class="d-main">
-            <DewCard variant="flat" class="sec-card">
-              <div class="sec-label">简介</div>
+            <section class="sec-card">
+              <div class="xl-sec-label">// SYNOPSIS — 简介</div>
               <p class="sec-text">{{ p.summary || '—' }}</p>
-            </DewCard>
-            <DewCard v-if="p.description" variant="flat" class="sec-card">
-              <div class="sec-label">详细介绍</div>
+            </section>
+            <section v-if="p.description" class="sec-card">
+              <div class="xl-sec-label">// DETAILS — 详细介绍</div>
               <p class="sec-text pre">{{ p.description }}</p>
-            </DewCard>
+            </section>
 
             <!-- 讨论区（discussion scope=project；MVP=平铺帖列表+发帖框） -->
-            <DewCard variant="flat" class="sec-card">
-              <div class="sec-label">讨论区（{{ threads.length }}）</div>
-              <div v-if="!threads.length" class="sec-empty">还没有讨论，抢沙发</div>
+            <section class="sec-card">
+              <div class="xl-sec-label">// DISCUSSION — 讨论区（{{ threads.length }}）</div>
+              <div v-if="!threads.length" class="sec-empty">// NO_SIGNAL — 还没有讨论，抢沙发</div>
               <div v-else class="thread-list">
                 <div v-for="t in threads" :key="t.id" class="thread-item">
                   <div class="thread-head">
@@ -72,79 +75,98 @@
                 </div>
               </div>
               <div class="thread-form">
-                <DewInput v-model="threadForm.title" placeholder="标题（至少 4 字）" />
-                <DewInput v-model="threadForm.content" type="textarea" :rows="2" placeholder="说点什么（至少 10 字）" />
-                <DewButton type="glass" size="sm" :loading="posting"
-                           :disabled="threadForm.title.trim().length < 4 || threadForm.content.trim().length < 10"
-                           @click="postThread">发一条</DewButton>
+                <input v-model="threadForm.title" class="xl-input" placeholder="标题（至少 4 字）" />
+                <textarea v-model="threadForm.content" class="xl-input" rows="2" placeholder="说点什么（至少 10 字）"></textarea>
+                <div class="xl-actions">
+                  <button type="button" class="xl-btn sm primary"
+                          :disabled="posting || threadForm.title.trim().length < 4 || threadForm.content.trim().length < 10"
+                          @click="postThread">{{ posting ? 'TRANSMITTING…' : '发一条' }}</button>
+                </div>
               </div>
-            </DewCard>
+            </section>
           </div>
 
-          <!-- 侧栏：资料区 + 成员 -->
+          <!-- 侧栏：资料区 + 成员 + 标签 -->
           <aside class="d-aside">
-            <DewCard v-if="p.links?.length" variant="flat" class="sec-card">
-              <div class="sec-label">资料区</div>
+            <section v-if="p.links?.length" class="sec-card">
+              <div class="xl-sec-label">// ASSETS — 资料区</div>
               <a v-for="(l, i) in p.links" :key="i" :href="l.url" target="_blank" rel="noopener" class="link-item">
                 {{ l.label || l.url }}
               </a>
-            </DewCard>
-            <DewCard v-if="p.members?.length" variant="flat" class="sec-card">
-              <div class="sec-label">项目成员</div>
-              <div class="member-wrap">
+            </section>
+            <section v-if="p.members?.length" class="sec-card">
+              <div class="xl-sec-label">// CREW — 项目成员</div>
+              <div class="chip-wrap">
                 <span v-for="(m, i) in p.members" :key="i" class="member-chip">{{ m }}</span>
               </div>
-            </DewCard>
-            <DewCard v-if="p.tags?.length" variant="flat" class="sec-card">
-              <div class="sec-label">标签</div>
-              <div class="member-wrap">
-                <span v-for="t in p.tags" :key="t" class="tag-chip">{{ t }}</span>
+            </section>
+            <section v-if="p.tags?.length" class="sec-card">
+              <div class="xl-sec-label">// TAGS — 标签</div>
+              <div class="chip-wrap">
+                <span v-for="t in p.tags" :key="t" class="member-chip">{{ t }}</span>
               </div>
-            </DewCard>
+            </section>
           </aside>
         </div>
 
         <!-- 编辑弹窗（覆盖字段：camp 条目编辑不回写营期） -->
-        <DewDialog v-model="editDlg" title="编辑项目" width="560px">
-          <div class="edit-form">
-            <div class="field-label">名称</div>
-            <DewInput v-model="editForm.title" size="lg" />
-            <div class="field-label">一句话简介</div>
-            <DewInput v-model="editForm.summary" type="textarea" :rows="2" />
-            <div class="field-label">详细介绍</div>
-            <DewInput v-model="editForm.description" type="textarea" :rows="4" />
-            <div v-if="p.source === 'community'" class="field-label">状态</div>
-            <div v-if="p.source === 'community'" class="chip-row">
-              <button v-for="s in STATUS_OPTS" :key="s.value" type="button"
-                      :class="['f-chip', { on: editForm.project_status === s.value }]"
-                      @click="editForm.project_status = s.value">{{ s.label }}</button>
-            </div>
-            <div class="form-actions">
-              <DewButton type="ghost" @click="editDlg = false">取消</DewButton>
-              <DewButton type="glass" :loading="savingEdit" :disabled="!editForm.title.trim()" @click="saveEdit">保存</DewButton>
+        <Teleport to="body">
+          <div v-if="editDlg" class="xdlg-overlay" @click.self="editDlg = false">
+            <div class="xlab-dialog">
+              <div class="xdlg-head">
+                <span class="xdlg-title">// EDIT_FILE — 编辑项目</span>
+                <button type="button" class="xdlg-close" @click="editDlg = false"><el-icon><Close /></el-icon></button>
+              </div>
+              <div class="edit-form">
+                <div class="xl-field"><span class="xl-no">01</span>名称<em class="xl-req">*REQ</em></div>
+                <input v-model="editForm.title" class="xl-input" />
+                <div class="xl-field"><span class="xl-no">02</span>一句话简介</div>
+                <textarea v-model="editForm.summary" class="xl-input" rows="2"></textarea>
+                <div class="xl-field"><span class="xl-no">03</span>详细介绍</div>
+                <textarea v-model="editForm.description" class="xl-input" rows="4"></textarea>
+                <template v-if="p.source === 'community'">
+                  <div class="xl-field"><span class="xl-no">04</span>状态</div>
+                  <div class="xl-chip-row">
+                    <button v-for="s in STATUS_OPTS" :key="s.value" type="button"
+                            :class="['xl-chip', { on: editForm.project_status === s.value }]"
+                            @click="editForm.project_status = s.value">{{ s.label }}</button>
+                  </div>
+                </template>
+                <div v-if="p.source === 'camp'" class="xl-note">营期项目的条目编辑不回写营期工作台。</div>
+                <div class="xl-actions">
+                  <button type="button" class="xl-btn ghost" @click="editDlg = false">取消</button>
+                  <button type="button" class="xl-btn primary" :disabled="!editForm.title.trim() || savingEdit" @click="saveEdit">
+                    {{ savingEdit ? 'TRANSMITTING…' : '保存' }}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
-        </DewDialog>
+        </Teleport>
       </template>
     </div>
+
+    <footer class="xlab-foot">
+      <div class="xlab-foot-inner">
+        <span>XLAB // BME_PLATFORM</span>
+        <span>EXPERIMENT · DOCUMENT · SHIP</span>
+      </div>
+    </footer>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
-import { useStore } from 'vuex';
+import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { ArrowLeft } from '@element-plus/icons-vue';
+import { ArrowLeft, Close } from '@element-plus/icons-vue';
 import MenuComponent from '../components/MenuComponent.vue';
-import { DewButton, DewCard, DewDialog, DewInput, DewSkeleton } from '@bme/dew-ui';
 import api from '../api';
 import { showcaseService } from '../services/showcaseService';
+import '../styles/xlab.css';
 
-const store = useStore();
 const route = useRoute();
 const router = useRouter();
-const isDarkMode = computed(() => store.getters.isDarkMode);
 
 const STATUS_OPTS = [
   { label: '构思中', value: 'idea' }, { label: '进行中', value: 'ongoing' }, { label: '已完成', value: 'done' },
@@ -258,71 +280,62 @@ async function saveEdit() {
 </script>
 
 <style scoped>
-.square-view { min-height: 100vh; }
+/* XLab 详情页专属布局；共享 tokens/按钮/输入/chips/弹层/徽标见 ../styles/xlab.css */
 .detail-wrap { max-width: 1080px; margin: 0 auto; padding: 24px 20px 48px; }
 .back {
-  display: inline-flex; align-items: center; gap: 6px; border: none; background: transparent;
-  padding: 0; margin-bottom: 14px; cursor: pointer; font-size: 12.5px; color: var(--dew-text-muted);
-  transition: color 0.2s ease;
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 1px solid transparent; background: transparent; padding: 6px 10px 6px 6px;
+  margin-bottom: 14px; cursor: pointer;
+  font-family: var(--xl-mono); font-size: 12px; letter-spacing: 0.08em; color: var(--xl-dim);
+  transition: color 0.15s, border-color 0.15s;
 }
-.back:hover { color: var(--color-primary); }
-.d-loading { padding: 4px 0; }
-.empty-card { padding: 48px 0; }
-.empty-text { font-size: 13px; color: var(--dew-text-faint); text-align: center; }
+.back:hover { color: var(--xl-green); border-color: var(--xl-line); }
+.d-skel { height: 360px; }
 
 .d-hero { margin-bottom: 18px; }
+.d-eyebrow { font-family: var(--xl-mono); font-size: 11.5px; letter-spacing: 0.12em; color: var(--xl-green); margin-bottom: 10px; }
 .d-title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.d-title { font-size: 25px; font-weight: 700; color: var(--dew-text-heading); margin: 0; letter-spacing: 0.5px; }
-.src-badge { font-size: 11.5px; padding: 2px 12px; border-radius: 999px; font-weight: 600;
-  color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--color-primary) 30%, transparent); }
-.src-camp { color: var(--color-success); background: color-mix(in srgb, var(--color-success) 12%, transparent);
-  border-color: color-mix(in srgb, var(--color-success) 30%, transparent); }
-.p-status { font-size: 12.5px; font-weight: 600; }
-.ps-idea { color: var(--dew-text-faint); }
-.ps-ongoing { color: var(--color-primary); }
-.ps-done { color: var(--color-success); }
-.hidden-mark { font-size: 12px; color: var(--color-warning); font-weight: 600; }
-.d-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12.5px; color: var(--dew-text-muted); margin-top: 8px; }
-.d-meta .dot { color: var(--dew-text-faint); }
-.d-camp { color: var(--color-success); font-weight: 600; }
-.d-actions { display: flex; gap: 8px; margin-top: 12px; }
+.d-title {
+  font-size: 26px; font-weight: 750; color: #fff; margin: 0; letter-spacing: 0.5px;
+  text-shadow: 1px 0 rgba(0, 255, 156, 0.22), -1px 0 rgba(255, 46, 151, 0.22);
+}
+.hidden-tag { font-family: var(--xl-mono); font-size: 11px; padding: 2px 8px; color: var(--xl-pink); border: 1px solid rgba(255, 46, 151, 0.5); }
+.d-meta {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  font-family: var(--xl-mono); font-size: 11.5px; letter-spacing: 0.05em; color: var(--xl-dim); margin-top: 10px;
+}
+.m-sep { color: var(--xl-faint); }
+.d-camp { color: var(--xl-green); font-weight: 600; }
+.d-actions { margin-top: 14px; }
 
-.d-layout { display: grid; grid-template-columns: 1fr 300px; gap: 16px; align-items: start; }
+.d-layout { display: grid; grid-template-columns: 1fr 300px; gap: 14px; align-items: start; }
 @media (max-width: 900px) { .d-layout { grid-template-columns: 1fr; } }
-.d-main, .d-aside { display: flex; flex-direction: column; gap: 14px; }
+.d-main, .d-aside { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 
-.sec-card { display: flex; flex-direction: column; gap: 10px; }
-.sec-label { font-size: 13px; font-weight: 650; color: var(--dew-text-heading); }
-.sec-text { font-size: 13.5px; color: var(--dew-text-muted); line-height: 1.8; margin: 0; }
+.sec-card {
+  background: var(--xl-panel); border: 1px solid var(--xl-line);
+  border-top: 2px solid rgba(0, 255, 156, 0.35);
+  padding: 15px 18px 17px; display: flex; flex-direction: column; gap: 10px;
+}
+.sec-text { font-size: 13.5px; color: var(--xl-dim); line-height: 1.8; margin: 0; }
 .sec-text.pre { white-space: pre-wrap; }
-.sec-empty { font-size: 12.5px; color: var(--dew-text-faint); }
+.sec-empty { font-family: var(--xl-mono); font-size: 12px; letter-spacing: 0.06em; color: var(--xl-faint); }
 
-.link-item { font-size: 13px; color: var(--color-primary); text-decoration: none; word-break: break-all; }
+.link-item { font-family: var(--xl-mono); font-size: 12px; letter-spacing: 0.04em; color: var(--xl-green); text-decoration: none; word-break: break-all; }
+.link-item::before { content: '>> '; color: var(--xl-faint); }
 .link-item:hover { text-decoration: underline; }
-.member-wrap { display: flex; flex-wrap: wrap; gap: 6px; }
-.member-chip { font-size: 12px; padding: 2px 10px; border-radius: 999px;
-  background: color-mix(in srgb, var(--dew-text-muted) 8%, transparent); color: var(--dew-text-muted); }
-.tag-chip { font-size: 11.5px; padding: 1px 9px; border-radius: 999px;
-  border: 1px solid var(--dew-card-border); color: var(--dew-text-muted); }
+.chip-wrap { display: flex; flex-wrap: wrap; gap: 6px; }
+.member-chip { font-family: var(--xl-mono); font-size: 11px; padding: 2px 8px; border: 1px solid var(--xl-line); color: var(--xl-dim); }
 
 .thread-list { display: flex; flex-direction: column; gap: 10px; }
-.thread-item { border-top: 1px solid var(--dew-card-border); padding-top: 10px; display: flex; flex-direction: column; gap: 4px; }
+.thread-item { border-top: 1px solid var(--xl-line); padding-top: 10px; display: flex; flex-direction: column; gap: 4px; }
 .thread-item:first-child { border-top: none; padding-top: 0; }
-.thread-head { display: flex; align-items: center; justify-content: space-between; }
-.thread-author { font-size: 12.5px; font-weight: 600; color: var(--dew-text-heading); }
-.thread-time { font-size: 11.5px; color: var(--dew-text-faint); }
-.thread-title { font-size: 13.5px; font-weight: 600; color: var(--dew-text-heading); }
-.thread-content { font-size: 13px; color: var(--dew-text-muted); line-height: 1.7; margin: 0; white-space: pre-wrap; }
-.thread-form { display: flex; flex-direction: column; gap: 8px; margin-top: 6px;
-  border-top: 1px solid var(--dew-card-border); padding-top: 12px; }
+.thread-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.thread-author { font-size: 12.5px; font-weight: 600; color: #fff; }
+.thread-time { font-family: var(--xl-mono); font-size: 10.5px; color: var(--xl-faint); }
+.thread-title { font-size: 13.5px; font-weight: 600; color: #fff; }
+.thread-content { font-size: 13px; color: var(--xl-dim); line-height: 1.7; margin: 0; white-space: pre-wrap; }
+.thread-form { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--xl-line); padding-top: 12px; margin-top: 2px; }
 
-.edit-form { display: flex; flex-direction: column; gap: 10px; }
-.field-label { font-size: 13px; font-weight: 600; color: var(--dew-text-heading); }
-.chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
-.f-chip { border: 1px solid var(--dew-card-border); border-radius: 999px; background: transparent;
-  padding: 4px 14px; font-size: 12.5px; color: var(--dew-text-muted); cursor: pointer; }
-.f-chip.on { color: var(--color-primary); border-color: color-mix(in srgb, var(--color-primary) 45%, transparent);
-  background: color-mix(in srgb, var(--color-primary) 9%, transparent); font-weight: 600; }
-.form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
+.edit-form { padding: 16px; display: flex; flex-direction: column; gap: 10px; }
 </style>

@@ -114,6 +114,30 @@ EP 是结构层,不做逐个替换;通过全局 CSS 把 EP 拉进设计系统:
 5. UI 调整**大胆做**,不要每次只挪 2px。
 6. **禁外网字体/脚本 CDN**(国内环境红线):字体走系统栈,高亮资产见 `@bme/editor`。
 
+### 4.6 XLab 主题:页面级豁免规格(2026-09-13 定稿)
+
+**定位与豁免范围**:XLab(原项目广场)页面族——`/projects` 列表、`/projects/:id` 详情及其页内弹层——整页豁免 §4.1–4.4 的 DewUI 液态玻璃语言与 `.theme-dark/.theme-light` 明暗双态,**恒黑纯扁平失真风**(黑白 + 荧光绿 `#00ff9c` + 荧光粉 `#ff2e97`)。豁免仅限上述路由;其他页面继续走 DewUI,不得借用 XLab 风格。全局浮层(ElMessage Toast、ElMessageBox 确认框)不豁免,保持全局样式。
+
+**单源封装**:`apps/user/src/styles/xlab.css`,两层结构:
+
+- **tokens + 原子层**(全局生效):`--xl-*` 八变量、`xl-btn`(primary/pink/ghost/sm)、`xl-input`、`xl-chip`(+`tag` 变体)、`xl-field` 编号表单系(`xl-no/xl-req/xl-opt/xl-note/xl-actions`)、`xl-skel`、`xl-empty`、`xdlg-*` 弹层、`xlab-foot`;
+- **语义徽标层**(限 `.xlab-root` 后代):`.src-badge/.p-status/.ps-*` 等数据投影类。
+
+页面 SFC 的 scoped 样式只写布局与页面特效(列表页 hero glitch/跑马灯/扫描线,详情页绿顶边卡片),不复制原子。**新页面接入三步**:根元素挂 `.xlab-root` → `import '../styles/xlab.css'` → 60px 占位 + MenuComponent 骨架,然后拼原子。
+
+**八条约束(违反必返工)**:
+
+1. **作用域前缀铁律**:进 xlab.css 的全局类必须 `xl-`/`xlab-` 前缀——Camp 组件族 scoped 里有同名通用类(`f-chip`/`field-label`),裸全局类会跨页泄漏;经 Teleport 到 body 的弹层脱离 `.xlab-root` 祖先,必须自带前缀。
+2. **色彩单源**:只用 `--xl-*` 变量,不硬编码色值;页面派生 tint(如封面深色底)留在页面 scoped,不进共享层。
+3. **字体分工**:标签/徽标/数据一律 `--xl-mono` 系统栈,中文正文系统 sans;禁外网字体。
+4. **形态红线**:纯扁平——直角、1px 白线边框、无玻璃/无 blur/无大圆角;投影只允许硬偏移(box-shadow 无模糊半径,如 `4px 4px 0`)。
+5. **明暗**:页面恒黑,不接 `isDarkMode`;顶部全局菜单仍随全局主题,属预期。
+6. **动效白名单**:glitch 切片、跑马灯、光标闪烁、脉冲点、骨架 shimmer 五种,全部包在 `prefers-reduced-motion: reduce` 关停里;白名单外新动效需先扩本节。
+7. **复用优先**:缺原子先补进 xlab.css(带前缀),禁止页面私造第三套按钮/输入/弹层。
+8. **测试钩子稳定**:数据投影类名(`.p-card`/`.src-camp` 等)是 e2e 契约,改名必须同步 `e2e/project-square.spec.js`;新用例选择器优先 role/text,不绑 `xl-` 样式类。
+
+**验收口径**:恒黑单态,无需明暗双查;桌面 + 手机宽(~400px)两档过一遍;改 xlab.css 视为 XLab 页面族全站视觉变更,PR 附截图。
+
 ## 5. 共享包契约
 
 ### 5.1 @bme/styles

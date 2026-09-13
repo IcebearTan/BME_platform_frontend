@@ -57,7 +57,7 @@ test('项目广场：双来源卡片渲染与来源/状态筛选', async ({ page
   await loginAsUser(page)
 
   await page.goto(`${BASE}/projects`, { waitUntil: 'domcontentloaded' })
-  await expect(page.getByRole('heading', { name: '项目广场' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'XLAB' })).toBeVisible()
   // 三张卡片：来源标（营期=success 系/自由分享）+ 状态字 + 营期溯源
   await expect(page.locator('.p-card')).toHaveCount(3)
   await expect(page.locator('.p-card', { hasText: '智能输液监护系统' }).locator('.src-camp')).toBeVisible()
@@ -83,7 +83,7 @@ test('项目广场：分享我的项目弹窗（community 免审上架）', asyn
 
   await page.goto(`${BASE}/projects`, { waitUntil: 'domcontentloaded' })
   await page.getByRole('button', { name: '分享我的项目' }).click()
-  const dlg = page.locator('.dew-dialog').filter({ hasText: '分享我的项目' })
+  const dlg = page.locator('.xlab-dialog').filter({ hasText: '分享我的项目' })
   await expect(dlg).toBeVisible()
   await expect(dlg.getByText('自由分享免审上架', { exact: false })).toBeVisible()
   await expect(dlg.getByRole('button', { name: '发布' })).toBeDisabled()
