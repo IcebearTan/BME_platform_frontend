@@ -30,7 +30,7 @@
       <DewCard v-if="mine.can_apply" variant="inset" size="lg" :no-hover="true" class="apply-card">
         <div class="apply-title">申报一个新项目</div>
         <div class="apply-hint">
-          管理员审核通过后项目创建并对全营展示，你自动入营开始组队；可申报多个项目，参与总数有上限（自己负责的计入）。
+          管理员审核通过后项目创建并对全营展示，你自动入营开始组队；可同时申报多个项目，负责多少个不受限制。
         </div>
 
         <div class="field-label">项目名称 <span class="field-req">必填</span></div>

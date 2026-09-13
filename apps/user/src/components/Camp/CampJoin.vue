@@ -14,7 +14,7 @@
     <DewCard v-else-if="isProject" variant="inset" size="lg" :no-hover="true" class="join-card">
       <div class="join-title">申请加入「{{ session.name }}」</div>
       <div class="join-hint">
-        提交后由管理员审批入营。入营后可浏览本期项目并提交 1-3 个项目意向；一人最多参与 {{ projectLimit || 3 }} 个项目（自己负责的计入），最终由老师线下协调、负责人确认组队。
+        提交后由管理员审批入营。入营后可浏览本期项目并提交 1-3 个项目意向；一人最多加入 {{ projectLimit || 3 }} 个别人的项目（自己负责的不计），最终由老师线下协调、负责人确认组队。
       </div>
 
       <!-- 承诺到岗日（仅当本营开启考勤能力；项目营默认关闭不出现此节） -->

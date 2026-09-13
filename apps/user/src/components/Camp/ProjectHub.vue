@@ -7,7 +7,7 @@
     <DewCard variant="inset" size="lg" :no-hover="true" class="quota-card">
       <div class="quota-row">
         <div class="quota-main">
-          <span class="quota-label">项目参与</span>
+          <span class="quota-label">加入项目</span>
           <span class="quota-num">{{ mine.project_count ?? '—' }}<template v-if="mine.project_limit"> / {{ mine.project_limit }}</template></span>
           <span v-if="remainingHint" class="quota-hint">{{ remainingHint }}</span>
         </div>
@@ -149,7 +149,7 @@ const leaveOn = computed(() => !!props.session.policy?.capabilities?.leave);
 const remainingHint = computed(() => {
   if (mine.value.project_limit == null) return '';
   const left = mine.value.remaining_slots ?? 0;
-  return left ? `还可参与 ${left} 个` : '已达上限';
+  return left ? `还可加入 ${left} 个（负责的不计）` : '加入数已满（负责的不计）';
 });
 
 // ── 视图切换（选择期多「项目意向」临时项设默认；我负责的=有负责项目才出现；
