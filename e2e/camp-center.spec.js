@@ -119,11 +119,15 @@ test('超管预判：中心隐藏可报名组，工作台给说明卡不给表�
 
   await page.goto(`${BASE}/camp`, { waitUntil: 'domcontentloaded' })
   await expect(page.getByRole('heading', { name: '营期中心' })).toBeVisible()
-  // 后端对管理员报名一律 400：中心预判隐藏「可报名」组（id22/26/28 三卡不显示 → 7 个入口）
+  // 后端对管理员报名一律 400：中心预判隐藏「可报名」组；但卡不消失——
+  // 09-13 兜底组覆盖：staff 视角的 selecting 营（id22/26/28）落「其他营期」组可见
   await expect(page.locator('.group-title', { hasText: '可报名' })).toHaveCount(0)
+  await expect(page.locator('.group-title').filter({ hasText: /^其他营期$/ })).toBeVisible()
+  await expect(page.locator('.group-grid', { hasText: '春季招募营' })).toBeVisible()
   // staff 不参与导生报名：upcoming 营（id21/id24）归「即将开始」组
   await expect(page.locator('.group-title').filter({ hasText: /^即将开始$/ })).toBeVisible()
-  await expect(page.getByRole('button', { name: '进入营期' })).toHaveCount(7)
+  // 10 营全可见（状态机全覆盖，任何营不从中心消失）
+  await expect(page.getByRole('button', { name: '进入营期' })).toHaveCount(10)
 
   // 工作台内同样预判：说明卡替代 CampJoin 表单（不再填完表单才吃 400）
   await page.goto(`${BASE}/camp?sid=22`, { waitUntil: 'domcontentloaded' })
@@ -224,29 +228,17 @@ test('项目营申报：upcoming 出示申报表单（负责人入口）', async
   expect(errors).toEqual([])
 })
 
-test('项目营 running：交付节点时间轴与版本链（阶段4）', async ({ page }) => {
+test('项目营 running：节点评价制——负责人逐人评价，评齐即完', async ({ page }) => {
   const errors = []
   page.on('pageerror', (e) => errors.push(e.message))
-  // running 项目营：成员视角，参与 1 个项目（unit 41），两个交付节点
+  // running 项目营：负责人视角（文件提交入口 09-13 下线，交付=负责人对成员的节点评价）
   await loginAsUser(page, [
     {
       url: '/camp/projects/30/mine',
-      json: { code: 200, applications: [], leading: [], joining: [
-        { unit_id: 41, name: '智能输液监护', status: 'active', my_role: 'member',
-          leader_user_id: 61, leader_name: 'proj_leader', member_count: 4, my_pref_rank: null },
-      ], project_count: 1, project_limit: 3, remaining_slots: 2, can_apply: false },
-    },
-    {
-      url: '/camp/units/41/milestones',
-      json: { code: 200, my_role: 'member', milestones: [
-        { id: 501, unit_id: 41, title: '开题调研', submit_mode: 'team', status: 'approved',
-          due_date: '2027-02-01', order_no: 1, submissions: [] },
-        { id: 502, unit_id: 41, title: '个人周报', submit_mode: 'member', status: 'returned',
-          due_date: null, order_no: 2, submissions: [
-            { id: 9001, milestone_id: 502, version: 1, submitted_by: 62, content: '第一周',
-              status: 'returned', review_note: '写详细些', attachments: [], created_at: '2026-09-10T10:00:00' },
-          ] },
-      ] },
+      json: { code: 200, applications: [], joining: [], leading: [
+        { unit_id: 41, name: '智能输液监护', status: 'active', my_role: 'leader',
+          leader_user_id: 61, leader_name: 'proj_leader', member_count: 3, my_pref_rank: null },
+      ], project_count: 1, project_limit: null, remaining_slots: null, can_apply: false },
     },
     {
       url: '/camp/units/41/outcomes',
@@ -260,27 +252,104 @@ test('项目营 running：交付节点时间轴与版本链（阶段4）', async
     },
   ])
 
+  // 里程碑读端点（内存态闭环：PUT 后回读带新评价）
+  const evals = [
+    { member_user_id: 62, member_name: '成员小张', score: 88, comment: '调研充分',
+      leader_user_id: 61, updated_at: '2026-09-12 10:00' },
+  ]
+  const membersJson = () => ({
+    code: 200, my_role: 'leader',
+    eval_members: [{ user_id: 62, username: '成员小张' }, { user_id: 63, username: '成员小李' }],
+    milestones: [
+      { id: 501, unit_id: 41, title: '开题调研', due_date: '2027-02-01', order_no: 1,
+        submissions: [], evaluations: evals,
+        member_count: 2, evaluated_count: evals.length, node_complete: evals.length >= 2 },
+    ],
+  })
+  await page.route('**/camp/units/41/milestones', (route) => route.fulfill({ json: membersJson() }))
+  const evalPut = page.waitForRequest((req) =>
+    req.url().includes('/camp/milestones/501/evaluations/63') && req.method() === 'PUT')
+  await page.route('**/camp/milestones/501/evaluations/63', (route) => {
+    const body = route.request().postDataJSON()
+    evals.push({ member_user_id: 63, member_name: '成员小李', score: body.score,
+                 comment: body.comment, leader_user_id: 61, updated_at: '2026-09-13 21:00' })
+    return route.fulfill({ json: { code: 200, message: '评价已保存', score: body.score } })
+  })
+
   await page.goto(`${BASE}/camp?sid=30`, { waitUntil: 'domcontentloaded' })
-  // 09-13 二次拍板：项目营营期层无 tab，工作台=buttonbar；running 无负责项目时
-  // 默认落「我参加的」单项目看板，节点直接平铺（旧手风琴废弃）
-  await expect(page.getByRole('button', { name: '我参加的' })).toBeVisible()
+  // mine 异步加载前 view 先落「我参加的」，加载后不自动切换——显式切「我负责的」
+  await page.getByRole('button', { name: '我负责的' }).click()
   await expect(page.locator('.project-board').getByText('智能输液监护')).toBeVisible()
 
-  // 节点行：状态聚合 + 双模式标签
-  await expect(page.locator('.ms-row', { hasText: '开题调研' }).locator('.ms-status')).toHaveText('已通过')
-  await expect(page.locator('.ms-row', { hasText: '个人周报' }).locator('.ms-status')).toHaveText('已退回')
-  // 展开 member 节点：版本链 + 退回意见 + 个人重提入口
-  await page.locator('.ms-head', { hasText: '个人周报' }).click()
-  await expect(page.getByText('v1', { exact: true })).toBeVisible()
-  await expect(page.getByText('审核意见：写详细些')).toBeVisible()
-  await expect(page.locator('.ms-row', { hasText: '个人周报' }).getByRole('button', { name: '重提新版本' })).toBeVisible()
-  // team 节点已验收：成员看到节点关闭而非提交框（整队交付由负责人统一提交）
+  // 节点头：已评 1/2（评齐挂已完成）
+  await expect(page.locator('.ms-row', { hasText: '开题调研' }).locator('.ms-status'))
+    .toHaveText('已评 1/2')
+  // 展开：小张已评带分带评语；小李未评价有「评价」按钮
   await page.locator('.ms-head', { hasText: '开题调研' }).click()
-  await expect(page.locator('.ms-row', { hasText: '开题调研' }).getByText('已验收通过，节点关闭')).toBeVisible()
-  await expect(page.locator('.ms-row', { hasText: '开题调研' }).getByRole('button', { name: '提交' })).toHaveCount(0)
+  await expect(page.locator('.eval-row', { hasText: '成员小张' }).getByText('88 分')).toBeVisible()
+  await expect(page.locator('.eval-row', { hasText: '成员小张' }).getByText('调研充分')).toBeVisible()
+  await page.locator('.eval-row', { hasText: '成员小李' }).getByRole('button', { name: '评价' }).click()
+
+  // 评价弹窗：分数 + 评语 → 保存
+  await page.locator('.eval-form input').first().fill('92')
+  await page.locator('.eval-form textarea').fill('进步明显')
+  await page.getByRole('button', { name: '保存评价' }).click()
+  expect((await evalPut).postDataJSON()).toEqual({ score: 92, comment: '进步明显' })
+
+  // 回读：2/2 评齐 → 节点已完成
+  await expect(page.locator('.ms-row', { hasText: '开题调研' }).locator('.ms-status'))
+    .toHaveText('已评 2/2已完成')
   // 成果区
   await expect(page.getByText('样机一台')).toBeVisible()
   await expect(page.getByText('待核验', { exact: true })).toBeVisible()
+
+  expect(errors).toEqual([])
+})
+
+test('项目营 running：节点评价制——成员仅见本人评价', async ({ page }) => {
+  const errors = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  await loginAsUser(page, [
+    {
+      url: '/camp/projects/30/mine',
+      json: { code: 200, applications: [], leading: [], joining: [
+        { unit_id: 41, name: '智能输液监护', status: 'active', my_role: 'member',
+          leader_user_id: 61, leader_name: 'proj_leader', member_count: 3, my_pref_rank: null },
+      ], project_count: 1, project_limit: null, remaining_slots: null, can_apply: false },
+    },
+    {
+      // 成员视角：evaluations 只回本人行；eval_members 空数组（成员端忽略）
+      url: '/camp/units/41/milestones',
+      json: { code: 200, my_role: 'member', eval_members: [], milestones: [
+        { id: 501, unit_id: 41, title: '开题调研', due_date: null, order_no: 1,
+          submissions: [], evaluations: [
+            { member_user_id: 62, member_name: '成员小张', score: 88, comment: '调研充分',
+              leader_user_id: 61, updated_at: '2026-09-12 10:00' },
+          ], member_count: 2, evaluated_count: 1, node_complete: false },
+        { id: 502, unit_id: 41, title: '中期检查', due_date: null, order_no: 2,
+          submissions: [], evaluations: [], member_count: 2, evaluated_count: 0, node_complete: false },
+      ] },
+    },
+    {
+      url: '/camp/units/41/outcomes',
+      json: { code: 200, outcomes: [] },
+    },
+    {
+      url: '/camp/projects/30/activities',
+      json: { code: 200, units: [] },
+    },
+  ])
+
+  await page.goto(`${BASE}/camp?sid=30`, { waitUntil: 'domcontentloaded' })
+  // 节点头：已评节点显示「我的评价 88 分」，未评显示「待评价」；无评价按钮
+  await expect(page.locator('.ms-row', { hasText: '开题调研' }).locator('.ms-status'))
+    .toHaveText('我的评价 88 分')
+  await expect(page.locator('.ms-row', { hasText: '中期检查' }).locator('.ms-status'))
+    .toHaveText('待评价')
+  await page.locator('.ms-head', { hasText: '开题调研' }).click()
+  await expect(page.locator('.eval-self').getByText('88 分')).toBeVisible()
+  await expect(page.locator('.eval-self').getByText('调研充分')).toBeVisible()
+  await expect(page.getByRole('button', { name: '评价', exact: true })).toHaveCount(0)
 
   expect(errors).toEqual([])
 })

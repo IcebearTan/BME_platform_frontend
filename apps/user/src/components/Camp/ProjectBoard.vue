@@ -50,6 +50,14 @@
         <ProjectActivities :sid="sid" :session="session" :unit-id="cur.unit_id" />
       </DewCard>
 
+      <!-- 周考勤（09-13：项目营开了周打卡后负责人的成员×周面板，两区并显不并口径） -->
+      <template v-if="role === 'leader' && weeklyOn">
+        <div class="sec-title">周考勤</div>
+        <DewCard variant="default" :no-hover="true" class="sec-card">
+          <ProjectWeeklyAttendance :unit-id="cur.unit_id" />
+        </DewCard>
+      </template>
+
       <!-- 成果 -->
       <div class="sec-title">项目成果</div>
       <DewCard variant="default" :no-hover="true" class="sec-card">
@@ -124,6 +132,7 @@ import { showcaseService } from '../../services/showcaseService';
 import ProjectRoster from './ProjectRoster.vue';
 import ProjectMilestones from './ProjectMilestones.vue';
 import ProjectActivities from './ProjectActivities.vue';
+import ProjectWeeklyAttendance from './ProjectWeeklyAttendance.vue';
 import TemplateEditor from './TemplateEditor.vue';
 
 const props = defineProps({
@@ -145,6 +154,10 @@ watch(() => props.units, (us) => {
 }, { immediate: true });
 
 const emitChanged = () => emit('changed');
+
+// 项目营周考勤开关（与 ProjectHub 顶部状态条同口径）
+const weeklyOn = computed(() => !!props.session.policy?.capabilities?.attendance
+  && props.session.policy?.attendance_mode === 'weekly');
 
 // ── 成果 ──
 const outcomes = ref([]);

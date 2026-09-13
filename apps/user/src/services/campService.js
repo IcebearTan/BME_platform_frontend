@@ -203,7 +203,7 @@ export const campService = {
     api.post(`/camp/units/${unitId}/template`, body).then(r => r.data),
   updateUnitTemplate: (unitId, body) =>
     api.put(`/camp/units/${unitId}/template`, body).then(r => r.data),
-  // 里程碑：列表（带请求者可见版本链与 my_role）/ 负责人增删改
+  // 里程碑：列表（带请求者可见版本链/节点评价块与 my_role）/ 负责人增删改
   fetchMilestones: (unitId) =>
     api.get(`/camp/units/${unitId}/milestones`).then(r => r.data),
   addMilestone: (unitId, body) =>
@@ -212,6 +212,12 @@ export const campService = {
     api.put(`/camp/milestones/${mid}`, body).then(r => r.data),
   deleteMilestone: (mid) =>
     api.delete(`/camp/milestones/${mid}`).then(r => r.data),
+  // 节点评价（09-13 评价制交付）：负责人对成员 upsert 分数 0-100 + 评语
+  evaluateMilestoneNode: (mid, memberUid, body) =>
+    api.put(`/camp/milestones/${mid}/evaluations/${memberUid}`, body).then(r => r.data),
+  // 项目营·单元周考勤面板（负责人视角）
+  fetchUnitWeeklyAttendance: (unitId) =>
+    api.get(`/camp/units/${unitId}/attendance/weekly`).then(r => r.data),
   // 提交（multipart：content + Files[] 附件）/ 版本链 / 审核（approve|return）
   submitMilestone: (mid, content, files = []) => {
     const fd = new FormData()

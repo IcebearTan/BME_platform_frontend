@@ -241,7 +241,8 @@ onBeforeUnmount(() => {
 /* ── 浮层本体（iOS 风格） ── */
 .dew-popover {
   position: fixed;
-  z-index: 2000;
+  /* 2200：须盖过 DewDialog 面板（2001）——弹窗内 DewSelect 下拉否则被面板压住隔玻璃透字 */
+  z-index: 2200;
   background: var(--dew-popover-bg);
   border: 1px solid var(--dew-popover-border);
   border-radius: var(--dew-popover-radius);
