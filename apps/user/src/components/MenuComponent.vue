@@ -198,8 +198,8 @@ const handleUserInfo = () => {
                 <el-menu-item index="/community">
                     社区广场
                 </el-menu-item>
-                <el-menu-item index="/projects">
-                    XLab
+                <el-menu-item index="/projects" class="xlab-nav-item">
+                    <img src="../assets/XLAB.png" alt="XLab" class="xlab-nav-logo" />
                 </el-menu-item>
                 <el-menu-item index="/service-hall">
                     服务大厅
@@ -1056,6 +1056,39 @@ const handleUserInfo = () => {
 .avatar-pop__action--danger { color: var(--color-danger); }
 .avatar-pop__action--danger:hover { background: var(--color-danger-light); }
 .avatar-pop__action--danger .el-icon { color: var(--color-danger); }
+
+/* === XLab 字标导航项（透明底 PNG，荧光绿发光）=== */
+.xlab-nav-item {
+  display: flex;
+  align-items: center;
+}
+
+.xlab-nav-logo {
+  height: 24px;
+  width: auto;
+  display: block;
+  /* 荧光绿发光：贴字形的 drop-shadow */
+  filter:
+    drop-shadow(0 0 5px rgba(0, 255, 156, 0.70))
+    drop-shadow(0 0 12px rgba(0, 255, 156, 0.40));
+  transition:
+    filter 0.3s ease,
+    transform 0.3s var(--dew-bounce);
+}
+
+.xlab-nav-item:hover .xlab-nav-logo {
+  transform: translateY(-1px) scale(1.04);
+  filter:
+    drop-shadow(0 0 7px rgba(0, 255, 156, 0.90))
+    drop-shadow(0 0 18px rgba(0, 255, 156, 0.55));
+}
+
+.xlab-nav-item.is-active .xlab-nav-logo {
+  transform: scale(1.06);
+  filter:
+    drop-shadow(0 0 8px rgba(0, 255, 156, 0.95))
+    drop-shadow(0 0 20px rgba(0, 255, 156, 0.65));
+}
 
 /* === 暑期训练营 艺术字导航项 === */
 .camp-nav-item {
