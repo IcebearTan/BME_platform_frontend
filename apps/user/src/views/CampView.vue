@@ -17,10 +17,10 @@
       <!-- 工作台：具体营期内容；其他营期统一回中心选择 -->
       <div v-else-if="sessions.length" class="camp-layout">
         <div class="camp-main">
-          <button type="button" class="back-center" @click="backToCenter">
+          <DewButton type="ghost" size="sm" class="back-center" @click="backToCenter">
             <el-icon><ArrowLeft /></el-icon>
             <span>营期中心</span>
-          </button>
+          </DewButton>
           <!-- 营期头部：无卡片样式，置于最上；tabs 切换条紧随其下 -->
           <header v-if="current" class="camp-hero">
             <h1 class="hero-title">{{ current.name }}</h1>
@@ -353,6 +353,7 @@ async function loadPendingRequests() {
     for (const r of data.requests || []) {
       if (r.status !== 'pending') continue;
       if (r.apply_role === 'mentor') pendingMentorSids.value.add(r.camp_session_id);
+      else if (r.apply_role === 'leader') continue;   // 负责人资格申请：申报卡自理，不占入营/导生报名 pending 位
       else pendingStudentSids.value.add(r.camp_session_id);
     }
   } catch { /* 静默 */ }
@@ -367,13 +368,7 @@ async function loadPendingRequests() {
 
 /* ── 工作台布局 ── */
 .camp-layout { width: 100%; }
-.back-center {
-  display: inline-flex; align-items: center; gap: 6px;
-  border: none; background: transparent; padding: 0; margin-bottom: 14px; cursor: pointer;
-  font-size: 12.5px; color: var(--dew-text-muted);
-  transition: color 0.2s ease, transform 0.2s var(--dew-bounce, ease);
-}
-.back-center:hover { color: var(--color-primary); transform: translateX(-2px); }
+.back-center { margin-bottom: 14px; }
 
 /* 状态圆点（侧栏 + hero 共用；五态：draft/upcoming/selecting/running/archived） */
 .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }

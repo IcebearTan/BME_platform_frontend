@@ -18,9 +18,10 @@
             <span class="row-name">{{ m.username }}</span>
             <DewTag v-if="m.role === 'leader'" size="sm" round>负责人</DewTag>
             <DewTag v-if="pendingRemove.has(m.user_id)" size="sm" round>待移出</DewTag>
-            <button v-if="m.role !== 'leader' && roster.selection_open && !pendingRemove.has(m.user_id)"
-                    type="button" class="row-op" @click="stageRemove(m)">移出</button>
-            <button v-else-if="pendingRemove.has(m.user_id)" type="button" class="row-op undo" @click="stageRemove(m)">撤销</button>
+            <DewButton v-if="m.role !== 'leader' && roster.selection_open && !pendingRemove.has(m.user_id)"
+                       type="ghost" size="sm" class="row-op" @click="stageRemove(m)">移出</DewButton>
+            <DewButton v-else-if="pendingRemove.has(m.user_id)" type="ghost" size="sm" class="row-op"
+                       @click="stageRemove(m)">撤销</DewButton>
           </div>
         </div>
       </div>
@@ -39,9 +40,9 @@
               已参与 {{ c.project_count }}<template v-if="c.remaining_slots != null"> / 余 {{ c.remaining_slots }}</template>
             </span>
             <span v-if="c.units?.length" class="row-units">{{ c.units.map((u) => u.name).join('、') }}</span>
-            <button v-if="!pendingAdd.has(c.user_id)" type="button" class="row-op add"
-                    :disabled="c.remaining_slots === 0" @click="stageAdd(c)">加入</button>
-            <button v-else type="button" class="row-op undo" @click="stageAdd(c)">撤销</button>
+            <DewButton v-if="!pendingAdd.has(c.user_id)" type="glass" size="sm" class="row-op"
+                       :disabled="c.remaining_slots === 0" @click="stageAdd(c)">加入</DewButton>
+            <DewButton v-else type="ghost" size="sm" class="row-op" @click="stageAdd(c)">撤销</DewButton>
           </div>
         </div>
       </div>
@@ -186,14 +187,7 @@ async function save() {
 .row-name { font-weight: 600; color: var(--dew-text-heading); min-width: 88px; }
 .row-meta { font-size: 12px; color: var(--dew-text-muted); }
 .row-units { font-size: 12px; color: var(--dew-text-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
-.row-op {
-  border: none; background: transparent; cursor: pointer; margin-left: auto; flex-shrink: 0;
-  font-size: 12.5px; color: var(--dew-text-muted); transition: color 0.15s ease;
-}
-.row-op:hover { color: var(--color-primary); }
-.row-op.add { color: var(--color-primary); font-weight: 600; }
-.row-op.undo { color: var(--dew-text-faint); }
-.row-op:disabled { color: var(--dew-text-faint); cursor: not-allowed; }
+.row-op { margin-left: auto; flex-shrink: 0; }
 
 .roster-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .diff-text { font-size: 12.5px; color: var(--dew-text-muted); }

@@ -79,7 +79,7 @@
               <span class="tray-name">{{ t.name }}</span>
               <DewInput v-model="t.note" size="sm" class="tray-note"
                         placeholder="选填：给负责人的留言" />
-              <button type="button" class="tray-remove" @click.stop="removePick(t.unit_id)">移出</button>
+              <DewButton type="ghost" size="sm" class="tray-remove" @click.stop="removePick(t.unit_id)">移出</DewButton>
             </div>
           </div>
           <div class="tray-actions">
@@ -295,10 +295,6 @@ onMounted(() => {
 }
 .tray-name { font-size: 13.5px; font-weight: 600; color: var(--dew-text-heading); min-width: 120px; }
 .tray-note { flex: 1; min-width: 0; }
-.tray-remove {
-  border: none; background: transparent; cursor: pointer; flex-shrink: 0;
-  font-size: 12px; color: var(--dew-text-faint); transition: color 0.15s ease;
-}
-.tray-remove:hover { color: var(--color-danger, #e5484d); }
+.tray-remove { flex-shrink: 0; }
 .tray-actions { margin-top: 14px; }
 </style>

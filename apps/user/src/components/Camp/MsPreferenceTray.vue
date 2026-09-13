@@ -30,8 +30,9 @@
             />
           </div>
 
-          <button
-            type="button"
+          <DewButton
+            type="ghost"
+            size="sm"
             class="tray-remove"
             :disabled="disabled"
             :aria-label="`移除 ${mentorName(pick.mentor_id)}`"
@@ -39,7 +40,7 @@
             @click="$emit('remove', index)"
           >
             <el-icon><Close /></el-icon>
-          </button>
+          </DewButton>
 
           <div class="item-actions">
             <DewButton
@@ -242,22 +243,13 @@ onUnmounted(() => {
 .item-note :deep(.dew-input__field:focus-within) { border-color: var(--color-primary); }
 .tray-remove {
   position: absolute;
-  top: 5px;
-  right: 8px;
-  display: grid;
-  width: 20px;
-  height: 20px;
-  place-items: center;
+  top: 3px;
+  right: 6px;
+  width: 27px;
+  min-width: 27px;
+  height: 27px;
   padding: 0;
-  border: 0;
-  border-radius: var(--radius-sm);
-  color: var(--dew-text-faint);
-  background: transparent;
-  cursor: pointer;
-  transition: color 0.2s ease, transform 0.2s var(--dew-bounce, ease);
 }
-.tray-remove:hover:not(:disabled) { color: var(--color-danger); transform: scale(1.08); }
-.tray-remove:disabled { opacity: 0.42; cursor: not-allowed; }
 .tray-remove .el-icon { font-size: 16px; }
 .item-actions { position: absolute; right: 8px; bottom: 7px; display: flex; align-items: center; gap: 2px; }
 .item-actions :deep(.dew-btn) { width: 27px; min-width: 27px; height: 27px; padding: 0; }

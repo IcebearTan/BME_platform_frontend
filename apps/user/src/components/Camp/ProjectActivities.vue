@@ -29,7 +29,7 @@
             <template v-if="g.is_leader">
               <DewButton type="ghost" size="sm" :disabled="session.status === 'archived'"
                          @click="openMark(g, a)">{{ a.marked ? '改出席' : '记录出席' }}</DewButton>
-              <button type="button" class="act-del" @click="delAct(a)">删除</button>
+              <DewButton type="ghost" size="sm" @click="delAct(a)">删除</DewButton>
             </template>
           </div>
         </div>
@@ -59,10 +59,10 @@
       <div class="mark-form">
         <div class="mark-hint">勾选当天到场成员（{{ markCtx?.act?.happens_on }}）；保存为全量替换，可随时改。</div>
         <div class="mark-list">
-          <label v-for="m in markCtx?.group?.members || []" :key="m.user_id" class="mark-item">
-            <input type="checkbox" :value="m.user_id" v-model="markPicked" />
-            <span>{{ m.username }}</span>
-          </label>
+          <el-checkbox v-for="m in markCtx?.group?.members || []" :key="m.user_id"
+                       :value="m.user_id" v-model="markPicked" class="mark-item">
+            {{ m.username }}
+          </el-checkbox>
         </div>
         <div class="form-actions">
           <DewButton type="ghost" size="sm" @click="markDlg = false">取消</DewButton>
@@ -201,11 +201,6 @@ function delAct(a) {
 .mine.ok { color: var(--color-success); }
 .mine.miss { color: var(--color-danger, #e5484d); }
 .act-row .dew-button { margin-left: auto; }
-.act-del {
-  border: none; background: transparent; cursor: pointer;
-  font-size: 12px; color: var(--dew-text-faint); transition: color .15s ease;
-}
-.act-del:hover { color: var(--color-danger, #e5484d); }
 
 .create-form { display: flex; flex-direction: column; gap: 10px; }
 .form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
@@ -214,8 +209,8 @@ function delAct(a) {
 .mark-hint { font-size: 12px; color: var(--dew-text-faint); line-height: 1.6; }
 .mark-list { display: flex; flex-direction: column; gap: 4px; max-height: 280px; overflow: auto; }
 .mark-item {
-  display: flex; align-items: center; gap: 10px; padding: 6px 10px;
-  border-radius: 8px; cursor: pointer; font-size: 13.5px; color: var(--dew-text-heading);
+  display: flex; align-items: center; height: auto; padding: 6px 10px;
+  border-radius: 8px; font-size: 13.5px; color: var(--dew-text-heading);
 }
 .mark-item:hover { background: color-mix(in srgb, var(--dew-text-muted) 8%, transparent); }
 </style>

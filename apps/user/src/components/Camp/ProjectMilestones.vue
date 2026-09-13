@@ -36,8 +36,8 @@
                 <span class="chain-time">{{ (s.created_at || '').slice(0, 16).replace('T', ' ') }}</span>
                 <!-- 审核：member 模式成员的待审版本（负责人审）；admin 可审任何待审 -->
                 <template v-if="s.status === 'submitted' && canReview(m, s)">
-                  <button type="button" class="chain-op ok" @click="review(s, 'approve')">通过</button>
-                  <button type="button" class="chain-op no" @click="review(s, 'return')">退回</button>
+                  <DewButton type="glass" size="sm" @click="review(s, 'approve')">通过</DewButton>
+                  <DewButton type="danger" size="sm" @click="review(s, 'return')">退回</DewButton>
                 </template>
               </div>
               <p v-if="s.content" class="chain-content">{{ s.content }}</p>
@@ -55,8 +55,11 @@
             <DewInput v-model="drafts[m.id].content" type="textarea" :rows="2"
                       :placeholder="m.submit_mode === 'team' ? '整队交付说明（负责人提交）' : '我的交付说明'" />
             <div class="submit-row">
-              <input ref="fileInputs" type="file" multiple class="file-input" @change="(e) => onFiles(m.id, e)" />
-              <span v-if="drafts[m.id].files.length" class="file-count">已选 {{ drafts[m.id].files.length }} 个附件</span>
+              <input :ref="(el) => (fileEls[m.id] = el)" type="file" multiple class="file-input-hidden"
+                     @change="(e) => onFiles(m.id, e)" />
+              <DewButton type="ghost" size="sm" @click="pickFiles(m.id)">
+                {{ drafts[m.id].files.length ? `附件 ×${drafts[m.id].files.length}` : '选择附件' }}
+              </DewButton>
               <DewButton type="glass" size="sm" :loading="submitting === m.id"
                          :disabled="!drafts[m.id].content.trim() && !drafts[m.id].files.length"
                          @click="submit(m)">
@@ -71,7 +74,7 @@
 
       <!-- 负责人：追加节点 -->
       <div v-if="canManage && editable" class="pm-add">
-        <button v-if="!adding" type="button" class="add-btn" @click="adding = true">＋ 追加交付节点</button>
+        <DewButton v-if="!adding" type="ghost" size="sm" @click="adding = true">＋ 追加交付节点</DewButton>
         <div v-else class="add-form">
           <div class="add-grid">
             <DewInput v-model="addForm.title" size="sm" placeholder="节点标题（如：中期检查）" />
@@ -164,6 +167,9 @@ function onFiles(mid, e) {
   drafts.value[mid].files = [...e.target.files];
   e.target.value = '';
 }
+// 隐藏原生 file input，由 DewButton 触发选择
+const fileEls = {};
+function pickFiles(mid) { fileEls[mid]?.click(); }
 async function submit(m) {
   const d = drafts.value[m.id];
   if (submitting.value || (!d.content.trim() && !d.files.length)) return;
@@ -269,12 +275,6 @@ async function addMilestone() {
 .chain-by { font-size: 12px; color: var(--dew-text-muted); }
 .chain-status { font-size: 12px; font-weight: 600; }
 .chain-time { font-size: 11.5px; color: var(--dew-text-faint); }
-.chain-op {
-  border: none; background: transparent; cursor: pointer; font-size: 12px; font-weight: 600;
-  padding: 1px 8px; border-radius: 6px;
-}
-.chain-op.ok { color: var(--color-success); }
-.chain-op.no { color: var(--color-danger, #e5484d); }
 .chain-content { font-size: 12.5px; color: var(--dew-text-muted); margin: 0; line-height: 1.6; }
 .chain-note { font-size: 12px; color: var(--color-warning); margin: 0; }
 .chain-atts { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -284,17 +284,10 @@ async function addMilestone() {
 
 .submit-box { display: flex; flex-direction: column; gap: 8px; }
 .submit-row { display: flex; align-items: center; gap: 10px; }
-.file-input { font-size: 12px; color: var(--dew-text-muted); max-width: 240px; }
-.file-count { font-size: 12px; color: var(--dew-text-faint); }
+.file-input-hidden { display: none; }
 .submit-closed { font-size: 12px; color: var(--dew-text-faint); }
 
 .pm-add { margin-top: 2px; }
-.add-btn {
-  border: 1px dashed var(--dew-card-border); border-radius: 8px; background: transparent;
-  padding: 8px 12px; font-size: 12.5px; color: var(--dew-text-muted); cursor: pointer;
-  transition: border-color 0.15s ease, color 0.15s ease;
-}
-.add-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
 .add-form { display: flex; flex-direction: column; gap: 8px; }
 .add-grid { display: grid; grid-template-columns: 1.4fr 1.6fr 0.8fr; gap: 8px; }
 .add-actions { display: flex; justify-content: flex-end; gap: 8px; }

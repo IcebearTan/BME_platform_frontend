@@ -49,15 +49,15 @@
               <DewInput v-model="n.deliverable_req" size="sm" placeholder="交付要求（选填，如：中期报告+演示）" />
               <div class="node-ops">
                 <DewSelect v-model="n.submit_mode" size="sm" :options="MODE_OPTS" class="node-mode" />
-                <button type="button" class="mv" :disabled="i === 0" @click="move(i, -1)">上移</button>
-                <button type="button" class="mv" :disabled="i === form.nodes.length - 1" @click="move(i, 1)">下移</button>
-                <button type="button" class="mv del" @click="form.nodes.splice(i, 1)">删除</button>
+                <DewButton type="ghost" size="sm" :disabled="i === 0" @click="move(i, -1)">上移</DewButton>
+                <DewButton type="ghost" size="sm" :disabled="i === form.nodes.length - 1" @click="move(i, 1)">下移</DewButton>
+                <DewButton type="ghost" size="sm" @click="form.nodes.splice(i, 1)">删除</DewButton>
               </div>
             </div>
           </div>
-          <button type="button" class="add-node" @click="form.nodes.push({ title: '', deliverable_req: '', submit_mode: 'team' })">
+          <DewButton type="ghost" size="sm" class="add-node" @click="form.nodes.push({ title: '', deliverable_req: '', submit_mode: 'team' })">
             ＋ 添加节点
-          </button>
+          </DewButton>
         </div>
 
         <div class="tpl-note">
@@ -242,21 +242,9 @@ async function save() {
   border: 1px solid var(--dew-card-border);
 }
 .node-main { flex: 1; display: flex; flex-direction: column; gap: 6px; }
-.node-ops { display: flex; align-items: center; gap: 8px; }
+.node-ops { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .node-mode { max-width: 240px; }
-.mv {
-  border: none; background: transparent; cursor: pointer;
-  font-size: 12px; color: var(--dew-text-faint); transition: color 0.15s ease;
-}
-.mv:hover:not(:disabled) { color: var(--color-primary); }
-.mv:disabled { opacity: 0.4; cursor: not-allowed; }
-.mv.del:hover { color: var(--color-danger, #e5484d); }
-.add-node {
-  align-self: flex-start;
-  border: 1px dashed var(--dew-card-border); border-radius: 8px; background: transparent;
-  padding: 6px 12px; font-size: 12.5px; color: var(--dew-text-muted); cursor: pointer;
-}
-.add-node:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.add-node { align-self: flex-start; }
 
 .tpl-note { font-size: 12px; color: var(--dew-text-faint); line-height: 1.6; }
 .tpl-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
