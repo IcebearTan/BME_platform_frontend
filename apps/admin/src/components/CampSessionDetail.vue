@@ -54,9 +54,30 @@
         </el-table>
       </el-tab-pane>
 
-      <!-- ③ 出勤（09-12 三模式：模式设置 + daily 模式的承诺出勤日管理） -->
-      <el-tab-pane v-if="capOn('attendance') || attCfg.mode === 'off'" label="出勤" name="plan">
-        <!-- 考勤模式设置卡：三选一（假期营每日 / 学期校区按周 / 学期远程不考勤）+ A 模式考勤参数 -->
+      <!-- ③ 出勤（09-12 三模式：模式设置 + daily 模式的承诺出勤日管理；
+           项目营 09-13 独立口径：活动考勤恒开，仅控周打卡统计条。
+           tab 存在性看保存态 attModeSaved——编辑态切换不再使 tab 消失（off 营可切回）） -->
+      <el-tab-pane v-if="capOn('attendance') || attModeSaved === 'off'" label="出勤" name="plan">
+        <!-- 项目营：考勤=活动考勤（负责人在项目看板发起活动+勾选出席），无培训营三模式 -->
+        <template v-if="isProjectCamp">
+          <div class="att-cfg-card">
+            <h4 class="ms-sec-title" style="margin:0 0 10px;">项目营考勤</h4>
+            <el-alert type="info" :closable="false" style="margin-bottom: 12px;"
+              title="项目考勤以活动为单位：各项目负责人在项目看板发起活动并勾选成员出席，无需在此设置" />
+            <el-form label-width="90px" size="small" style="max-width: 520px;">
+              <el-form-item label="周打卡">
+                <el-switch v-model="projectAtt.on" :disabled="!manageWritable" />
+                <span class="hint" style="margin-left: 6px;">开=成员工作台顶部显示累计出勤统计条（个人打卡口径，与活动考勤独立）</span>
+              </el-form-item>
+            </el-form>
+            <div style="margin-top: 10px;">
+              <el-button v-if="manageWritable" type="primary" size="small" :loading="projectAtt.saving" @click="saveProjectAtt">保存</el-button>
+            </div>
+          </div>
+        </template>
+
+        <!-- 培训营（learning）：三模式设置卡 + A 模式考勤参数 -->
+        <template v-else>
         <div class="att-cfg-card">
           <h4 class="ms-sec-title" style="margin:0 0 10px;">考勤模式</h4>
           <el-radio-group v-model="attCfg.mode" :disabled="!manageWritable" style="flex-direction: column; align-items: stretch; gap: 8px;">
@@ -99,6 +120,7 @@
           :title="attModeSaved === 'weekly'
             ? '按周累计模式：学员报名不收承诺日，出勤看板按周统计打卡次数与时长'
             : '本营不考勤：报名/工作台均不出考勤入口，保存后考勤能力关闭'" />
+        </template>
       </el-tab-pane>
 
       <!-- ④ 座位 -->
@@ -820,6 +842,24 @@ const attModeSaved = computed(() => {
   if (caps && caps.attendance === false) return 'off';
   return session.value.policy?.attendance_mode || 'daily';
 });
+// 项目营考勤（09-13 独立口径）：活动考勤恒开（负责人看板勾选出席），此处仅开关
+// 成员个人周打卡统计条——落 policy 时恒 mode='weekly'，项目营不进培训营 daily 承诺日语义
+const projectAtt = reactive({ on: false, saving: false });
+watch(attModeSaved, (m) => { projectAtt.on = m !== 'off'; }, { immediate: true });
+async function saveProjectAtt() {
+  projectAtt.saving = true;
+  try {
+    await api.put(`/camp/sessions/${campId}`, {
+      policy: { attendance_mode: 'weekly', attendance_enabled: projectAtt.on },
+    });
+    ElMessage.success('考勤设置已保存');
+    await fetchAll();
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '保存失败');
+  } finally {
+    projectAtt.saving = false;
+  }
+}
 watch(attModeSaved, (m) => { attCfg.mode = m; }, { immediate: true });
 watch(session, (s) => {
   if (!s?.id) return;
