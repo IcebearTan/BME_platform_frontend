@@ -11,18 +11,21 @@
       <DewSkeleton variant="rect" width="100%" height="160" rounded="8px" />
     </div>
 
-    <!-- 完全无营期：featured 招募引导 / 暂无营期 -->
+    <!-- 完全无营期：居中空态（featured 招募引导 / 未分配 / 暂无营期三分流） -->
     <DewCard v-else-if="!groups.length" variant="inset" size="lg" :no-hover="true" class="center-empty">
-      <template v-if="emptyGuide.type === 'recruit'">
-        <div class="empty-text">你还没有加入营期。</div>
-        <DewButton type="glass" @click="$router.push('/camp-home')">
+      <div class="empty-core">
+        <div class="empty-title">这里空空如也</div>
+        <div class="empty-sub">
+          <template v-if="emptyGuide.type === 'recruit'">你还没有加入任何营期</template>
+          <template v-else-if="emptyGuide.type === 'unassigned'">
+            你尚未被分配到营期——导生/老师由管理员在「营期管理」中直接分配，无需申请加入。
+          </template>
+          <template v-else>暂未开放营期，敬请期待</template>
+        </div>
+        <DewButton v-if="emptyGuide.type === 'recruit'" type="glass" @click="$router.push('/camp-home')">
           查看「{{ emptyGuide.name }}」· 申请入营
         </DewButton>
-      </template>
-      <div v-else-if="emptyGuide.type === 'unassigned'" class="empty-text">
-        你尚未被分配到营期。导生/老师由管理员在「营期管理」中直接分配，无需申请加入。
       </div>
-      <div v-else class="empty-text">暂未开放营期，敬请期待。</div>
     </DewCard>
 
     <!-- 分组卡片 -->
@@ -91,26 +94,36 @@ const CATEGORY_LABEL = { learning: '培训营', project: '项目营' };
 const isMentorPending = (s) => props.pending.mentor.has(s.id);
 const isStudentPending = (s) => props.pending.student.has(s.id);
 
-// ── 分组（导生可报名 → 可报名 → 我的营期 → 即将开始 → 历史；空组隐藏）──
+// ── 分组（导生可报名 → 可报名 → 我的营期 → 即将开始 → 进行中 → 历史 → 其他；
+//    兜底组吃掉剩余状态机组合，任何营不落空；空组隐藏）──
 const groups = computed(() => {
   const ss = props.sessions;
   // 导生报名窗口内的待开放营（自由报名，2026-09-12）：LV≥2 才见本组，与「即将开始」互斥；
   // 仅 learning 营（项目营无导生身份，申报入口在 ProjectApplyCard）
   const mentorTodo = (s) => s.status === 'upcoming' && !s.is_member
     && s.category === 'learning' && !props.isStaff && props.myLevel >= 2;
+  // taken 记账：已入组的营不再重复，剩余进兜底组（如超管视角的 selecting 营、draft 草稿）
+  const taken = new Set();
+  const pick = (arr) => { arr.forEach((s) => taken.add(s.id)); return arr; };
   const define = (key, title, hint, items) => (items.length ? { key, title, hint, items } : null);
   return [
     define('todo', '导生可报名', '导生报名窗口开放中，报名后待管理员审核',
-      ss.filter(mentorTodo)),
+      pick(ss.filter(mentorTodo))),
     define('joinable', '可报名', '选择阶段的营，提交申请待审批',
       // 超管不显示可报名组（后端 camp.py 管理员报名一律 400，预判入口而非事后报错）
-      ss.filter((s) => s.status === 'selecting' && !s.is_member && !props.isStaff)),
+      pick(ss.filter((s) => s.status === 'selecting' && !s.is_member && !props.isStaff))),
     define('mine', '我的营期', null,
-      ss.filter((s) => s.is_member && s.status !== 'archived')),
+      pick(ss.filter((s) => s.is_member && s.status !== 'archived'))),
     define('upcoming', '即将开始', '尚未开放报名的营',
-      ss.filter((s) => s.status === 'upcoming' && !s.is_member && (!mentorTodo(s)))),
+      pick(ss.filter((s) => s.status === 'upcoming' && !s.is_member && (!mentorTodo(s))))),
+    define('live', '进行中', '已开营——未参与的营',
+      pick(ss.filter((s) => s.status === 'running' && !s.is_member))),
     define('history', '历史营期', null,
-      ss.filter((s) => s.is_member && s.status === 'archived')),
+      pick(ss.filter((s) => s.status === 'archived'))),
+    // 兜底组须内联求值：数组按序执行到此处时 pick 记账已完成，剩余组合（超管视角的
+    // selecting 营、draft 草稿等）全部收进来——任何营不落空
+    define('other', '其他营期', '暂无报名入口的营（如草稿）',
+      ss.filter((s) => !taken.has(s.id))),
   ].filter(Boolean);
 });
 
@@ -173,8 +186,10 @@ onMounted(async () => {
 .center-title { font-size: 24px; font-weight: 700; margin: 0 0 6px; color: var(--dew-text-heading); letter-spacing: 0.5px; }
 .center-sub { font-size: 13.5px; color: var(--dew-text-muted); margin: 0; }
 .center-loading { padding: 8px 0; }
-.center-empty :deep(.dew-card__body) { text-align: left; }
-.empty-text { color: var(--dew-text-muted, #909399); line-height: 1.7; margin-bottom: 12px; }
+/* 空态居中（09-13 用户定：别顶在页面顶部，居中「这里空空如也」） */
+.center-empty :deep(.dew-card__body) { text-align: center; padding: 56px 24px; }
+.empty-title { font-size: 16px; font-weight: 650; color: var(--dew-text-heading); }
+.empty-sub { font-size: 13px; color: var(--dew-text-muted); line-height: 1.7; margin: 8px 0 16px; }
 
 /* 分组 */
 .center-group { display: flex; flex-direction: column; gap: 12px; }
