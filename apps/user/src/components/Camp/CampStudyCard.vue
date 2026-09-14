@@ -37,7 +37,6 @@
           <div v-for="ch in c.chapters" :key="ch.chapter_id" class="chapter-item">
             <div class="chapter-row">
               <span class="chapter-name" :title="ch.name">{{ ch.name }}</span>
-              <span class="chapter-meta">自报 {{ ch.lessons_completed }}/{{ ch.lessons }} 课时</span>
               <span :class="['cert-tag', { certified: ch.certified }]">
                 {{ ch.certified ? (ch.score != null ? `已认证（${ch.score} 分）` : '已认证') : '未认证' }}
               </span>

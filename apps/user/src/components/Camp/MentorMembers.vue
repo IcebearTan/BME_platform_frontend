@@ -38,7 +38,6 @@
                 </div>
                 <div v-for="ch in c.chapters" :key="ch.chapter_id" class="ch-row">
                   <span class="ch-name" :title="ch.name">{{ ch.name }}</span>
-                  <span class="ch-meta">自学 {{ ch.lessons_completed }}/{{ ch.lessons }} 课时</span>
                   <button type="button" :class="['mat-chip', { has: ch.material_count > 0 }]"
                           :disabled="!ch.material_count" @click="openMaterials(s, ch)">
                     材料 {{ ch.material_count || 0 }}
