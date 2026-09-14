@@ -228,10 +228,10 @@ test('项目营申报：upcoming 出示申报表单（负责人入口）', async
   expect(errors).toEqual([])
 })
 
-test('项目营 running：项目进展——提交链恢复+节点评价并存（负责人）', async ({ page }) => {
+test('项目营 running：项目进展——材料提交可见+直接评价（负责人）', async ({ page }) => {
   const errors = []
   page.on('pageerror', (e) => errors.push(e.message))
-  // running 项目营：负责人视角（09-14 提交链恢复：材料提交/审核 + 节点评价并存；默认全展开）
+  // running 项目营：负责人视角（09-14 复盘定：不走通过/退回审核，提交即全员可见，评价即验收；默认全展开）
   await loginAsUser(page, [
     {
       url: '/camp/projects/30/mine',
@@ -252,33 +252,30 @@ test('项目营 running：项目进展——提交链恢复+节点评价并存�
     },
   ])
 
-  // 里程碑读端点（内存态闭环：审核/提交/切换/评价动作后回读带新状态）
+  // 里程碑读端点（内存态闭环：提交/切换/评价动作后回读带新状态）
   const evals = [
     { member_user_id: 62, member_name: '成员小张', score: 88, comment: '调研充分',
       leader_user_id: 61, updated_at: '2026-09-12 10:00' },
   ]
-  const subs502 = [
-    { id: 801, milestone_id: 502, version: 1, submitted_by: 62, submitted_by_name: '成员小张',
-      content: '调研报告初稿', status: 'submitted', review_note: null, reviewed_at: null,
-      created_at: '2026-09-14T10:00:00',
-      attachments: [{ id: 901, filename: 'report.pdf', size: 2048, is_asset: false }] },
-  ]
-  const state = { ms501mode: 'team', ms501subs: [], ms502approved: false }
+  const state = { ms501mode: 'team', ms501subs: [] }
   const membersJson = () => ({
     code: 200, my_role: 'leader',
     eval_members: [{ user_id: 62, username: '成员小张' }, { user_id: 63, username: '成员小李' }],
     milestones: [
-      // 501：整队交付（leader 提交·老师审）——供提交盒/模式切换断言
+      // 501：整队交付（leader 提交）——供提交盒/模式切换断言
       { id: 501, unit_id: 41, title: '开题调研', due_date: '2027-02-01', order_no: 1,
         submit_mode: state.ms501mode, status: 'open',
         submissions: state.ms501subs, evaluations: evals,
         member_count: 2, evaluated_count: evals.length, node_complete: evals.length >= 2 },
-      // 502：个人交付（成员交·负责人审）——小张待审 v1 供审核断言
+      // 502：个人交付（成员各交）——小张已交 v1（无审核动作，负责人直接看材料评价）
       { id: 502, unit_id: 41, title: '中期检查', due_date: null, order_no: 2,
-        submit_mode: 'member', status: state.ms502approved ? 'approved' : 'submitted',
-        submissions: state.ms502approved
-          ? [{ ...subs502[0], status: 'approved', review_note: null }]
-          : subs502,
+        submit_mode: 'member', status: 'submitted',
+        submissions: [
+          { id: 801, milestone_id: 502, version: 1, submitted_by: 62, submitted_by_name: '成员小张',
+            content: '调研报告初稿', status: 'submitted', review_note: null, reviewed_at: null,
+            created_at: '2026-09-14T10:00:00',
+            attachments: [{ id: 901, filename: 'report.pdf', size: 2048, is_asset: false }] },
+        ],
         evaluations: [], member_count: 2, evaluated_count: 0, node_complete: false },
     ],
   })
@@ -297,26 +294,7 @@ test('项目营 running：项目进展——提交链恢复+节点评价并存�
       return route.fulfill({ json: { code: 200, submissions: state.ms501subs } })
     }
     submitBody = route.request().postData()?.toString() || ''
-    state.ms501subs = [
-      { id: 802, milestone_id: 501, version: 1, submitted_by: 61, submitted_by_name: 'proj_leader',
-        content: '开题材料汇总', status: 'submitted', review_note: null, reviewed_at: null,
-        created_at: '2026-09-14T21:30:00',
-        attachments: [{ id: 902, filename: 'kickoff.zip', size: 4096, is_asset: false }] },
-    ]
     return route.fulfill({ json: { code: 200, message: '已提交（第 1 版）' } })
-  })
-  let reviewBody = null
-  await page.route('**/camp/submissions/801/review', (route) => {
-    reviewBody = route.request().postDataJSON()
-    state.ms502approved = reviewBody.action === 'approve'
-    return route.fulfill({ json: { code: 200, message: '已通过' } })
-  })
-  let modePut = null
-  await page.route('**/camp/milestones/501', (route) => {
-    if (route.request().method() !== 'PUT') return route.fulfill({ json: { code: 200 } })
-    modePut = route.request().postDataJSON()
-    if (modePut.submit_mode) state.ms501mode = modePut.submit_mode
-    return route.fulfill({ json: { code: 200, message: '已更新' } })
   })
 
   await page.goto(`${BASE}/camp?sid=30`, { waitUntil: 'domcontentloaded' })
@@ -328,38 +306,35 @@ test('项目营 running：项目进展——提交链恢复+节点评价并存�
   await expect(page.locator('.sec-title', { hasText: '项目进展' })).toBeVisible()
   await expect(page.locator('.sec-title', { hasText: '关键节点' })).toHaveCount(0)
   const row501 = page.locator('.ms-row', { hasText: '开题调研' })
+  const row502 = page.locator('.ms-row', { hasText: '中期检查' })
   await expect(row501.locator('.ms-body')).toBeVisible()
 
-  // 交付材料：502 个人交付节点，小张待审 v1（版本/状态/附件）；负责人「通过」→ approve
-  const row502 = page.locator('.ms-row', { hasText: '中期检查' })
+  // 成员提交制：负责人全站无提交盒、无审核按钮、无交付模式标签/切换
+  await expect(page.locator('.submit-box')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: '通过', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: '退回', exact: true })).toHaveCount(0)
+  await expect(page.getByText('个人交付', { exact: true })).toHaveCount(0)
+  await expect(page.getByText('整队交付', { exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /切换为/ })).toHaveCount(0)
+
+  // 节点头状态：已交 x/y · 已评 a/b（502 小张已交 v1；501 无人交）
+  await expect(row501.locator('.ms-status')).toContainText('已交 0/2 · 已评 1/2')
+  await expect(row502.locator('.ms-status')).toContainText('已交 1/2 · 已评 0/2')
+
+  // 交付材料：502 小张 v1（版本/「已提交」状态/说明/附件）在合框行内直接可见
   await expect(row502.locator('.chain-ver', { hasText: 'v1' })).toBeVisible()
-  await expect(row502.locator('.chain-by', { hasText: '成员小张' })).toBeVisible()
+  await expect(row502.locator('.chain-st', { hasText: '已提交' })).toBeVisible()
+  await expect(row502.locator('.chain-content', { hasText: '调研报告初稿' })).toBeVisible()
   await expect(row502.locator('.att-link', { hasText: 'report.pdf' })).toBeVisible()
-  await row502.getByRole('button', { name: '通过' }).click()
-  expect(reviewBody).toEqual({ action: 'approve' })
-  await expect(row502.locator('.chain-item').first()).toContainText('已通过')
 
-  // 模式切换（无提交节点显示入口）：切个人交付 → PUT；再切回整队（供后续提交盒断言）
-  await row501.getByRole('button', { name: /切换为个人交付/ }).click()
-  await expect(row501.getByText('个人交付', { exact: true })).toBeVisible()
-  expect(modePut).toEqual({ submit_mode: 'member' })
-  await row501.getByRole('button', { name: /切换为整队交付/ }).click()
-  await expect(row501.getByText('整队交付', { exact: true })).toBeVisible()
-
-  // 提交盒（501 整队交付=leader 可交）：说明 + 附件 → multipart 提交
-  await row501.locator('.submit-box textarea').fill('开题材料汇总')
-  await row501.locator('.submit-box input[type=file]')
-    .setInputFiles({ name: 'kickoff.zip', mimeType: 'application/zip', buffer: Buffer.from('zip-bytes') })
-  await row501.getByRole('button', { name: '提交', exact: true }).click()
-  await expect(row501.locator('.att-link', { hasText: 'kickoff.zip' })).toBeVisible()
-  expect(submitBody).toContain('开题材料汇总')
-  expect(submitBody).toContain('kickoff.zip')
-
-  // 模式切换（无提交节点；已有提交的 501 此时不显示——先在提交前断言过会冲突，改在评价后对 502 不出现）
-  // 节点评价：小张已评 88 分带评语；小李未评价 → 评价 92 分（默认全展开→两节点各一组评价行，限定 row501）
-  await expect(row501.locator('.eval-row', { hasText: '成员小张' }).getByText('88 分')).toBeVisible()
-  await expect(row501.locator('.eval-row', { hasText: '成员小张' }).getByText('调研充分')).toBeVisible()
-  await row501.locator('.eval-row', { hasText: '成员小李' }).getByRole('button', { name: '评价' }).click()
+  // 交付与评价合框（09-14）：501 小张行=未提交链+88 分评价（修改）；小李行=未提交+「评价」按钮
+  const zhang501 = row501.locator('.mem-row', { hasText: '成员小张' })
+  const li501 = row501.locator('.mem-row', { hasText: '成员小李' })
+  await expect(zhang501.getByText('88 分')).toBeVisible()
+  await expect(zhang501.getByText('调研充分')).toBeVisible()
+  await expect(zhang501.getByRole('button', { name: '修改' })).toBeVisible()
+  await expect(li501.locator('.mem-nosub', { hasText: '未提交' })).toBeVisible()
+  await li501.getByRole('button', { name: '评价' }).click()
   await page.locator('.eval-form input').first().fill('92')
   await page.locator('.eval-form textarea').fill('进步明显')
   await page.getByRole('button', { name: '保存评价' }).click()
@@ -368,14 +343,13 @@ test('项目营 running：项目进展——提交链恢复+节点评价并存�
   // 回读：2/2 评齐 → 节点已完成（501）
   await expect(row501.locator('.ms-status')).toContainText('已评 2/2')
   await expect(row501.locator('.ms-status')).toContainText('已完成')
-  // 已有提交的节点不再显示模式切换（后端 400 兜底，前端隐藏入口）
-  await expect(row501.getByRole('button', { name: /切换为/ })).toHaveCount(0)
 
   // 成果区
   await expect(page.getByText('样机一台')).toBeVisible()
   await expect(page.getByText('待核验', { exact: true })).toBeVisible()
 
   expect(errors).toEqual([])
+  expect(submitBody).toBe(null)   // 负责人全程未触发提交
 })
 
 test('项目营 running：项目进展——成员提交/可见性/仅见本人评价', async ({ page }) => {
@@ -419,20 +393,19 @@ test('项目营 running：项目进展——成员提交/可见性/仅见本人�
   ])
 
   await page.goto(`${BASE}/camp?sid=30`, { waitUntil: 'domcontentloaded' })
-  // 节点头（默认全展开）：交付态 + 评价双信息；无评价按钮
+  // 节点头（默认全展开）：提交状态 + 评价信息（成员提交制：已提交/未提交）；无评价按钮
   const row501 = page.locator('.ms-row', { hasText: '开题调研' })
   const row502 = page.locator('.ms-row', { hasText: '中期检查' })
-  await expect(row501.locator('.ms-status')).toContainText('待提交')
+  await expect(row501.locator('.ms-status')).toContainText('未提交')
   await expect(row501.locator('.ms-status')).toContainText('我的评价 88 分')
-  await expect(row502.locator('.ms-status')).toContainText('待审核')
+  await expect(row502.locator('.ms-status')).toContainText('已提交')
   await expect(row502.locator('.ms-status')).toContainText('待评价')
 
-  // 501 整队交付：成员无提交盒，见「由负责人统一提交」提示
-  await expect(row501.locator('.submit-box')).toHaveCount(0)
-  await expect(row501.getByText('整队交付由负责人统一提交')).toBeVisible()
-  // 502 个人交付：提交盒可见（我的交付说明）；仅见自己的链（1 行）且无审核按钮
-  await expect(row502.locator('.submit-box')).toBeVisible()
+  // 成员提交制：两节点都有提交盒（501 存量 team 模式节点照样可交——submit_mode 不再门禁）
+  await expect(page.locator('.submit-box')).toHaveCount(2)
+  // 502 仅见自己的链（1 行，带「已提交」状态）且无审核按钮
   await expect(row502.locator('.chain-item')).toHaveCount(1)
+  await expect(row502.locator('.chain-st', { hasText: '已提交' })).toBeVisible()
   await expect(row502.locator('.chain-content', { hasText: '我的调研初稿' })).toBeVisible()
   await expect(page.getByRole('button', { name: '通过', exact: true })).toHaveCount(0)
   await expect(page.getByRole('button', { name: '退回', exact: true })).toHaveCount(0)

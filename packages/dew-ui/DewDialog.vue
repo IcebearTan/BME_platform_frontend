@@ -182,6 +182,7 @@ onBeforeUnmount(() => {
 .dew-dialog__body {
   padding: 0 24px 20px;
   overflow-y: auto;
+  overflow-x: hidden;   /* 单轴滚动须显式关掉横轴：overflow-y 非 visible 时横轴会被算成 auto，内容横向溢 1px 就出底部横滚动条 */
   flex: 1;
   font-size: 14px;
   line-height: 1.6;
