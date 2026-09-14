@@ -116,12 +116,13 @@ const fetchCourseDetails = async () => {
 
     formatedCourseDetails.value = formatChapters(courseDetails.value, lessonsData.value)
 
-    // 获取学习进度（已完成课时）
+    // 获取学习进度（已完成课时；09-14 营期内带 camp_session_id 查快照口径——从零不看历史）
     try {
       const progressRes = await api({
         url: '/learningProgress/lesson/list',
         method: 'get',
-        params: { Course_Id: courseId.value }
+        params: { Course_Id: courseId.value,
+                  ...(effectiveSid.value ? { camp_session_id: effectiveSid.value } : {}) }
       })
       if (progressRes.data.code === 200 && progressRes.data.data) {
         // 提取所有已完成课时的ID
@@ -232,6 +233,11 @@ const wrapperBg = computed(() => {
 // 查询当前用户是否已经加入课程
 const isEnrolled = ref(false)
 
+// 营期戳（09-14 快照口径）：check 透出选课行的 camp_session_id（仅非 archived 营）；
+// effectiveSid = URL sid || 营戳——从任意路径进详情页进度口径都一致（营内看快照从零）
+const campStamp = ref(null)
+const effectiveSid = computed(() => router.currentRoute.value.query.sid || campStamp.value)
+
 // 检查用户是否已选课
 const checkEnrollment = async () => {
   try {
@@ -245,9 +251,21 @@ const checkEnrollment = async () => {
     if (res.data.code === 200 && res.data.data?.enrolled) {
       isEnrolled.value = true
     }
+    if (res.data.code === 200 && res.data.data?.camp_session_id) {
+      campStamp.value = res.data.data.camp_session_id
+    }
   } catch (error) {
     console.error('检查选课状态失败:', error)
   }
+}
+
+// 进入学习（09-14 接通打点入口）：跳课程学习页（逐课时标记完成）；
+// sid 透传保证学习页与详情页同一营期口径，from=camp 仅在营期语境透传（保返回）
+const goStudyPage = () => {
+  const query = {}
+  if (router.currentRoute.value.query.from === 'camp') query.from = 'camp'
+  if (effectiveSid.value) query.sid = effectiveSid.value
+  router.push({ path: `/course/chapter/${courseId.value}`, query })
 }
 
 // 「加入学习/退课」自助入口已移除（阶段 1，A14）：入课唯一途径 = 营期选课；
@@ -310,9 +328,10 @@ const breadcrumbItems = computed(() => [
 
 // 返回学习中心
 const goBack = () => {
-  // 从营期学习方向卡跳来时，返回回到营期学习方向 Tab（09-12 方向制，原选课 tab 已砍）
-  const from = router.currentRoute.value.query.from
-  router.push(from === 'camp' ? '/camp?tab=study' : '/study')
+  // 从营期学习方向卡跳来时，返回回到营期工作台学习方向 Tab（09-12 方向制；09-14 补 sid
+  // 透传——此前丢 sid 会回不到原营期工作台）
+  const q = router.currentRoute.value.query
+  router.push(q.from === 'camp' ? `/camp?tab=study${q.sid ? `&sid=${q.sid}` : ''}` : '/study')
 }
 </script>
 
@@ -388,6 +407,17 @@ const goBack = () => {
 
         <!-- 右侧边栏 -->
         <div class="right-sidebar">
+          <!-- 学习入口（09-14 接通课时打点页）：已选课进入学习；未选课提示入课途径 -->
+          <div class="course-difficulty study-entry" :class="themeClass">
+            <template v-if="isEnrolled">
+              <el-button type="primary" size="large" class="study-btn" @click="goStudyPage">进入学习</el-button>
+              <div class="study-entry-hint" :class="themeClass">进入课程学习页，逐课时标记完成</div>
+            </template>
+            <template v-else>
+              <div class="study-entry-hint" :class="themeClass">本课程通过营期学习方向加入后开启学习</div>
+            </template>
+          </div>
+
           <!-- 课程信息：始终显示 -->
           <div class="course-difficulty" :class="themeClass">
             <span class="difficulty-label" :class="themeClass">课程难度</span>
@@ -711,6 +741,10 @@ const goBack = () => {
   margin-top: 20px;
   margin-bottom: 20px;
 }
+/* 学习入口卡（09-14）：右栏首卡——已选课给「进入学习」，未选课提示入课途径 */
+.study-entry { flex-direction: column; align-items: stretch; gap: 8px; }
+.study-btn { width: 100%; }
+.study-entry-hint { font-size: 12px; line-height: 1.6; text-align: center; }
 .star-icon {
   color: #FFcf00;
   font-size: 26px;

@@ -102,7 +102,7 @@
           <!-- 09-13 项目营拍板：营期层「看板/项目」tab 退役——成员工作台直接渲染 ProjectHub，
                其自带 buttonbar（项目意向=选择期临时 / 我负责的 / 我参加的 / 请假） -->
           <DewButtonBar v-else-if="!isProject" v-model="tab" :items="tabItems" style="margin: 16px 0;" />
-          <CampOverview v-if="tab === 'overview' && !isProject && current && current.is_member" :sid="sid" :my-role="current.my_role" />
+          <CampOverview v-if="tab === 'overview' && !isProject && current && current.is_member" :sid="sid" :my-role="current.my_role" :att-enabled="!!caps.attendance" />
           <template v-if="isProject && current?.is_member">
             <ProjectHub :sid="sid" :session="current" style="margin-top: 16px;" />
           </template>
@@ -189,7 +189,7 @@ const mentorTabs = computed(() => {
   if (caps.value.leave) t.push({ value: 'leave', label: '请假审批' });
   t.push(
     { value: 'reward', label: '发奖励' },
-    { value: 'members', label: '团队成员' },
+    { value: 'members', label: '学员进度' },   // 09-14 用户定：内容=学习进度+按章认证，别叫「团队成员」
   );
   if (current.value?.mentor_selection_enabled) t.splice(1, 0, { value: 'ms', label: '选导生' });
   return t;

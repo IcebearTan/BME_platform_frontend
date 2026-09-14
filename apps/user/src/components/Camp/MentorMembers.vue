@@ -1,11 +1,11 @@
 <template>
-  <!-- 导生「团队与学习认证」（09-12 方向制；09-13 多课+评分）：本团队学员 × 方向全部课程，
-       按章认证（可打分 0-100）/撤销/改分；课程均分读时聚合展示；
+  <!-- 导生「学员进度」（09-12 方向制；09-13 多课+评分）：本团队学员 × 方向全部课程，
+       按章认证（可打分 0-100）/撤销/改分（DewUI 评分弹窗）；课程均分读时聚合展示；
        09-14 章节材料：章节行「材料 n」chip 打开弹层查看/下载/删除学员提交的材料 -->
   <div class="mentor-members">
     <DewCard variant="default" size="lg" :no-hover="true">
       <template #header>
-        <h3>团队与学习认证<span v-if="progress.direction" class="dir-chip">{{ progress.direction }}</span></h3>
+        <h3>学员进度<span v-if="progress.direction" class="dir-chip">{{ progress.direction }}</span></h3>
       </template>
 
       <div v-if="!progress.direction || !progress.courses?.length" class="empty">
@@ -38,7 +38,7 @@
                 </div>
                 <div v-for="ch in c.chapters" :key="ch.chapter_id" class="ch-row">
                   <span class="ch-name" :title="ch.name">{{ ch.name }}</span>
-                  <span class="ch-meta">学员自报 {{ ch.lessons_completed }}/{{ ch.lessons }} 课时</span>
+                  <span class="ch-meta">自学 {{ ch.lessons_completed }}/{{ ch.lessons }} 课时</span>
                   <button type="button" :class="['mat-chip', { has: ch.material_count > 0 }]"
                           :disabled="!ch.material_count" @click="openMaterials(s, ch)">
                     材料 {{ ch.material_count || 0 }}
@@ -46,7 +46,10 @@
                   <DewButton v-if="!ch.certified" type="glass" size="sm" :loading="acting"
                     @click="certify(s, c, ch)">认证</DewButton>
                   <template v-else>
-                    <span class="ch-cert">已认证{{ ch.score != null ? ` · ${ch.score} 分` : '' }}{{ ch.certified_at ? ` · ${ch.certified_at}` : '' }}</span>
+                    <span class="ch-cert">已认证
+                      <span v-if="ch.score != null" class="ch-score">{{ ch.score }} 分</span>
+                      <span v-if="ch.certified_at" class="ch-cert-at">{{ ch.certified_at }}</span>
+                    </span>
                     <DewButton type="ghost" size="sm" :loading="acting" @click="rescore(s, c, ch)">改分</DewButton>
                     <DewButton type="ghost" size="sm" :loading="acting" @click="revoke(s, c, ch)">撤销</DewButton>
                   </template>
@@ -83,12 +86,28 @@
         </div>
       </div>
     </DewDialog>
+
+    <!-- 评分弹窗（DewUI）：认证可留空；改分必填预填 -->
+    <DewDialog v-model="scoreDlg.open" :title="scoreDlg.mode === 'certify' ? `认证章节 · ${scoreDlg.chapter?.name || ''}` : `修改评分 · ${scoreDlg.chapter?.name || ''}`" width="400px">
+      <div class="score-form">
+        <div class="field-label">
+          评分（0-100 整数{{ scoreDlg.mode === 'certify' ? '，留空 = 只认证不打分' : '，必填' }}）
+        </div>
+        <DewInput v-model="scoreDlg.score" type="number" size="lg" placeholder="0-100" />
+        <div class="score-actions">
+          <DewButton type="ghost" @click="scoreDlg.open = false">取消</DewButton>
+          <DewButton type="glass" :loading="acting" @click="confirmScore">
+            {{ scoreDlg.mode === 'certify' ? '认证' : '保存' }}
+          </DewButton>
+        </div>
+      </div>
+    </DewDialog>
   </div>
 </template>
 
 <script setup>
 import { ref, watch } from 'vue';
-import { DewCard, DewButton, DewDialog } from '@bme/dew-ui';
+import { DewCard, DewButton, DewDialog, DewInput } from '@bme/dew-ui';
 import { ElMessage, ElMessageBox, ElIcon } from 'element-plus';
 import { ArrowDown } from '@element-plus/icons-vue';
 import { campService } from '../../services/campService';
@@ -157,46 +176,42 @@ async function load() {
   }
 }
 
-// 认证：弹评分框（可留空=只认证不打分）
-async function certify(student, course, chapter) {
+// ── 评分弹窗（09-14 DewUI 化，替原 ElMessageBox.prompt）──
+// certify：留空=只认证不打分；rescore：必填，预填当前分（重复 POST 带 score=免撤销改分）
+const scoreDlg = ref({
+  open: false, mode: 'certify', student: null, chapter: null, score: '',
+});
+function certify(student, course, chapter) {
   if (acting.value) return;
-  let raw;
-  try {
-    ({ value: raw } = await ElMessageBox.prompt(
-      `「${chapter.name}」评分（0-100 整数，留空 = 只认证不打分）`, '认证章节',
-      {
-        confirmButtonText: '认证', cancelButtonText: '取消',
-        inputPattern: /^$|^([0-9]|[1-9]\d|100)$/,
-        inputErrorMessage: '评分须为 0-100 的整数（可留空）',
-        inputValue: '',
-      }));
-  } catch { return; }   // 取消认证
-  await submit(student, chapter, raw === '' ? null : Number(raw));
+  scoreDlg.value = { open: true, mode: 'certify', student, chapter, score: '' };
+}
+function rescore(student, course, chapter) {
+  if (acting.value) return;
+  scoreDlg.value = {
+    open: true, mode: 'rescore', student, chapter,
+    score: chapter.score != null ? String(chapter.score) : '',
+  };
+}
+async function confirmScore() {
+  const d = scoreDlg.value;
+  const raw = String(d.score).trim();
+  if (raw === '') {
+    if (d.mode === 'rescore') { ElMessage.warning('修改评分须填 0-100 的整数'); return; }
+    await doSubmit(d.student, d.chapter, null);
+    return;
+  }
+  if (!SCORE_RE.test(raw)) { ElMessage.warning('评分须为 0-100 的整数'); return; }
+  await doSubmit(d.student, d.chapter, Number(raw));
 }
 
-// 改分：已认证行重复 POST 带 score（免撤销改分）
-async function rescore(student, course, chapter) {
+async function doSubmit(student, chapter, score) {
   if (acting.value) return;
-  let raw;
-  try {
-    ({ value: raw } = await ElMessageBox.prompt(
-      `「${chapter.name}」新评分（0-100 整数）`, '修改评分',
-      {
-        confirmButtonText: '保存', cancelButtonText: '取消',
-        inputPattern: SCORE_RE,
-        inputErrorMessage: '评分须为 0-100 的整数',
-        inputValue: chapter.score != null ? String(chapter.score) : '',
-      }));
-  } catch { return; }
-  await submit(student, chapter, Number(raw));
-}
-
-async function submit(student, chapter, score) {
   acting.value = true;
   try {
     const r = await campService.certifyChapter(
       props.sid, student.student_user_id, chapter.chapter_id, score);
     ElMessage.success(r.message || '已认证');
+    scoreDlg.value.open = false;
     await load();
     expanded.value = student.student_user_id;
   } catch (e) {
@@ -261,7 +276,14 @@ watch(() => props.sid, load, { immediate: true });
 .ch-name { flex: 1; font-size: 13px; color: var(--dew-text-heading); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ch-meta { font-size: 12px; color: var(--dew-text-faint); flex-shrink: 0; }
 .ch-cert { font-size: 12px; color: var(--color-success, #67c23a); font-weight: 600; flex-shrink: 0; }
+.ch-score { color: var(--color-primary); font-size: 13px; font-weight: 700; margin-left: 4px; }
+.ch-cert-at { color: var(--dew-text-faint); font-weight: 400; font-size: 11.5px; margin-left: 6px; }
 .ch-empty { font-size: 12px; color: var(--dew-text-faint); padding: 6px 0; }
+
+/* 评分弹窗（DewUI） */
+.score-form { display: flex; flex-direction: column; gap: 10px; }
+.score-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.field-label { font-size: 13px; font-weight: 600; color: var(--dew-text-heading); }
 
 /* 材料 chip（章节行，有料可点开弹层；无料置灰提示入口存在） */
 .mat-chip {

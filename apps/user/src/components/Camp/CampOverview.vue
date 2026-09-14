@@ -1,8 +1,18 @@
 <template>
-  <!-- 看板 tab 内容：角色仪表盘/日历/规则（营期头部与进度已提升至 CampView 工作台页头） -->
+  <!-- 看板 tab 内容：角色仪表盘/日历/规则（营期头部与进度已提升至 CampView 工作台页头）。
+       09-14 修复：远程不考勤营（capabilities.attendance=false / 模式 B）不再渲染每日考勤
+       看板——此前无条件按 daily 画仪表盘/日历并对后端 400 弹错。 -->
   <div class="camp-overview" v-loading="loading">
+    <!-- ━━ 远程培训 · 不考勤（模式 B）：一张说明卡，不发任何考勤请求 ━━ -->
+    <DewCard v-if="!attEnabled" variant="default" size="lg" :no-hover="true" class="dashboard-card">
+      <div class="att-off-note">
+        <div class="att-off-title">远程培训 · 不设考勤</div>
+        <div class="att-off-sub">本营期不进行出勤考核，无需打卡——学习进度请看「学习方向」。</div>
+      </div>
+    </DewCard>
+
     <!-- ━━ 导生：团队概览（明细在「团队考勤」tab）━━ -->
-    <template v-if="isMentor">
+    <template v-else-if="isMentor">
       <DewCard variant="default" size="lg" :no-hover="true" class="dashboard-card">
         <template #header>
           <div class="card-title-row">
@@ -124,6 +134,8 @@ const props = defineProps({
   sid: { type: Number, required: true },
   // 本人营内任职（CampMember.role）：身份解耦后导生视角改由此判定，不再读全局角色
   myRole: { type: String, default: null },
+  // 考勤能力开关（远程不考勤营=false）：关则渲染说明卡，不发考勤请求
+  attEnabled: { type: Boolean, default: true },
 });
 
 const isMentor = computed(() => props.myRole === 'mentor');
@@ -205,7 +217,7 @@ const cellTitle = (date, cell) => {
 
 // 跟随选营器切换：看板数据按当前 sid 拉取（多营上下文一致，比 featured 单营更准确）
 async function load() {
-  if (!props.sid) return;
+  if (!props.sid || !props.attEnabled) return;
   loading.value = true;
   try {
     if (isMentor.value) {
@@ -238,6 +250,11 @@ watch(() => props.sid, load, { immediate: true });
 .card-title-row { display: flex; justify-content: space-between; align-items: baseline; }
 .card-title-row h3 { margin: 0; font-size: 15px; }
 .card-hint { font-size: 12px; color: var(--dew-text-faint); }
+
+/* 远程不考勤说明卡（09-14 模式 B） */
+.att-off-note { padding: 28px 16px; text-align: center; }
+.att-off-title { font-size: 15px; font-weight: 650; color: var(--dew-text-heading); }
+.att-off-sub { font-size: 12.5px; color: var(--dew-text-muted); margin-top: 8px; line-height: 1.7; }
 
 /* 按周累计简卡（09-12 模式 C） */
 .ov-weekly { display: flex; flex-direction: column; gap: 6px; }

@@ -476,18 +476,18 @@ test('团队与学习认证：多课程按章认证+评分（0-100），可撤�
   await page.goto(`${BASE}/camp?tab=members&sid=1`, { waitUntil: 'domcontentloaded' })
 
   // 方向 chip + 学员行两门课各自的进度 chip
-  await expect(page.getByText('团队与学习认证')).toBeVisible()
+  await expect(page.getByRole('heading', { name: /学员进度/ })).toBeVisible()
   await expect(page.locator('.dir-chip', { hasText: '硬件组' })).toBeVisible()
   await expect(page.getByText('嵌入式入门 1/2 · 均 88')).toBeVisible()
   await expect(page.getByText('电路基础 0/1')).toBeVisible()
 
   // 展开学员 → 已认证章带分数；跨课认证：电路基础未认证章，弹评分框填 95
   await page.locator('.row-head', { hasText: '学员小张' }).click()
-  await expect(page.locator('.ch-row', { hasText: 'GPIO 点灯' }).getByText('已认证 · 88 分')).toBeVisible()
+  await expect(page.locator('.ch-row', { hasText: 'GPIO 点灯' }).locator('.ch-score', { hasText: '88 分' })).toBeVisible()
   await page.locator('.course-sec', { hasText: '电路基础' })
     .locator('.ch-row', { hasText: '欧姆定律' }).getByRole('button', { name: '认证' }).click()
-  await page.locator('.el-message-box__input input').fill('95')
-  await page.locator('.el-message-box__btns').getByRole('button', { name: '认证' }).click()
+  await page.locator('.score-form input').fill('95')
+  await page.locator('.score-actions').getByRole('button', { name: '认证' }).click()
   await expect.poll(() => lastBody).toEqual({ student_user_id: 201, chapter_id: 21, score: 95 })
 
   // 回读：电路基础 1/1 · 均 95
@@ -495,10 +495,10 @@ test('团队与学习认证：多课程按章认证+评分（0-100），可撤�
 
   // 改分：GPIO 88 → 92（重复 POST 带 score）
   await page.locator('.ch-row', { hasText: 'GPIO 点灯' }).getByRole('button', { name: '改分' }).click()
-  await page.locator('.el-message-box__input input').fill('92')
-  await page.locator('.el-message-box__btns').getByRole('button', { name: '保存' }).click()
+  await page.locator('.score-form input').fill('92')
+  await page.locator('.score-actions').getByRole('button', { name: '保存' }).click()
   await expect.poll(() => lastBody).toEqual({ student_user_id: 201, chapter_id: 11, score: 92 })
-  await expect(page.getByText('已认证 · 92 分')).toBeVisible()
+  await expect(page.locator('.ch-score', { hasText: '92 分' })).toBeVisible()
 
   // 章节材料（09-14）：「材料 1」chip 打开弹层 → 内容/附件下载链接；删除后弹层空态+chip 归零
   const gpioRow = page.locator('.ch-row', { hasText: 'GPIO 点灯' })

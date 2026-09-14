@@ -115,7 +115,8 @@ const draft = ref({ content: '', files: [] });
 const fileEls = {};                // 隐藏原生 file input，按 chapter_id 索引（DewButton 触发选择）
 
 function goStudy(course) {
-  router.push(`/study/details?id=${course.course_id}&from=camp`);
+  // sid 透传：详情页/学习页按营期快照口径显示进度（09-14 从零快照）
+  router.push(`/study/details?id=${course.course_id}&from=camp&sid=${props.sid}`);
 }
 
 async function loadDirection() {

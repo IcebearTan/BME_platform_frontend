@@ -430,13 +430,15 @@ const fetchChapterData = async () => {
       params: { Course_Id: courseId.value }
     });
 
-    // 获取学习进度（包含完成状态）
+    // 获取学习进度（包含完成状态；09-14 营期语境带 camp_session_id 查快照口径。
+    // 打点 POST 不带参——后端按 user_course 营戳自动分流写快照/全局）
     let progressMap = {};
     try {
+      const sid = route.query.sid;
       const progressRes = await api({
         url: '/learningProgress/lesson/list',
         method: 'get',
-        params: { Course_Id: courseId.value }
+        params: { Course_Id: courseId.value, ...(sid ? { camp_session_id: sid } : {}) }
       });
       if (progressRes.data.code === 200 && progressRes.data.data) {
         progressRes.data.data.forEach(item => {

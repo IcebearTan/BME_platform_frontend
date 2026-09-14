@@ -580,9 +580,9 @@ test('学习方向卡：多课程认证进度/评分 + 章节材料提交三件�
   await expect(matPanel.getByText('串口波形截图说明')).toHaveCount(0)
   expect(deleted).toBe(true)
 
-  // 去学习（第一门课）：跳课程详情（from=camp 返回时回学习方向 tab）
+  // 去学习（第一门课）：跳课程详情（from=camp 返回营期工作台；sid 透传——09-14 快照口径）
   await embedded.getByRole('button', { name: '去学习' }).click()
-  await expect(page).toHaveURL(/\/study\/details\?id=7&from=camp/)
+  await expect(page).toHaveURL(/\/study\/details\?id=7&from=camp&sid=23/)
 
   expect(errors).toEqual([])
 })
