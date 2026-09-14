@@ -87,7 +87,7 @@
       </template>
     </template>
 
-    <!-- ② 我负责的（单项目看板：成员管理/关键节点/活动考勤/成果/发布） -->
+    <!-- ② 我负责的（单项目看板：成员管理/项目进展/活动考勤/成果/发布） -->
     <template v-else-if="view === 'lead'">
       <ProjectBoard v-if="mine.leading?.length" :sid="sid" :session="session"
                     :units="mine.leading" role="leader" @changed="reload" />

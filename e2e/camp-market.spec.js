@@ -404,7 +404,7 @@ test('导生人员确认：志愿截止后可锁定/释放学员', async ({ page
   expect(errors).toEqual([])
 })
 
-test('团队与学习认证：多课程按章认证+评分（0-100），可撤销/改分', async ({ page }) => {
+test('团队与学习认证：多课程按章认证+评分（0-100），可撤销/改分/查看章节材料', async ({ page }) => {
   const errors = []
   page.on('pageerror', (e) => errors.push(e.message))
   await loginAsUser(page, phaseOf('done', {
@@ -416,13 +416,14 @@ test('团队与学习认证：多课程按章认证+评分（0-100），可撤�
   ])
 
   // 09-13 多课制+按章评分：方向两门课，各自章节/认证/评分；写端点内存闭环回读最新态
+  // 09-14 章节行带 material_count（导生端「材料 n」chip 数据源）
   const courses = [
     { course_id: 7, course_title: '嵌入式入门', chapters: [
-      { chapter_id: 11, name: 'GPIO 点灯', order: 1, lessons: 3, lessons_completed: 3, certified: true, certified_at: '2026-09-12 10:00', certified_by: 1, score: 88 },
-      { chapter_id: 12, name: '串口通信', order: 2, lessons: 4, lessons_completed: 2, certified: false, certified_at: null, certified_by: null, score: null },
+      { chapter_id: 11, name: 'GPIO 点灯', order: 1, lessons: 3, lessons_completed: 3, certified: true, certified_at: '2026-09-12 10:00', certified_by: 1, score: 88, material_count: 1 },
+      { chapter_id: 12, name: '串口通信', order: 2, lessons: 4, lessons_completed: 2, certified: false, certified_at: null, certified_by: null, score: null, material_count: 0 },
     ] },
     { course_id: 8, course_title: '电路基础', chapters: [
-      { chapter_id: 21, name: '欧姆定律', order: 1, lessons: 2, lessons_completed: 2, certified: false, certified_at: null, certified_by: null, score: null },
+      { chapter_id: 21, name: '欧姆定律', order: 1, lessons: 2, lessons_completed: 2, certified: false, certified_at: null, certified_by: null, score: null, material_count: 0 },
     ] },
   ]
   const block = (c) => ({
@@ -456,6 +457,22 @@ test('团队与学习认证：多课程按章认证+评分（0-100），可撤�
     return route.fulfill({ json: { code: 200, message: '已认证' } })
   })
 
+  // 章节材料（09-14）：学员 × 章材料弹层——下载链接/删除；删后章节行计数回落（内存闭环）
+  const mats = [
+    { id: 9, course_id: 7, chapter_id: 11, student_user_id: 201,
+      content: '点灯实验记录：电阻 220Ω', created_at: '2026-09-14T10:00:00',
+      attachments: [{ id: 19, filename: 'led.png', size: 1536 }] },
+  ]
+  await page.route('**/camp/sessions/1/materials**', (route) =>
+    route.fulfill({ json: { code: 200, materials: mats } }))
+  let matDeleted = false
+  await page.route('**/camp/materials/9', (route) => {
+    matDeleted = route.request().method() === 'DELETE'
+    mats.length = 0
+    courses[0].chapters[0].material_count = 0
+    return route.fulfill({ json: { code: 200, message: '已删除' } })
+  })
+
   await page.goto(`${BASE}/camp?tab=members&sid=1`, { waitUntil: 'domcontentloaded' })
 
   // 方向 chip + 学员行两门课各自的进度 chip
@@ -482,6 +499,21 @@ test('团队与学习认证：多课程按章认证+评分（0-100），可撤�
   await page.locator('.el-message-box__btns').getByRole('button', { name: '保存' }).click()
   await expect.poll(() => lastBody).toEqual({ student_user_id: 201, chapter_id: 11, score: 92 })
   await expect(page.getByText('已认证 · 92 分')).toBeVisible()
+
+  // 章节材料（09-14）：「材料 1」chip 打开弹层 → 内容/附件下载链接；删除后弹层空态+chip 归零
+  const gpioRow = page.locator('.ch-row', { hasText: 'GPIO 点灯' })
+  await expect(gpioRow.locator('.mat-chip', { hasText: '材料 1' })).toBeVisible()
+  await gpioRow.locator('.mat-chip').click()
+  await expect(page.locator('.mat-list').getByText('点灯实验记录：电阻 220Ω')).toBeVisible()
+  const matAtt = page.locator('.mat-list .att-link', { hasText: 'led.png' })
+  await expect(matAtt).toBeVisible()
+  await expect(matAtt).toHaveAttribute('href', /\/camp\/materials\/attachments\/19$/)
+  await page.locator('.mat-list').locator('.mat-row', { hasText: '点灯实验记录' })
+    .getByRole('button', { name: '删除' }).click()
+  await page.locator('.el-message-box').getByRole('button', { name: '删除' }).click()
+  await expect(page.locator('.mat-list').getByText('该学员本章暂无材料')).toBeVisible()
+  expect(matDeleted).toBe(true)
+  await page.locator('.dew-dialog__close').click()   // 关材料弹层，撤销断言不受遮挡
 
   // 撤销回到未认证态
   await page.locator('.ch-row', { hasText: '欧姆定律' }).getByRole('button', { name: '撤销' }).click()

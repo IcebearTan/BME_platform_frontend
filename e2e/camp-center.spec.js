@@ -228,10 +228,10 @@ test('项目营申报：upcoming 出示申报表单（负责人入口）', async
   expect(errors).toEqual([])
 })
 
-test('项目营 running：节点评价制——负责人逐人评价，评齐即完', async ({ page }) => {
+test('项目营 running：项目进展——提交链恢复+节点评价并存（负责人）', async ({ page }) => {
   const errors = []
   page.on('pageerror', (e) => errors.push(e.message))
-  // running 项目营：负责人视角（文件提交入口 09-13 下线，交付=负责人对成员的节点评价）
+  // running 项目营：负责人视角（09-14 提交链恢复：材料提交/审核 + 节点评价并存；默认全展开）
   await loginAsUser(page, [
     {
       url: '/camp/projects/30/mine',
@@ -252,18 +252,34 @@ test('项目营 running：节点评价制——负责人逐人评价，评齐即
     },
   ])
 
-  // 里程碑读端点（内存态闭环：PUT 后回读带新评价）
+  // 里程碑读端点（内存态闭环：审核/提交/切换/评价动作后回读带新状态）
   const evals = [
     { member_user_id: 62, member_name: '成员小张', score: 88, comment: '调研充分',
       leader_user_id: 61, updated_at: '2026-09-12 10:00' },
   ]
+  const subs502 = [
+    { id: 801, milestone_id: 502, version: 1, submitted_by: 62, submitted_by_name: '成员小张',
+      content: '调研报告初稿', status: 'submitted', review_note: null, reviewed_at: null,
+      created_at: '2026-09-14T10:00:00',
+      attachments: [{ id: 901, filename: 'report.pdf', size: 2048, is_asset: false }] },
+  ]
+  const state = { ms501mode: 'team', ms501subs: [], ms502approved: false }
   const membersJson = () => ({
     code: 200, my_role: 'leader',
     eval_members: [{ user_id: 62, username: '成员小张' }, { user_id: 63, username: '成员小李' }],
     milestones: [
+      // 501：整队交付（leader 提交·老师审）——供提交盒/模式切换断言
       { id: 501, unit_id: 41, title: '开题调研', due_date: '2027-02-01', order_no: 1,
-        submissions: [], evaluations: evals,
+        submit_mode: state.ms501mode, status: 'open',
+        submissions: state.ms501subs, evaluations: evals,
         member_count: 2, evaluated_count: evals.length, node_complete: evals.length >= 2 },
+      // 502：个人交付（成员交·负责人审）——小张待审 v1 供审核断言
+      { id: 502, unit_id: 41, title: '中期检查', due_date: null, order_no: 2,
+        submit_mode: 'member', status: state.ms502approved ? 'approved' : 'submitted',
+        submissions: state.ms502approved
+          ? [{ ...subs502[0], status: 'approved', review_note: null }]
+          : subs502,
+        evaluations: [], member_count: 2, evaluated_count: 0, node_complete: false },
     ],
   })
   await page.route('**/camp/units/41/milestones', (route) => route.fulfill({ json: membersJson() }))
@@ -272,8 +288,35 @@ test('项目营 running：节点评价制——负责人逐人评价，评齐即
   await page.route('**/camp/milestones/501/evaluations/63', (route) => {
     const body = route.request().postDataJSON()
     evals.push({ member_user_id: 63, member_name: '成员小李', score: body.score,
-                 comment: body.comment, leader_user_id: 61, updated_at: '2026-09-13 21:00' })
+                 comment: body.comment, leader_user_id: 61, updated_at: '2026-09-14 21:00' })
     return route.fulfill({ json: { code: 200, message: '评价已保存', score: body.score } })
+  })
+  let submitBody = null
+  await page.route('**/camp/milestones/501/submissions', (route) => {
+    if (route.request().method() !== 'POST') {
+      return route.fulfill({ json: { code: 200, submissions: state.ms501subs } })
+    }
+    submitBody = route.request().postData()?.toString() || ''
+    state.ms501subs = [
+      { id: 802, milestone_id: 501, version: 1, submitted_by: 61, submitted_by_name: 'proj_leader',
+        content: '开题材料汇总', status: 'submitted', review_note: null, reviewed_at: null,
+        created_at: '2026-09-14T21:30:00',
+        attachments: [{ id: 902, filename: 'kickoff.zip', size: 4096, is_asset: false }] },
+    ]
+    return route.fulfill({ json: { code: 200, message: '已提交（第 1 版）' } })
+  })
+  let reviewBody = null
+  await page.route('**/camp/submissions/801/review', (route) => {
+    reviewBody = route.request().postDataJSON()
+    state.ms502approved = reviewBody.action === 'approve'
+    return route.fulfill({ json: { code: 200, message: '已通过' } })
+  })
+  let modePut = null
+  await page.route('**/camp/milestones/501', (route) => {
+    if (route.request().method() !== 'PUT') return route.fulfill({ json: { code: 200 } })
+    modePut = route.request().postDataJSON()
+    if (modePut.submit_mode) state.ms501mode = modePut.submit_mode
+    return route.fulfill({ json: { code: 200, message: '已更新' } })
   })
 
   await page.goto(`${BASE}/camp?sid=30`, { waitUntil: 'domcontentloaded' })
@@ -281,24 +324,53 @@ test('项目营 running：节点评价制——负责人逐人评价，评齐即
   await page.getByRole('button', { name: '我负责的' }).click()
   await expect(page.locator('.project-board').getByText('智能输液监护')).toBeVisible()
 
-  // 节点头：已评 1/2（评齐挂已完成）
-  await expect(page.locator('.ms-row', { hasText: '开题调研' }).locator('.ms-status'))
-    .toHaveText('已评 1/2')
-  // 展开：小张已评带分带评语；小李未评价有「评价」按钮
-  await page.locator('.ms-head', { hasText: '开题调研' }).click()
-  await expect(page.locator('.eval-row', { hasText: '成员小张' }).getByText('88 分')).toBeVisible()
-  await expect(page.locator('.eval-row', { hasText: '成员小张' }).getByText('调研充分')).toBeVisible()
-  await page.locator('.eval-row', { hasText: '成员小李' }).getByRole('button', { name: '评价' }).click()
+  // 09-14 文案：「关键节点」→「项目进展」；节点默认全展开（不点 ms-head 直接见 ms-body）
+  await expect(page.locator('.sec-title', { hasText: '项目进展' })).toBeVisible()
+  await expect(page.locator('.sec-title', { hasText: '关键节点' })).toHaveCount(0)
+  const row501 = page.locator('.ms-row', { hasText: '开题调研' })
+  await expect(row501.locator('.ms-body')).toBeVisible()
 
-  // 评价弹窗：分数 + 评语 → 保存
+  // 交付材料：502 个人交付节点，小张待审 v1（版本/状态/附件）；负责人「通过」→ approve
+  const row502 = page.locator('.ms-row', { hasText: '中期检查' })
+  await expect(row502.locator('.chain-ver', { hasText: 'v1' })).toBeVisible()
+  await expect(row502.locator('.chain-by', { hasText: '成员小张' })).toBeVisible()
+  await expect(row502.locator('.att-link', { hasText: 'report.pdf' })).toBeVisible()
+  await row502.getByRole('button', { name: '通过' }).click()
+  expect(reviewBody).toEqual({ action: 'approve' })
+  await expect(row502.locator('.chain-item').first()).toContainText('已通过')
+
+  // 模式切换（无提交节点显示入口）：切个人交付 → PUT；再切回整队（供后续提交盒断言）
+  await row501.getByRole('button', { name: /切换为个人交付/ }).click()
+  await expect(row501.getByText('个人交付', { exact: true })).toBeVisible()
+  expect(modePut).toEqual({ submit_mode: 'member' })
+  await row501.getByRole('button', { name: /切换为整队交付/ }).click()
+  await expect(row501.getByText('整队交付', { exact: true })).toBeVisible()
+
+  // 提交盒（501 整队交付=leader 可交）：说明 + 附件 → multipart 提交
+  await row501.locator('.submit-box textarea').fill('开题材料汇总')
+  await row501.locator('.submit-box input[type=file]')
+    .setInputFiles({ name: 'kickoff.zip', mimeType: 'application/zip', buffer: Buffer.from('zip-bytes') })
+  await row501.getByRole('button', { name: '提交', exact: true }).click()
+  await expect(row501.locator('.att-link', { hasText: 'kickoff.zip' })).toBeVisible()
+  expect(submitBody).toContain('开题材料汇总')
+  expect(submitBody).toContain('kickoff.zip')
+
+  // 模式切换（无提交节点；已有提交的 501 此时不显示——先在提交前断言过会冲突，改在评价后对 502 不出现）
+  // 节点评价：小张已评 88 分带评语；小李未评价 → 评价 92 分（默认全展开→两节点各一组评价行，限定 row501）
+  await expect(row501.locator('.eval-row', { hasText: '成员小张' }).getByText('88 分')).toBeVisible()
+  await expect(row501.locator('.eval-row', { hasText: '成员小张' }).getByText('调研充分')).toBeVisible()
+  await row501.locator('.eval-row', { hasText: '成员小李' }).getByRole('button', { name: '评价' }).click()
   await page.locator('.eval-form input').first().fill('92')
   await page.locator('.eval-form textarea').fill('进步明显')
   await page.getByRole('button', { name: '保存评价' }).click()
   expect((await evalPut).postDataJSON()).toEqual({ score: 92, comment: '进步明显' })
 
-  // 回读：2/2 评齐 → 节点已完成
-  await expect(page.locator('.ms-row', { hasText: '开题调研' }).locator('.ms-status'))
-    .toHaveText('已评 2/2已完成')
+  // 回读：2/2 评齐 → 节点已完成（501）
+  await expect(row501.locator('.ms-status')).toContainText('已评 2/2')
+  await expect(row501.locator('.ms-status')).toContainText('已完成')
+  // 已有提交的节点不再显示模式切换（后端 400 兜底，前端隐藏入口）
+  await expect(row501.getByRole('button', { name: /切换为/ })).toHaveCount(0)
+
   // 成果区
   await expect(page.getByText('样机一台')).toBeVisible()
   await expect(page.getByText('待核验', { exact: true })).toBeVisible()
@@ -306,7 +378,7 @@ test('项目营 running：节点评价制——负责人逐人评价，评齐即
   expect(errors).toEqual([])
 })
 
-test('项目营 running：节点评价制——成员仅见本人评价', async ({ page }) => {
+test('项目营 running：项目进展——成员提交/可见性/仅见本人评价', async ({ page }) => {
   const errors = []
   page.on('pageerror', (e) => errors.push(e.message))
   await loginAsUser(page, [
@@ -318,16 +390,22 @@ test('项目营 running：节点评价制——成员仅见本人评价', async 
       ], project_count: 1, project_limit: null, remaining_slots: null, can_apply: false },
     },
     {
-      // 成员视角：evaluations 只回本人行；eval_members 空数组（成员端忽略）
+      // 成员视角：submissions 只回自己的链（小张=62）；evaluations 只回本人行；
+      // eval_members 空数组（成员端忽略）。501=整队交付（成员不可交）；502=个人交付（可交）
       url: '/camp/units/41/milestones',
       json: { code: 200, my_role: 'member', eval_members: [], milestones: [
         { id: 501, unit_id: 41, title: '开题调研', due_date: null, order_no: 1,
-          submissions: [], evaluations: [
+          submit_mode: 'team', status: 'open', submissions: [], evaluations: [
             { member_user_id: 62, member_name: '成员小张', score: 88, comment: '调研充分',
               leader_user_id: 61, updated_at: '2026-09-12 10:00' },
           ], member_count: 2, evaluated_count: 1, node_complete: false },
         { id: 502, unit_id: 41, title: '中期检查', due_date: null, order_no: 2,
-          submissions: [], evaluations: [], member_count: 2, evaluated_count: 0, node_complete: false },
+          submit_mode: 'member', status: 'submitted', submissions: [
+            { id: 801, milestone_id: 502, version: 1, submitted_by: 62,
+              submitted_by_name: '成员小张', content: '我的调研初稿', status: 'submitted',
+              review_note: null, reviewed_at: null, created_at: '2026-09-14T10:00:00',
+              attachments: [] },
+          ], evaluations: [], member_count: 2, evaluated_count: 0, node_complete: false },
       ] },
     },
     {
@@ -341,15 +419,29 @@ test('项目营 running：节点评价制——成员仅见本人评价', async 
   ])
 
   await page.goto(`${BASE}/camp?sid=30`, { waitUntil: 'domcontentloaded' })
-  // 节点头：已评节点显示「我的评价 88 分」，未评显示「待评价」；无评价按钮
-  await expect(page.locator('.ms-row', { hasText: '开题调研' }).locator('.ms-status'))
-    .toHaveText('我的评价 88 分')
-  await expect(page.locator('.ms-row', { hasText: '中期检查' }).locator('.ms-status'))
-    .toHaveText('待评价')
-  await page.locator('.ms-head', { hasText: '开题调研' }).click()
+  // 节点头（默认全展开）：交付态 + 评价双信息；无评价按钮
+  const row501 = page.locator('.ms-row', { hasText: '开题调研' })
+  const row502 = page.locator('.ms-row', { hasText: '中期检查' })
+  await expect(row501.locator('.ms-status')).toContainText('待提交')
+  await expect(row501.locator('.ms-status')).toContainText('我的评价 88 分')
+  await expect(row502.locator('.ms-status')).toContainText('待审核')
+  await expect(row502.locator('.ms-status')).toContainText('待评价')
+
+  // 501 整队交付：成员无提交盒，见「由负责人统一提交」提示
+  await expect(row501.locator('.submit-box')).toHaveCount(0)
+  await expect(row501.getByText('整队交付由负责人统一提交')).toBeVisible()
+  // 502 个人交付：提交盒可见（我的交付说明）；仅见自己的链（1 行）且无审核按钮
+  await expect(row502.locator('.submit-box')).toBeVisible()
+  await expect(row502.locator('.chain-item')).toHaveCount(1)
+  await expect(row502.locator('.chain-content', { hasText: '我的调研初稿' })).toBeVisible()
+  await expect(page.getByRole('button', { name: '通过', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: '退回', exact: true })).toHaveCount(0)
+
+  // 评价自见：仅本人分数与评语；无评价/切换入口
   await expect(page.locator('.eval-self').getByText('88 分')).toBeVisible()
   await expect(page.locator('.eval-self').getByText('调研充分')).toBeVisible()
   await expect(page.getByRole('button', { name: '评价', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /切换为/ })).toHaveCount(0)
 
   expect(errors).toEqual([])
 })
@@ -419,9 +511,15 @@ test('中心↔工作台：顶部入口和工作台返回均收敛到中心', as
   expect(errors).toEqual([])
 })
 
-test('学习方向卡：学员查看随导生继承的多课程与章节认证进度/评分', async ({ page }) => {
+test('学习方向卡：多课程认证进度/评分 + 章节材料提交三件套', async ({ page }) => {
   const errors = []
   page.on('pageerror', (e) => errors.push(e.message))
+  // 材料端点 mock 须走 extraMocks：loginAsUser 兜底分支会吞掉 /camp/sessions/*/materials 的 GET
+  const mats = [
+    { id: 9, course_id: 7, chapter_id: 11, student_user_id: 62,
+      content: '点灯实验记录：电阻 220Ω', created_at: '2026-09-14T10:00:00',
+      attachments: [{ id: 19, filename: 'led.png', size: 1536 }] },
+  ]
   await loginAsUser(page, [
     {
       // id 23 暑期双选营（成员学员视角）：方向制卡（09-12；09-13 多课+评分，取代原选课 tab）
@@ -431,17 +529,21 @@ test('学习方向卡：学员查看随导生继承的多课程与章节认证�
         courses: [
           { course_id: 7, course_title: '嵌入式入门', difficulty: 2,
             chapters: [
-              { chapter_id: 11, name: 'GPIO 点灯', lessons: 3, lessons_completed: 3, certified: true, certified_at: '2026-09-12 10:00', score: 88 },
-              { chapter_id: 12, name: '串口通信', lessons: 4, lessons_completed: 2, certified: false, certified_at: null, score: null },
+              { chapter_id: 11, name: 'GPIO 点灯', lessons: 3, lessons_completed: 3, certified: true, certified_at: '2026-09-12 10:00', score: 88, material_count: 1 },
+              { chapter_id: 12, name: '串口通信', lessons: 4, lessons_completed: 2, certified: false, certified_at: null, score: null, material_count: 0 },
             ],
             certified_chapters: 1, total_chapters: 2, score_avg: 88, course_status: 'active' },
           { course_id: 8, course_title: '电路基础', difficulty: 1,
             chapters: [
-              { chapter_id: 21, name: '欧姆定律', lessons: 2, lessons_completed: 2, certified: true, certified_at: '2026-09-12 11:00', score: 90 },
+              { chapter_id: 21, name: '欧姆定律', lessons: 2, lessons_completed: 2, certified: true, certified_at: '2026-09-12 11:00', score: 90, material_count: 0 },
             ],
             certified_chapters: 1, total_chapters: 1, score_avg: 90, course_status: 'completed' },
         ],
       },
+    },
+    {
+      url: '/camp/sessions/23/materials',
+      json: { code: 200, materials: mats },
     },
   ])
 
@@ -453,12 +555,57 @@ test('学习方向卡：学员查看随导生继承的多课程与章节认证�
   await expect(page.getByText('随归属导生（导生阿明）继承')).toBeVisible()
   const embedded = page.locator('.course-block', { hasText: '嵌入式入门' })
   await expect(embedded.getByText(/章节认证 1\/2 · 均分 88/)).toBeVisible()
-  await expect(embedded.locator('.chapter-row', { hasText: 'GPIO 点灯' }).getByText('已认证（88 分）')).toBeVisible()
+  const gpioRow = embedded.locator('.chapter-row', { hasText: 'GPIO 点灯' })
+  await expect(gpioRow.getByText('已认证（88 分）')).toBeVisible()
   await expect(embedded.locator('.chapter-row', { hasText: '串口通信' }).getByText('未认证')).toBeVisible()
   const circuit = page.locator('.course-block', { hasText: '电路基础' })
   await expect(circuit.getByText(/章节认证 1\/1 · 均分 90/)).toBeVisible()
   await expect(circuit.getByText('已完成')).toBeVisible()
   await expect(page.getByRole('button', { name: '选课' })).toHaveCount(0)
+
+  // ── 章节材料（09-14）：chip 计数 → 展开 → 已有材料与附件 → 提交 → 删除 ──
+  await expect(gpioRow.locator('.mat-chip', { hasText: '材料 1' })).toBeVisible()
+  await gpioRow.locator('.mat-chip').click()
+  const matPanel = page.locator('.mat-panel')
+  await expect(matPanel.getByText('点灯实验记录：电阻 220Ω')).toBeVisible()
+  const att = matPanel.locator('.att-link', { hasText: 'led.png' })
+  await expect(att).toBeVisible()
+  await expect(att).toHaveAttribute('href', /\/camp\/materials\/attachments\/19$/)
+
+  // 提交：说明 + 附件 → multipart（chapter_id + content + Files）
+  let submitBody = ''
+  await page.route('**/camp/sessions/23/materials', (route) => {
+    if (route.request().method() !== 'POST') {
+      return route.fulfill({ json: { code: 200, materials: mats } })
+    }
+    submitBody = route.request().postData()?.toString() || ''
+    mats.push({ id: 10, course_id: 7, chapter_id: 11, student_user_id: 62,
+      content: '串口波形截图说明', created_at: '2026-09-14T21:00:00',
+      attachments: [{ id: 20, filename: 'uart.png', size: 2048 }] })
+    return route.fulfill({ json: { code: 200, message: '材料已提交' } })
+  })
+  await matPanel.locator('textarea').fill('串口波形截图说明')
+  await matPanel.locator('input[type=file]')
+    .setInputFiles({ name: 'uart.png', mimeType: 'image/png', buffer: Buffer.from('png-bytes') })
+  await matPanel.getByRole('button', { name: '提交材料' }).click()
+  await expect(matPanel.getByText('串口波形截图说明')).toBeVisible()
+  expect(submitBody).toContain('chapter_id')
+  expect(submitBody).toContain('11')
+  expect(submitBody).toContain('串口波形截图说明')
+  expect(submitBody).toContain('uart.png')
+
+  // 删除（ElMessageBox 确认后 DELETE）→ 列表回落
+  let deleted = false
+  await page.route('**/camp/materials/10', (route) => {
+    deleted = route.request().method() === 'DELETE'
+    mats.splice(1, 1)
+    return route.fulfill({ json: { code: 200, message: '已删除' } })
+  })
+  await matPanel.locator('.mat-row', { hasText: '串口波形截图说明' })
+    .getByRole('button', { name: '删除' }).click()
+  await page.locator('.el-message-box').getByRole('button', { name: '删除' }).click()
+  await expect(matPanel.getByText('串口波形截图说明')).toHaveCount(0)
+  expect(deleted).toBe(true)
 
   // 去学习（第一门课）：跳课程详情（from=camp 返回时回学习方向 tab）
   await embedded.getByRole('button', { name: '去学习' }).click()

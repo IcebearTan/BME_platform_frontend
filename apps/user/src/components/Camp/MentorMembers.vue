@@ -1,6 +1,7 @@
 <template>
   <!-- 导生「团队与学习认证」（09-12 方向制；09-13 多课+评分）：本团队学员 × 方向全部课程，
-       按章认证（可打分 0-100）/撤销/改分；课程均分读时聚合展示 -->
+       按章认证（可打分 0-100）/撤销/改分；课程均分读时聚合展示；
+       09-14 章节材料：章节行「材料 n」chip 打开弹层查看/下载/删除学员提交的材料 -->
   <div class="mentor-members">
     <DewCard variant="default" size="lg" :no-hover="true">
       <template #header>
@@ -38,6 +39,10 @@
                 <div v-for="ch in c.chapters" :key="ch.chapter_id" class="ch-row">
                   <span class="ch-name" :title="ch.name">{{ ch.name }}</span>
                   <span class="ch-meta">学员自报 {{ ch.lessons_completed }}/{{ ch.lessons }} 课时</span>
+                  <button type="button" :class="['mat-chip', { has: ch.material_count > 0 }]"
+                          :disabled="!ch.material_count" @click="openMaterials(s, ch)">
+                    材料 {{ ch.material_count || 0 }}
+                  </button>
                   <DewButton v-if="!ch.certified" type="glass" size="sm" :loading="acting"
                     @click="certify(s, c, ch)">认证</DewButton>
                   <template v-else>
@@ -58,12 +63,32 @@
         · 全章认证齐后对应课程自动记为已完成；认证时可评分（0-100），课程均分自动聚合
       </div>
     </DewCard>
+
+    <!-- 章节材料弹层（09-14）：学员 × 章的材料列表，认证/评分前查看下载 -->
+    <DewDialog v-model="matDlg.open" :title="`章节材料 · ${matDlg.studentName} · ${matDlg.chapterName}`" width="560px">
+      <div class="mat-list" v-loading="matDlg.loading">
+        <div v-if="!matDlg.materials.length && !matDlg.loading" class="mat-empty">该学员本章暂无材料</div>
+        <div v-for="m in matDlg.materials" :key="m.id" class="mat-row">
+          <div class="mat-main">
+            <div v-if="m.content" class="mat-content">{{ m.content }}</div>
+            <div v-if="m.attachments?.length" class="mat-atts">
+              <a v-for="a in m.attachments" :key="a.id"
+                 :href="campService.chapterMaterialAttachmentUrl(a.id)" target="_blank" class="att-link">
+                {{ a.filename }}{{ a.size ? `（${Math.round(a.size / 1024)}KB）` : '' }}
+              </a>
+            </div>
+            <span class="mat-time">{{ (m.created_at || '').slice(0, 16).replace('T', ' ') }}</span>
+          </div>
+          <DewButton type="ghost" size="sm" @click="removeMaterial(m)">删除</DewButton>
+        </div>
+      </div>
+    </DewDialog>
   </div>
 </template>
 
 <script setup>
 import { ref, watch } from 'vue';
-import { DewCard, DewButton } from '@bme/dew-ui';
+import { DewCard, DewButton, DewDialog } from '@bme/dew-ui';
 import { ElMessage, ElMessageBox, ElIcon } from 'element-plus';
 import { ArrowDown } from '@element-plus/icons-vue';
 import { campService } from '../../services/campService';
@@ -75,6 +100,47 @@ const SCORE_RE = /^([0-9]|[1-9]\d|100)$/;   // 0-100 整数
 const progress = ref({});
 const expanded = ref(null);
 const acting = ref(false);
+
+// ── 章节材料弹层（09-14）──
+const matDlg = ref({
+  open: false, loading: false, student: null, chapter: null,
+  studentName: '', chapterName: '', materials: [],
+});
+
+async function openMaterials(student, chapter) {
+  matDlg.value = {
+    open: true, loading: true, student, chapter,
+    studentName: student.username, chapterName: chapter.name, materials: [],
+  };
+  try {
+    const d = await campService.fetchChapterMaterials(props.sid, {
+      student_user_id: student.student_user_id, chapter_id: chapter.chapter_id });
+    matDlg.value.materials = d.materials || [];
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '加载材料失败');
+  } finally {
+    matDlg.value.loading = false;
+  }
+}
+
+async function removeMaterial(m) {
+  try {
+    await ElMessageBox.confirm('删除该学员的这条材料？', '删除材料',
+      { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' });
+  } catch { return; }
+  try {
+    await campService.deleteChapterMaterial(m.id);
+    ElMessage.success('已删除');
+    const d = await campService.fetchChapterMaterials(props.sid, {
+      student_user_id: matDlg.value.student.student_user_id,
+      chapter_id: matDlg.value.chapter.chapter_id });
+    matDlg.value.materials = d.materials || [];
+    await load();   // 刷新章节行 material_count
+    expanded.value = matDlg.value.student.student_user_id;   // load 会重置展开态，恢复
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '删除失败');
+  }
+}
 
 function toggleExpand(uid) {
   expanded.value = expanded.value === uid ? null : uid;
@@ -196,6 +262,33 @@ watch(() => props.sid, load, { immediate: true });
 .ch-meta { font-size: 12px; color: var(--dew-text-faint); flex-shrink: 0; }
 .ch-cert { font-size: 12px; color: var(--color-success, #67c23a); font-weight: 600; flex-shrink: 0; }
 .ch-empty { font-size: 12px; color: var(--dew-text-faint); padding: 6px 0; }
+
+/* 材料 chip（章节行，有料可点开弹层；无料置灰提示入口存在） */
+.mat-chip {
+  flex-shrink: 0; font-size: 12px; color: var(--dew-text-faint); cursor: pointer;
+  border: 1px solid var(--dew-card-border); border-radius: 999px; padding: 2px 10px;
+  background: transparent; transition: color 0.15s ease, border-color 0.15s ease;
+}
+.mat-chip.has { color: var(--color-primary); border-color: color-mix(in srgb, var(--color-primary) 40%, transparent); }
+.mat-chip:disabled { cursor: default; opacity: 0.75; }
+
+/* 材料弹层列表 */
+.mat-list { display: flex; flex-direction: column; gap: 4px; max-height: 50vh; overflow-y: auto; }
+.mat-empty { font-size: 12.5px; color: var(--dew-text-faint); padding: 8px 0; }
+.mat-row {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
+  padding: 8px 0; border-bottom: 1px dashed var(--dew-card-border);
+}
+.mat-row:last-child { border-bottom: none; }
+.mat-main { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.mat-content { font-size: 13px; color: var(--dew-text-heading); line-height: 1.6; word-break: break-word; }
+.mat-atts { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.att-link {
+  font-size: 12.5px; color: var(--color-primary); text-decoration: none;
+  border-bottom: 1px dashed color-mix(in srgb, var(--color-primary) 45%, transparent);
+}
+.att-link:hover { opacity: 0.8; }
+.mat-time { font-size: 11.5px; color: var(--dew-text-faint); }
 .hint { font-size: 12px; color: var(--dew-text-faint); margin-top: 14px; line-height: 1.7; }
 .empty { color: var(--dew-text-muted); padding: 16px 0; line-height: 1.7; }
 </style>

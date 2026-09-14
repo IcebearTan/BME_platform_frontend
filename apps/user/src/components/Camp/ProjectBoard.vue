@@ -36,8 +36,8 @@
         </DewCard>
       </template>
 
-      <!-- 节点交付（模板实例化的里程碑：提交 + 审核验收） -->
-      <div class="sec-title">关键节点</div>
+      <!-- 节点交付（模板实例化的里程碑：材料提交/审核 + 节点评价；09-14 用户定名「项目进展」） -->
+      <div class="sec-title">项目进展</div>
       <DewCard variant="default" :no-hover="true" class="sec-card">
         <ProjectMilestones :unit-id="cur.unit_id" :camp-status="session.status"
                            :editable="session.status !== 'archived' && cur.status === 'active'"

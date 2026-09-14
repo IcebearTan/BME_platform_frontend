@@ -63,6 +63,22 @@ export const campService = {
   revokeChapterCertification: (sid, student_user_id, chapter_id) =>
     api.delete(`/camp/sessions/${sid}/team/progress/certify`, { data: { student_user_id, chapter_id } }).then(r => r.data),
 
+  // ── 章节材料（09-14：学员按章提交文字+附件，提交即可见，导生查看下载）──
+  // 列表：student_user_id 缺省=本人；导生查本团队成员传显式 id；chapter_id 可选过滤
+  fetchChapterMaterials: (sid, params = {}) =>
+    api.get(`/camp/sessions/${sid}/materials`, { params }).then(r => r.data),
+  submitChapterMaterial: (sid, chapterId, content, files = []) => {
+    const fd = new FormData()
+    fd.append('chapter_id', chapterId)
+    if (content) fd.append('content', content)
+    files.forEach((f) => fd.append('Files', f))
+    return api.post(`/camp/sessions/${sid}/materials`, fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }).then(r => r.data)
+  },
+  deleteChapterMaterial: (mid) => api.delete(`/camp/materials/${mid}`).then(r => r.data),
+  chapterMaterialAttachmentUrl: (aid) => `${API_URL}/camp/materials/attachments/${aid}`,
+
   // 请假提交 / 我的请假历史
   submitLeave: (sid, start_date, end_date, reason) =>
     api.post('/camp/leave', { camp_session_id: sid, start_date, end_date, reason }).then(r => r.data),
