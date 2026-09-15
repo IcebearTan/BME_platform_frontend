@@ -396,6 +396,11 @@ const goBack = () => {
             </div>
           </div>
 
+          <!-- 未选课：入课途径提示放简介区下方（原加入按钮位）；右侧不再挂空壳入口卡 -->
+          <div v-if="!isEnrolled" class="join-hint" :class="themeClass">
+            本课程通过营期学习方向加入后开启学习
+          </div>
+
           <div class="course-contents">
             <div class="course-contents-header" :class="themeClass">
               <DewButtonBar v-model="activeTab" :items="contentTabs" />
@@ -424,15 +429,10 @@ const goBack = () => {
 
         <!-- 右侧边栏 -->
         <div class="right-sidebar">
-          <!-- 学习入口（09-14 接通课时打点页）：已选课进入学习；未选课提示入课途径 -->
-          <div class="course-difficulty study-entry" :class="themeClass">
-            <template v-if="isEnrolled">
-              <el-button type="primary" size="large" class="study-btn" @click="goStudyPage">进入学习</el-button>
-              <div class="study-entry-hint" :class="themeClass">进入课程学习页，逐课时标记完成</div>
-            </template>
-            <template v-else>
-              <div class="study-entry-hint" :class="themeClass">本课程通过营期学习方向加入后开启学习</div>
-            </template>
+          <!-- 学习入口（09-14 接通课时打点页）：已选课显示进入按钮；未选课提示移至左列简介区下 -->
+          <div v-if="isEnrolled" class="course-difficulty study-entry" :class="themeClass">
+            <el-button type="primary" size="large" class="study-btn" @click="goStudyPage">进入学习</el-button>
+            <div class="study-entry-hint" :class="themeClass">进入课程学习页，逐课时标记完成</div>
           </div>
 
           <!-- 课程信息：始终显示 -->
@@ -762,6 +762,24 @@ const goBack = () => {
 .study-entry { flex-direction: column; align-items: stretch; gap: 8px; }
 .study-btn { width: 100%; }
 .study-entry-hint { font-size: 12px; line-height: 1.6; text-align: center; }
+
+/* 未选课入课途径提示：左列简介区下方的按钮位（整宽轻提示条，视觉上是"此处应有加入按钮"的占位语义） */
+.join-hint {
+  margin-top: 12px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.6;
+  text-align: center;
+}
+.theme-light .join-hint {
+  background: rgba(59, 130, 246, 0.08);
+  color: #64748b;
+}
+.theme-dark .join-hint {
+  background: rgba(148, 163, 184, 0.10);
+  color: #94a3b8;
+}
 .star-icon {
   color: #FFcf00;
   font-size: 26px;
@@ -844,6 +862,12 @@ const goBack = () => {
 .right-sidebar {
   width: 350px;
   flex-shrink: 0;
+}
+
+/* 右列首卡不吃 margin-top，与左列顶部严格对齐（卡片间距全靠 margin-top 叠放的副作用；
+   入口卡有无两种形态下首个渲染子元素都适用） */
+.right-sidebar > *:first-child {
+  margin-top: 0;
 }
 
 .course-process {
