@@ -52,53 +52,8 @@ test('顶部学期营入口直达当前主推营期', async ({ page }) => {
   await expect(page).toHaveURL(/\/camp\?sid=10$/)
 })
 
-test('首页学期营 banner 跟随主推营期（状态化）', async ({ page }) => {
-  await page.addInitScript(() => {
-    localStorage.setItem('bme-user-token', 'e2e-mock-token')
-    localStorage.setItem('bme-user-state', JSON.stringify({
-      token: 'e2e-mock-token', isLogin: true, isDarkMode: false,
-      user: { username: 'test_user', role: 'user' }, checkinInfo: {},
-    }))
-  })
-  await page.route('http://127.0.0.1:5001/**', route => {
-    const url = route.request().url()
-    if (url.endsWith('/camp/featured')) {
-      // banner 第 1 帧数据源：标题/状态条/跳转全部由主推营期驱动（docs/首页banner-运营规范.md）
-      return route.fulfill({ json: { code: 200, session: { id: 10, name: '2026 秋季培训营', status: 'selecting' }, is_member: false, my_request: null } })
-    }
-    return route.fulfill({ json: { code: 200, data: [] } })
-  })
-
-  await page.goto(`${BASE}/home`)
-  const chip = page.locator('.camp-live-chip')
-  await expect(chip).toContainText('2026 秋季培训营')
-  await expect(chip).toContainText('报名进行中')
-  // 点击直达该营工作台（非成员在营期内即见 CampJoin 报名页——报名全站唯一入口）
-  await chip.click()
-  await expect(page).toHaveURL(/\/camp\?sid=10$/)
-})
-
-test('首页学期营 banner 无主推营时落兜底帧', async ({ page }) => {
-  await page.addInitScript(() => {
-    localStorage.setItem('bme-user-token', 'e2e-mock-token')
-    localStorage.setItem('bme-user-state', JSON.stringify({
-      token: 'e2e-mock-token', isLogin: true, isDarkMode: false,
-      user: { username: 'test_user', role: 'user' }, checkinInfo: {},
-    }))
-  })
-  await page.route('http://127.0.0.1:5001/**', route => {
-    const url = route.request().url()
-    if (url.endsWith('/camp/featured')) {
-      return route.fulfill({ json: { code: 200, session: null, is_member: false, my_request: null } })
-    }
-    return route.fulfill({ json: { code: 200, data: [] } })
-  })
-
-  await page.goto(`${BASE}/home`)
-  const chip = page.locator('.camp-live-chip')
-  await expect(chip).toContainText('新营期筹备中')
-  await expect(chip).toContainText('敬请期待')
-})
+// 09-15 用户定：撤首页主推营动态帧（「报名进行中/新营期筹备中」状态化 banner）——
+// 相关两用例（主推帧/兜底帧）随之移除，第一帧回归静态「营期中心」入口
 
 test('首页卡片轮播：正反切换时环形侧卡不覆盖退出卡', async ({ page }) => {
   await page.addInitScript(() => {

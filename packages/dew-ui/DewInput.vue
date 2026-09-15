@@ -142,9 +142,10 @@ onMounted(() => {
 onBeforeUnmount(() => observer?.disconnect())
 
 const nativeType = computed(() => {
-  if (props.type === 'email') return 'email'
-  if (props.type === 'password') return 'password'
-  return 'text'
+  // 09-15 修：此前只认 email/password，其余（含 number/date）全降级 text——评分弹窗
+  // 因此一直显示为文本框。白名单透传原生 type，未知回退 text
+  const allowed = ['email', 'password', 'number', 'date', 'tel', 'url', 'search']
+  return allowed.includes(props.type) ? props.type : 'text'
 })
 
 // 聚焦展开动画（宽度通过 CSS 自定义属性驱动，transition 在 CSS 中用 --dew-bounce）

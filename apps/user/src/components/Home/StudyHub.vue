@@ -102,7 +102,6 @@ import DewCard from '@bme/dew-ui/DewCard.vue'
 import DewPostCard from '@bme/dew-ui/DewPostCard.vue'
 import SeatBoard from '../SeatMap/SeatBoard.vue'
 import api from '../../api'
-import { campService } from '../../services/campService'
 
 const store = useStore()
 const router = useRouter()
@@ -309,32 +308,11 @@ const handleEntryClick = (entry) => {
   emit('entry-click', entry)
 }
 
-// 学期营帧状态化：拉主推营期写入第 1 帧（点击一律进该营工作台——成员即工作台、非成员即见 CampJoin 报名页，
-// 报名全站唯一入口在工作台内；不再绕 /camp-home 跳板）。无主推给兜底帧。
-async function applyFeaturedBanner() {
-  try {
-    const f = await campService.fetchFeatured();
-    const s = f?.session;
-    const first = banners.value[0];
-    if (s) {
-      Object.assign(first, {
-        bare: false, corner: true, live: s.status === 'selecting',
-        title: s.name,
-        description: s.status === 'selecting' ? '报名进行中，点击进入' : '即将开放，点击了解',
-        route: `/camp?sid=${s.id}`,
-      });
-    } else {
-      Object.assign(first, {
-        bare: false, corner: true, live: false,
-        title: '新营期筹备中', description: '敬请期待', route: '/camp',
-      });
-    }
-  } catch { /* featured 拉失败保持静默默认帧 */ }
-}
+// 09-14 用户定：撤「主推营动态帧」（有营换营名/无营显示「新营期筹备中」/live 状态切换）——
+// 第一帧回归静态「营期中心」入口，营期动态在营期中心看
 
 onMounted(() => {
   fetchCommunityPosts()
-  applyFeaturedBanner()
 })
 </script>
 

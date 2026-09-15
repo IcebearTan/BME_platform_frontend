@@ -51,8 +51,9 @@ const props = defineProps({
   closeOnPressEscape: { type: Boolean, default: true },
   /** 显示右上角关闭按钮 */
   showClose: { type: Boolean, default: true },
-  /** 液态玻璃表面（默认开） */
-  glass: { type: Boolean, default: true },
+  /** 液态玻璃表面——09-15 默认关：玻璃容器叠玻璃按钮/输入框对比度不足（用户反馈看不清），
+      容器改扁平纯色（--dew-card-bg），内部按钮保留 glass 质感形成「容器实、操作玻璃」层次 */
+  glass: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['update:modelValue', 'close'])
