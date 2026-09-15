@@ -215,7 +215,7 @@ onMounted(() => {
                             @mouseenter="handleMouseEnter(course, $event)"
                             @mouseleave="handleMouseLeave">
                             <div class="book-cover"
-                                 :class="course.Course_Cover_Thumb ? '' : getTextSizeClass(course.Course_title)"
+                                 :class="course.Course_Cover_Thumb ? 'has-image' : getTextSizeClass(course.Course_title)"
                                  :style="course.Course_Cover_Thumb ? {} : { backgroundColor: randomColor(course.Course_title) }">
                                 <img v-if="course.Course_Cover_Thumb" class="book-cover__img"
                                      :src="assetUrl(course.Course_Cover_Thumb)"
@@ -683,6 +683,11 @@ onMounted(() => {
 @keyframes skeleton-breathe {
     0%, 100% { opacity: 0.55; }
     50% { opacity: 1; }
+}
+
+/* 有真图封面时撑满整个封面位：清掉文字版留白 padding（白边来源） */
+.book-cover.has-image {
+    padding: 0;
 }
 
 .book-cover__img {

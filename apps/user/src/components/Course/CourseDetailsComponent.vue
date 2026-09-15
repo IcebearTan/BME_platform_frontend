@@ -223,8 +223,16 @@ function hexToRgba(hex, alpha) {
   return `rgba(${(num >> 16) & 255},${(num >> 8) & 255},${num & 255},${alpha})`;
 }
 
+// 有封面时：详情页背景改用「封面高度模糊 + 通透遮罩」；无封面保持默认极光渐变。
+// 用母版 URL——页内 <img> 已加载过，浏览器缓存复用，背景层零额外请求。
+const coverBackdropUrl = computed(() => (courseInfo.value?.Cover ? assetUrl(courseInfo.value.Cover) : ''))
+
 // 生成渐变色（可以根据 coverColor 调整深浅）
 const wrapperBg = computed(() => {
+  // 有封面：极光渐变交给模糊图层上的遮罩去衬，wrapper 只留实色兜底（避免两层色彩互相搅）
+  if (coverBackdropUrl.value) {
+    return store.state.isDarkMode ? '#121216' : '#f6f7fb'
+  }
   // 简洁风格：使用微妙的渐变背景
   return store.state.isDarkMode
     ? 'radial-gradient(ellipse 60% 50% at 12% 18%, rgba(59,130,246,0.18), transparent 60%), radial-gradient(ellipse 55% 60% at 88% 12%, rgba(236,72,153,0.15), transparent 55%), radial-gradient(ellipse 70% 55% at 82% 88%, rgba(16,185,129,0.14), transparent 60%), radial-gradient(ellipse 55% 60% at 8% 92%, rgba(245,158,11,0.12), transparent 55%), linear-gradient(160deg, #16161a 0%, #0f0f12 100%)'
@@ -338,6 +346,11 @@ const goBack = () => {
 
 <template>
   <div class="course-wrapper" :class="themeClass" :style="{ background: wrapperBg }">
+    <!-- 封面模糊背景层（有封面时替代默认极光背景；高度模糊 + 通透遮罩，不拦截交互） -->
+    <div v-if="coverBackdropUrl" class="cover-backdrop" aria-hidden="true"
+         :style="{ backgroundImage: `url(${coverBackdropUrl})` }">
+      <div class="cover-backdrop__scrim" :class="themeClass"></div>
+    </div>
     <!-- 加载动画 -->
     <div v-if="isLoading" class="loading-container">
       <div class="loading-spinner"></div>
@@ -368,6 +381,7 @@ const goBack = () => {
         <div class="left-content">
           <div class="course-info">
             <div class="course-info-left"
+            :class="{ 'has-image': courseInfo?.Cover }"
             :style="courseInfo?.Cover ? {} : {backgroundColor: courseInfo?.Course_Title ? randomColor(courseInfo.Course_Title) : colorPalette[0]}">
             <img v-if="courseInfo?.Cover" class="course-info-left__img"
                  :src="assetUrl(courseInfo.Cover)" :alt="courseInfo.Course_Title" width="130" height="180" />
@@ -774,14 +788,43 @@ const goBack = () => {
   min-height: 100vh;
   display: flex;
   justify-content: center;
+  position: relative;   /* 封面模糊背景层的定位锚 */
+  overflow: hidden;     /* 背景层出血（inset 负值）不出滚动条 */
 }
 
-/* 主容器 - 居中显示 */
+/* 封面模糊背景：高度模糊 + 通透遮罩铺满整页（含滚动区） */
+.cover-backdrop {
+  position: absolute;
+  inset: -80px;               /* 出血消掉 blur 边缘发虚 */
+  background-size: cover;
+  background-position: center;
+  filter: blur(64px) saturate(1.35) brightness(1.04);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* 通透遮罩：亮色白纱保内容可读、暗色近黑压住封面色彩（色彩仍隐约透出） */
+.cover-backdrop__scrim {
+  position: absolute;
+  inset: 0;
+}
+
+.theme-light .cover-backdrop__scrim {
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.72), rgba(243, 246, 250, 0.84));
+}
+
+.theme-dark .cover-backdrop__scrim {
+  background: rgba(17, 17, 21, 0.74);
+}
+
+/* 主容器 - 居中显示（压在背景层之上） */
 .main-container {
   width: 100%;
   max-width: 1000px;
   margin: 0 auto;
   padding: 0 40px;
+  position: relative;
+  z-index: 1;
 }
 
 /* 内容区域 - 左右布局 */
@@ -1029,6 +1072,12 @@ const goBack = () => {
   transition: all 0.3s ease-in-out;
   position: relative;
   overflow: hidden;
+}
+
+/* 有真图封面：清掉文字版默认蓝底与内边距（彩色边框来源），图撑满整个封面位 */
+.course-info-left.has-image {
+  padding: 0;
+  background-color: transparent;
 }
 
 .course-info-left::before {
