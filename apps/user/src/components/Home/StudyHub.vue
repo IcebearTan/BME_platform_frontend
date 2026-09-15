@@ -98,7 +98,7 @@
 import { ref, reactive, computed, onMounted, h } from 'vue'
 import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
-import { ElCarousel, ElCarouselItem, ElIcon } from 'element-plus'
+// el-carousel / el-icon 由 unplugin-vue-components 按需解析（含样式），不再显式 import
 import {
   Reading, School, Box, MagicStick, OfficeBuilding,
 } from '@element-plus/icons-vue'

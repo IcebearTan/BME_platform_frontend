@@ -3,7 +3,7 @@ import api, { assetUrl } from '../api';
 import { ref, reactive, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { DewCard } from '@bme/dew-ui';
-import { Upload, Top, Bottom } from '@element-plus/icons-vue';
+import { Bottom, Search, Top, Upload } from '@element-plus/icons-vue';
 import router from '../router';
 
 const formInline = reactive({

@@ -42,7 +42,7 @@
           <span>{{ post.comments || 0 }}</span>
         </button>
         <button class="dew-action dew-action--bookmark" :class="{ 'is-bookmarked': post.bookmarked }" @click="onBookmark">
-          <el-icon class="dew-action__icon"><component :is="post.bookmarked ? 'CollectionTag' : 'Collection'" /></el-icon>
+          <el-icon class="dew-action__icon"><component :is="post.bookmarked ? CollectionTag : Collection" /></el-icon>
         </button>
       </div>
     </template>

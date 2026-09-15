@@ -1,5 +1,6 @@
 <script setup>
 import { defineEmits } from 'vue';
+import { Close } from '@element-plus/icons-vue';
 
 // 定义可以触发的事件
 const emit = defineEmits(['close']);

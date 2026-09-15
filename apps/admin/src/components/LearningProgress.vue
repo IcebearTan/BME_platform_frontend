@@ -244,7 +244,7 @@
   import { ElMessage } from 'element-plus';
   import { useStore } from 'vuex'; // 添加store引入
   import { DewCard } from '@bme/dew-ui';
-  import { Loading } from '@element-plus/icons-vue'; // 导入图标
+  import { Loading, Search } from '@element-plus/icons-vue'; // 导入图标
 
   const store = useStore(); // 初始化store
 

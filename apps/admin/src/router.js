@@ -2,36 +2,38 @@ import { createRouter, createWebHistory } from 'vue-router';
 
 import HomeView from './views/HomeView.vue'
 import LoginView from './views/LoginView.vue'
-import RegisterView from './views/RegisterView.vue'
-
 import DashboardComponent from './components/DashboardComponent.vue'
-import UserManage from './components/UserManage.vue'
-import ArticleManage from './components/ArticleManage.vue'
-import ArticleEditorV2 from './components/ArticleEditorV2.vue';
-
-import GroupManage from './components/GroupManage.vue';
-import LearningProgress from './components/LearningProgress.vue';
-import MedalManage from './components/MedalManage.vue';
-import MedalGrant from './components/MedalGrant.vue';
-import CourseManage from './components/CourseManage.vue';
-import BannerManage from './components/BannerManage.vue';
-import CourseCreate from './components/CourseCreate.vue';
-import LLMProjectManage from './components/LLMProjectManage.vue';
-import LLMUserMonitor from './components/LLMUserMonitor.vue';
-import LLMQuotaRequests from './components/LLMQuotaRequests.vue';
-import AuditLogManage from './components/AuditLogManage.vue';
-import NotificationManage from './components/NotificationManage.vue';
-import SeatManage from './components/SeatManage.vue';
-import AttendanceReportManage from './components/AttendanceReportManage.vue';
-import CampAttendanceBoard from './components/CampAttendanceBoard.vue';
-import CampSessionList from './components/CampSessionList.vue';
-import CampSessionDetail from './components/CampSessionDetail.vue';
-import PlatformTemplates from './components/PlatformTemplates.vue';
-import OfficerManage from './components/OfficerManage.vue';
-import ClubGroupManage from './components/ClubGroupManage.vue';
-import ClubPositionManage from './components/ClubPositionManage.vue';
-import ClubMembershipManage from './components/ClubMembershipManage.vue';
 import store from './store';
+import { routeProgressStart, routeProgressDone } from './utils/routeProgress';
+
+// ── 路由懒加载：布局壳（HomeView）/ 登录 / 默认仪表盘同步打包，其余页面 () => import 分包。
+// 页面首访才拉自己的 chunk；同组件多路由共用 loader 归并单 chunk。
+const loadRegisterView = () => import('./views/RegisterView.vue')
+const loadArticleEditorV2 = () => import('./components/ArticleEditorV2.vue')
+const loadUserManage = () => import('./components/UserManage.vue')
+const loadOfficerManage = () => import('./components/OfficerManage.vue')
+const loadClubGroupManage = () => import('./components/ClubGroupManage.vue')
+const loadClubPositionManage = () => import('./components/ClubPositionManage.vue')
+const loadClubMembershipManage = () => import('./components/ClubMembershipManage.vue')
+const loadGroupManage = () => import('./components/GroupManage.vue')
+const loadLearningProgress = () => import('./components/LearningProgress.vue')
+const loadMedalManage = () => import('./components/MedalManage.vue')
+const loadMedalGrant = () => import('./components/MedalGrant.vue')
+const loadCourseManage = () => import('./components/CourseManage.vue')
+const loadBannerManage = () => import('./components/BannerManage.vue')
+const loadCourseCreate = () => import('./components/CourseCreate.vue')
+const loadArticleManage = () => import('./components/ArticleManage.vue')
+const loadLLMProjectManage = () => import('./components/LLMProjectManage.vue')
+const loadLLMUserMonitor = () => import('./components/LLMUserMonitor.vue')
+const loadLLMQuotaRequests = () => import('./components/LLMQuotaRequests.vue')
+const loadAuditLogManage = () => import('./components/AuditLogManage.vue')
+const loadNotificationManage = () => import('./components/NotificationManage.vue')
+const loadSeatManage = () => import('./components/SeatManage.vue')
+const loadAttendanceReportManage = () => import('./components/AttendanceReportManage.vue')
+const loadCampAttendanceBoard = () => import('./components/CampAttendanceBoard.vue')
+const loadCampSessionList = () => import('./components/CampSessionList.vue')
+const loadCampSessionDetail = () => import('./components/CampSessionDetail.vue')
+const loadPlatformTemplates = () => import('./components/PlatformTemplates.vue')
 
 const router = createRouter({
     history: createWebHistory("/admin/"),
@@ -44,27 +46,27 @@ const router = createRouter({
                 {
                     path: '/user-manage/users',
                     name: 'user_manage_users',
-                    component: UserManage
+                    component: loadUserManage
                 },
                 {
                     path: '/officer/manage',
                     name: 'officer_manage',
-                    component: OfficerManage
+                    component: loadOfficerManage
                 },
                 {
                     path: '/club/groups',
                     name: 'club_groups',
-                    component: ClubGroupManage
+                    component: loadClubGroupManage
                 },
                 {
                     path: '/club/positions',
                     name: 'club_positions',
-                    component: ClubPositionManage
+                    component: loadClubPositionManage
                 },
                 {
                     path: '/club/membership',
                     name: 'club_membership',
-                    component: ClubMembershipManage
+                    component: loadClubMembershipManage
                 },
                 {
                     path: '',
@@ -79,105 +81,105 @@ const router = createRouter({
                 {
                     path: '/article/manage',
                     name: 'article_manage',
-                    component: ArticleManage
+                    component: loadArticleManage
                 },
                 {
                     path: '/group/manage', // 修复路径，确保以 '/' 开头
                     name: 'group_manage',
-                    component: GroupManage
+                    component: loadGroupManage
                 },
                 {
                     path: '/learningprgress/manage',
                     name: 'learningprgress_manage',
-                    component: LearningProgress
+                    component: loadLearningProgress
                 },
                 {
                     path: '/medal/manage',
                     name: 'medal_manage',
-                    component: MedalManage
+                    component: loadMedalManage
                 },
                 {
                     path: '/medal/grant',
                     name: 'medal_grant',
-                    component: MedalGrant
+                    component: loadMedalGrant
                 },
                 {
                     path: '/course/manage',
                     name: 'course_manage',
-                    component: CourseManage
+                    component: loadCourseManage
                 },
                 {
                     path: '/course/create',
                     name: 'course_create',
-                    component: CourseCreate
+                    component: loadCourseCreate
                 },
                 {
                     path: '/banner/manage',
                     name: 'banner_manage',
-                    component: BannerManage
+                    component: loadBannerManage
                 },
                 {
                     path: '/course/edit/:id',
                     name: 'course_edit',
-                    component: CourseCreate
+                    component: loadCourseCreate
                 },
                 {
                     path: '/llm/projects',
                     name: 'llm_projects',
-                    component: LLMProjectManage
+                    component: loadLLMProjectManage
                 },
                 {
                     path: '/llm/users',
                     name: 'llm_users',
-                    component: LLMUserMonitor
+                    component: loadLLMUserMonitor
                 },
                 {
                     path: '/llm/quota-requests',
                     name: 'llm_quota_requests',
-                    component: LLMQuotaRequests
+                    component: loadLLMQuotaRequests
                 },
                 {
                     path: '/audit/logs',
                     name: 'audit_logs',
-                    component: AuditLogManage
+                    component: loadAuditLogManage
                 },
                 {
                     path: '/notification/manage',
                     name: 'notification_manage',
-                    component: NotificationManage
+                    component: loadNotificationManage
                 },
                 {
                     path: '/seat/manage',
                     name: 'seat_manage',
-                    component: SeatManage
+                    component: loadSeatManage
                 },
                 {
                     path: '/attendance-report/manage',
                     name: 'attendance_report_manage',
-                    component: AttendanceReportManage
+                    component: loadAttendanceReportManage
                 },
                 {
                     path: '/camp/attendance',
                     name: 'camp_attendance',
-                    component: CampAttendanceBoard,
+                    component: loadCampAttendanceBoard,
                     meta: { staffOnly: true }
                 },
                 {
                     path: '/camp/sessions',
                     name: 'camp_sessions',
-                    component: CampSessionList,
+                    component: loadCampSessionList,
                     meta: { staffOnly: true }
                 },
                 {
                     path: '/camp/sessions/:id',
                     name: 'camp_session_detail',
-                    component: CampSessionDetail,
+                    component: loadCampSessionDetail,
                     meta: { staffOnly: true }
                 },
                 {
                     path: '/camp/templates',
                     name: 'camp_platform_templates',
-                    component: PlatformTemplates,
+                    component: loadPlatformTemplates,
                     meta: { staffOnly: true }
                 }
             ]
@@ -190,17 +192,17 @@ const router = createRouter({
         {
             path: '/register',
             name: 'register',
-            component: RegisterView
+            component: loadRegisterView
         },
         {
             path: '/editor',
             name: 'editor',
-            component: ArticleEditorV2,
+            component: loadArticleEditorV2,
         },
         {
             path: '/public',
             name: 'public',
-            component: ArticleEditorV2,
+            component: loadArticleEditorV2,
         }
     ]
 })

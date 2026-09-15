@@ -1,7 +1,10 @@
 import { createApp } from 'vue'
-import ElementPlus from 'element-plus'
-import 'element-plus/dist/index.css'
-import * as ElementPlusIconsVue from '@element-plus/icons-vue'
+// EP 组件由 unplugin-vue-components 按需解析，不再全量注册。
+// 全局保留：v-loading 指令 + ElMessage/ElMessageBox 函数式组件样式
+import { ElLoading } from 'element-plus'
+import 'element-plus/es/components/loading/style/css'
+import 'element-plus/es/components/message/style/css'
+import 'element-plus/es/components/message-box/style/css'
 // import { createApp } from 'vue'
 import '@bme/styles/tokens.css'
 import '@bme/styles/article-content.css'
@@ -16,14 +19,11 @@ import '@vueup/vue-quill/dist/vue-quill.snow.css'
 
 const app = createApp(App)
 
-for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
-    app.component(key, component)
-}
+app.use(ElLoading)   // v-loading 指令 + 服务
 
-// 注册 Quill 编辑器组件
+// 注册 Quill 编辑器组件（富文本全局件）
 app.component('QuillEditor', QuillEditor)
 
 app.use(router)
 app.use(store)
-app.use(ElementPlus)
 app.mount('#app')

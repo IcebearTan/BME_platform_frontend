@@ -3,7 +3,7 @@
 import api, { assetUrl } from '../api';
 import { ref, reactive, onMounted, computed } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { Close, Refresh } from '@element-plus/icons-vue';
+import { Close, Refresh, Search, Trophy } from '@element-plus/icons-vue';
 import { DewCard } from '@bme/dew-ui';
 
 // 搜索表单数据（用于关键字搜索）
