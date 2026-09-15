@@ -31,7 +31,8 @@
                 <p class="banner-description">{{ banner.description }}</p>
               </template>
             </div>
-            <img :src="banner.image" :alt="banner.title" class="banner-image" />
+            <img :src="banner.image" :alt="banner.title" class="banner-image"
+                 :style="banner.focusY != null ? { objectPosition: `50% ${banner.focusY}%` } : {}" />
           </div>
         </el-carousel-item>
       </el-carousel>
@@ -168,6 +169,7 @@ async function fetchBanners() {
         title: row.title,
         description: row.description || '',
         image: assetUrl(row.image),
+        focusY: row.image_focus_y,   // 显示条纵向焦点（0-100，默认 50 显示中带；管理页可调）
         bare: true,
       }
       if (row.link_type === 'external' && row.link_value) banner.external = row.link_value

@@ -90,6 +90,14 @@
         <el-form-item v-if="dlg.form.link_type !== 'none'" label="跳转目标">
           <el-input v-model="dlg.form.link_value" :placeholder="dlg.form.link_type === 'route' ? '如 /camp 或 /ai-service' : '如 /3dfarm/'" />
         </el-form-item>
+        <el-form-item v-if="dlg.id" label="显示焦点">
+          <div class="focus-editor">
+            <div class="focus-strip"
+                 :style="{ backgroundImage: `url(${assetUrl(dlgRowImage)})`, backgroundPosition: `50% ${dlg.form.image_focus_y}%` }"></div>
+            <el-slider v-model="dlg.form.image_focus_y" :min="0" :max="100" :step="1" />
+            <span class="form-hint">0=取景偏上 · 50=中带（默认） · 100=偏下——首页展示条在全宽 160px 高的底图上纵向取景的位置，即时预览如上</span>
+          </div>
+        </el-form-item>
         <el-form-item label="营期帧">
           <el-switch v-model="dlg.form.is_camp_frame" />
           <span class="form-hint">开启后此帧叠加主推营动态角标（标题随招募营变化；09-14 起默认不用）</span>
@@ -113,18 +121,40 @@
         </div>
       </template>
     </el-dialog>
+
+    <!-- 裁切对话框：2:1 取景（存储规格）；拖拽平移、滚轮/双指缩放 -->
+    <el-dialog v-model="cropDlg.visible" title="裁切底图（2:1）" width="720px" @closed="closeCropDialog">
+      <div class="crop-stage">
+        <img ref="cropImgEl" :src="cropDlg.src" alt="待裁切底图" />
+      </div>
+      <p class="form-hint">拖动平移、滚轮缩放取景框；首页展示条约为全宽 160px（比 2:1 更扁），请把主体放在取景框<b>纵向中部</b>，再用「显示焦点」微调。</p>
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="closeCropDialog">取消</el-button>
+          <el-button type="primary" :loading="cropDlg.submitting" @click="confirmCrop">确认裁切并{{ cropDlg.mode === 'create' ? '使用' : '上传' }}</el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, onMounted, nextTick, computed } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Plus, Top, Bottom } from '@element-plus/icons-vue';
 import { DewCard } from '@bme/dew-ui';
 import api, { assetUrl } from '../api';
+import Cropper from 'cropperjs';
+import 'cropperjs/dist/cropper.css';
 
 const loading = ref(false);
 const rows = ref([]);
+
+// 编辑中帧的当前底图（焦点预览用；换图后行数据刷新会跟着变）
+const dlgRowImage = computed(() => {
+  const row = rows.value.find(r => r.Banner_Id === dlg.id);
+  return row?.image || '';
+});
 
 const fetchRows = async () => {
   loading.value = true;
@@ -150,7 +180,7 @@ const dlg = reactive({
 const openCreate = () => {
   dlg.id = null;
   dlg.imageFile = null;
-  dlg.form = { title: '', description: '', link_type: 'route', link_value: '', is_camp_frame: false };
+  dlg.form = { title: '', description: '', link_type: 'route', link_value: '', is_camp_frame: false, image_focus_y: 50 };
   dlg.visible = true;
 };
 
@@ -163,6 +193,7 @@ const openEdit = (row) => {
     link_type: row.link_type,
     link_value: row.link_value || '',
     is_camp_frame: !!row.is_camp_frame,
+    image_focus_y: row.image_focus_y ?? 50,
   };
   dlg.visible = true;
 };
@@ -174,11 +205,7 @@ const onCreateImageChange = (uploadFile) => {
     ElMessage.warning('底图仅支持 jpg/png/webp 格式');
     return;
   }
-  if (raw.size > 10 * 1024 * 1024) {
-    ElMessage.warning('底图不能超过 10MB（系统会统一转码到 1600×800 ≤500KB）');
-    return;
-  }
-  dlg.imageFile = raw;
+  openCropDialog(raw, 'create');   // 选图先进裁切器（2:1 取景所见即所得），确认后才作为待传图
 };
 
 const submit = async () => {
@@ -217,27 +244,80 @@ const submit = async () => {
 };
 
 // ── 换图 ──
-const onSwapImage = async (row, uploadFile) => {
+const onSwapImage = (row, uploadFile) => {
   const raw = uploadFile?.raw;
   if (!raw) return;
   if (!['image/jpeg', 'image/png', 'image/webp'].includes(raw.type)) {
     ElMessage.warning('底图仅支持 jpg/png/webp 格式');
     return;
   }
-  const fd = new FormData();
-  fd.append('Banner_Id', row.Banner_Id);
-  fd.append('image', raw);
-  try {
-    const res = await api.post('/banner/image/update', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-    if (res.data.code === 200) {
-      Object.assign(row, res.data.data);
-      ElMessage.success('底图已更新');
-    } else {
-      ElMessage.error(res.data.message || '底图更新失败');
+  openCropDialog(raw, 'swap', row);
+};
+
+// ── 裁切器：2:1 取景（与存储规格一致），拖拽/滚轮缩放；确认后 create 存待传、swap 直传 ──
+const cropDlg = reactive({
+  visible: false,
+  mode: 'create',          // create | swap
+  row: null,               // swap 目标行
+  src: '',                 // 本地预览 URL
+  submitting: false,
+});
+const cropImgEl = ref(null);
+let cropper = null;
+
+const openCropDialog = (raw, mode, row = null) => {
+  cropDlg.mode = mode;
+  cropDlg.row = row;
+  cropDlg.src = URL.createObjectURL(raw);
+  cropDlg.visible = true;
+  nextTick(() => {
+    if (cropper) { cropper.destroy(); cropper = null; }
+    cropper = new Cropper(cropImgEl.value, {
+      aspectRatio: 2 / 1,     // 存储规格 1600x800；显示条只取中带，取景时把主体放横向中部
+      viewMode: 1,
+      autoCropArea: 1,
+      background: false,
+    });
+  });
+};
+
+const closeCropDialog = () => {
+  cropDlg.visible = false;
+  if (cropper) { cropper.destroy(); cropper = null; }
+  if (cropDlg.src) { URL.revokeObjectURL(cropDlg.src); cropDlg.src = ''; }
+};
+
+const confirmCrop = () => {
+  if (!cropper) return;
+  const canvas = cropper.getCroppedCanvas({ imageSmoothingQuality: 'high' });
+  if (!canvas.width || !canvas.height) { ElMessage.warning('请先框选有效区域'); return; }
+  canvas.toBlob(async (blob) => {
+    if (!blob) { ElMessage.error('裁切导出失败'); return; }
+    cropDlg.submitting = true;
+    try {
+      if (cropDlg.mode === 'create') {
+        dlg.imageFile = new File([blob], 'cover.webp', { type: blob.type || 'image/webp' });
+        ElMessage.success('裁切完成，随创建一起上传');
+        closeCropDialog();
+      } else {
+        const fd = new FormData();
+        fd.append('Banner_Id', cropDlg.row.Banner_Id);
+        fd.append('image', blob, 'cover.webp');
+        const res = await api.post('/banner/image/update', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+        if (res.data.code === 200) {
+          Object.assign(cropDlg.row, res.data.data);
+          ElMessage.success('底图已更新');
+          closeCropDialog();
+        } else {
+          ElMessage.error(res.data.message || '底图更新失败');
+        }
+      }
+    } catch (e) {
+      ElMessage.error('底图更新失败');
+    } finally {
+      cropDlg.submitting = false;
     }
-  } catch (e) {
-    ElMessage.error('底图更新失败');
-  }
+  }, 'image/webp', 0.92);
 };
 
 // ── 显隐 / 排序 / 删除 ──
@@ -340,6 +420,33 @@ onMounted(fetchRows);
   padding: 10px 16px;
   font-size: 12px;
   color: var(--el-text-color-secondary);
+}
+
+/* 裁切舞台：限制高度防大图撑爆弹窗 */
+.crop-stage {
+  height: 420px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--el-fill-color-darker);
+}
+
+.crop-stage img {
+  display: block;
+  max-width: 100%;
+}
+
+/* 焦点编辑器：显示条实况预览（模拟首页全宽 160px 的取景带） */
+.focus-editor {
+  width: 100%;
+}
+
+.focus-strip {
+  height: 64px;
+  border-radius: 6px;
+  background-size: cover;
+  background-repeat: no-repeat;
+  border: 1px solid var(--el-border-color);
+  margin-bottom: 8px;
 }
 
 .form-hint {
