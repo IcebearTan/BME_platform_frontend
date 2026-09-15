@@ -681,7 +681,33 @@
         <div style="font-size: 12px; color: var(--dew-text-faint); margin-top: 18px;">灰条走 --dew-skeleton-bg，亮/暗自适应；呼吸动画 opacity 0.5↔1（1.4s）。右上角切主题看暗色效果。</div>
       </section>
 
-      <!-- ━━━━ Sidebar ━━━━ -->
+      <!-- ━━━━ Image ━━━━ -->
+      <section v-if="activeTab === 'image'" style="margin-bottom: 36px;">
+        <h2 class="dew-showcase__heading" style="font-size: 15px; font-weight: 600; margin: 0 0 14px;">DewImage 图片加载三态</h2>
+        <p style="font-size: 12px; color: var(--dew-text-faint); margin: 0 0 18px;">
+          loading（骨架呼吸，尺寸先占住防 CLS）→ loaded（淡入）→ error（兜底：circle 显首字 / rect 显占位图标）。
+          全站封面 / 头像 / 勋章 / 轮播底图统一走它，配合后端 /media/ 按需转码链路掩盖首次加载延迟。
+        </p>
+        <div style="font-size: 12px; color: var(--dew-text-faint); margin-bottom: 8px;">封面（16:9 比例盒）· 重新加载看骨架→淡入</div>
+        <div style="display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;">
+          <DewImage key="cov-1" src="https://picsum.photos/seed/dew1/480/270" alt="封面示例" ratio="16/9" width="220px" />
+          <DewImage key="cov-2" src="https://picsum.photos/seed/dew2/480/270" alt="封面示例" ratio="16/9" width="220px" />
+        </div>
+        <div style="font-size: 12px; color: var(--dew-text-faint); margin-bottom: 8px;">头像 circle · 错误兜底显首字</div>
+        <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 16px;">
+          <DewImage shape="circle" src="https://picsum.photos/seed/face1/96/96" alt="顾" :size="44" />
+          <DewImage shape="circle" src="/media/不存在的头像.jpg" alt="林" :size="44" />
+          <DewImage shape="circle" :src="null" alt="陈" :size="44" />
+        </div>
+        <div style="font-size: 12px; color: var(--dew-text-faint); margin-bottom: 8px;">矩形错误兜底（占位图标）· object-position 取景</div>
+        <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+          <DewImage src="/media/不存在的封面.jpg" alt="加载失败" ratio="16/9" width="220px" />
+          <DewImage src="https://picsum.photos/seed/dew3/480/270" alt="焦点上移" ratio="16/9" width="220px" position="50% 20%" />
+        </div>
+        <div style="font-size: 12px; color: var(--dew-text-faint); margin-top: 18px;">
+          骨架与 DewSkeleton 同源（--dew-skeleton-bg，1.4s 呼吸）；默认原生懒加载 + 异步解码；换 src 自动重走三态。
+        </div>
+      </section>
       <section v-if="activeTab === 'sidebar'" style="margin-bottom: 36px;">
         <h2 class="dew-showcase__heading" style="font-size: 15px; font-weight: 600; margin: 0 0 6px;">DewSidebar 侧边导航</h2>
         <p style="font-size: 12px; color: var(--dew-text-faint); margin: 0 0 18px;">
@@ -806,6 +832,7 @@ import DewButton from '@bme/dew-ui/DewButton.vue'
 import DewButtonBar from '@bme/dew-ui/DewButtonBar.vue'
 import DewCard from '@bme/dew-ui/DewCard.vue'
 import DewSkeleton from '@bme/dew-ui/DewSkeleton.vue'
+import DewImage from '@bme/dew-ui/DewImage.vue'
 import DewBadge from '@bme/dew-ui/DewBadge.vue'
 import DewTag from '@bme/dew-ui/DewTag.vue'
 import DewInput from '@bme/dew-ui/DewInput.vue'
@@ -842,6 +869,7 @@ const navGroups = [
       { value: 'tag', label: 'Tag' },
       { value: 'progress', label: 'Progress' },
       { value: 'skeleton', label: 'Skeleton' },
+      { value: 'image', label: 'Image' },
     ],
   },
   {
