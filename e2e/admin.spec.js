@@ -300,6 +300,24 @@ test('营期详情保留选导生与成员添加能力', async ({ page }) => {
   expect(pageErrors).toEqual([])
 })
 
+// 社团配置 mock（Phase C 起任命弹窗读 /admin/club/*，提交走 id 轨道）
+async function mockClubMeta(page) {
+  await page.route('http://127.0.0.1:5001/admin/club/positions', (route) => route.fulfill({
+    json: { code: 200, message: 'ok', data: { positions: [
+      { id: 1, name: '社长', sort_rank: 1, badge_tier: 1, badge_with_group: false, group_rule: 'forbidden', per_group_limit: 0, global_limit: 1, status: 'active', active_count: 0 },
+      { id: 2, name: '副社长', sort_rank: 2, badge_tier: 1, badge_with_group: true, group_rule: 'optional', per_group_limit: 1, global_limit: 3, status: 'active', active_count: 0 },
+      { id: 3, name: '组长', sort_rank: 5, badge_tier: 2, badge_with_group: true, group_rule: 'required', per_group_limit: 1, global_limit: 0, status: 'active', active_count: 0 },
+    ] } },
+  }))
+  await page.route('http://127.0.0.1:5001/admin/club/groups', (route) => route.fulfill({
+    json: { code: 200, message: 'ok', data: { groups: [
+      { id: 10, name: '项目运营组', parent_id: null, sort_order: 1, status: 'active', refs: { children: 1, officers: 0, members: 0 } },
+      { id: 11, name: '培训组', parent_id: 10, sort_order: 1, status: 'active', refs: { children: 1, officers: 0, members: 0 } },
+      { id: 12, name: '硬件组', parent_id: 11, sort_order: 1, status: 'active', refs: { children: 0, officers: 0, members: 0 } },
+    ] } },
+  }))
+}
+
 test('社团干事管理页：列表渲染 + 任命提交 + 卸任弹窗', async ({ page }) => {
   await loginAsStaff(page)
   const pageErrors = []
@@ -319,13 +337,14 @@ test('社团干事管理页：列表渲染 + 任命提交 + 卸任弹窗', async
   })
   await page.route('http://127.0.0.1:5001/user/user_list', (route) =>
     route.fulfill({ json: [{ User_Id: 21, User_Name: '苏晚晴' }, { User_Id: 22, User_Name: '顾亦深' }] }))
+  await mockClubMeta(page)
 
   await page.goto(`${BASE}/officer/manage`)
   await expect(page.locator('.page-title', { hasText: '社团干事' })).toBeVisible()
   await expect(page.getByRole('cell', { name: '陈嘉树' })).toBeVisible()
   await expect(page.getByRole('cell', { name: '在任', exact: true })).toBeVisible()
 
-  // 任命：选成员 + 选职位 → 提交体带 user_id/title
+  // 任命：选成员 + 选职位（下拉读 /admin/club/positions）→ 提交体走 id 轨道 user_id/title_id
   await page.getByRole('button', { name: '任命' }).click()
   const dialog = page.locator('.el-dialog').filter({ hasText: '任命干事' })
   await expect(dialog).toBeVisible()
@@ -340,7 +359,7 @@ test('社团干事管理页：列表渲染 + 任命提交 + 卸任弹窗', async
   await dialog.getByRole('button', { name: '确认' }).click()
   const appointBody = (await appointRequest).postDataJSON()
   expect(appointBody.user_id).toBe(21)
-  expect(appointBody.title).toBe('副社长')
+  expect(appointBody.title_id).toBe(2)
   expect(appointBody.term_start).toBeTruthy()
 
   // 卸任：行内按钮开弹窗，默认今天 + 原因选填
@@ -355,7 +374,7 @@ test('社团干事管理页：列表渲染 + 任命提交 + 卸任弹窗', async
   expect(pageErrors).toEqual([])
 })
 
-test('社团干事管理页：组员任命走三级级联选组', async ({ page }) => {
+test('社团干事管理页：挂组职位任命走三级级联选组（id 轨道）', async ({ page }) => {
   await loginAsStaff(page)
   const pageErrors = []
   page.on('pageerror', (e) => pageErrors.push(e.message))
@@ -368,6 +387,7 @@ test('社团干事管理页：组员任命走三级级联选组', async ({ page 
   })
   await page.route('http://127.0.0.1:5001/user/user_list', (route) =>
     route.fulfill({ json: [{ User_Id: 22, User_Name: '顾亦深' }] }))
+  await mockClubMeta(page)
 
   await page.goto(`${BASE}/officer/manage`)
   await page.getByRole('button', { name: '任命' }).click()
@@ -375,8 +395,8 @@ test('社团干事管理页：组员任命走三级级联选组', async ({ page 
   await dialog.locator('.el-select').first().click()
   await page.locator('.el-select__popper:visible').getByText('顾亦深', { exact: true }).click()
   await dialog.locator('.el-select').nth(1).click()
-  await page.locator('.el-select__popper:visible').getByText('组员', { exact: true }).click()
-  // 组织树三级路径：项目运营组 → 培训组 → 硬件组（checkStrictly 任一节点可选，emitPath 只存叶子组名）
+  await page.locator('.el-select__popper:visible').getByText('组长', { exact: true }).click()
+  // 组树三级路径：项目运营组 → 培训组 → 硬件组（级联选项读 /admin/club/groups，checkStrictly 任一节点可选，group_id 只存所选节点）
   await dialog.locator('.el-cascader').click()
   await page.locator('.el-cascader-menu:visible').first().getByText('项目运营组', { exact: true }).click()
   await page.locator('.el-cascader-menu:visible').nth(1).getByText('培训组', { exact: true }).click()
@@ -387,8 +407,8 @@ test('社团干事管理页：组员任命走三级级联选组', async ({ page 
   await dialog.getByRole('button', { name: '确认' }).click()
   const body = (await appointRequest).postDataJSON()
   expect(body.user_id).toBe(22)
-  expect(body.title).toBe('组员')
-  expect(body.department).toBe('硬件组')
+  expect(body.title_id).toBe(3)
+  expect(body.group_id).toBe(12)
 
   expect(pageErrors).toEqual([])
 })
