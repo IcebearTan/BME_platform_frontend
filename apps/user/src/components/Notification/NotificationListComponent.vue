@@ -1,7 +1,7 @@
 <template>
   <div>
-    <!-- 筛选栏 -->
-    <DewButtonBar :items="filterItems" v-model="activeFilter" />
+    <!-- 筛选栏（stretch 占满左列 340px 宽，选项均分） -->
+    <DewButtonBar :items="filterItems" v-model="activeFilter" stretch />
 
     <!-- 统计 + 全部已读 -->
     <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 16px;">
@@ -237,12 +237,13 @@ const currentUnread = computed(() => (activeFilter.value === 'gratitude' ? lette
 const emptyText = computed(() => (activeFilter.value === 'gratitude' ? '暂无感谢信' : '暂无通知'))
 
 // 筛选栏选项（感谢信 tab 仅导生可见）
+// 四个大类：全部 / 系统 / 营期 / 感谢信（导生）。
+// 未读是状态不是类别——撤掉独立 tab，未读数徽标挂「全部」。
 const filterItems = computed(() => {
   const items = [
-    { value: 'all', label: '全部', icon: Bell },
+    { value: 'all', label: '全部', icon: Bell, badge: unreadCount.value || undefined },
     { value: 'system', label: '系统', icon: Bell },
     { value: 'camp', label: '营期', icon: Bell },
-    { value: 'unread', label: '未读', icon: Bell, badge: unreadCount.value || undefined },
   ]
   if (isMentor.value) {
     items.push({ value: 'gratitude', label: '感谢信', icon: ChatDotRound, badge: letterUnread.value || undefined })
@@ -258,8 +259,6 @@ const filteredList = computed(() => {
     list = list.filter(n => n.category === 'system')
   } else if (activeFilter.value === 'camp') {
     list = list.filter(n => n.category === 'camp')
-  } else if (activeFilter.value === 'unread') {
-    list = list.filter(n => !n.is_read)
   }
   return list
 })

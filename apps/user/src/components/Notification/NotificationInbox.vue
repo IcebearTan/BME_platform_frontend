@@ -26,8 +26,8 @@ import GratitudeLetterDetail from '../Gratitude/GratitudeLetterDetail.vue'
 const route = useRoute()
 const router = useRouter()
 
-// 合法 tab：all/system/camp/unread/gratitude
-const VALID_TABS = ['all', 'system', 'camp', 'unread', 'gratitude']
+// 合法 tab：all/system/camp/gratitude（四个大类；未读是状态不是类别，已并入徽标）
+const VALID_TABS = ['all', 'system', 'camp', 'gratitude']
 
 // URL 即状态：?tab= 由本容器统一持有（铃铛/深链可直达筛选）
 const activeTab = ref(VALID_TABS.includes(route.query.tab) ? route.query.tab : 'all')
