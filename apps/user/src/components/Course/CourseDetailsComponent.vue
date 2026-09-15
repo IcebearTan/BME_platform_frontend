@@ -1048,14 +1048,6 @@ const goBack = () => {
     flex-direction: column;
   }
 
-  .course-info-left__img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    border-radius: inherit;
-    display: block;
-}
-
 .course-info-left {
     width: 100% !important;
     height: 120px !important;
@@ -1103,6 +1095,15 @@ const goBack = () => {
 .course-info-left.has-image {
   padding: 0;
   background-color: transparent;
+}
+
+/* 封面图（DewImage 外层）：容器定尺寸（桌面 130×180 / 移动 100%×120），撑满即可。
+   曾只在移动端媒体查询里，桌面靠 <img> 的 width/height 属性撑——换 DewImage 后属性没了桌面塌成 0 高 */
+.course-info-left__img {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  display: block;
 }
 
 .course-info-left::before {
