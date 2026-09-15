@@ -20,7 +20,7 @@ const closeMenu = () => {
       <ul class="mobile-menu-list">
         <li><router-link to="/home" @click="closeMenu">学习</router-link></li>
         <li><router-link to="/study" @click="closeMenu">课程</router-link></li>
-        <li><router-link to="/service-hall" @click="closeMenu">服务大厅</router-link></li>
+        <li><router-link to="/service-hall" @click="closeMenu">服务台</router-link></li>
         <li><router-link to="/exam" @click="closeMenu" class="disabled-link">考核</router-link></li>
         <li><router-link to="/order" @click="closeMenu" class="disabled-link">资源库</router-link></li>
         <li><router-link to="/community" @click="closeMenu">社区广场</router-link></li>

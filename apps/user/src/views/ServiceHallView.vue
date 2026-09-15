@@ -103,9 +103,9 @@ const clubServices = [
           <div class="page-header">
             <div class="page-title-row">
               <span class="title-accent"></span>
-              <h1 class="page-title">服务大厅</h1>
+              <h1 class="page-title">服务台</h1>
             </div>
-            <p class="sub-title">便捷的校园服务一站式平台</p>
+            <p class="sub-title">平台的功能与服务都在这里：可用的即点即达，在建的先睹为快</p>
           </div>
 
           <div class="service-grid">

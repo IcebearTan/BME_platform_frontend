@@ -205,7 +205,7 @@ const handleBannerChange = (_currentIndex, previousIndex) => {
   outgoingBannerIndex.value = previousIndex
 }
 
-// 学习功能入口数据（全部已上线可点；题库/考核/资源等未上线入口统一放服务大厅「学习服务」板块）
+// 学习功能入口数据（全部已上线可点；题库/考核/资源等未上线入口统一放服务台「学习服务」板块）
 const studyEntries = ref([
   { id: 'courses', title: '课程', description: '系统化的课程学习', route: '/study', color: '#409EFF' },
   { id: 'camp', title: '营期中心', description: '查看报名与我的营期', route: '/camp', color: '#7c3aed' },

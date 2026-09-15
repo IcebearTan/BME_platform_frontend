@@ -10,7 +10,7 @@ export default {
 
     computed: {
         // 根据当前路由高亮对应一级菜单；
-        // 服务类子页面（服务大厅 / AI 大模型服务）统一高亮「服务大厅」
+        // 服务类子页面（服务台 / AI 大模型服务）统一高亮「服务台」
         activeIndex() {
             const path = this.$route.path
             // 营期域统一高亮当前学期营入口
@@ -206,7 +206,7 @@ const handleUserInfo = () => {
                     <img src="../assets/XLAB.png" alt="XLab" class="xlab-nav-logo" />
                 </el-menu-item>
                 <el-menu-item index="/service-hall">
-                    服务大厅
+                    服务台
                 </el-menu-item>
                 <el-menu-item index="/camp-home" class="camp-nav-item">
                     <img :src="campLogo" alt="秋季学期营" class="camp-nav-logo" />
