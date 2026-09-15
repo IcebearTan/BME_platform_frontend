@@ -1,5 +1,5 @@
 <script setup>
-import api from '../api';
+import api, { assetUrl } from '../api';
 import { ref, reactive, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { DewCard } from '@bme/dew-ui';
@@ -359,6 +359,14 @@ const handleDelete = (course) => {
             :show-overflow-tooltip="item.showOverflowTooltip || false"
             :align="item.align || 'left'"
           />
+          <el-table-column label="封面" min-width="70" align="center">
+            <template #default="{ row }">
+              <div class="cover-cell" :title="row.Course_Cover_Thumb ? '已设封面' : '未设封面（标题色块兜底）'">
+                <img v-if="row.Course_Cover_Thumb" :src="assetUrl(row.Course_Cover_Thumb)" alt="封面" />
+                <span v-else class="cover-cell--empty"></span>
+              </div>
+            </template>
+          </el-table-column>
           <el-table-column fixed="right" label="操作" min-width="220">
             <template #="scoped">
               <el-button type="success" size="small" @click="handleResources(scoped.row)">资源</el-button>
@@ -514,5 +522,29 @@ const handleDelete = (course) => {
 
 :deep(.el-table__body-wrapper) {
   overflow-x: auto;
+}
+
+.cover-cell {
+  width: 40px;
+  height: 53px;
+  border-radius: 4px;
+  overflow: hidden;
+  margin: 0 auto;
+}
+
+.cover-cell img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.cover-cell--empty {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 4px;
+  background: var(--el-fill-color);
+  border: 1px dashed var(--el-border-color);
 }
 </style>

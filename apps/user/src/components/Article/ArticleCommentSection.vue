@@ -57,6 +57,7 @@ import { ElMessage } from 'element-plus'
 import { Star, StarFilled } from '@element-plus/icons-vue'
 import { DewInput, DewButton } from '@bme/dew-ui'
 import api from '../../api'
+import { assetUrl } from '../../services/campService'
 
 const props = defineProps({
   articleId: { type: [String, Number], required: true },
@@ -97,7 +98,7 @@ const loadComments = async () => {
   loading.value = true
   try {
     const res = await api({ method: 'get', url: `/discussions/threads/${threadId.value}/replies` })
-    comments.value = (res.data.data || []).map(r => ({ ...r, liked: !!r.liked }))
+    comments.value = (res.data.data || []).map(r => ({ ...r, liked: !!r.liked, author_avatar: assetUrl(r.author_avatar) }))
     total.value = res.data.total ?? comments.value.length
   } catch (e) {
     console.error('加载评论失败', e)

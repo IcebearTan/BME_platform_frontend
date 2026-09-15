@@ -66,6 +66,7 @@ import { ref, computed } from 'vue'
 import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
 import api from '../../api'
+import { assetUrl } from '../../services/campService'
 import md5 from 'js-md5'
 import { ElMessage } from 'element-plus'
 import { User, Lock } from '@element-plus/icons-vue'
@@ -103,7 +104,9 @@ async function fetchAvatar() {
       url: '/user/user_avatars',
       method: 'get',
     })
-    if (res.data.code === 200 && res.data.User_Avatar) {
+    if (res.data.code === 200 && res.data.avatar_path) {
+      store.commit('setAvatar', assetUrl(res.data.avatar_path))
+    } else if (res.data.code === 200 && res.data.User_Avatar) {
       store.commit('setAvatar', 'data:image/png;base64,' + res.data.User_Avatar)
     } else {
       store.commit('setAvatar', 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png')

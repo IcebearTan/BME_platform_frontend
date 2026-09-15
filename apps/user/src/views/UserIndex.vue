@@ -3,6 +3,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useStore } from 'vuex'
 import api from '../api'
+import { assetUrl } from '../services/campService'
 import { DewSkeleton } from '@bme/dew-ui'
 
 import UserIndexComponent from '../components/User/UserIndexComponent.vue'
@@ -36,13 +37,15 @@ const applyStats = (d) => {
     : { days: 0, hours: 0, rank: null }
 }
 
-// 取别人头像（base64）
+// 取别人头像（优先相对路径 URL，base64 过渡期兜底）
 const fetchAvatar = async (id) => {
   try {
     const res = await api({ url: '/user/user_avatars_id', method: 'get', params: { User_Id: id } })
-    User_Avatar.value = res.data?.User_Avatar
-      ? `data:image/png;base64,${res.data.User_Avatar}`
-      : DEFAULT_AVATAR
+    User_Avatar.value = res.data?.avatar_path
+      ? assetUrl(res.data.avatar_path)
+      : res.data?.User_Avatar
+        ? `data:image/png;base64,${res.data.User_Avatar}`
+        : DEFAULT_AVATAR
   } catch {
     User_Avatar.value = DEFAULT_AVATAR
   }

@@ -14,6 +14,7 @@ import LearningProgress from './components/LearningProgress.vue';
 import MedalManage from './components/MedalManage.vue';
 import MedalGrant from './components/MedalGrant.vue';
 import CourseManage from './components/CourseManage.vue';
+import BannerManage from './components/BannerManage.vue';
 import CourseCreate from './components/CourseCreate.vue';
 import LLMProjectManage from './components/LLMProjectManage.vue';
 import LLMUserMonitor from './components/LLMUserMonitor.vue';
@@ -91,6 +92,11 @@ const router = createRouter({
                     path: '/course/create',
                     name: 'course_create',
                     component: CourseCreate
+                },
+                {
+                    path: '/banner/manage',
+                    name: 'banner_manage',
+                    component: BannerManage
                 },
                 {
                     path: '/course/edit/:id',

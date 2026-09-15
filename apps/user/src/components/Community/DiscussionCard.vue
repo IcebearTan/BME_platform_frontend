@@ -118,6 +118,7 @@ import { ChatDotRound, View, Star, StarFilled, Delete } from '@element-plus/icon
 import { ElMessage } from 'element-plus'
 import { DewCard, DewTag, DewInput, DewButton, DewMessageBox } from '@bme/dew-ui'
 import api from '../../api'
+import { assetUrl } from '../../services/campService'
 
 const props = defineProps({
   discussion: {
@@ -191,7 +192,7 @@ const loadMoreReplies = async () => {
         id: reply.id,
         author: reply.author_name,
         authorId: reply.author_id,
-        author_avatar: reply.author_avatar || '',
+        author_avatar: assetUrl(reply.author_avatar || ''),
         content: reply.content,
         time: formatTimeAgo(reply.created_at),
         like_count: reply.like_count || 0,

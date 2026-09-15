@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useStore } from 'vuex'
 import { ArrowDown } from '@element-plus/icons-vue'
 import api from '../../api';
+import { assetUrl } from '../../services/campService';
 import LearningPathComponent from './LearningPathComponent.vue'
 import { DewButtonBar } from '@bme/dew-ui'
 
@@ -214,9 +215,12 @@ onMounted(() => {
                             @mouseenter="handleMouseEnter(course, $event)"
                             @mouseleave="handleMouseLeave">
                             <div class="book-cover"
-                                 :class="getTextSizeClass(course.Course_title)"
-                                 :style="{ backgroundColor: randomColor(course.Course_title) }">
-                                {{ course.Course_title }}
+                                 :class="course.Course_Cover_Thumb ? '' : getTextSizeClass(course.Course_title)"
+                                 :style="course.Course_Cover_Thumb ? {} : { backgroundColor: randomColor(course.Course_title) }">
+                                <img v-if="course.Course_Cover_Thumb" class="book-cover__img"
+                                     :src="assetUrl(course.Course_Cover_Thumb)"
+                                     :alt="course.Course_title" loading="lazy" width="75" height="100" />
+                                <template v-else>{{ course.Course_title }}</template>
                             </div>
                             <div class="book-info">
                                 <div class="course-content">
@@ -679,6 +683,14 @@ onMounted(() => {
 @keyframes skeleton-breathe {
     0%, 100% { opacity: 0.55; }
     50% { opacity: 1; }
+}
+
+.book-cover__img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: inherit;
+    display: block;
 }
 
 .book-cover {

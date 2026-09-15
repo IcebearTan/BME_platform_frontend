@@ -1,6 +1,7 @@
 <!-- 使用vue3语法 -->
 <script setup>
 import api from '../../api';
+import { assetUrl } from '../../services/campService';
 import { ref, computed, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRouter, useRoute } from 'vue-router'
@@ -73,7 +74,9 @@ const fetchUserAvatar = async () => {
       method: "get",
     });
     if (response.data.code === 200) {
-      if (response.data.User_Avatar && response.data.User_Avatar !== null) {
+      if (response.data.avatar_path) {
+        User_Avatar.value = assetUrl(response.data.avatar_path);
+      } else if (response.data.User_Avatar && response.data.User_Avatar !== null) {
         User_Avatar.value = `data:image/png;base64,${response.data.User_Avatar}`;
       } else {
         User_Avatar.value = 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png';

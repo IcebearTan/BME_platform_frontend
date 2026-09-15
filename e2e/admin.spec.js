@@ -392,3 +392,36 @@ test('社团干事管理页：组员任命走三级级联选组', async ({ page 
 
   expect(pageErrors).toEqual([])
 })
+
+// ── 首页轮播管理页（09-15 新增页面）：列表渲染 + 新建弹窗交互 ──
+
+test('首页轮播管理：列表渲染 + 新建帧弹窗校验', async ({ page }) => {
+  await loginAsStaff(page)
+  const pageErrors = []
+  page.on('pageerror', (e) => pageErrors.push(e.message))
+
+  await page.route('http://127.0.0.1:5001/banner/admin/list', (route) => route.fulfill({
+    json: {
+      code: 200,
+      data: [
+        { Banner_Id: 1, title: '营期中心', description: '查看营期与报名', image: '/media/banners/1/a.webp', link_type: 'route', link_value: '/camp', is_camp_frame: false, visible: true, sort_order: 1 },
+        { Banner_Id: 2, title: '3D打印农场', description: '', image: '/media/banners/2/b.webp', link_type: 'external', link_value: '/3dfarm/', is_camp_frame: false, visible: false, sort_order: 2 },
+      ],
+    },
+  }))
+
+  await page.goto(`${BASE}/banner/manage`)
+  await expect(page.locator('.page-title', { hasText: '首页轮播' })).toBeVisible()
+  await expect(page.getByRole('cell', { name: '营期中心' }).first()).toBeVisible()
+  // 隐藏帧的底图有置灰样式（is-hidden）
+  await expect(page.locator('.banner-thumb.is-hidden')).toHaveCount(1)
+
+  // 新建弹窗：缺底图时提交被前端拦截并提示
+  await page.getByRole('button', { name: /新建轮播帧/ }).click()
+  const dialog = page.locator('.el-dialog').filter({ hasText: '新建轮播帧' })
+  await dialog.locator('input').first().fill('测试帧')
+  await dialog.getByRole('button', { name: /创建/ }).click()
+  await expect(page.locator('.el-message').filter({ hasText: '必须选择底图' })).toBeVisible()
+
+  expect(pageErrors).toEqual([])
+})

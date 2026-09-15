@@ -1,7 +1,7 @@
 <template>
   <div :class="['study-hub-container', { 'theme-dark': isDarkMode, 'theme-light': !isDarkMode }]">
-    <!-- 轮播Banner区域 -->
-    <div class="banner-section">
+    <!-- 轮播Banner区域（DB 驱动：GET /banner/list；失败/空数据整区隐藏不阻塞首屏） -->
+    <div v-if="banners.length" class="banner-section">
       <el-carousel
         :interval="4000"
         type="card"
@@ -102,6 +102,7 @@ import DewCard from '@bme/dew-ui/DewCard.vue'
 import DewPostCard from '@bme/dew-ui/DewPostCard.vue'
 import SeatBoard from '../SeatMap/SeatBoard.vue'
 import api from '../../api'
+import { assetUrl, campService } from '../../services/campService'
 
 const store = useStore()
 const router = useRouter()
@@ -151,37 +152,53 @@ const entryIcons = {
   'xlab': IconBrainCircuit,
 }
 
-// 轮播Banner数据
-// 学期营帧（id=1）已状态化（用户 2026-09-11 定）：标题/状态/链接跟随 /camp/featured 主推营期，
-// 换营期零代码零发版；更换方法与底图规范见 docs/首页banner-运营规范.md。
-// 初始为静默帧（bare），featured 返回后切 corner 模式；拉取失败保持静默帧不阻塞首屏。
-const CAMP_BANNER_IMAGE = import.meta.env.BASE_URL + '2026秋季学期营.png';
-const banners = ref([
-  {
-    id: 1,
-    title: '营期中心',
-    description: '查看营期与报名',
-    image: CAMP_BANNER_IMAGE,
-    route: '/camp',
-    bare: true
-  },
-  {
-    id: 2,
-    title: '大模型服务中心',
-    description: '大模型 API 接口平台',
-    image: import.meta.env.BASE_URL + '大模型服务中心.png',
-    route: '/ai-service',
-    bare: true
-  },
-  {
-    id: 3,
-    title: '3D打印农场',
-    description: '在线预约，一站式 3D 打印服务',
-    image: import.meta.env.BASE_URL + '3D打印农场.png',
-    external: '/3dfarm/',
-    bare: true
+// 轮播Banner数据（09-15 起 DB 驱动，管理端「首页轮播」页维护，换图零发版）：
+// 帧静态部分（底图/标题/链接/顺序/可见）来自 GET /banner/list；
+// is_camp_frame=1 的帧为「营期帧」能力位——叠加 /camp/featured 主推营动态角标（09-14 撤动态帧后
+// seed 置 0，恢复动态帧改 DB 标志即可零代码）。底图规范见 docs/首页banner-运营规范.md。
+const banners = ref([])
+
+async function fetchBanners() {
+  try {
+    const res = await api.get('/banner/list')
+    const rows = res.data?.data || []
+    banners.value = rows.map(row => {
+      const banner = {
+        id: row.Banner_Id,
+        title: row.title,
+        description: row.description || '',
+        image: assetUrl(row.image),
+        bare: true,
+      }
+      if (row.link_type === 'external' && row.link_value) banner.external = row.link_value
+      else if (row.link_type === 'route' && row.link_value) banner.route = row.link_value
+      if (row.is_camp_frame) applyFeaturedBanner(banner)
+      return banner
+    })
+  } catch (e) {
+    banners.value = []   // 拉取失败整区隐藏（模板 v-if），不阻塞首屏
   }
-])
+}
+
+// 营期帧叠加主推营角标：有主推营显示营名+招募中（live 圆点），无营显示「新营期筹备中」
+async function applyFeaturedBanner(banner) {
+  banner.bare = false
+  banner.corner = true
+  banner.live = false
+  banner.description = '新营期筹备中'
+  banner.route = '/camp'
+  try {
+    const data = await campService.fetchFeatured()
+    if (data?.code === 200 && data.session) {
+      banner.title = data.session.name || banner.title
+      banner.description = '招募中，点击查看'
+      banner.live = true
+      banner.route = '/camp-home'
+    }
+  } catch (e) {
+    /* 未登录/接口失败：保持静默角标兜底文案 */
+  }
+}
 const outgoingBannerIndex = ref(banners.value.length - 1)
 
 const handleBannerChange = (_currentIndex, previousIndex) => {
@@ -241,7 +258,7 @@ async function fetchCommunityPosts() {
           articleVersion: isArticle ? item.article_version : null,
           author: item.author_name || '匿名',
           authorId: item.author_id,
-          authorAvatar: item.author_avatar || '',
+          authorAvatar: assetUrl(item.author_avatar || ''),
           publishTime: formatTimeAgo(item.created_at),
           title: item.title,
           content: ((item.summary || '') + '').replace(/\s+/g, ' '),
@@ -308,10 +325,9 @@ const handleEntryClick = (entry) => {
   emit('entry-click', entry)
 }
 
-// 09-14 用户定：撤「主推营动态帧」（有营换营名/无营显示「新营期筹备中」/live 状态切换）——
-// 第一帧回归静态「营期中心」入口，营期动态在营期中心看
 
 onMounted(() => {
+  fetchBanners()
   fetchCommunityPosts()
 })
 </script>

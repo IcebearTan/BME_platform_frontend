@@ -5,6 +5,7 @@ import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { useStore } from 'vuex'
 import api from '../../api'
+import { assetUrl } from '../../services/campService'
 
 import CalendarComponent from './CalendarComponent.vue'
 import MedalShowcase from './MedalShowcase.vue'
@@ -78,7 +79,12 @@ const fetchArticles = async () => {
     const res = await api({ url: `/v2/article/by_author/${id}`, method: 'get' })
     if (res?.data?.code === 200) {
       // v2 字段补 authorId 供 ArticleCard 作者点击；reply_count 缺省 0
-      articles.value = (res.data.data || []).map(a => ({ ...a, authorId: a.author_id, reply_count: a.reply_count || 0 }))
+      articles.value = (res.data.data || []).map(a => ({
+        ...a,
+        authorId: a.author_id,
+        reply_count: a.reply_count || 0,
+        author_avatar: assetUrl(a.author_avatar),   // 相对路径拼全（dev 跨域出图）
+      }))
     }
   } catch {
     articles.value = []

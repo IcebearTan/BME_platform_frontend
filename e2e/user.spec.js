@@ -52,8 +52,47 @@ test('顶部学期营入口直达当前主推营期', async ({ page }) => {
   await expect(page).toHaveURL(/\/camp\?sid=10$/)
 })
 
-// 09-15 用户定：撤首页主推营动态帧（「报名进行中/新营期筹备中」状态化 banner）——
-// 相关两用例（主推帧/兜底帧）随之移除，第一帧回归静态「营期中心」入口
+// 09-15 用户定：撤首页主推营动态帧——is_camp_frame 能力位保留（DB 标志），banner 全帧 DB 驱动
+
+// 轮播 mock（/banner/list 三帧；09-15 DB 化后首页不再吃硬编码静态帧）
+async function mockBanners(page, frames) {
+  await page.route('http://127.0.0.1:5001/banner/list', route => (
+    route.fulfill({ json: { code: 200, data: frames } })
+  ))
+}
+
+const MOCK_BANNER_FRAMES = [
+  { Banner_Id: 1, title: '营期中心', description: '查看营期与报名', image: '/media/banners/seed/a.webp', link_type: 'route', link_value: '/camp', is_camp_frame: false, visible: true },
+  { Banner_Id: 2, title: '大模型服务中心', description: '大模型 API 接口平台', image: '/media/banners/seed/b.webp', link_type: 'route', link_value: '/ai-service', is_camp_frame: false, visible: true },
+  { Banner_Id: 3, title: '3D打印农场', description: '在线预约，一站式 3D 打印服务', image: '/media/banners/seed/c.webp', link_type: 'external', link_value: '/3dfarm/', is_camp_frame: false, visible: true },
+]
+
+test('首页轮播 DB 驱动渲染 + 空态隐藏', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('bme-user-token', 'e2e-mock-token')
+    localStorage.setItem('bme-user-state', JSON.stringify({
+      token: 'e2e-mock-token', isLogin: true, isDarkMode: false,
+      user: { username: 'test_user', role: 'user' }, checkinInfo: {},
+    }))
+  })
+  await page.route('http://127.0.0.1:5001/**', route => (
+    route.fulfill({ json: { code: 200, data: [] } })
+  ))
+  await mockBanners(page, MOCK_BANNER_FRAMES)
+  const pageErrors = []
+  page.on('pageerror', e => pageErrors.push(e.message))
+
+  // DB 帧渲染：标题帧文案出现在角标/alt
+  await page.goto(`${BASE}/home`)
+  await expect(page.locator('.banner-image[alt="营期中心"]')).toBeVisible()
+
+  // 空态：/banner/list 回空数组 → 整区隐藏不阻塞首页
+  await mockBanners(page, [])
+  await page.goto(`${BASE}/home`)
+  await expect(page.locator('.banner-section')).toHaveCount(0)
+  await expect(page.locator('.content-switcher')).toBeVisible()
+  expect(pageErrors).toEqual([])
+})
 
 test('首页卡片轮播：正反切换时环形侧卡不覆盖退出卡', async ({ page }) => {
   await page.addInitScript(() => {
@@ -66,6 +105,7 @@ test('首页卡片轮播：正反切换时环形侧卡不覆盖退出卡', async
   await page.route('http://127.0.0.1:5001/**', route => (
     route.fulfill({ json: { code: 200, data: [] } })
   ))
+  await mockBanners(page, MOCK_BANNER_FRAMES)
 
   await page.goto(`${BASE}/home`)
   await page.locator('.el-carousel__indicator').nth(0).click()
@@ -90,6 +130,37 @@ test('首页卡片轮播：正反切换时环形侧卡不覆盖退出卡', async
     items.map(item => Number(getComputedStyle(item).zIndex))
   ))
   expect(reverseToFirstLayers).toEqual([3, 2, 1])
+})
+
+// ── 课程封面（09-15 链路）：有图出图、无图回退标题色块 ──
+
+test('课程列表封面：有缩略图出图、无封面回退色块', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('bme-user-token', 'e2e-mock-token')
+    localStorage.setItem('bme-user-state', JSON.stringify({
+      token: 'e2e-mock-token', isLogin: true, isDarkMode: false,
+      user: { username: 'test_user', role: 'user' }, checkinInfo: {},
+    }))
+  })
+  await page.route('http://127.0.0.1:5001/**', route => (
+    route.fulfill({ json: { code: 200, data: [] } })
+  ))
+  await page.route('http://127.0.0.1:5001/course/list', route => route.fulfill({
+    json: [
+      { Course_Id: '101', Course_title: '有封面的课程', Course_Introduction: 'intro', Course_Chapters: 1, Course_Class_Hour: 2, Course_Tags: '', Course_Time: '2026-09-15 00:00:00', Course_Cover_Thumb: '/media/course-covers/101/abc_thumb.webp' },
+      { Course_Id: '102', Course_title: '无封面的课程', Course_Introduction: 'intro', Course_Chapters: 1, Course_Class_Hour: 2, Course_Tags: '', Course_Time: '2026-09-15 00:00:00', Course_Cover_Thumb: null },
+    ],
+  }))
+  const pageErrors = []
+  page.on('pageerror', e => pageErrors.push(e.message))
+
+  await page.goto(`${BASE}/study`)
+  // 有封面：img 渲染（src 已拼前缀）
+  await expect(page.locator('img.book-cover__img').first()).toBeVisible()
+  await expect(page.locator('img.book-cover__img').first()).toHaveAttribute('src', /course-covers\/101\/abc_thumb\.webp$/)
+  // 无封面：色块回退仍渲染标题文字
+  await expect(page.locator('.book-cover', { hasText: '无封面的课程' })).toBeVisible()
+  expect(pageErrors).toEqual([])
 })
 
 // ── 社团干事身份（功能扩展轮 §四）：主页身份卡 + 社区卡片徽章 ──

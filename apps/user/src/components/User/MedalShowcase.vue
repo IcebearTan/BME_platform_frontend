@@ -24,7 +24,7 @@
         :title="medal.Medal_Name_CN"
         @click="goToMedalWall"
       >
-        <img :src="getMedalImage(medal.Medal_Name)" :alt="medal.Medal_Name_CN" class="medal-icon" />
+        <img :src="getMedalImage(medal.Medal_Name, medal.Medal_Image)" :alt="medal.Medal_Name_CN" class="medal-icon" />
         <span class="medal-name">{{ medal.Medal_Name_CN }}</span>
       </div>
     </div>
@@ -42,6 +42,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useStore } from 'vuex'
 import api from '../../api'
+import { assetUrl } from '../../services/campService'
 import { DewCard, DewSkeleton } from '@bme/dew-ui'
 
 const router = useRouter()
@@ -62,9 +63,10 @@ const loading = ref(true)   // 首屏加载态：勋章骨架占位
 
 const medalCount = computed(() => medalList.value.length)
 
-const getMedalImage = (medalName) => {
-  if (medalName) return `/medals/${medalName}.png`
-  return '/medals/Default.png'
+// 勋章图：DB 相对路径优先（/media/...），本地 public 兜底一版（BASE_URL 相对，修根路径绕 base）
+const getMedalImage = (medalName, medalImage) => {
+  if (medalImage) return assetUrl(medalImage)
+  return import.meta.env.BASE_URL + `medals/${medalName || 'Default'}.png`
 }
 
 // 仅自己主页可进勋章墙；他人主页为纯展示

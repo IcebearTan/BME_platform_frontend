@@ -57,3 +57,11 @@ export function createUnauthorizedHandler({ tokenKey, message = '登录失效，
     }, 1000)
   }
 }
+
+// 媒体 URL 前缀拼接工厂：后端图片一律回相对路径（/media/...、过渡期 /data/avatars/...），
+// dev 下前端与后端跨域（8081 vs 5001），必须拼 baseURL 才能出图；生产同源则自然还原。
+// 与 createApiClient 同源配置，两 app 各自实例化一次（campService 的 assetUrl 即此产物）。
+export function createAssetUrl({ baseURL }) {
+  const base = (baseURL || '').replace(/\/$/, '')
+  return (path) => (path ? base + path : '')
+}

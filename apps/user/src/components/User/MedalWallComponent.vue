@@ -3,6 +3,11 @@ import { ref, computed, onMounted } from 'vue';
 import { ElMessage } from 'element-plus'
 import { Check, Medal } from '@element-plus/icons-vue'
 import api from '../../api';
+import { assetUrl } from '../../services/campService';
+
+// 本地勋章图兜底（BASE_URL 相对，修原根绝对路径绕 /AMEII/ base 的问题；DB 图未迁移满前一版兜底）
+const localMedalImage = (medalName) =>
+  import.meta.env.BASE_URL + `medals/${medalName || 'Default'}.png`;
 import { DewCard, DewButton, DewButtonBar, DewSkeleton } from '@bme/dew-ui'
 import { useStore } from 'vuex'
 
@@ -137,7 +142,7 @@ const wearMedal = async (medal) => {
       >
         <div class="medal-image-wrapper">
           <img
-            :src="`/medals/${medal.Medal_Name}.png`"
+            :src="medal.Medal_Image ? assetUrl(medal.Medal_Image) : localMedalImage(medal.Medal_Name)"
             :alt="medal.Medal_Name_CN"
             class="medal-image"
           />

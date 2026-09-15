@@ -2,6 +2,7 @@
 // 范式对齐 useNotifications：模块级单例，乐观更新 + 失败回滚
 import { ref, computed } from 'vue'
 import { gratitudeService } from '../services/gratitudeService'
+import { assetUrl } from '../services/campService'
 
 // ── 模块级单例状态（所有 useGratitude() 实例共享同一份数据） ──
 const letters = ref([])
@@ -21,7 +22,11 @@ export function useGratitude() {
       const r = await gratitudeService.fetchReceived({ per_page: 100, ...params })
       if (r.code === 200) {
         // 形状异常保底空数组：防 unreadCount 的 filter 白屏（同 useNotifications 教训）
-        const list = r.data?.letters || []
+        // 寄信人头像为后端相对路径（/media/ 或旧 /data/avatars/），这里统一拼全
+        const list = (r.data?.letters || []).map((l) => ({
+          ...l,
+          sender: l.sender ? { ...l.sender, avatar: assetUrl(l.sender?.avatar) } : l.sender,
+        }))
         list.forEach((l) => {
           if (pendingReadIds.has(l.id)) l.is_read = true
         })

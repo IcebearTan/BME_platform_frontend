@@ -1,9 +1,9 @@
 <script setup>
 // 引入API方法和Vue相关函数
-import api from '../api';
+import api, { assetUrl } from '../api';
 import { ref, reactive, onMounted, computed } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { Close } from '@element-plus/icons-vue';
+import { Close, Refresh } from '@element-plus/icons-vue';
 import { DewCard } from '@bme/dew-ui';
 
 // 搜索表单数据（用于关键字搜索）
@@ -223,6 +223,31 @@ const filteredWallMedals = computed(() => {
     : medals.value.filter(medal => medal.Medal_Tag === currentCategory.value);
   return filtered;
 });
+
+// 换勋章图（稳定 key 覆盖上传；完成后本地行内刷新，无需整表重拉）
+const onSwapImage = async (medal, uploadFile) => {
+  const raw = uploadFile?.raw;
+  if (!raw) return;
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(raw.type)) {
+    ElMessage.warning('勋章图仅支持 jpg/png/webp 格式');
+    return;
+  }
+  const fd = new FormData();
+  fd.append('Medal_Id', medal.Medal_Id);
+  fd.append('image', raw);
+  try {
+    const res = await api.post('/medal/image/update', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+    if (res.data.code === 200) {
+      medal.Medal_Image = res.data.Medal_Image;
+      ElMessage.success('勋章图已更新');
+    } else {
+      ElMessage.error(res.data.message || '勋章图更新失败');
+    }
+  } catch (e) {
+    console.error('勋章图更新失败:', e);
+    ElMessage.error('勋章图更新失败');
+  }
+};
 
 const openGrantDialog = (medal) => {
   grantMedal.value = medal;
@@ -464,10 +489,20 @@ onMounted(() => {
             circle
           />
           <img
-            :src="`/admin/medals/${medal.Medal_Id}.png`"
+            :src="medal.Medal_Image ? assetUrl(medal.Medal_Image) : `/admin/medals/${medal.Medal_Id}.png`"
             :alt="medal.Medal_Name_CN"
             class="medal-image_2"
           />
+          <!-- 换图按钮 - 右上角（走后端 storage，不再手动放 public 文件） -->
+          <el-upload
+            class="swap-btn"
+            :auto-upload="false"
+            :show-file-list="false"
+            accept="image/jpeg,image/png,image/webp"
+            :on-change="(f) => onSwapImage(medal, f)"
+          >
+            <el-button size="small" :icon="Refresh" circle />
+          </el-upload>
         </div>
         <div class="medal-details">
           <h3 class="medal-name">{{medal.Medal_Name }}</h3>
@@ -704,6 +739,13 @@ onMounted(() => {
   margin: 2px 0 0 0;
   word-break: break-all;
 }
+.swap-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+}
+
 .medal-actions {
   display: flex;
   gap: 8px;

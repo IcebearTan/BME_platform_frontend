@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import api from '../../api'
+import { assetUrl } from '../../services/campService'
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
@@ -42,7 +43,12 @@ const fetchAvatar = async () =>{
         url: "/user/user_avatars",
         method: "get",
     }).then((res) => {
-        store.commit('setAvatar', res.data.User_Avatar)
+        // 优先相对路径 URL（assetUrl 拼全）；base64 过渡期兜底（须带 data URI 前缀）
+        if (res.data?.avatar_path) {
+            store.commit('setAvatar', assetUrl(res.data.avatar_path))
+        } else if (res.data?.User_Avatar) {
+            store.commit('setAvatar', `data:image/png;base64,${res.data.User_Avatar}`)
+        }
     })
 }
 
@@ -52,11 +58,7 @@ const handleAvatarSuccess: UploadProps['onSuccess'] = (
 ) => {
   imageUrl.value = URL.createObjectURL(uploadFile.raw!)
   ElMessage.success('头像上传成功!')
-  fetchAvatar()
-  setTimeout(() => {
-    window.location.reload()
-  }, 1000)
-  
+  fetchAvatar()   // store 已同步，各处头像由 computed 跟随刷新，无需整页 reload
 }
 
 const beforeAvatarUpload: UploadProps['beforeUpload'] = (rawFile) => {

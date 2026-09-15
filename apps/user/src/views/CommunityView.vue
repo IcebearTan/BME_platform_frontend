@@ -320,6 +320,7 @@ import DiscussionCard from '../components/Community/DiscussionCard.vue'
 import ArticleCard from '../components/Community/ArticleCard.vue'
 import { DewButtonBar, DewCard, DewInput, DewButton, DewSkeleton } from '@bme/dew-ui'
 import api from '../api'
+import { assetUrl } from '../services/campService'
 import {
   Grid, Collection, ChatDotRound, User, TrendCharts, ArrowRight
 } from '@element-plus/icons-vue'
@@ -414,7 +415,7 @@ const fetchThreads = async (reset = false) => {
           author_name: item.author_name,
           author: item.author_name,
           authorId: item.author_id,
-          author_avatar: item.author_avatar,
+          author_avatar: assetUrl(item.author_avatar),
           author_badge: item.author_badge,
           reply_count: item.reply_count || 0,
           like_count: item.like_count || 0,
@@ -433,7 +434,7 @@ const fetchThreads = async (reset = false) => {
         author: item.author_name,
         authorId: item.author_id,
         author_name: item.author_name,
-        author_avatar: item.author_avatar,
+        author_avatar: assetUrl(item.author_avatar),
         author_badge: item.author_badge,
         publishTime: formatTimeAgo(item.created_at),
         reply_count: item.reply_count || 0,
@@ -446,7 +447,7 @@ const fetchThreads = async (reset = false) => {
           id: reply.id,
           author: reply.author_name,
           authorId: reply.author_id,
-          author_avatar: reply.author_avatar || '',
+          author_avatar: assetUrl(reply.author_avatar || ''),
           content: reply.content,
           time: formatTimeAgo(reply.created_at),
           like_count: reply.like_count || 0,

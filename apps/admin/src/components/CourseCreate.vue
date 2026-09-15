@@ -1,5 +1,5 @@
 <script setup>
-import api from '../api';
+import api, { assetUrl } from '../api';
 import { ref, reactive, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -203,6 +203,7 @@ const fetchCourseDetail = async () => {
       courseForm.Course_Difficulty = course.Course_Difficulty || 1;
       courseForm.Course_Tags = course.Course_Tags || '';
       courseForm.Course_Other_Tags = course.Course_Other_Tags ? course.Course_Other_Tags.join(',') : '';
+      courseCover.value = course.Cover || null;
     }
     // 获取章节列表
     await fetchChapters();
@@ -236,6 +237,69 @@ const fetchLessons = async () => {
     lessons.value = response.data.data || [];
   } catch (error) {
     console.error('Error fetching lessons:', error);
+  }
+};
+
+// 课程封面（与基本信息解耦：新建课先 /course/public 拿 Course_Id 再传；编辑课随时可换）
+const courseCover = ref(null);          // 已存封面母版相对路径（编辑态回显）
+const pendingCoverFile = ref(null);     // 待上传文件（el-upload on-change 拿 raw）
+const coverPreviewUrl = computed(() => {
+  if (pendingCoverFile.value) return URL.createObjectURL(pendingCoverFile.value);
+  return courseCover.value ? assetUrl(courseCover.value) : '';
+});
+
+const onCoverFileChange = (uploadFile) => {
+  const raw = uploadFile?.raw;
+  if (!raw) return;
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(raw.type)) {
+    ElMessage.warning('封面仅支持 jpg/png/webp 格式');
+    return;
+  }
+  if (raw.size > 10 * 1024 * 1024) {
+    ElMessage.warning('封面不能超过 10MB');
+    return;
+  }
+  pendingCoverFile.value = raw;
+};
+
+// 立即上传待传封面（saveCourse 成功拿到 courseId 后调用；「更新课程」按钮之外也可单独换图）
+const uploadCover = async () => {
+  if (!courseId.value || !pendingCoverFile.value) return;
+  const fd = new FormData();
+  fd.append('Course_Id', courseId.value);
+  fd.append('cover', pendingCoverFile.value);
+  try {
+    const res = await api.post('/course/cover/update', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+    if (res.data.code === 200) {
+      courseCover.value = res.data.Course_Cover;
+      pendingCoverFile.value = null;
+      ElMessage.success('封面已上传');
+    } else {
+      ElMessage.error(res.data.message || '封面上传失败');
+    }
+  } catch (e) {
+    console.error('封面上传失败:', e);
+    ElMessage.error('封面上传失败');
+  }
+};
+
+const removeCover = async () => {
+  pendingCoverFile.value = null;
+  if (!courseId.value || !courseCover.value) return;
+  try {
+    await ElMessageBox.confirm('删除后课程将回退为标题色块封面，确定删除？', '删除封面', { type: 'warning' });
+  } catch { return; }
+  try {
+    const res = await api.post('/course/cover/delete', { Course_Id: courseId.value });
+    if (res.data.code === 200) {
+      courseCover.value = null;
+      ElMessage.success('封面已删除');
+    } else {
+      ElMessage.error(res.data.message || '封面删除失败');
+    }
+  } catch (e) {
+    console.error('封面删除失败:', e);
+    ElMessage.error('封面删除失败');
   }
 };
 
@@ -286,8 +350,15 @@ const saveCourse = async () => {
       type: 'success'
     });
 
-    // 跳转到章节管理
-    activeTab.value = 'chapters';
+    // 有待传封面则立即上传（新建课此步才拿到 Course_Id）
+    if (pendingCoverFile.value && courseId.value) {
+      await uploadCover();
+    }
+
+    // 仅新建课引导去下一步（章节）；编辑课留在原地，别把人从基本信息/封面区拽走
+    if (!isEdit.value) {
+      activeTab.value = 'chapters';
+    }
   } catch (error) {
     console.error('Error saving course:', error);
     ElMessage({
@@ -678,6 +749,30 @@ const goBack = () => {
             <el-form-item label="其他标签">
               <el-input v-model="courseForm.Course_Other_Tags" placeholder="多个标签用逗号分隔" />
             </el-form-item>
+            <el-form-item label="课程封面">
+              <div class="cover-upload-row">
+                <!-- 3:4 预览（无封面时占位提示）；规格见运营文档：1200x1600 母版、中央 90% 安全区 -->
+                <div class="cover-preview" :class="{ 'is-empty': !coverPreviewUrl }">
+                  <img v-if="coverPreviewUrl" :src="coverPreviewUrl" alt="课程封面预览" />
+                  <span v-else>3:4 封面</span>
+                </div>
+                <div class="cover-actions">
+                  <el-upload
+                    :auto-upload="false"
+                    :show-file-list="false"
+                    accept="image/jpeg,image/png,image/webp"
+                    :on-change="onCoverFileChange"
+                  >
+                    <el-button :disabled="!courseId" size="small">{{ pendingCoverFile ? '重新选择' : (courseCover ? '更换封面' : '上传封面') }}</el-button>
+                  </el-upload>
+                  <el-button v-if="courseCover || pendingCoverFile" size="small" type="danger" plain :disabled="!courseId" @click="removeCover">
+                    删除封面
+                  </el-button>
+                  <span v-if="!courseId" class="cover-hint">发布课程后可上传封面</span>
+                  <span v-else class="cover-hint">jpg/png/webp，10MB 内；建议 1200×1600（3:4），系统自动转码压缩</span>
+                </div>
+              </div>
+            </el-form-item>
             <el-form-item>
               <el-button type="primary" @click="saveCourse">
                 {{ isEdit ? '更新课程' : '发布课程' }}
@@ -861,5 +956,49 @@ const goBack = () => {
 
 .form-card {
   margin: 10px 0;
+}
+
+.cover-upload-row {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.cover-preview {
+  width: 90px;
+  height: 120px;
+  border-radius: 6px;
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 1px solid var(--el-border-color);
+  background: var(--el-fill-color-light);
+}
+
+.cover-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.cover-preview.is-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--el-text-color-placeholder);
+  font-size: 12px;
+}
+
+.cover-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.cover-hint {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  line-height: 1.5;
 }
 </style>

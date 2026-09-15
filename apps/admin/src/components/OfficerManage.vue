@@ -34,7 +34,7 @@
         <el-table-column label="成员" min-width="180">
           <template #default="{ row }">
             <div class="member-cell">
-              <el-avatar :size="30" :src="row.avatar">{{ (row.username || '?').charAt(0) }}</el-avatar>
+              <el-avatar :size="30" :src="assetUrl(row.avatar)">{{ (row.username || '?').charAt(0) }}</el-avatar>
               <span>{{ row.username }}</span>
             </div>
           </template>
@@ -157,7 +157,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Search, Plus } from '@element-plus/icons-vue'
 import { DewCard } from '@bme/dew-ui'
-import api from '../api'
+import api, { assetUrl } from '../api'
 
 // ── 常量（与后端 blueprints/officers.py 同源；换届重组只改此处）──
 const TITLE_MANAGEMENT = ['社长', '副社长', '团支书', '副团支书']

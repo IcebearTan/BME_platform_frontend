@@ -1,6 +1,7 @@
 <!-- 使用vue3语法 -->
 <script setup>
 import api from '../../api';
+import { assetUrl } from '../../services/campService';
 import { ref, reactive, computed, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
@@ -26,8 +27,10 @@ const fetchAvatar = async () => {
       method: "get",
   }).then((res) => {
       if (res.data.code == 200) {
-          if (res.data.User_Avatar && res.data.User_Avatar !== null) {
-              store.commit('setAvatar', res.data.User_Avatar)
+          if (res.data.avatar_path) {
+              store.commit('setAvatar', assetUrl(res.data.avatar_path))
+          } else if (res.data.User_Avatar && res.data.User_Avatar !== null) {
+              store.commit('setAvatar', `data:image/png;base64,${res.data.User_Avatar}`)
           } else {
               store.commit('setAvatar', null)
           }

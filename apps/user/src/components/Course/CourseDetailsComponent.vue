@@ -4,6 +4,7 @@ import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import api from '../../api'
+import { assetUrl } from '../../services/campService'
 import { Star, StarFilled } from '@element-plus/icons-vue'
 
 import ChapterTree from './ChapterTree.vue'
@@ -366,9 +367,11 @@ const goBack = () => {
         <!-- 左侧主要内容 -->
         <div class="left-content">
           <div class="course-info">
-            <div class="course-info-left" 
-            :style="{backgroundColor: courseInfo?.Course_Title ? randomColor(courseInfo.Course_Title) : colorPalette[0]}">
-            {{ courseInfo.Course_Title }}</div>
+            <div class="course-info-left"
+            :style="courseInfo?.Cover ? {} : {backgroundColor: courseInfo?.Course_Title ? randomColor(courseInfo.Course_Title) : colorPalette[0]}">
+            <img v-if="courseInfo?.Cover" class="course-info-left__img"
+                 :src="assetUrl(courseInfo.Cover)" :alt="courseInfo.Course_Title" width="130" height="180" />
+            <template v-else>{{ courseInfo.Course_Title }}</template></div>
             <div class="course-info-right">
               <h2 class="course-title" :class="themeClass">
                 {{ courseInfo.Course_Title }}
@@ -977,7 +980,15 @@ const goBack = () => {
     flex-direction: column;
   }
 
-  .course-info-left {
+  .course-info-left__img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: inherit;
+    display: block;
+}
+
+.course-info-left {
     width: 100% !important;
     height: 120px !important;
     margin-right: 0 !important;

@@ -48,6 +48,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Calendar } from '@element-plus/icons-vue'
 import api from '../api'
+import { assetUrl } from '../services/campService'
 import NotificationBell from './Notification/NotificationBell.vue'
 import campLogo from '../assets/秋季学期营.png'
 import DewPopover from '@bme/dew-ui/DewPopover.vue'
@@ -68,10 +69,13 @@ const isAuthRoute = computed(() => !!route.meta.authPage)
 const User_Avatar = computed(() => store.state.avatar || DEFAULT_AVATAR)
 
 // 后台静默刷新头像（写入 store，由 User_Avatar 计算属性自动同步）；失败交给全局 401 拦截器
+// 09-15 起优先 avatar_path 相对路径（assetUrl 拼全，走 /media 强缓存），base64 仅过渡期兜底
 const refreshAvatar = () => {
   api({ url: '/user/user_avatars', method: 'get' })
     .then((res) => {
-      if (res.data.code === 200 && res.data.User_Avatar) {
+      if (res.data.code === 200 && res.data.avatar_path) {
+        store.commit('setAvatar', assetUrl(res.data.avatar_path))
+      } else if (res.data.code === 200 && res.data.User_Avatar) {
         store.commit('setAvatar', `data:image/png;base64,${res.data.User_Avatar}`)
       } else {
         store.commit('setAvatar', DEFAULT_AVATAR)

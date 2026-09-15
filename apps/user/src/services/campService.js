@@ -1,9 +1,11 @@
 // 营期服务层 —— 学员端，直连后端（后端 Phase C/D + E3 已就绪，不走 mock）
 import api, { API_URL } from '../api'
+import { createAssetUrl } from '@bme/api'
 
-// 资源 URL 前缀拼接：后端返回相对路径（/camp/ms/photo/...、/data/avatars/...），
-// dev 下前端 8081 与后端 5001 跨域，必须拼 API_URL（别像社区页裸用相对路径）
-export const assetUrl = (path) => (path ? API_URL + path : '')
+// 资源 URL 前缀拼接：后端返回相对路径（/media/...、/camp/ms/photo/...、过渡期 /data/avatars/...），
+// dev 下前端 8081 与后端 5001 跨域，必须拼 API_URL（别像社区页裸用相对路径）。
+// 实现已提升到 @bme/api 的 createAssetUrl（两 app 共享），此处 re-export 保持既有导入不破。
+export const assetUrl = createAssetUrl({ baseURL: API_URL })
 
 // 选导生阶段中文标签（单轮制三态：未开始 → 收集志愿 → 已截止出结果）
 export const MS_PHASE_LABEL = {

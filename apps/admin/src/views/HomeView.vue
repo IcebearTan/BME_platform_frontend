@@ -7,7 +7,7 @@ import {
   Document, User, ChatLineRound, Trophy, Setting,
   Grid, Fold, Bell, ArrowDown, Clock, TrendCharts,
   List, Plus, Cpu, DataLine, Key, Tickets,
-  Sunny, Moon, Collection, Folder, School, SetUp, Avatar
+  Sunny, Moon, Collection, Folder, School, SetUp, Avatar, Picture
 } from '@element-plus/icons-vue';
 
 export default {
@@ -37,6 +37,7 @@ export default {
         '/course/manage': '课程管理',
         '/course/create': '发布课程',
         '/course/edit/:id': '编辑课程',
+        '/banner/manage': '首页轮播',
         '/learningprgress/manage': '学习进度',
         '/medal/manage': '勋章管理',
         '/medal/grant': '勋章查询',
@@ -232,6 +233,9 @@ export default {
             </el-menu-item>
             <el-menu-item index="/course/create" @click="router.push('/course/create')" class="submenu-item">
               <el-icon><Plus /></el-icon><span>发布课程</span>
+            </el-menu-item>
+            <el-menu-item index="/banner/manage" @click="router.push('/banner/manage')" class="submenu-item">
+              <el-icon><Picture /></el-icon><span>首页轮播</span>
             </el-menu-item>
           </el-sub-menu>
 
