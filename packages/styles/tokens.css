@@ -167,6 +167,8 @@
   --dew-card-bg:           rgba(255, 255, 255, 0.4);
   --dew-card-bg-hover:     rgba(255, 255, 255, 0.5);
   --dew-card-border:       rgba(255, 255, 255, 0.35);
+  /* 弹窗扁平容器专用：不透明实色（glass 弹窗对比度不足，09-15 容器实/操作玻璃分层） */
+  --dew-dialog-bg:         #ffffff;
   --dew-card-shadow:       0 2px 12px rgba(0, 0, 0, 0.04), inset 0 0 0 0.5px rgba(255, 255, 255, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.3);
   --dew-card-shadow-hover: 0 8px 32px rgba(0, 0, 0, 0.07), inset 0 0 0 0.5px rgba(255, 255, 255, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.4);
   --dew-card-divider:      rgba(0, 0, 0, 0.04);
@@ -326,6 +328,8 @@
   --dew-card-bg:           rgba(255, 255, 255, 0.06);
   --dew-card-bg-hover:     rgba(255, 255, 255, 0.1);
   --dew-card-border:       rgba(255, 255, 255, 0.1);
+  /* 弹窗扁平容器专用：不透明实色（与 CampHome ring-hole 同款防透色） */
+  --dew-dialog-bg:         #16161a;
   --dew-card-shadow:       0 2px 12px rgba(0, 0, 0, 0.2), inset 0 0 0 0.5px rgba(255, 255, 255, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   --dew-card-shadow-hover: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 0 0 0.5px rgba(255, 255, 255, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.12);
   --dew-card-divider:      rgba(255, 255, 255, 0.06);

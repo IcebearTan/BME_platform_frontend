@@ -127,7 +127,9 @@ onBeforeUnmount(() => {
   overflow: hidden;
   border-radius: var(--radius-xl);
   border: 1px solid var(--dew-card-border);
-  background: var(--dew-card-bg);
+  /* 09-15：不透明实色（--dew-card-bg 是半透明玻璃配方，此前透底「看不清」）；
+     glass 模式（显式传 glass）仍覆盖为玻璃底 */
+  background: var(--dew-dialog-bg, #ffffff);
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.2);
   color: var(--dew-text);
   font-family: var(--dew-font, inherit);
@@ -209,19 +211,16 @@ onBeforeUnmount(() => {
   opacity: 0;
 }
 
-/* 面板：弹性缩放进场 */
+/* 面板：淡入淡出（09-15 撤 scale——transform 动画期间面板处于合成层，内部 glass
+   按钮/输入框的 backdrop-filter 采样异常，动画结束采样突变=「亮一下再恢复」闪烁） */
 .dew-dialog-panel-enter-active {
-  transition: opacity 0.3s ease, transform 0.35s var(--dew-bounce);
+  transition: opacity 0.25s ease;
 }
 .dew-dialog-panel-leave-active {
-  transition: opacity 0.2s ease-in, transform 0.2s ease-in;
+  transition: opacity 0.18s ease-in;
 }
-.dew-dialog-panel-enter-from {
-  opacity: 0;
-  transform: scale(0.92);
-}
+.dew-dialog-panel-enter-from,
 .dew-dialog-panel-leave-to {
   opacity: 0;
-  transform: scale(0.96);
 }
 </style>
