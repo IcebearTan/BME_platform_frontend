@@ -104,8 +104,8 @@ export const campService = {
     api.post('/camp/reward', { camp_session_id: sid, user_id: userId, medal_id: medalId, description }).then(r => r.data),
   fetchMembers: (sid) =>
     api.get(`/camp/sessions/${sid}/members`).then(r => r.data),
-  fetchCampMedals: () =>
-    api.get('/camp/medals').then(r => r.data),
+  fetchCampMedals: (sid) =>
+    api.get('/camp/medals', { params: { sid } }).then(r => r.data),
 
   // ── 营期主页（后台指定的当前营期）+ 加入申请 ──
   fetchFeatured: () =>

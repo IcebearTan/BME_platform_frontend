@@ -39,7 +39,7 @@ const medalOptions = computed(() => medals.value.map((m) => ({ label: m.name, va
 
 async function load() {
   try {
-    const [mem, md] = await Promise.all([campService.fetchMembers(props.sid), campService.fetchCampMedals()]);
+    const [mem, md] = await Promise.all([campService.fetchMembers(props.sid), campService.fetchCampMedals(props.sid)]);
     members.value = mem.members || [];
     medals.value = md.medals || [];
   } catch { ElMessage.error('加载失败'); }
