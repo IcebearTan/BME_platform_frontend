@@ -67,6 +67,18 @@ const MOCK_BANNER_FRAMES = [
   { Banner_Id: 3, title: '3D打印农场', description: '在线预约，一站式 3D 打印服务', image: '/media/banners/seed/c.webp', link_type: 'external', link_value: '/3dfarm/', is_camp_frame: false, visible: true },
 ]
 
+// /media/** 图片 mock：回真实 1px PNG（Playwright 后注册的路由优先，压过 5001/** 的 JSON 兜底）。
+// DewImage 三态下图片请求回 JSON = 加载失败进兜底态（img 隐藏），可见性断言需要真图走通 loading→loaded。
+const TINY_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+  'base64',
+)
+async function mockMediaImages(page) {
+  await page.route('http://127.0.0.1:5001/media/**', route => (
+    route.fulfill({ contentType: 'image/png', body: TINY_PNG })
+  ))
+}
+
 test('首页轮播 DB 驱动渲染 + 空态隐藏', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('bme-user-token', 'e2e-mock-token')
@@ -78,13 +90,14 @@ test('首页轮播 DB 驱动渲染 + 空态隐藏', async ({ page }) => {
   await page.route('http://127.0.0.1:5001/**', route => (
     route.fulfill({ json: { code: 200, data: [] } })
   ))
+  await mockMediaImages(page)
   await mockBanners(page, MOCK_BANNER_FRAMES)
   const pageErrors = []
   page.on('pageerror', e => pageErrors.push(e.message))
 
   // DB 帧渲染：标题帧文案出现在角标/alt
   await page.goto(`${BASE}/home`)
-  await expect(page.locator('.banner-image[alt="营期中心"]')).toBeVisible()
+  await expect(page.locator('.banner-image img[alt="营期中心"]')).toBeVisible()
 
   // 空态：/banner/list 回空数组 → 整区隐藏不阻塞首页
   await mockBanners(page, [])
@@ -153,11 +166,12 @@ test('课程列表封面：有缩略图出图、无封面回退色块', async ({
   }))
   const pageErrors = []
   page.on('pageerror', e => pageErrors.push(e.message))
+  await mockMediaImages(page)
 
   await page.goto(`${BASE}/study`)
-  // 有封面：img 渲染（src 已拼前缀）
-  await expect(page.locator('img.book-cover__img').first()).toBeVisible()
-  await expect(page.locator('img.book-cover__img').first()).toHaveAttribute('src', /course-covers\/101\/abc_thumb\.webp$/)
+  // 有封面：img 渲染（DewImage 外层 span 挂 .book-cover__img，src 在内层 img 已拼前缀）
+  await expect(page.locator('.book-cover__img img').first()).toBeVisible()
+  await expect(page.locator('.book-cover__img img').first()).toHaveAttribute('src', /course-covers\/101\/abc_thumb\.webp$/)
   // 无封面：色块回退仍渲染标题文字
   await expect(page.locator('.book-cover', { hasText: '无封面的课程' })).toBeVisible()
   expect(pageErrors).toEqual([])
