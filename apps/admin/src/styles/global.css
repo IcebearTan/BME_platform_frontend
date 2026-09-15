@@ -120,13 +120,14 @@ body {
     transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast) !important;
 }
 
-.el-button--primary {
+/* is-link 排除在外：link 型按钮是「透明底 + 彩色字」，灌实底会把文字埋进同色背景里 */
+.el-button--primary:not(.is-link) {
     background-color: var(--primary-color) !important;
     border-color: var(--primary-color) !important;
 }
 
-.el-button--primary:hover,
-.el-button--primary:focus {
+.el-button--primary:not(.is-link):hover,
+.el-button--primary:not(.is-link):focus {
     background-color: var(--primary-dark) !important;
     border-color: var(--primary-dark) !important;
 }

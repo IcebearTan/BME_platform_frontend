@@ -28,6 +28,9 @@ import CampSessionList from './components/CampSessionList.vue';
 import CampSessionDetail from './components/CampSessionDetail.vue';
 import PlatformTemplates from './components/PlatformTemplates.vue';
 import OfficerManage from './components/OfficerManage.vue';
+import ClubGroupManage from './components/ClubGroupManage.vue';
+import ClubPositionManage from './components/ClubPositionManage.vue';
+import ClubMembershipManage from './components/ClubMembershipManage.vue';
 import store from './store';
 
 const router = createRouter({
@@ -47,6 +50,21 @@ const router = createRouter({
                     path: '/officer/manage',
                     name: 'officer_manage',
                     component: OfficerManage
+                },
+                {
+                    path: '/club/groups',
+                    name: 'club_groups',
+                    component: ClubGroupManage
+                },
+                {
+                    path: '/club/positions',
+                    name: 'club_positions',
+                    component: ClubPositionManage
+                },
+                {
+                    path: '/club/membership',
+                    name: 'club_membership',
+                    component: ClubMembershipManage
                 },
                 {
                     path: '',

@@ -7,7 +7,8 @@ import {
   Document, User, ChatLineRound, Trophy, Setting,
   Grid, Fold, Bell, ArrowDown, Clock, TrendCharts,
   List, Plus, Cpu, DataLine, Key, Tickets,
-  Sunny, Moon, Collection, Folder, School, SetUp, Avatar, Picture
+  Sunny, Moon, Collection, Folder, School, SetUp, Avatar, Picture,
+  Connection, Suitcase, Location
 } from '@element-plus/icons-vue';
 
 export default {
@@ -32,6 +33,9 @@ export default {
         '/dashboard': '仪表盘',
         '/user-manage/users': '用户管理',
         '/officer/manage': '社团干事',
+        '/club/groups': '社团架构',
+        '/club/positions': '社团职位',
+        '/club/membership': '成员归属',
         '/article/manage': '文章管理',
         '/group/manage': '小组管理',
         '/course/manage': '课程管理',
@@ -210,6 +214,15 @@ export default {
             </el-menu-item>
             <el-menu-item index="/officer/manage" @click="router.push('/officer/manage')" class="submenu-item">
               <el-icon><Avatar /></el-icon><span>社团干事</span>
+            </el-menu-item>
+            <el-menu-item index="/club/groups" @click="router.push('/club/groups')" class="submenu-item">
+              <el-icon><Connection /></el-icon><span>社团架构</span>
+            </el-menu-item>
+            <el-menu-item index="/club/positions" @click="router.push('/club/positions')" class="submenu-item">
+              <el-icon><Suitcase /></el-icon><span>社团职位</span>
+            </el-menu-item>
+            <el-menu-item index="/club/membership" @click="router.push('/club/membership')" class="submenu-item">
+              <el-icon><Location /></el-icon><span>成员归属</span>
             </el-menu-item>
             <el-menu-item index="/group/manage" @click="router.push('/group/manage')" class="submenu-item">
               <el-icon><ChatLineRound /></el-icon><span>小组管理</span>

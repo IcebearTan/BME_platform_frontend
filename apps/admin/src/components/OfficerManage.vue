@@ -41,7 +41,7 @@
         </el-table-column>
         <el-table-column label="职位" width="120" align="center">
           <template #default="{ row }">
-            <el-tag :type="isManagement(row.title) ? 'warning' : 'info'" size="small" effect="plain">
+            <el-tag :type="positionsById[row.title_id]?.badge_tier === 1 ? 'warning' : 'info'" size="small" effect="plain">
               {{ row.title }}
             </el-tag>
           </template>
@@ -91,13 +91,17 @@
           </el-select>
         </el-form-item>
         <el-form-item label="职位" required>
-          <el-select v-model="dlg.form.title" placeholder="选择职位" style="width: 100%;" @change="onTitleChange">
-            <el-option v-for="t in TITLE_CHOICES" :key="t" :label="t" :value="t" />
+          <el-select v-model="dlg.form.title_id" placeholder="选择职位" style="width: 100%;">
+            <el-option v-for="p in activePositions" :key="p.id" :label="p.name" :value="p.id">
+              <span>{{ p.name }}</span>
+              <span class="option-id">{{ ruleText(p.group_rule) }}</span>
+            </el-option>
           </el-select>
         </el-form-item>
         <el-form-item label="归属组">
-          <el-cascader v-model="dlg.form.department" :options="ORG_TREE" :props="cascaderProps"
-            :disabled="dlg.form.title === '社长'" placeholder="选择组（社长不挂组）" clearable style="width: 100%;" />
+          <el-cascader v-model="dlg.form.group_id" :options="groupOptions" :props="cascaderProps"
+            :disabled="selectedPos?.group_rule === 'forbidden'"
+            :placeholder="groupPlaceholder" clearable style="width: 100%;" />
         </el-form-item>
         <el-form-item label="任期起" required>
           <el-date-picker v-model="dlg.form.term_start" type="date" value-format="YYYY-MM-DD"
@@ -153,48 +157,32 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Search, Plus } from '@element-plus/icons-vue'
 import { DewCard } from '@bme/dew-ui'
 import api, { assetUrl } from '../api'
+import { buildGroupCascaderOptions } from '../utils/club'
 
-// ── 常量（与后端 blueprints/officers.py 同源；换届重组只改此处）──
-const TITLE_MANAGEMENT = ['社长', '副社长', '团支书', '副团支书']
-const TITLE_CHOICES = [...TITLE_MANAGEMENT, '组长', '组员']
-const isManagement = (t) => TITLE_MANAGEMENT.includes(t)
+// ── 职位与组树：后台可配数据（/admin/club/*），不再前端硬编码（设计方案 §0.1 双源漂移清账）──
+const positions = ref([])
+const positionsById = computed(() => Object.fromEntries(positions.value.map(p => [p.id, p])))
+const activePositions = computed(() => positions.value.filter(p => p.status === 'active'))
+const groupOptions = ref([])
 
-// 组织树：三级，任一节点可选（级联存叶子/所选组名，组名全树唯一）
-const ORG_TREE = [
-  { value: '成员发展组', label: '成员发展组' },
-  { value: '运行保障组', label: '运行保障组' },
-  {
-    value: '项目运营组', label: '项目运营组',
-    children: [
-      {
-        value: '培训组', label: '培训组',
-        children: [
-          { value: '硬件组', label: '硬件组' },
-          { value: '软件组', label: '软件组' },
-          { value: '先进制造组', label: '先进制造组' },
-          { value: '柔性电子组', label: '柔性电子组' },
-        ],
-      },
-      { value: '项目组', label: '项目组' },
-      { value: '赛事组', label: '赛事组' },
-      { value: '游学组', label: '游学组' },
-    ],
-  },
-  { value: '行业交流组', label: '行业交流组' },
-  {
-    value: '品牌建设组', label: '品牌建设组',
-    children: [
-      { value: '活动组', label: '活动组' },
-      { value: '文宣组', label: '文宣组' },
-    ],
-  },
-  { value: '临床调研组', label: '临床调研组' },
-]
+const ruleText = (rule) => ({ forbidden: '不挂组', optional: '组可选', required: '须挂组' }[rule] || '')
+
+async function fetchClubMeta() {
+  try {
+    const [pres, gres] = await Promise.all([
+      api({ url: '/admin/club/positions', method: 'get' }),
+      api({ url: '/admin/club/groups', method: 'get' }),
+    ])
+    positions.value = pres.data?.data?.positions || []
+    groupOptions.value = buildGroupCascaderOptions(gres.data?.data?.groups || [])
+  } catch { /* 配置拉不到时列表照常展示，任命提交由后端兜底报错 */ }
+}
+
 const cascaderProps = { checkStrictly: true, emitPath: false }
 
 // ── 列表 ──
@@ -241,7 +229,7 @@ const dlg = reactive({ visible: false, id: null, submitting: false, form: {} })
 
 const openAppoint = () => {
   dlg.id = null
-  dlg.form = { user_id: null, title: '', department: null, term_start: today() }
+  dlg.form = { user_id: null, title_id: null, group_id: null, term_start: today() }
   dlg.visible = true
   if (!users.value.length) fetchUsers()
 }
@@ -256,32 +244,45 @@ const openEdit = (row) => {
   dlg.id = row.id
   dlg.form = {
     user_id: row.user_id,
-    title: row.title,
-    department: row.department || null,
+    title_id: row.title_id,
+    group_id: row.group_id ?? null,
     term_start: row.term_start,
   }
   dlg.visible = true
 }
 
-// 社长不挂组：切到社长时清空组选择，避免后端 400
-const onTitleChange = (t) => { if (t === '社长') dlg.form.department = null }
+// 当前选中职位（group_rule 联动依据）
+const selectedPos = computed(() => positionsById.value[dlg.form.title_id] || null)
+
+const groupPlaceholder = computed(() => {
+  const rule = selectedPos.value?.group_rule
+  if (rule === 'forbidden') return '该职位不挂组'
+  if (rule === 'required') return '必选（该职位必须归属一个组）'
+  return '可选'
+})
+
+// forbidden 职位切入选时清空组选择，避免带着旧组提交被 400
+watch(() => dlg.form.title_id, () => {
+  if (selectedPos.value?.group_rule === 'forbidden') dlg.form.group_id = null
+})
 
 const submitAppointOrEdit = async () => {
   const f = dlg.form
   if (!dlg.id && !f.user_id) return ElMessage.warning('请选择成员')
-  if (!f.title) return ElMessage.warning('请选择职位')
-  if ((f.title === '组长' || f.title === '组员') && !f.department) return ElMessage.warning(`${f.title}必须归属一个组`)
+  if (!f.title_id) return ElMessage.warning('请选择职位')
+  if (selectedPos.value?.group_rule === 'required' && !f.group_id)
+    return ElMessage.warning(`${selectedPos.value.name}必须归属一个组`)
   if (!f.term_start) return ElMessage.warning('请选择任期起')
 
   dlg.submitting = true
   try {
+    // id 轨道入参（名/id 双轨的后端已兼容）；group_id 显式 null = 清空挂组
+    const payload = { title_id: f.title_id, group_id: f.group_id ?? null, term_start: f.term_start }
     if (dlg.id) {
-      await api({ url: `/admin/officers/${dlg.id}`, method: 'put', data: {
-        title: f.title, department: f.department, term_start: f.term_start } })
+      await api({ url: `/admin/officers/${dlg.id}`, method: 'put', data: payload })
       ElMessage.success('任职信息已更新')
     } else {
-      await api({ url: '/admin/officers', method: 'post', data: {
-        user_id: Number(f.user_id), title: f.title, department: f.department, term_start: f.term_start } })
+      await api({ url: '/admin/officers', method: 'post', data: { user_id: Number(f.user_id), ...payload } })
       ElMessage.success('已任命')
     }
     dlg.visible = false
@@ -333,6 +334,7 @@ const submitFix = async () => {
 onMounted(() => {
   fetchOfficers()
   fetchUsers()
+  fetchClubMeta()
 })
 </script>
 
