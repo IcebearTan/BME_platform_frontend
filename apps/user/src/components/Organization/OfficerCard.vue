@@ -18,7 +18,7 @@ const initial = computed(() => (props.officer.username || '?').slice(0, 1))
 </script>
 
 <template>
-  <DewCard class="officer-card" :class="{ 'officer-card--hero': hero }" size="md" interactive @click="goProfile">
+  <DewCard class="officer-card" :class="{ 'officer-card--hero': hero }" size="md" glass interactive @click="goProfile">
     <div class="oc-row">
       <el-avatar :size="hero ? 56 : 40" :src="officer.avatar || undefined" class="oc-avatar">
         {{ initial }}
