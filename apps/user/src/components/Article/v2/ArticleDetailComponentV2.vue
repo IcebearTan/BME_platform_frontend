@@ -18,6 +18,7 @@ import { MdPreview, MdCatalog } from 'md-editor-v3'
 import 'md-editor-v3/lib/preview.css'
 import '@bme/editor/md-setup' // 自托管 highlight.js（与编辑器共享）
 import api from '../../../api'
+import { assetUrl } from '../../../services/campService'
 import ArticleCommentSection from '../ArticleCommentSection.vue'
 import { useArticleReactions } from '../../../composables/useArticleReactions'
 
@@ -59,7 +60,7 @@ const getArticle = async () => {
     articleTime.value = d.publish_time || ''
     articleAuthor.value = d.author_name || ''
     authorId.value = d.author_id ?? null
-    authorAvatar.value = d.author_avatar || ''
+    authorAvatar.value = assetUrl(d.author_avatar || '') || ''
     contentMd.value = d.content_md || ''
     // 详情接口附带的计数（匿名也有），回填互动 composable
     initCounts(d.like_count ?? 0, d.reply_count ?? 0, d.view_count ?? 0)

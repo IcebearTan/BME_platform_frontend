@@ -25,7 +25,7 @@
         @click="openProfile(user.user_id)"
       >
         <div class="rank-no" :class="medalClass(index)">{{ index + 1 }}</div>
-        <el-avatar :size="38" :src="user.avatar">{{ (user.user_name || '?').charAt(0) }}</el-avatar>
+        <DewImage shape="circle" :size="38" :src="assetUrl(user.avatar)" :initial="user.user_name || '?'" />
         <div class="rank-name">{{ user.user_name }}</div>
         <div class="rank-hours">{{ user.total_hours }}<span class="rank-unit">h</span></div>
       </div>
@@ -41,6 +41,8 @@ import { useRouter } from 'vue-router';
 import api from '../../api';
 import DewCard from '@bme/dew-ui/DewCard.vue';
 import DewSkeleton from '@bme/dew-ui/DewSkeleton.vue';
+import DewImage from '@bme/dew-ui/DewImage.vue';
+import { assetUrl } from '../../services/campService';
 
 // 前三名奖牌样式：金 / 银 / 铜
 function medalClass(index) {

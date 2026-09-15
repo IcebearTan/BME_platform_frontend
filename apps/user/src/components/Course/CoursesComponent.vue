@@ -5,6 +5,7 @@ import { useStore } from 'vuex'
 import { ArrowDown } from '@element-plus/icons-vue'
 import api from '../../api';
 import { assetUrl } from '../../services/campService';
+import DewImage from '@bme/dew-ui/DewImage.vue';
 import LearningPathComponent from './LearningPathComponent.vue'
 import { DewButtonBar } from '@bme/dew-ui'
 
@@ -217,9 +218,9 @@ onMounted(() => {
                             <div class="book-cover"
                                  :class="course.Course_Cover_Thumb ? 'has-image' : getTextSizeClass(course.Course_title)"
                                  :style="course.Course_Cover_Thumb ? {} : { backgroundColor: randomColor(course.Course_title) }">
-                                <img v-if="course.Course_Cover_Thumb" class="book-cover__img"
+                                <DewImage v-if="course.Course_Cover_Thumb" class="book-cover__img"
                                      :src="assetUrl(course.Course_Cover_Thumb)"
-                                     :alt="course.Course_title" loading="lazy" width="75" height="100" />
+                                     :alt="course.Course_title" />
                                 <template v-else>{{ course.Course_title }}</template>
                             </div>
                             <div class="book-info">

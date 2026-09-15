@@ -8,7 +8,7 @@ import { assetUrl } from '../../services/campService';
 // 本地勋章图兜底（BASE_URL 相对，修原根绝对路径绕 /AMEII/ base 的问题；DB 图未迁移满前一版兜底）
 const localMedalImage = (medalName) =>
   import.meta.env.BASE_URL + `medals/${medalName || 'Default'}.png`;
-import { DewCard, DewButton, DewButtonBar, DewSkeleton } from '@bme/dew-ui'
+import { DewCard, DewButton, DewButtonBar, DewSkeleton, DewImage } from '@bme/dew-ui'
 import { useStore } from 'vuex'
 
 const store = useStore()
@@ -141,7 +141,9 @@ const wearMedal = async (medal) => {
         :class="['medal-card', { 'medal-earned': medal.Get_Time }]"
       >
         <div class="medal-image-wrapper">
-          <img
+          <DewImage
+            shape="circle"
+            :size="100"
             :src="medal.Medal_Image ? assetUrl(medal.Medal_Image) : localMedalImage(medal.Medal_Name)"
             :alt="medal.Medal_Name_CN"
             class="medal-image"

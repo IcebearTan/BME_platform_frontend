@@ -109,6 +109,7 @@ import { ElMessage } from 'element-plus'
 import { View, Star, StarFilled, ChatDotRound, Share, Collection } from '@element-plus/icons-vue'
 import { DewCard } from '@bme/dew-ui'
 import api from '../../api'
+import { assetUrl } from '../../services/campService'
 import ArticleCommentSection from './ArticleCommentSection.vue'
 
 const route = useRoute()
@@ -196,7 +197,7 @@ const getArticle = async () => {
     articleTime.value = data.Publish_Time
     articleAuthor.value = data.Article_Author
     authorId.value = data.Article_Author_Id ?? null
-    authorAvatar.value = data.Article_Author_Avatar || ''
+    authorAvatar.value = assetUrl(data.Article_Author_Avatar || '') || ''
     const htmlContent = JSON.parse(data.html_content)
     toc.value = generateTOC(htmlContent)
   } catch (e) {

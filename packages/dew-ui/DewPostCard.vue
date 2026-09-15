@@ -3,7 +3,7 @@
     <!-- ━━ full 模式：完整正文 + 图片网格 + 操作行 ━━ -->
     <template v-if="mode === 'full'">
       <div class="dew-post__head">
-        <el-avatar :size="40" :src="post.authorAvatar" class="dew-post__avatar" @click.stop="onUserClick">{{ (post.author || '?').charAt(0) }}</el-avatar>
+        <DewImage shape="circle" :size="40" :src="post.authorAvatar" :initial="post.author || '?'" class="dew-post__avatar" @click.stop="onUserClick" />
         <div class="dew-post__user">
           <div class="dew-post__name-row">
             <span class="dew-post__name" @click.stop="onUserClick">{{ post.author }}</span>
@@ -20,7 +20,7 @@
           v-if="post.images && post.images.length"
           :class="['dew-post__images', `images-${Math.min(post.images.length, 4)}`]"
         >
-          <img
+          <DewImage
             v-for="(img, i) in post.images.slice(0, 4)"
             :key="i"
             :src="img"
@@ -53,7 +53,7 @@
         <!-- 左：发帖人信息 + 正文，塞进一个容器 -->
         <div class="dew-post__main">
           <div class="dew-post__head">
-            <el-avatar :size="36" :src="post.authorAvatar" class="dew-post__avatar" @click.stop="onUserClick">{{ (post.author || '?').charAt(0) }}</el-avatar>
+            <DewImage shape="circle" :size="36" :src="post.authorAvatar" :initial="post.author || '?'" class="dew-post__avatar" @click.stop="onUserClick" />
             <div class="dew-post__user">
               <div class="dew-post__name-row">
                 <span class="dew-post__name" @click.stop="onUserClick">{{ post.author }}</span>
@@ -67,7 +67,7 @@
         </div>
         <!-- 右：图片（贴着整块左侧，更高更大） -->
         <div v-if="post.images && post.images.length" class="dew-post__media" @click.stop="onImageClick(0)">
-          <img :src="post.images[0]" alt="" />
+          <DewImage :src="post.images[0]" alt="" class="dew-post__media-img" />
         </div>
       </div>
 
@@ -96,6 +96,7 @@
 
 <script setup>
 import { ChatDotRound, Collection, CollectionTag, View, MoreFilled } from '@element-plus/icons-vue'
+import DewImage from './DewImage.vue'
 
 const props = defineProps({
   /** 帖子：{ id, author, authorAvatar, publishTime, title?, content, images?, likes, views, comments, liked, bookmarked, badge? } */
@@ -153,7 +154,7 @@ const onImageClick = (i) => emit('image-click', { id: props.post.id, index: i, i
   gap: 10px;
   margin-bottom: 8px;
 }
-.dew-post__avatar { flex-shrink: 0; }
+.dew-post__avatar { flex-shrink: 0; cursor: pointer; }
 .dew-post__user { flex: 1; min-width: 0; }
 .dew-post__name-row {
   display: flex;
@@ -221,7 +222,7 @@ const onImageClick = (i) => emit('image-click', { id: props.post.id, index: i, i
   text-decoration: underline;
 }
 
-/* full 图片网格 */
+/* full 图片网格：比例盒先占位（DewImage 三态接管，图未到不塌格） */
 .dew-post__images {
   display: grid;
   gap: 4px;
@@ -229,19 +230,19 @@ const onImageClick = (i) => emit('image-click', { id: props.post.id, index: i, i
   border-radius: 10px;
   overflow: hidden;
 }
-.images-1 { grid-template-columns: 1fr; max-height: 320px; }
-.images-2 { grid-template-columns: repeat(2, 1fr); max-height: 260px; }
-.images-3 { grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(2, 1fr); max-height: 260px; }
+.images-1 { grid-template-columns: 1fr; }
+.images-2 { grid-template-columns: repeat(2, 1fr); }
+.images-3 { grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(2, 128px); }
 .images-3 .dew-post__image:first-child { grid-row: 1 / 3; }
-.images-4 { grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(2, 1fr); max-height: 260px; }
+.images-4 { grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(2, 128px); }
 .dew-post__image {
   width: 100%;
   height: 100%;
-  min-height: 120px;
-  object-fit: cover;
   cursor: zoom-in;
   transition: opacity 0.2s;
 }
+.images-1 .dew-post__image { aspect-ratio: 16 / 10; max-height: 320px; }
+.images-2 .dew-post__image { aspect-ratio: 1 / 1; }
 .dew-post__image:hover { opacity: 0.92; }
 
 /* ── full 操作行 ── */
@@ -295,14 +296,13 @@ const onImageClick = (i) => emit('image-click', { id: props.post.id, index: i, i
   background: rgba(127, 127, 127, 0.1);
   cursor: zoom-in;
 }
-.dew-post__media img {
+.dew-post__media-img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  display: block;
+  border-radius: 0;
   transition: opacity 0.2s;
 }
-.dew-post__media:hover img { opacity: 0.92; }
+.dew-post__media:hover .dew-post__media-img { opacity: 0.92; }
 
 /* compact 底部：左统计 / 右更多 */
 .dew-post__foot--split {

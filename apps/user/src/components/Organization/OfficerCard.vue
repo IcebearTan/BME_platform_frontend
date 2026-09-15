@@ -1,9 +1,10 @@
 <script setup>
 // 社团干事卡片：头像 + 姓名 + 职位/组徽标，点击进个人主页。
 // 站内消息上线后在此加消息按钮位（设计方案 §5.2）。
-import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { DewCard, DewTag } from '@bme/dew-ui'
+import DewImage from '@bme/dew-ui/DewImage.vue'
+import { assetUrl } from '../../services/campService'
 
 const props = defineProps({
   officer: { type: Object, required: true },   // {id, username, avatar, title, group?}
@@ -14,15 +15,13 @@ const router = useRouter()
 const goProfile = () => {
   if (props.officer.id) router.push(`/profile/${props.officer.id}`)
 }
-const initial = computed(() => (props.officer.username || '?').slice(0, 1))
 </script>
 
 <template>
   <DewCard class="officer-card" :class="{ 'officer-card--hero': hero }" size="md" glass interactive @click="goProfile">
     <div class="oc-row">
-      <el-avatar :size="hero ? 56 : 40" :src="officer.avatar || undefined" class="oc-avatar">
-        {{ initial }}
-      </el-avatar>
+      <DewImage shape="circle" :size="hero ? 56 : 40" :src="assetUrl(officer.avatar) || null"
+                :initial="officer.username" class="oc-avatar" />
       <div class="oc-main">
         <span class="oc-name">{{ officer.username }}</span>
         <div class="oc-badges">
@@ -48,9 +47,6 @@ const initial = computed(() => (props.officer.username || '?').slice(0, 1))
 
 .oc-avatar {
   flex-shrink: 0;
-  background: var(--color-bg-muted, rgba(127, 127, 127, 0.15));
-  color: var(--dew-text-muted);
-  font-weight: 600;
 }
 
 .oc-main {

@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import api from '../../api'
 import { assetUrl } from '../../services/campService'
+import DewImage from '@bme/dew-ui/DewImage.vue'
 import { Star, StarFilled } from '@element-plus/icons-vue'
 
 import ChapterTree from './ChapterTree.vue'
@@ -383,8 +384,8 @@ const goBack = () => {
             <div class="course-info-left"
             :class="{ 'has-image': courseInfo?.Cover }"
             :style="courseInfo?.Cover ? {} : {backgroundColor: courseInfo?.Course_Title ? randomColor(courseInfo.Course_Title) : colorPalette[0]}">
-            <img v-if="courseInfo?.Cover" class="course-info-left__img"
-                 :src="assetUrl(courseInfo.Cover)" :alt="courseInfo.Course_Title" width="130" height="180" />
+            <DewImage v-if="courseInfo?.Cover" class="course-info-left__img"
+                 :src="assetUrl(courseInfo.Cover)" :alt="courseInfo.Course_Title" :lazy="false" />
             <template v-else>{{ courseInfo.Course_Title }}</template></div>
             <div class="course-info-right">
               <h2 class="course-title" :class="themeClass">

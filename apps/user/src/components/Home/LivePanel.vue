@@ -7,12 +7,17 @@
         <p class="greeting-date">{{ todayDate }}</p>
       </div>
 
-      <!-- 加载中：岛组骨架（主岛胶囊 + 卫星圆） -->
-      <div class="live-panel__islands" v-if="loading" style="display: flex; align-items: center; gap: 12px;">
-        <DewSkeleton variant="rect" width="160" height="44" rounded="999px" />
-        <DewSkeleton variant="circle" :size="48" />
-        <DewSkeleton variant="circle" :size="48" />
-        <DewSkeleton variant="circle" :size="48" />
+      <!-- 加载中：岛组骨架（形制对齐真实岛组：主胶囊 + 三个卫星药丸，皆 50px 高）。
+           裸浮在极光底上，默认 6% 黑的骨架 token 不可见，这里局部加深（主题感知） -->
+      <div
+        class="live-panel__islands live-panel__islands--loading"
+        v-if="loading"
+        :style="{ '--dew-skeleton-bg': isDarkMode ? 'rgba(255, 255, 255, 0.16)' : 'rgba(15, 23, 32, 0.10)' }"
+      >
+        <DewSkeleton variant="rect" width="164" height="50" rounded="999px" />
+        <DewSkeleton variant="rect" width="72" height="50" rounded="999px" />
+        <DewSkeleton variant="rect" width="72" height="50" rounded="999px" />
+        <DewSkeleton variant="rect" width="72" height="50" rounded="999px" />
       </div>
       <DewIslandGroup v-else :items="islandItems" class="live-panel__islands">
         <template #main-trigger>
@@ -293,11 +298,13 @@ const loading = ref(true)   // 首屏加载态：岛组骨架
 onMounted(async () => {
   timeTimer = setInterval(() => { nowTime.value = new Date() }, 1000)
 
-  // 接入真实 API（后端 /lateset_checktime、/records/my_stats 等已就绪）
+  // 三个接口互不依赖，并行发（原先串行 await 骨架期=三者之和，慢三倍）
   if (checkLogin()) {
-    await getLatestCheckStatus()
-    await fetchMonthlyStats()
-    await calculateTodayTotalDuration()
+    await Promise.allSettled([
+      getLatestCheckStatus(),
+      fetchMonthlyStats(),
+      calculateTodayTotalDuration(),
+    ])
   }
   loading.value = false
 })
@@ -332,6 +339,12 @@ onUnmounted(() => {
 
 .live-panel__islands {
   grid-column: 2;
+}
+
+.live-panel__islands--loading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .greeting-text {

@@ -24,7 +24,11 @@
         :title="medal.Medal_Name_CN"
         @click="goToMedalWall"
       >
-        <img :src="getMedalImage(medal.Medal_Name, medal.Medal_Image)" :alt="medal.Medal_Name_CN" class="medal-icon" />
+        <div class="medal-icon">
+          <DewImage shape="circle" :size="70"
+                    :src="getMedalImage(medal.Medal_Name, medal.Medal_Image)"
+                    :alt="medal.Medal_Name_CN" />
+        </div>
         <span class="medal-name">{{ medal.Medal_Name_CN }}</span>
       </div>
     </div>
@@ -43,7 +47,7 @@ import { useRouter } from 'vue-router'
 import { useStore } from 'vuex'
 import api from '../../api'
 import { assetUrl } from '../../services/campService'
-import { DewCard, DewSkeleton } from '@bme/dew-ui'
+import { DewCard, DewSkeleton, DewImage } from '@bme/dew-ui'
 
 const router = useRouter()
 const store = useStore()
@@ -155,9 +159,11 @@ watch(() => props.userId, fetchMedals)
   width: 80px;
   height: 80px;
   border-radius: 50%;
-  object-fit: cover;
   padding: 5px;
   background: var(--dew-card-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .medal-name {

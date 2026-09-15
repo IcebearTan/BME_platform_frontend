@@ -3,6 +3,8 @@
 // 点击进个人主页；站内消息上线后在此加消息按钮位。
 import { useRouter } from 'vue-router'
 import { DewTag } from '@bme/dew-ui'
+import DewImage from '@bme/dew-ui/DewImage.vue'
+import { assetUrl } from '../../services/campService'
 
 defineProps({
   members: { type: Array, default: () => [] },
@@ -17,9 +19,7 @@ const goProfile = (id) => {
 <template>
   <div v-if="members.length" class="oml">
     <div v-for="m in members" :key="m.id" class="oml-row" @click="goProfile(m.id)">
-      <el-avatar :size="24" :src="m.avatar || undefined" class="oml-avatar">
-        {{ (m.username || '?').slice(0, 1) }}
-      </el-avatar>
+      <DewImage shape="circle" :size="24" :src="assetUrl(m.avatar) || null" :initial="m.username || '?'" class="oml-avatar" />
       <span class="oml-name">{{ m.username }}</span>
       <DewTag v-if="m.title" type="warning" size="sm" round>{{ m.title }}</DewTag>
       <DewTag v-if="m.slot === 'secondary'" type="neutral" size="sm" round>辅</DewTag>

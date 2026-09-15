@@ -1,7 +1,11 @@
 <template>
   <div :class="['study-hub-container', { 'theme-dark': isDarkMode, 'theme-light': !isDarkMode }]">
-    <!-- 轮播Banner区域（DB 驱动：GET /banner/list；失败/空数据整区隐藏不阻塞首屏） -->
-    <div v-if="banners.length" class="banner-section">
+    <!-- 轮播Banner区域（DB 驱动：GET /banner/list）。
+         加载期骨架占位（对齐 card 轮播主卡形制，防数据到达后布局下推）；失败/空数据整区隐藏 -->
+    <div v-if="bannersLoading" class="banner-section banner-section--loading">
+      <DewSkeleton variant="rect" width="62%" height="160" rounded="12px" />
+    </div>
+    <div v-else-if="banners.length" class="banner-section">
       <el-carousel
         :interval="4000"
         type="card"
@@ -31,8 +35,8 @@
                 <p class="banner-description">{{ banner.description }}</p>
               </template>
             </div>
-            <img :src="banner.image" :alt="banner.title" class="banner-image"
-                 :style="banner.focusY != null ? { objectPosition: `50% ${banner.focusY}%` } : {}" />
+            <DewImage :src="banner.image" :alt="banner.title" class="banner-image"
+                      :position="banner.focusY != null ? `50% ${banner.focusY}%` : null" :lazy="false" />
           </div>
         </el-carousel-item>
       </el-carousel>
@@ -100,7 +104,9 @@ import {
 } from '@element-plus/icons-vue'
 import DewButtonBar from '@bme/dew-ui/DewButtonBar.vue'
 import DewCard from '@bme/dew-ui/DewCard.vue'
+import DewImage from '@bme/dew-ui/DewImage.vue'
 import DewPostCard from '@bme/dew-ui/DewPostCard.vue'
+import DewSkeleton from '@bme/dew-ui/DewSkeleton.vue'
 import SeatBoard from '../SeatMap/SeatBoard.vue'
 import api from '../../api'
 import { assetUrl, campService } from '../../services/campService'
@@ -156,6 +162,7 @@ const entryIcons = {
 // is_camp_frame=1 的帧为「营期帧」能力位——叠加 /camp/featured 主推营动态角标（09-14 撤动态帧后
 // seed 置 0，恢复动态帧改 DB 标志即可零代码）。底图规范见 docs/首页banner-运营规范.md。
 const banners = ref([])
+const bannersLoading = ref(true)   // 加载期骨架占位（防数据到达后整区下推 CLS）
 
 async function fetchBanners() {
   try {
@@ -177,6 +184,8 @@ async function fetchBanners() {
     })
   } catch (e) {
     banners.value = []   // 拉取失败整区隐藏（模板 v-if），不阻塞首屏
+  } finally {
+    bannersLoading.value = false
   }
 }
 
@@ -345,6 +354,13 @@ onMounted(() => {
   width: 100%;
   position: relative;
   overflow: visible;
+}
+
+/* 加载期骨架：主卡居中，底部预留外置指示条高度，数据到达无跳动 */
+.banner-section--loading {
+  display: flex;
+  justify-content: center;
+  padding-bottom: 24px;
 }
 
 .banner-item {
