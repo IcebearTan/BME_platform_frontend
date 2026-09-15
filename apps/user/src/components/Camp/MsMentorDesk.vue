@@ -15,7 +15,6 @@
         v-if="!locked"
         :sid="sid"
         :ms-tags="phaseInfo.ms_tags"
-        :deadline="phaseInfo.deadlines?.preference_deadline || ''"
         :locked="false"
         @saved="reloadAll"
       />
@@ -209,9 +208,9 @@ const preferenceCounts = computed(() => [
 const deskCaption = computed(() => {
   const p = phaseInfo.value;
   if (!p) return '';
-  if (p.phase === 'upcoming') return `完善名片，${p.deadlines.preference_start || ''} 起学员可见`;
-  if (p.phase === 'collecting') return `学员正在提交志愿 · ${p.deadlines.preference_deadline || ''} 截止后由老师统一协调分配`;
-  if (p.phase === 'done') return '志愿已截止：在下方锁定你的学员（名额内），老师仍可批量指派回填';
+  if (p.phase === 'upcoming') return `报名未开始 · ${p.deadlines.preference_start || ''} 开放`;
+  if (p.phase === 'collecting') return `志愿征集中 · ${p.deadlines.preference_deadline || ''} 截止`;
+  if (p.phase === 'done') return '志愿已截止 · 请确认学员名单';
   return '';
 });
 
@@ -293,11 +292,15 @@ watch(() => props.sid, () => { loading.value = true; reloadAll(); }, { immediate
 .ms-loading { min-height: 160px; }
 
 .phase-caption {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px dashed var(--dew-card-flat-border, rgba(0, 0, 0, 0.08));
-  font-size: 12.5px;
-  color: var(--dew-text-muted);
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 12px;
+  padding: 4px 10px;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 24%, transparent);
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 7%, transparent);
 }
 
 .head-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }

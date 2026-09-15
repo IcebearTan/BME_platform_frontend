@@ -146,6 +146,49 @@ test('登录页正常渲染', async ({ page }) => {
   await expect(page.locator('input[placeholder="输入邮箱"]')).toBeVisible()
 })
 
+test('管理员提交登录后进入仪表盘且首屏无组件异常', async ({ page }) => {
+  const pageErrors = []
+  const componentWarnings = []
+  page.on('pageerror', (error) => pageErrors.push(error.message))
+  page.on('console', (message) => {
+    if (message.type() === 'warning' && /Failed to resolve component|accessed during render|made a reactive object/.test(message.text())) {
+      componentWarnings.push(message.text())
+    }
+  })
+
+  await page.route('http://127.0.0.1:5001/**', (route) => {
+    const url = route.request().url()
+    if (url.includes('/auth/admin_login')) {
+      return route.fulfill({ json: {
+        code: 200,
+        token: 'e2e-login-token',
+        role: 'super_admin',
+        permissions: [],
+        User_Name: 'e2e 管理员',
+      } })
+    }
+    if (url.includes('/user/user_index')) {
+      return route.fulfill({ json: {
+        code: 200,
+        role: 'super_admin',
+        permissions: [],
+        User_Name: 'e2e 管理员',
+      } })
+    }
+    return route.fulfill({ json: { code: 200, data: {} } })
+  })
+
+  await page.goto(`${BASE}/login`)
+  await page.getByPlaceholder('输入邮箱').fill('admin@example.com')
+  await page.getByPlaceholder('输入密码').fill('Experience2026!')
+  await page.getByRole('button', { name: '登录' }).click()
+
+  await expect(page).toHaveURL(`${BASE}/`)
+  await expect(page.getByRole('heading', { name: /欢迎回来/ })).toBeVisible()
+  expect(pageErrors).toEqual([])
+  expect(componentWarnings).toEqual([])
+})
+
 test('管理布局壳挂载（侧边栏 + 主区域）', async ({ page }) => {
   await loginAsStaff(page)
   await page.goto(`${BASE}/`)
@@ -232,7 +275,9 @@ test('营期详情保留选导生与成员添加能力', async ({ page }) => {
 
   // 出勤 tab（09-12 三模式：考勤模式设置卡所在，旧数据无 policy 回退 daily）
   await page.getByRole('tab', { name: '出勤' }).click()
-  await expect(page.getByText(/假期营 · 每日承诺出勤/)).toBeVisible()
+  await expect(page.getByText('假期营', { exact: true })).toBeVisible()
+  await expect(page.locator('.att-daily-panel')).toBeVisible()
+  await expect(page.getByRole('button', { name: '查看出勤说明' })).toBeVisible()
 
   // 学员申请：纯学员列表（09-12 重组——导生报名挪「选导生」tab 招募区）
   await page.getByRole('tab', { name: '学员申请' }).click()

@@ -57,7 +57,29 @@
       <!-- ③ 出勤（09-12 三模式：模式设置 + daily 模式的承诺出勤日管理；
            项目营 09-13 独立口径：活动考勤恒开，仅控周打卡统计条。
            tab 存在性看保存态 attModeSaved——编辑态切换不再使 tab 消失（off 营可切回）） -->
-      <el-tab-pane v-if="capOn('attendance') || attModeSaved === 'off'" label="出勤" name="plan">
+      <el-tab-pane v-if="capOn('attendance') || attModeSaved === 'off'" name="plan">
+        <template #label>
+          <span class="att-tab-label">
+            出勤
+            <el-popover placement="bottom-start" :width="360" trigger="click" popper-class="att-help-popover">
+              <template #reference>
+                <button type="button" class="att-help-trigger" aria-label="查看出勤说明" @click.stop>
+                  <el-icon><InfoFilled /></el-icon>
+                </button>
+              </template>
+              <div class="att-help-content">
+                <div class="att-help-title">出勤设置说明</div>
+                <ul>
+                  <li>假期营按学员承诺日期逐日统计；期望到岗用于判断迟到，最低时长留空则不判断达标。</li>
+                  <li>“仅工作日”开启后，承诺出勤日只覆盖营期内的周一至周五。</li>
+                  <li>切换到其他模式会清空承诺出勤日；切回假期营后需保存并重新生成。</li>
+                  <li>新学员加入时自动生成；手动重生成可重复执行，并会清理范围外或不符合工作日规则的旧日期。</li>
+                  <li>校区培训按周累计打卡次数与时长；远程培训不启用考勤。</li>
+                </ul>
+              </div>
+            </el-popover>
+          </span>
+        </template>
         <!-- 项目营：考勤=活动考勤（负责人在项目看板发起活动+勾选出席），无培训营三模式 -->
         <template v-if="isProjectCamp">
           <div class="att-cfg-card">
@@ -80,46 +102,42 @@
         <template v-else>
         <div class="att-cfg-card">
           <h4 class="ms-sec-title" style="margin:0 0 10px;">考勤模式</h4>
-          <el-radio-group v-model="attCfg.mode" :disabled="!manageWritable" style="flex-direction: column; align-items: stretch; gap: 8px;">
-            <el-radio value="daily">假期营 · 每日承诺出勤——报名选到岗日，按日打卡评估出勤/迟到/时长</el-radio>
-            <el-radio value="weekly">学期 · 校区培训 · 按周累计——不收承诺日，考察每周打卡次数与时长</el-radio>
-            <el-radio value="off">学期 · 远程培训 · 不考勤</el-radio>
+          <el-radio-group v-model="attCfg.mode" :disabled="!manageWritable" class="att-mode-list">
+            <div class="att-mode-option" :class="{ active: attCfg.mode === 'daily' }">
+              <el-radio value="daily">假期营</el-radio>
+
+              <div v-if="attCfg.mode === 'daily' && manageWritable" class="att-daily-panel">
+                <el-form label-width="90px" size="small">
+                  <el-form-item label="期望到岗">
+                    <el-time-picker v-model="attCfg.expectedCheckIn" value-format="HH:mm" format="HH:mm"
+                      placeholder="如 09:00" style="width: 100%;" />
+                  </el-form-item>
+                  <el-form-item label="最低时长">
+                    <el-input-number v-model="attCfg.minDailyHours" :min="0" :step="0.5" />
+                    <span class="att-unit">小时/日</span>
+                  </el-form-item>
+                  <el-form-item label="仅工作日">
+                    <el-switch v-model="attCfg.weekdaysOnly" />
+                  </el-form-item>
+                </el-form>
+
+                <el-button v-if="attModeSaved === 'daily'" type="primary" plain size="small" @click="regenPlan">
+                  重生成承诺出勤日
+                </el-button>
+              </div>
+            </div>
+            <div class="att-mode-option" :class="{ active: attCfg.mode === 'weekly' }">
+              <el-radio value="weekly">学期 · 校区培训</el-radio>
+            </div>
+            <div class="att-mode-option" :class="{ active: attCfg.mode === 'off' }">
+              <el-radio value="off">学期 · 远程培训</el-radio>
+            </div>
           </el-radio-group>
 
-          <!-- A 模式考勤参数（09-12 从建营弹窗迁入：仅每日模式需要） -->
-          <el-form v-if="attCfg.mode === 'daily' && manageWritable" label-width="90px" size="small" style="margin-top: 12px; max-width: 480px;">
-            <el-form-item label="期望到岗">
-              <el-time-picker v-model="attCfg.expectedCheckIn" value-format="HH:mm" format="HH:mm"
-                placeholder="如 09:00（判迟到基准，不填不判）" style="width: 100%;" />
-            </el-form-item>
-            <el-form-item label="最低时长">
-              <el-input-number v-model="attCfg.minDailyHours" :min="0" :step="0.5" /> 小时/日
-              <span class="hint" style="margin-left: 6px;">不填不判达标</span>
-            </el-form-item>
-            <el-form-item label="仅工作日">
-              <el-switch v-model="attCfg.weekdaysOnly" />
-              <span class="hint" style="margin-left: 6px;">承诺出勤日 = 营期范围内工作日</span>
-            </el-form-item>
-          </el-form>
-
-          <div style="margin-top: 10px;">
+          <div class="att-save-row">
             <el-button v-if="manageWritable" type="primary" size="small" :loading="attCfg.saving" @click="saveAttMode">保存</el-button>
-            <span class="hint" style="margin-left:8px;">切换出「每日」会清空本营承诺出勤日；切回需手动重生成</span>
           </div>
         </div>
-
-        <template v-if="attModeSaved === 'daily'">
-          <el-alert type="info" :closable="false"
-            :title="`本营 ${studentMembers.length} 名学员；承诺出勤日按营期范围内工作日（${session.weekdays_only ? '仅周一~周五' : '含周末'}）展开`" />
-          <div style="margin-top: 12px;">
-            <el-button v-if="manageWritable" type="primary" @click="regenPlan">重生成承诺出勤日</el-button>
-            <span class="hint">加入新学员时自动生成；此处可手动重生成（幂等，自动清理范围外/范围内周末的旧承诺日）</span>
-          </div>
-        </template>
-        <el-alert v-else type="info" :closable="false" style="margin-top: 12px;"
-          :title="attModeSaved === 'weekly'
-            ? '按周累计模式：学员报名不收承诺日，出勤看板按周统计打卡次数与时长'
-            : '本营不考勤：报名/工作台均不出考勤入口，保存后考勤能力关闭'" />
         </template>
       </el-tab-pane>
 
@@ -186,8 +204,7 @@
 
       <!-- ⑦ 学员申请（仅老师/超管；09-12 重组：导生报名挪「选导生」tab，此处纯学员/成员申请） -->
       <el-tab-pane v-if="canManage" label="学员申请" name="join">
-        <el-alert v-if="!studentJoinRequests.length" type="info" :closable="false" title="暂无待审批的学员申请" />
-        <el-table :data="studentJoinRequests" border size="small" style="margin-top: 12px;">
+        <el-table :data="studentJoinRequests" border size="small" class="join-request-table">
           <el-table-column label="申请人" prop="username" width="110" />
           <el-table-column label="邮箱" prop="email" min-width="160" show-overflow-tooltip />
           <!-- 09-12 砍学员报名意向大组：组别随归属导生继承（导生组=名片 tags），申请列表不再展示 -->
@@ -209,6 +226,11 @@
               <el-button size="small" type="danger" link @click="rejectJoin(row)">拒绝</el-button>
             </template>
           </el-table-column>
+          <template #empty>
+            <el-empty :image-size="72" description="暂无待审批的学员申请">
+              <div class="join-empty-note">新申请提交后会显示在这里</div>
+            </el-empty>
+          </template>
         </el-table>
       </el-tab-pane>
 
@@ -217,23 +239,26 @@
       <el-tab-pane v-if="canManage && session.category === 'learning'" label="选导生" name="ms">
         <!-- ── ① 导生招募：待审导生报名（自由报名走审核）+ 导入即导生（超管） ── -->
         <h4 class="ms-sec-title">导生招募</h4>
-        <template v-if="mentorJoinRequests.length">
-          <el-table :data="mentorJoinRequests" border size="small">
-            <el-table-column label="报名导生" prop="username" width="110" />
-            <el-table-column label="邮箱" prop="email" min-width="160" show-overflow-tooltip />
-            <el-table-column label="事由" prop="reason" min-width="120" show-overflow-tooltip />
-            <el-table-column label="提交时间" width="110">
-              <template #default="{ row }">{{ row.created_at ? row.created_at.slice(0, 10) : '' }}</template>
-            </el-table-column>
-            <el-table-column label="操作" width="140">
-              <template #default="{ row }">
-                <el-button size="small" type="success" link @click="approveJoin(row)">批准</el-button>
-                <el-button size="small" type="danger" link @click="rejectJoin(row)">拒绝</el-button>
-              </template>
-            </el-table-column>
-          </el-table>
-        </template>
-        <el-alert v-else type="info" :closable="false" title="暂无待审的导生报名（LV≥2 学员可在报名窗口内自助报名）" style="margin-bottom: 10px;" />
+        <el-table :data="mentorJoinRequests" border size="small" class="mentor-request-table">
+          <el-table-column label="报名导生" prop="username" width="110" />
+          <el-table-column label="邮箱" prop="email" min-width="160" show-overflow-tooltip />
+          <el-table-column label="事由" prop="reason" min-width="120" show-overflow-tooltip />
+          <el-table-column label="提交时间" width="110">
+            <template #default="{ row }">{{ row.created_at ? row.created_at.slice(0, 10) : '' }}</template>
+          </el-table-column>
+          <el-table-column label="操作" width="140">
+            <template #default="{ row }">
+              <el-button size="small" type="success" link @click="approveJoin(row)">批准</el-button>
+              <el-button size="small" type="danger" link @click="rejectJoin(row)">拒绝</el-button>
+            </template>
+          </el-table-column>
+          <template #empty>
+            <div class="mentor-empty-state">
+              <strong>暂无待审的导生报名</strong>
+              <span>LV≥2 学员可在报名窗口内自助报名</span>
+            </div>
+          </template>
+        </el-table>
 
         <template v-if="isSuperAdmin">
           <h4 class="ms-sec-title">导入导生（直接入营，不经报名审核）</h4>
@@ -270,7 +295,24 @@
         <!-- 方向制配置卡：draft/upcoming 可编辑（选导生开跑后锁定只读） -->
         <div class="ms-cfg-card">
           <div class="ms-cfg-head">
-            <h4 class="ms-sec-title" style="margin:0;">选导生与方向配置</h4>
+            <div class="ms-cfg-title-row">
+              <h4 class="ms-sec-title" style="margin:0;">选导生与方向配置</h4>
+              <el-popover placement="bottom-start" :width="360" trigger="click" popper-class="ms-help-popover">
+                <template #reference>
+                  <button type="button" class="att-help-trigger" aria-label="查看选导生配置说明" @click.stop>
+                    <el-icon><InfoFilled /></el-icon>
+                  </button>
+                </template>
+                <div class="ms-help-content">
+                  <div class="ms-help-title">配置说明</div>
+                  <ul>
+                    <li>导生发布名片并选择一个方向，学员提交 1-3 个志愿，双方互选后开营。</li>
+                    <li>志愿截止后不再线上提交，后续情况由工作人员线下协调。</li>
+                    <li>每个方向至少关联一门课程；学员继承归属导生方向的全部课程，导生逐课按章节认证进度并进行 0-100 评分。</li>
+                  </ul>
+                </div>
+              </el-popover>
+            </div>
             <span v-if="!msCfgEditable" class="hint">选导生已开跑（{{ statusLabel(session.status) }}），配置锁定只读</span>
           </div>
 
@@ -278,7 +320,6 @@
             <el-form label-width="90px" size="small" style="margin-top:10px;">
               <el-form-item label="启用选导生">
                 <el-switch v-model="msCfg.enabled" />
-                <span class="hint" style="margin-left:8px;">导生发名片选方向，学员交 1-3 志愿，双方互选后开营</span>
               </el-form-item>
               <template v-if="msCfg.enabled">
                 <el-form-item label="志愿起止" required>
@@ -286,7 +327,7 @@
                     format="MM-DD HH:mm" placeholder="开始" style="width:46%" />
                   <span style="margin:0 4px;">至</span>
                   <el-date-picker v-model="msCfg.deadline" type="datetime" value-format="YYYY-MM-DD HH:mm"
-                    format="MM-DD HH:mm" placeholder="截止（后进线下协调）" style="width:46%" />
+                    format="MM-DD HH:mm" placeholder="截止" style="width:46%" />
                 </el-form-item>
                 <el-form-item label="分类方向" required>
                   <div class="ms-cfg-dirs">
@@ -300,7 +341,6 @@
                         @click="msCfg.directions.splice(i, 1)">删除</el-button>
                     </div>
                     <el-button size="small" @click="msCfg.directions.push({ name: '', course_ids: [] })">+ 添加方向</el-button>
-                    <div class="hint">每个方向至少绑定一门课程（可多门）；导生只选一个方向，学员随归属导生继承方向全部课程，导生逐课按章认证进度（0-100 评分）</div>
                   </div>
                 </el-form-item>
               </template>
@@ -765,6 +805,7 @@ import { ref, reactive, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useStore } from 'vuex';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { InfoFilled } from '@element-plus/icons-vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -1817,6 +1858,7 @@ async function reviseArchive() {
 /* 选导生与方向配置卡（09-12：配置从建营弹窗迁入详情） */
 .ms-cfg-card { border: 1px solid var(--el-border-color-light, #e4e7ed); border-radius: 6px; padding: 12px 14px; margin-bottom: 14px; }
 .ms-cfg-head { display: flex; align-items: center; justify-content: space-between; }
+.ms-cfg-title-row { display: inline-flex; align-items: center; gap: 5px; }
 .ms-cfg-dirs { width: 100%; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
 .ms-cfg-dir-row { display: flex; gap: 8px; align-items: center; width: 100%; }
 .ms-cfg-readonly { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
@@ -1827,5 +1869,39 @@ async function reviseArchive() {
 /* 考勤模式设置卡（09-12 三模式） */
 .att-cfg-card { border: 1px solid var(--el-border-color-light, #e4e7ed); border-radius: 6px; padding: 12px 14px; margin-bottom: 14px; }
 .att-cfg-card :deep(.el-radio) { height: auto; align-items: flex-start; margin-right: 0; }
+.att-tab-label { display: inline-flex; align-items: center; gap: 5px; }
+.att-help-trigger {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; padding: 0; border: 0; border-radius: 50%;
+  color: var(--el-text-color-secondary); background: transparent; cursor: pointer;
+}
+.att-help-trigger:hover { color: var(--el-color-primary); background: var(--el-fill-color-light); }
+.att-mode-list { width: 100%; display: flex; flex-direction: column; align-items: stretch; gap: 6px; }
+.att-mode-option { padding: 8px 10px; border-radius: 6px; }
+.att-mode-option.active { background: var(--el-fill-color-light); }
+.att-daily-panel {
+  max-width: 500px; margin: 8px 0 2px 24px; padding: 12px 14px;
+  border-left: 2px solid var(--el-color-primary); background: var(--el-bg-color);
+}
+.att-daily-panel :deep(.el-form-item:last-child) { margin-bottom: 12px; }
+.att-unit { margin-left: 8px; color: var(--el-text-color-regular); }
+.att-save-row { margin-top: 10px; }
+:global(.att-help-popover .att-help-title) { margin-bottom: 8px; font-weight: 600; color: var(--el-text-color-primary); }
+:global(.att-help-popover ul) { margin: 0; padding-left: 18px; color: var(--el-text-color-regular); line-height: 1.65; }
+:global(.att-help-popover li + li) { margin-top: 5px; }
+:global(.ms-help-popover .ms-help-title) { margin-bottom: 8px; font-weight: 600; color: var(--el-text-color-primary); }
+:global(.ms-help-popover ul) { margin: 0; padding-left: 18px; color: var(--el-text-color-regular); line-height: 1.65; }
+:global(.ms-help-popover li + li) { margin-top: 5px; }
+.join-request-table :deep(.el-table__empty-block) { min-height: 260px; }
+.join-request-table :deep(.el-empty) { padding: 32px 0; }
+.join-request-table :deep(.el-empty__description p) {
+  font-size: 15px; font-weight: 600; color: var(--el-text-color-primary);
+}
+.join-empty-note { color: var(--el-text-color-secondary); font-size: 13px; }
+.mentor-request-table { margin-bottom: 10px; }
+.mentor-request-table :deep(.el-table__empty-block) { min-height: 92px; }
+.mentor-empty-state { display: flex; align-items: baseline; justify-content: center; gap: 10px; }
+.mentor-empty-state strong { color: var(--el-text-color-primary); font-size: 14px; }
+.mentor-empty-state span { color: var(--el-text-color-secondary); font-size: 13px; }
 
 </style>

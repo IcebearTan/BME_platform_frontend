@@ -1,4 +1,5 @@
 <script>
+import { markRaw } from 'vue'
 import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
@@ -14,13 +15,18 @@ import {
 export default {
   name: "HomeView",
   components: {
-
+    Document, User, ChatLineRound, Trophy, Setting,
+    Grid, Fold, Bell, ArrowDown, Clock, TrendCharts,
+    List, Plus, Cpu, DataLine, Key, Tickets,
+    Sunny, Moon, Collection, Folder, School, SetUp, Avatar, Picture,
+    Connection, Suitcase, Location
   },
 
   data() {
     return {
       activeIndex: '/',
       sidebarCollapsed: false,
+      Fold: markRaw(Fold),
       store: useStore(),
       router: useRouter(),
     };

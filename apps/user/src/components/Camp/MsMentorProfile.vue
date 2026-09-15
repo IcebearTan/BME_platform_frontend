@@ -3,9 +3,6 @@
     <template #header>
       <div class="head-row">
         <h3>我的导生名片</h3>
-        <span v-if="locked || deadline" class="head-hint">
-          {{ locked ? '志愿已截止，名片锁定' : `${deadline} 截止后锁定，届时不可再改` }}
-        </span>
       </div>
     </template>
 
@@ -32,7 +29,6 @@
               </div>
             </transition>
           </div>
-          <span class="photo-hint">展示图片 · JPG / PNG · 不超过 5MB{{ locked ? '（已锁定）' : '' }}</span>
           <!-- 隐藏的 el-upload：pickPhoto 触发其文件选择 -->
           <el-upload
             ref="uploadRef"
@@ -48,7 +44,7 @@
         <!-- 表单 -->
         <div class="form-col">
           <div class="form-item">
-            <label class="form-label">自我介绍 <span class="label-sub">最多 1000 字</span></label>
+            <label class="form-label">自我介绍</label>
             <DewInput
               :model-value="form.bio"
               type="textarea"
@@ -87,7 +83,6 @@
                 :aria-pressed="form.capacity === null" :disabled="locked"
                 @click="toggleUnlimited">不限</DewButton>
             </div>
-            <span class="form-hint">最多愿意带几位学员，不设限就点「不限」</span>
           </div>
 
           <div class="form-actions">
@@ -121,7 +116,6 @@ import { campService, assetUrl } from '../../services/campService';
 const props = defineProps({
   sid: { type: [Number, String], required: true },
   msTags: { type: Array, default: () => [] },
-  deadline: { type: String, default: '' },   // 志愿截止时间（锁定时点提示）
   locked: { type: Boolean, default: false },
 });
 const emit = defineEmits(['saved']);
@@ -190,9 +184,9 @@ function onDrop(e) {
 async function doUpload(options) {
   const file = options.file;
   if (!['image/jpeg', 'image/png', 'image/jpg'].includes(file.type)) {
-    ElMessage.error('仅支持 jpg / png 格式'); return;
+    ElMessage.error('图片格式不支持，请上传 JPG 或 PNG 图片'); return;
   }
-  if (file.size / 1024 / 1024 > 5) { ElMessage.error('照片不能超过 5MB'); return; }
+  if (file.size / 1024 / 1024 > 5) { ElMessage.error('图片超过 5MB，请选择更小的图片'); return; }
   uploading.value = true;
   try {
     const r = await campService.uploadMsPhoto(props.sid, file);
@@ -248,9 +242,8 @@ watch(() => props.sid, load, { immediate: true });
 <style scoped>
 .profile-card { width: 100%; }
 
-.head-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.head-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .head-row h3 { margin: 0; font-size: 16px; font-weight: 600; }
-.head-hint { font-size: 12px; color: var(--dew-text-muted); }
 .bio-counter { align-self: flex-end; font-size: 11px; color: var(--dew-text-faint); }
 
 .profile-body { display: flex; gap: 32px; align-items: flex-start; }
@@ -302,7 +295,6 @@ watch(() => props.sid, load, { immediate: true });
 }
 .fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
-.photo-hint { font-size: 11px; color: var(--dew-text-faint); }
 .photo-upload { display: none; }
 
 .form-col { flex: 1; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
@@ -311,10 +303,25 @@ watch(() => props.sid, load, { immediate: true });
 .label-sub { font-size: 11.5px; font-weight: 400; color: var(--dew-text-faint); margin-left: 4px; }
 .form-row { flex-direction: row; align-items: center; gap: 14px; flex-wrap: wrap; }
 .form-row .form-label { margin: 0; }
-.form-hint { font-size: 12px; color: var(--dew-text-faint); }
 .form-actions { display: flex; justify-content: flex-end; }
 
 .tag-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.tag-chips :deep(.dew-btn) {
+  min-width: 92px;
+  border: 1px solid rgba(64, 158, 255, 0.28);
+  transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
+}
+.tag-chips :deep(.dew-btn--lit) {
+  border: 2px solid var(--color-primary, #409eff) !important;
+  background: rgba(64, 158, 255, 0.14) !important;
+  color: var(--color-primary, #1677ff) !important;
+  box-shadow: 0 0 0 3px rgba(64, 158, 255, 0.12) !important;
+  font-weight: 600;
+}
+.tag-chips :deep(.dew-btn:focus-visible) {
+  outline: 2px solid var(--color-primary, #409eff);
+  outline-offset: 2px;
+}
 
 /* 名额步进器 */
 .stepper { display: flex; align-items: center; gap: 10px; }
