@@ -1,46 +1,50 @@
 import { createRouter, createWebHistory } from 'vue-router';
 
-import CourseDetailsComponent from './components/Course/CourseDetailsComponent.vue'
-import CoursesComponent from './components/Course/CoursesComponent.vue'
-import ExamListComponent from './components/ExamListComponent.vue'
+import { routeProgressStart, routeProgressDone } from './utils/routeProgress';
 
+// ── 落地三页保持同步打包（登录前后首屏直达，不做异步分包）：门户 /、主应用 /home、登录页 ──
 import HomeView from './views/HomeView.vue'
 import ProfileView from './views/ProfileView.vue'
 import LoginView from './views/LoginView.vue'
-import RegisterView from './views/RegisterView.vue'
-import ArticleView from './views/ArticleView.vue';
-import ArticleViewV2 from './views/ArticleViewV2.vue';
-import ArticleEditorView from './views/ArticleEditorView.vue';
-import ArticleEditorViewV2 from './views/ArticleEditorViewV2.vue';
-import StudyView from './views/StudyView.vue'
-import ExamView from './views/ExamView.vue'
-import UserIndex from './views/UserIndex.vue';
-import UserCenter from './views/UserCenter.vue';
-import UserInfoComponent from './components/User/UserInfoComponent.vue';
-import UserSettingsComponent from './components/User/UserSettingsComponent.vue';
-import MyFavoritesComponent from './components/User/MyFavoritesComponent.vue';
-import MyArticlesComponent from './components/User/MyArticlesComponent.vue';
 
-import AboutUsView from './views/AboutUsView.vue'
-import FindPasswordView from './views/FindPasswordView.vue'
-import MedalWallComponent from './components/User/MedalWallComponent.vue';
-
-import MedalView from './views/MedalView.vue';
-import NotificationView from './views/NotificationView.vue';
-import ExerciseSolveView from './views/ExerciseSolveView.vue';
-import CourseChapterView from './views/CourseChapterView.vue';
-import QuestionBankView from './views/QuestionBankView.vue';
-import ServiceHallView from './views/ServiceHallView.vue';
-import OrganizationView from './views/OrganizationView.vue';
-import LLMServiceView from './views/LLMServiceView.vue';
-import CommunityView from './views/CommunityView.vue';
-import ProjectSquareView from './views/ProjectSquareView.vue';
-import ProjectDetailView from './views/ProjectDetailView.vue';
-import UiShowcaseView from './views/UiShowcaseView.vue';
-import MyFeedbacksComponent from './components/User/MyFeedbacksComponent.vue';
-import CampView from './views/CampView.vue';
-import CampHome from './views/CampHome.vue';
-import CampMarket from './views/CampMarket.vue';
+// ── 其余路由组件全部懒加载（route-level code splitting）：
+// 页面首访才拉自己的 chunk，TinyMCE/md-editor 重编辑器、课程学习等不再拖累首包。
+// 同一组件多处引用共用同一 loader（课程详情在 /study/details 与 /discuss 复用），rollup 归并单 chunk。
+const loadCourses = () => import('./components/Course/CoursesComponent.vue')
+const loadCourseDetails = () => import('./components/Course/CourseDetailsComponent.vue')
+const loadExamList = () => import('./components/ExamListComponent.vue')
+const loadUserIndex = () => import('./views/UserIndex.vue')
+const loadUserCenter = () => import('./views/UserCenter.vue')
+const loadUserInfo = () => import('./components/User/UserInfoComponent.vue')
+const loadUserSettings = () => import('./components/User/UserSettingsComponent.vue')
+const loadMyFeedbacks = () => import('./components/User/MyFeedbacksComponent.vue')
+const loadMyFavorites = () => import('./components/User/MyFavoritesComponent.vue')
+const loadMyArticles = () => import('./components/User/MyArticlesComponent.vue')
+const loadArticle = () => import('./views/ArticleView.vue')
+const loadArticleV2 = () => import('./views/ArticleViewV2.vue')
+const loadArticleEditor = () => import('./views/ArticleEditorView.vue')
+const loadArticleEditorV2 = () => import('./views/ArticleEditorViewV2.vue')
+const loadStudy = () => import('./views/StudyView.vue')
+const loadExam = () => import('./views/ExamView.vue')
+const loadRegister = () => import('./views/RegisterView.vue')
+const loadFindPassword = () => import('./views/FindPasswordView.vue')
+const loadAboutUs = () => import('./views/AboutUsView.vue')
+const loadMedalView = () => import('./views/MedalView.vue')
+const loadMedalWall = () => import('./components/User/MedalWallComponent.vue')
+const loadNotifications = () => import('./views/NotificationView.vue')
+const loadExercise = () => import('./views/ExerciseSolveView.vue')
+const loadCourseChapter = () => import('./views/CourseChapterView.vue')
+const loadQuestionBank = () => import('./views/QuestionBankView.vue')
+const loadServiceHall = () => import('./views/ServiceHallView.vue')
+const loadOrganization = () => import('./views/OrganizationView.vue')
+const loadLLMService = () => import('./views/LLMServiceView.vue')
+const loadCommunity = () => import('./views/CommunityView.vue')
+const loadProjectSquare = () => import('./views/ProjectSquareView.vue')
+const loadProjectDetail = () => import('./views/ProjectDetailView.vue')
+const loadUiShowcase = () => import('./views/UiShowcaseView.vue')
+const loadCampHome = () => import('./views/CampHome.vue')
+const loadCamp = () => import('./views/CampView.vue')
+const loadCampMarket = () => import('./views/CampMarket.vue')
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -52,27 +56,27 @@ const router = createRouter({
         {
             path: '/ui-showcase',
             name: 'ui-showcase',
-            component: UiShowcaseView
+            component: loadUiShowcase
         },
 
         // ── 营期（学员端，需登录）──
         {
             path: '/camp-home',
             name: 'camp-home',
-            component: CampHome,
+            component: loadCampHome,
             meta: { requiresAuth: true }
         },
         {
             path: '/camp',
             name: 'camp',
-            component: CampView,
+            component: loadCamp,
             meta: { requiresAuth: true }
         },
         {
             // 团购导生市集：营期域内全出血展示型子路由（IA 规范 §1.2 例外条款）
             path: '/camp/:sid/market',
             name: 'camp-market',
-            component: CampMarket,
+            component: loadCampMarket,
             meta: { requiresAuth: true }
         },
 
@@ -86,19 +90,19 @@ const router = createRouter({
         {
             path: '/register',
             name: 'register',
-            component: RegisterView,
+            component: loadRegister,
             meta: { authPage: true }
         },
         {
             path: '/find_password',
             name: 'find_password',
-            component: FindPasswordView,
+            component: loadFindPassword,
             meta: { authPage: true }
         },
         {
             path: '/about',
             name: 'about',
-            component: AboutUsView,
+            component: loadAboutUs,
         },
 
         // ── 需要登录的路由 ──
@@ -117,139 +121,139 @@ const router = createRouter({
         {
             path: '/user',
             name: 'user',
-            component: UserIndex,
+            component: loadUserIndex,
             meta: { requiresAuth: true }
         },
         {
             // 任意用户的公开主页（复用 UserIndex 页面；排行榜/社区点击进入）
             path: '/profile/:id',
             name: 'user-profile',
-            component: UserIndex,
+            component: loadUserIndex,
             meta: { requiresAuth: true }
         },
         {
             path: '/user-center',
             name: 'user-center',
-            component: UserCenter,
+            component: loadUserCenter,
             meta: { requiresAuth: true },
             children: [
                 {
                     path: '/user-center/user-info',
                     name: 'user-info',
-                    component: UserInfoComponent,
+                    component: loadUserInfo,
                 },
                 {
                     path: '/user-center/settings',
                     name: 'user-settings',
-                    component: UserSettingsComponent,
+                    component: loadUserSettings,
                 },
                 {
                     path: '/user-center/my-feedbacks',
                     name: 'my-feedbacks',
-                    component: MyFeedbacksComponent,
+                    component: loadMyFeedbacks,
                 },
                 {
                     path: '/user-center/my-favorites',
                     name: 'my-favorites',
-                    component: MyFavoritesComponent,
+                    component: loadMyFavorites,
                 },
                 {
                     path: '/user-center/my-articles',
                     name: 'my-articles',
-                    component: MyArticlesComponent,
+                    component: loadMyArticles,
                 }
             ]
         },
         {
             path: '/article',
             name: 'article',
-            component: ArticleView,
+            component: loadArticle,
             meta: { requiresAuth: true }
         },
         {
             path: '/article-editor',
             name: 'article-editor',
-            component: ArticleEditorView,
+            component: loadArticleEditor,
             meta: { requiresAuth: true }
         },
         {
             path: '/article-editor-v2',
             name: 'article-editor-v2',
-            component: ArticleEditorViewV2,
+            component: loadArticleEditorV2,
             meta: { requiresAuth: true }
         },
         {
             path: '/article-v2',
             name: 'article-v2',
-            component: ArticleViewV2,
+            component: loadArticleV2,
             meta: { requiresAuth: true }
         },
         {
             path: '/ai-service',
             name: 'ai-service',
-            component: LLMServiceView,
+            component: loadLLMService,
             meta: { requiresAuth: true }
         },
         {
             path: '/study',
             name: 'study',
-            component: StudyView,
+            component: loadStudy,
             meta: { requiresAuth: true },
             children: [
                 {
                     path: '/study/details',
                     name: 'study_details',
-                    component: CourseDetailsComponent,
+                    component: loadCourseDetails,
                 },
                 {
                     path: '',
                     name: 'study_default',
-                    component: CoursesComponent,
+                    component: loadCourses,
                 }
             ]
         },
         {
             path: '/exam',
             name: 'exam',
-            component: ExamView,
+            component: loadExam,
             meta: { requiresAuth: true },
             children: [
                 {
                     path: '/exam/details',
                     name: 'exam/details',
-                    component: ExamListComponent,
+                    component: loadExamList,
                 },
                 {
                     path: '',
                     name: 'exma_list',
-                    component: ExamListComponent,
+                    component: loadExamList,
                 }
             ]
         },
         {
             path: '/discuss',
             name: 'discuss',
-            component: CourseDetailsComponent,
+            component: loadCourseDetails,
             meta: { requiresAuth: true }
         },
         {
             path: '/medal',
             name: 'medal',
-            component: MedalView,
+            component: loadMedalView,
             meta: { requiresAuth: true },
             redirect: '/medal/user-medal',
             children: [
                 {
                     path: '/medal/user-medal',
                     name: 'medal-wall',
-                    component: MedalWallComponent,
+                    component: loadMedalWall,
                 }
             ]
         },
         {
             path: '/notifications',
             name: 'notifications',
-            component: NotificationView,
+            component: loadNotifications,
             meta: { requiresAuth: false }
         },
         // /group 已下线（小组功能并入营期），老书签重定向到营期工作台
@@ -257,58 +261,61 @@ const router = createRouter({
         {
             path: '/exercise/:id',
             name: 'exercise-solve',
-            component: ExerciseSolveView,
+            component: loadExercise,
             meta: { requiresAuth: true },
             props: true
         },
         {
             path: '/course/chapter/:courseId',
             name: 'course-chapter',
-            component: CourseChapterView,
+            component: loadCourseChapter,
             meta: { requiresAuth: true },
             props: true
         },
         {
             path: '/question-bank',
             name: 'question-bank',
-            component: QuestionBankView,
+            component: loadQuestionBank,
             meta: { requiresAuth: true }
         },
         {
             path: '/service-hall',
             name: 'service-hall',
-            component: ServiceHallView,
+            component: loadServiceHall,
             meta: { requiresAuth: true }
         },
         {
             path: '/organization',
             name: 'organization',
-            component: OrganizationView,
+            component: loadOrganization,
             meta: { requiresAuth: true }
         },
         {
             path: '/community',
             name: 'community',
-            component: CommunityView,
+            component: loadCommunity,
             meta: { requiresAuth: true }
         },
         {
             // 项目广场（功能扩展轮 §五）：全站项目展示板块，双来源（营期发布投影+自由分享）
             path: '/projects',
             name: 'project-square',
-            component: ProjectSquareView,
+            component: loadProjectSquare,
             meta: { requiresAuth: true }
         },
         {
             path: '/projects/:id',
             name: 'project-detail',
-            component: ProjectDetailView,
+            component: loadProjectDetail,
             meta: { requiresAuth: true }
         },
     ]
 })
 
 router.beforeEach((to, from, next) => {
+    // 路由顶部进度条：分包 chunk 首载期遮羞（同步导航瞬时完成，进度条一闪而过）
+    routeProgressStart()
+
     const token = localStorage.getItem('bme-user-token')
 
     if (to.meta.requiresAuth && !token) {
@@ -319,6 +326,23 @@ router.beforeEach((to, from, next) => {
         next({ name: 'home' })
     } else {
         next()
+    }
+})
+
+router.afterEach(() => {
+    routeProgressDone()
+    // 导航成功即清自愈标记：下次 chunk 失败仍可刷新一次（防连续失败刷新循环）
+    sessionStorage.removeItem('bme-chunk-reloaded')
+})
+
+router.onError((error) => {
+    routeProgressDone()
+    // 分包 chunk 拉取失败（发版后旧 hash 404 / 网络抖动）：整页刷新一次自愈，防白屏死路
+    const msg = String(error?.message || '')
+    if (/dynamically imported module|error loading dynamically/i.test(msg)
+        && !sessionStorage.getItem('bme-chunk-reloaded')) {
+        sessionStorage.setItem('bme-chunk-reloaded', '1')
+        window.location.reload()
     }
 })
 
