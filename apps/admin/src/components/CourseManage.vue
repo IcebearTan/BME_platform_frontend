@@ -346,7 +346,8 @@ const handleDelete = (course) => {
       <DewCard no-hover class="table-card">
         <el-table
           :data="courses"
-          style="width: 100%; overflow: auto; height: calc(100% - 40px);"
+          height="calc(100% - 40px)"
+          style="width: 100%;"
           :row-style="{ height: '50px' }"
           v-loading="loading"
         >
@@ -505,8 +506,12 @@ const handleDelete = (course) => {
   max-height: 600px;
 }
 
+/* 高度链接通：卡片根定高 → body 100% → el-table 用 height prop 内滚。
+   原先 body 无定高，el-table 的 calc(100%-40px) 解析不了按内容撑开，
+   行高 50+封面列 53px 时 10 行溢出 600px 卡片，分页条被顶出可视区。 */
 .table-card :deep(.dew-card__body) {
   padding: 0;
+  height: 100%;
 }
 
 /* 表格内容样式 */
