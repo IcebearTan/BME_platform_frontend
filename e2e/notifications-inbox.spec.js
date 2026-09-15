@@ -12,7 +12,7 @@ const NOTIFICATIONS = {
   data: {
     notifications: [
       { id: 101, title: '系统维护通知', content: '今晚 22:00-23:00 系统维护，请提前保存。', category: 'system', source_type: 'admin', camp_session_id: null, is_read: false, is_important: false, created_at: NOW },
-      { id: 102, title: '收到一封感谢信', content: '张三 寄来一封感谢信，点开看看吧', category: 'gratitude', source_type: 'gratitude', source_id: 201, camp_session_id: 1, is_read: false, is_important: false, created_at: NOW },
+      { id: 102, title: '收到一封感谢信', content: '张三 寄来一封感谢信，点开看看吧', category: 'message', source_type: 'gratitude', source_id: 201, camp_session_id: 1, is_read: false, is_important: false, created_at: NOW },
     ],
   },
 }
@@ -130,7 +130,7 @@ test('感谢信：gratitude 通知直达感谢信 tab 并选中信件', async ({
   await page.getByText('收到一封感谢信').click()
 
   // 切到感谢信 tab（URL 同步）并选中信件
-  await expect(page).toHaveURL(/tab=gratitude/)
+  await expect(page).toHaveURL(/tab=message/)
   await expect(page.getByText('张三 的感谢信')).toBeVisible()
   await expect(page.locator('.inbox-right').getByText('谢谢导师半夜还帮我改滤波参数！')).toBeVisible()
 

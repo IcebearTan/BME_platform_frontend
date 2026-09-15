@@ -9,8 +9,8 @@
       />
     </div>
     <div class="inbox-right">
-      <!-- 右栏归属随 tab 切换：感谢信 tab 显示信件，其余显示通知详情（选中态不在当前 tab 时自然隐藏） -->
-      <GratitudeLetterDetail v-if="activeTab === 'gratitude'" :letter="selectedLetter" />
+      <!-- 右栏归属随 tab 切换：私信 tab 显示信件，其余显示通知详情（选中态不在当前 tab 时自然隐藏） -->
+      <GratitudeLetterDetail v-if="activeTab === 'message'" :letter="selectedLetter" />
       <NoticeDetailPane v-else :notice="selectedNotice" />
     </div>
   </div>
@@ -26,17 +26,19 @@ import GratitudeLetterDetail from '../Gratitude/GratitudeLetterDetail.vue'
 const route = useRoute()
 const router = useRouter()
 
-// 合法 tab：all/system/camp/gratitude（四个大类；未读是状态不是类别，已并入徽标）
-const VALID_TABS = ['all', 'system', 'camp', 'gratitude']
+// 合法 tab：all/system/camp/message（category=业务域；未读是状态不是类别，已并入徽标）。
+// legacy：'gratitude' 是旧 tab 值（感谢信曾是独立类别），归一化到私信域 message
+const VALID_TABS = ['all', 'system', 'camp', 'community', 'message']
+const normalizeTab = (tab) => (tab === 'gratitude' ? 'message' : VALID_TABS.includes(tab) ? tab : 'all')
 
 // URL 即状态：?tab= 由本容器统一持有（铃铛/深链可直达筛选）
-const activeTab = ref(VALID_TABS.includes(route.query.tab) ? route.query.tab : 'all')
+const activeTab = ref(normalizeTab(route.query.tab))
 const selectedNotice = ref(null)
 const selectedLetter = ref(null)
 
 // 左栏选中高亮：随 tab 取对应一侧的选中项
 const selectedId = computed(() => (
-  activeTab.value === 'gratitude'
+  activeTab.value === 'message'
     ? selectedLetter.value?.id ?? null
     : selectedNotice.value?.id ?? null
 ))

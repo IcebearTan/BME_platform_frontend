@@ -66,10 +66,11 @@ const { notificationList, unreadCount, startPolling, stopPolling } = useNotifica
 
 const recentNotifications = computed(() => notificationList.value.slice(0, 5))
 
-// 感谢信提醒直达感谢信 tab，其余进默认列表
+// 私信域提醒（感谢信等）直达私信 tab，其余进默认列表。
+// 兼容存量 category='gratitude' 行——新行已写 message 域
 const goToNotifications = (item) => {
-  if (item?.category === 'gratitude') {
-    router.push({ path: '/notifications', query: { tab: 'gratitude' } })
+  if (item?.category === 'message' || item?.category === 'gratitude') {
+    router.push({ path: '/notifications', query: { tab: 'message' } })
   } else {
     router.push('/notifications')
   }

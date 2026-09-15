@@ -13,7 +13,7 @@
           <span style="font-weight: 600;">{{ currentUnread }}</span> 条未读
         </div>
       </div>
-      <DewButton v-if="activeFilter !== 'gratitude' && unreadCount > 0" type="ghost" size="sm" @click="handleMarkAllAsRead">
+      <DewButton v-if="activeFilter !== 'message' && unreadCount > 0" type="ghost" size="sm" @click="handleMarkAllAsRead">
         全部已读
       </DewButton>
     </div>
@@ -49,7 +49,7 @@
       </div>
 
       <!-- 通知卡片列表 -->
-      <div v-else-if="activeFilter !== 'gratitude'" style="display: flex; flex-direction: column; gap: 6px;">
+      <div v-else-if="activeFilter !== 'message'" style="display: flex; flex-direction: column; gap: 6px;">
         <DewCard
           v-for="item in pagedList"
           :key="item.id"
@@ -149,7 +149,7 @@
         </div>
         <p class="detail-content">{{ selectedNotice.content }}</p>
         <div class="detail-meta">
-          <span class="detail-cat">{{ selectedNotice.category === 'camp' ? '营期通知' : '系统通知' }}</span>
+          <span class="detail-cat">{{ categoryLabel(selectedNotice.category) }}</span>
           <span class="detail-time">{{ formatRelativeTime(selectedNotice.created_at) }}</span>
         </div>
       </div>
@@ -232,33 +232,44 @@ const pageSize = 20
 
 // 统计
 const total = computed(() => filteredList.value.length)
-const totalLabel = computed(() => (activeFilter.value === 'gratitude' ? '封信' : '条通知'))
-const currentUnread = computed(() => (activeFilter.value === 'gratitude' ? letterUnread.value : unreadCount.value))
-const emptyText = computed(() => (activeFilter.value === 'gratitude' ? '暂无感谢信' : '暂无通知'))
+const totalLabel = computed(() => (activeFilter.value === 'message' ? '封信' : '条通知'))
+const currentUnread = computed(() => (activeFilter.value === 'message' ? letterUnread.value : unreadCount.value))
+const emptyText = computed(() => (activeFilter.value === 'message' ? '暂无私信' : '暂无通知'))
+
+// 详情弹窗分类文案（查表，新业务域只加一行）
+const CATEGORY_LABELS = { system: '系统通知', camp: '营期通知', community: '社区通知', message: '私信' }
+const categoryLabel = (c) => CATEGORY_LABELS[c] || '系统通知'
 
 // 筛选栏选项（感谢信 tab 仅导生可见）
-// 四个大类：全部 / 系统 / 营期 / 感谢信（导生）。
-// 未读是状态不是类别——撤掉独立 tab，未读数徽标挂「全部」。
+// 分类体系：category=业务域（system/camp/community/message），source_type=具体事件。
+// tab = 全部 / 系统 / 营期 / 社区（有内容才浮出） / 私信（导生；感谢信是私信的第一种，
+// 未来用户互信同 tab）。未读是状态不是类别——撤独立 tab，未读徽标挂「全部」。
 const filterItems = computed(() => {
   const items = [
     { value: 'all', label: '全部', icon: Bell, badge: unreadCount.value || undefined },
     { value: 'system', label: '系统', icon: Bell },
     { value: 'camp', label: '营期', icon: Bell },
   ]
+  // 社区域预留：社区广场点赞/评论通知落地日（category='community'），tab 自动浮现
+  if (notificationList.value.some(n => n.category === 'community')) {
+    items.push({ value: 'community', label: '社区', icon: Bell })
+  }
   if (isMentor.value) {
-    items.push({ value: 'gratitude', label: '感谢信', icon: ChatDotRound, badge: letterUnread.value || undefined })
+    items.push({ value: 'message', label: '私信', icon: ChatDotRound, badge: letterUnread.value || undefined })
   }
   return items
 })
 
-// 筛选 + 分页（gratitude tab 数据源切换为感谢信）
+// 筛选 + 分页（message tab 数据源切换为信件表——私信是富内容+独立已读态，不走通知过滤）
 const filteredList = computed(() => {
-  if (activeFilter.value === 'gratitude') return letters.value
+  if (activeFilter.value === 'message') return letters.value
   let list = notificationList.value
   if (activeFilter.value === 'system') {
     list = list.filter(n => n.category === 'system')
   } else if (activeFilter.value === 'camp') {
     list = list.filter(n => n.category === 'camp')
+  } else if (activeFilter.value === 'community') {
+    list = list.filter(n => n.category === 'community')
   }
   return list
 })
@@ -270,15 +281,15 @@ const pagedList = computed(() =>
 watch(activeFilter, (tab) => {
   currentPage.value = 1
   // 进入感谢信 tab 时刷新信箱（通知轮询不覆盖信件数据）
-  if (tab === 'gratitude' && isMentor.value) fetchLetters()
+  if (tab === 'message' && isMentor.value) fetchLetters()
 })
 
 // 交互
 function handleClick(item) {
   if (!item.is_read) markAsRead(item.id)
-  // 感谢信提醒：切到感谢信 tab 并选中对应信件
-  if (item.category === 'gratitude') {
-    emit('update:tab', 'gratitude')
+  // 私信域提醒（新行 category=message，存量行 gratitude）：切到私信 tab 并选中对应信件
+  if (item.category === 'message' || item.category === 'gratitude') {
+    emit('update:tab', 'message')
     const letter = letters.value.find(l => l.id === item.source_id)
     if (letter) emit('select-letter', letter)
     return
@@ -332,7 +343,7 @@ function handleMarkAllAsRead() {
   ElMessage.success(cat ? `已将「${cat === 'camp' ? '营期' : '系统'}」通知标记为已读` : '已全部标记为已读')
 }
 
-// 初始化：拉取数据 + 导生判定并预载感谢信（供 gratitude 通知点击时定位信件） + 移动端断点监听
+// 初始化：拉取数据 + 导生判定并预载信件（供私信域通知点击时定位信件） + 移动端断点监听
 onMounted(() => {
   fetchNotifications()
   detectMentor()
