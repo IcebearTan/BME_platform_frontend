@@ -31,6 +31,7 @@ import ExerciseSolveView from './views/ExerciseSolveView.vue';
 import CourseChapterView from './views/CourseChapterView.vue';
 import QuestionBankView from './views/QuestionBankView.vue';
 import ServiceHallView from './views/ServiceHallView.vue';
+import OrganizationView from './views/OrganizationView.vue';
 import LLMServiceView from './views/LLMServiceView.vue';
 import CommunityView from './views/CommunityView.vue';
 import ProjectSquareView from './views/ProjectSquareView.vue';
@@ -277,6 +278,12 @@ const router = createRouter({
             path: '/service-hall',
             name: 'service-hall',
             component: ServiceHallView,
+            meta: { requiresAuth: true }
+        },
+        {
+            path: '/organization',
+            name: 'organization',
+            component: OrganizationView,
             meta: { requiresAuth: true }
         },
         {

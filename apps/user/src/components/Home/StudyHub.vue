@@ -96,7 +96,7 @@ import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
 import { ElCarousel, ElCarouselItem, ElIcon } from 'element-plus'
 import {
-  Reading, EditPen, School, Select, Files, Box, MagicStick,
+  Reading, School, Box, MagicStick, OfficeBuilding,
 } from '@element-plus/icons-vue'
 import DewButtonBar from '@bme/dew-ui/DewButtonBar.vue'
 import DewCard from '@bme/dew-ui/DewCard.vue'
@@ -144,13 +144,11 @@ const hubTabs = [
 // 学习入口图标映射（Element Plus 图标，替代原 emoji）
 const entryIcons = {
   courses: Reading,
-  'question-bank': EditPen,
   camp: School,
-  exams: Select,
-  resources: Files,
   '3d-print': Box,
   'llm': MagicStick,
   'xlab': IconBrainCircuit,
+  'club': OfficeBuilding,
 }
 
 // 轮播Banner数据（09-15 起 DB 驱动，管理端「首页轮播」页维护，换图零发版）：
@@ -207,16 +205,14 @@ const handleBannerChange = (_currentIndex, previousIndex) => {
   outgoingBannerIndex.value = previousIndex
 }
 
-// 学习功能入口数据（可点入口在前，未上线 disabled 置底）
+// 学习功能入口数据（全部已上线可点；题库/考核/资源等未上线入口统一放服务大厅「学习服务」板块）
 const studyEntries = ref([
   { id: 'courses', title: '课程', description: '系统化的课程学习', route: '/study', color: '#409EFF' },
   { id: 'camp', title: '营期中心', description: '查看报名与我的营期', route: '/camp', color: '#7c3aed' },
   { id: '3d-print', title: '3D打印', description: '3D 模型打印预约', external: '/3dfarm/', color: '#06b6d4' },
   { id: 'llm', title: '大模型', description: '大模型 API 接口平台', route: '/ai-service', color: '#ec4899' },
   { id: 'xlab', title: 'XLAB', description: '营期项目 × 自由分享', route: '/projects', color: '#00ff9c' },
-  { id: 'question-bank', title: '题库', description: '练习巩固知识点', route: '/question-bank', color: '#67C23A', disabled: true },
-  { id: 'exams', title: '考核评估', description: '检验学习效果', route: '/exam', color: '#F56C6C', disabled: true },
-  { id: 'resources', title: '学习资源', description: '丰富的学习材料', route: '/resources', color: '#909399', disabled: true },
+  { id: 'club', title: '社团', description: '组织架构与干事名录', route: '/organization', color: '#10b981' },
 ])
 
 // ── 社区广场：推送最新帖子（真实 API + mock 兜底） ──
@@ -470,7 +466,7 @@ onMounted(() => {
 
 .entries-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr); /* 一行四个 */
+  grid-template-columns: repeat(3, 1fr); /* 一行三个：6 个入口两行铺满 */
   gap: 12px;
 }
 

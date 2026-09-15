@@ -6,7 +6,7 @@ import MenuComponent from "../components/MenuComponent.vue";
 import PageFooterComponent from "../components/PageFooterComponent.vue";
 import MobileMenuComponent from "../components/MobileMenuComponent.vue";
 import { DewCard, DewTag } from '@bme/dew-ui';
-import { Menu as Expand, Printer, Monitor, MagicStick, ArrowRight } from '@element-plus/icons-vue';
+import { Menu as Expand, Printer, Monitor, MagicStick, ArrowRight, OfficeBuilding, EditPen, Select, Files } from '@element-plus/icons-vue';
 
 const store = useStore();
 const router = useRouter();
@@ -49,9 +49,31 @@ const deviceServices = [
   { title: '实验室设备', desc: '各类实验器材与设备预约', icon: Monitor, color: '#909399', status: '建设中' },
 ];
 
+// 学习服务：题库/考核/资源尚未上线（09-15 从首页 StudyHub 迁入，口径与设备预约一致）
+const learningServices = [
+  { title: '题库', desc: '练习巩固知识点', icon: EditPen, color: '#67C23A', status: '建设中' },
+  { title: '考核评估', desc: '检验学习效果', icon: Select, color: '#F56C6C', status: '建设中' },
+  { title: '学习资源', desc: '丰富的学习材料', icon: Files, color: '#909399', status: '建设中' },
+];
+
+// 未上线板块统一渲染（设备预约 / 学习服务），后续再上线板块只需加一项
+const pendingSections = [
+  { title: '设备预约', services: deviceServices },
+  { title: '学习服务', services: learningServices },
+];
+
 const selfServices = [
   { title: '3D打印农场', desc: '在线预约，一站式 3D 打印服务', icon: Printer, color: '#06b6d4', action: open3DFarm },
   { title: 'AI 大模型服务', desc: '创建 API Key、查看用量与申请额度', icon: MagicStick, color: '#409EFF', action: handleAIServiceClick },
+];
+
+// 社团服务：组织架构页（设计方案 docs/社团身份体系-设计方案.md §5.1）
+const goOrganization = () => {
+  router.push('/organization');
+};
+
+const clubServices = [
+  { title: '社团组织架构', desc: '组织结构、干事名录与分组一览', icon: OfficeBuilding, color: '#10b981', action: goOrganization },
 ];
 
 </script>
@@ -87,17 +109,17 @@ const selfServices = [
           </div>
 
           <div class="service-grid">
-            <!-- Section: 设备预约 -->
-            <section class="service-section">
+            <!-- Sections: 未上线板块（设备预约 / 学习服务），同一套「暂未开放」渲染 -->
+            <section v-for="section in pendingSections" :key="section.title" class="service-section">
               <div class="section-title-row">
                 <span class="title-accent sm"></span>
-                <h2 class="section-title">设备预约</h2>
+                <h2 class="section-title">{{ section.title }}</h2>
                 <DewTag type="info" size="sm" round>暂未开放</DewTag>
               </div>
 
               <div class="cards-container">
                 <DewCard
-                  v-for="(s, i) in deviceServices"
+                  v-for="(s, i) in section.services"
                   :key="i"
                   size="md"
                   :no-hover="true"
@@ -127,6 +149,38 @@ const selfServices = [
               <div class="cards-container">
                 <DewCard
                   v-for="(s, i) in selfServices"
+                  :key="i"
+                  size="md"
+                  interactive
+                  class="entry-card"
+                  @click="s.action && s.action()"
+                >
+                  <div class="card-row">
+                    <div class="icon-box" :style="{ background: s.color + '1a', color: s.color }">
+                      <el-icon><component :is="s.icon" /></el-icon>
+                    </div>
+                    <div class="text-content">
+                      <h3>{{ s.title }}</h3>
+                      <p>{{ s.desc }}</p>
+                    </div>
+                    <div class="card-action">
+                      <el-icon><ArrowRight /></el-icon>
+                    </div>
+                  </div>
+                </DewCard>
+              </div>
+            </section>
+
+            <!-- Section: 社团服务 -->
+            <section class="service-section">
+              <div class="section-title-row">
+                <span class="title-accent sm"></span>
+                <h2 class="section-title">社团服务</h2>
+              </div>
+
+              <div class="cards-container">
+                <DewCard
+                  v-for="(s, i) in clubServices"
                   :key="i"
                   size="md"
                   interactive
