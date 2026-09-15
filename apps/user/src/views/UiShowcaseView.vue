@@ -65,6 +65,10 @@
           <DewButtonBar :items="barItems2" v-model="barValue2" size="sm" />
           <DewButtonBar :items="barItems1" v-model="barValue1" size="lg" />
         </div>
+        <div style="font-size: 12px; color: var(--dew-text-faint); margin-bottom: 8px;">stretch：占满容器宽、选项均分（筛选栏对齐列宽）</div>
+        <div style="max-width: 340px; margin-bottom: 12px; padding: 10px; background: rgba(127,127,127,0.06); border-radius: 14px;">
+          <DewButtonBar :items="barItems2" v-model="barValue2" stretch />
+        </div>
         <div style="font-size: 12px; color: var(--dew-text-faint);">
           当前选中：{{ barValue1 }}
         </div>

@@ -2,7 +2,7 @@
   <div
     ref="barRef"
     class="dew-bar"
-    :class="[`dew-bar--${size}`]"
+    :class="[`dew-bar--${size}`, { 'dew-bar--stretch': stretch }]"
     @mouseenter="onEnter"
     @mousemove="onMove"
     @mouseleave="onLeave"
@@ -45,6 +45,8 @@ const props = defineProps({
   items: { type: Array, required: true },
   modelValue: { type: [String, Number], default: null },
   size: { type: String, default: 'md' },  // sm | md | lg
+  /** 占满容器宽：条体拉到 100%、选项均分（筛选栏对齐列宽用） */
+  stretch: { type: Boolean, default: false },
   badgeMode: {
     type: String,
     default: 'pill',
@@ -124,6 +126,16 @@ const refractionStyle = computed(() => {
 .dew-bar--sm { gap: 2px; }
 .dew-bar--md { gap: 3px; }
 .dew-bar--lg { gap: 4px; }
+
+/* ── 占满容器：条体 100% 宽，选项均分（指示器按 offsetWidth 定位，不受影响） ── */
+.dew-bar--stretch {
+  display: flex;
+  width: 100%;
+}
+
+.dew-bar--stretch .dew-bar__item {
+  flex: 1;
+}
 
 /* ── 折射层 ── */
 .dew-bar__refraction {
