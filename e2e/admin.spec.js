@@ -374,6 +374,46 @@ test('营期详情学习进度看板：分组子矩阵 + 汇总条 + 未分组',
   expect(pageErrors).toEqual([])
 })
 
+test('营期申请批量通过：学员多选 + 导生一键通过（逐项回报契约）', async ({ page }) => {
+  await loginAsStaff(page)
+  await mockCampSessionDetail(page)
+  const pageErrors = []
+  page.on('pageerror', (e) => pageErrors.push(e.message))
+
+  // 批量端点 mock：id=11 那项失败（已在营），其余成功——契约红线=部分成功逐项列明
+  let batchBody = null
+  await page.route('http://127.0.0.1:5001/camp/sessions/1/join-requests/batch-approve', (route) => {
+    batchBody = route.request().postDataJSON()
+    const results = batchBody.items.map((it) =>
+      (it.id === 11 ? { id: it.id, status: 'failed', message: '该用户已在营期中' }
+                    : { id: it.id, status: 'approved', member_id: 9000 + it.id }))
+    const ok = results.filter((r) => r.status === 'approved').length
+    return route.fulfill({ json: { code: 200, message: `已通过 ${ok}/${batchBody.items.length} 项`,
+      approved: ok, results } })
+  })
+
+  await page.goto(`${BASE}/camp/sessions/1`)
+
+  // 学员申请：勾选「申请学员」→ 通过选中（1）→ items 带 id 与行内 _mentor（null）
+  // （EP 选择列的原生 input 视觉隐藏，可见壳是 .el-checkbox label——无 role 可用，按 class 点）
+  await page.getByRole('tab', { name: '学员申请' }).click()
+  await page.getByRole('row', { name: '申请学员' }).locator('.el-checkbox').click()
+  const visBtn = (name) => page.getByRole('button', { name }).filter({ visible: true })
+  await visBtn('通过选中（1）').click()
+  await expect(page.getByText('已通过 0/1 项', { exact: true })).toBeVisible()
+  await expect(page.getByText(/未通过 1 项——申请学员：该用户已在营期中/)).toBeVisible()
+  expect(batchBody).toEqual({ items: [{ id: 11, team_mentor_id: null }] })
+
+  // 选导生·导生招募：一键通过（确认弹窗）→ 导生申请 id 入 items
+  await page.getByRole('tab', { name: '选导生' }).click()
+  await visBtn('一键通过').click()
+  await page.getByRole('button', { name: '全部通过' }).click()
+  await expect(page.getByText('已通过 1/1 项', { exact: true })).toBeVisible()
+  expect(batchBody).toEqual({ items: [{ id: 12, team_mentor_id: null }] })
+
+  expect(pageErrors).toEqual([])
+})
+
 // 社团配置 mock（Phase C 起任命弹窗读 /admin/club/*，提交走 id 轨道）
 async function mockClubMeta(page) {
   await page.route('http://127.0.0.1:5001/admin/club/positions', (route) => route.fulfill({

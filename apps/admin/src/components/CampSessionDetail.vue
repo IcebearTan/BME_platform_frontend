@@ -184,32 +184,43 @@
         </el-form>
       </el-tab-pane>
 
-      <!-- ⑦ 学员申请（仅老师/超管；09-12 重组：导生报名挪「选导生」tab，此处纯学员/成员申请） -->
+      <!-- ⑦ 学员申请（仅老师/超管；09-12 重组：导生报名挪「选导生」tab，此处纯学员/成员申请；
+           09-16 多选/一键通过——批量端点逐项回报，部分失败逐项列明） -->
       <el-tab-pane v-if="canManage" label="学员申请" name="join">
         <el-alert v-if="!studentJoinRequests.length" type="info" :closable="false" title="暂无待审批的学员申请" />
-        <el-table :data="studentJoinRequests" border size="small" style="margin-top: 12px;">
-          <el-table-column label="申请人" prop="username" width="110" />
-          <el-table-column label="邮箱" prop="email" min-width="160" show-overflow-tooltip />
-          <!-- 09-12 砍学员报名意向大组：组别随归属导生继承（导生组=名片 tags），申请列表不再展示 -->
-          <el-table-column label="事由" prop="reason" min-width="140" show-overflow-tooltip />
-          <el-table-column label="提交时间" width="110">
-            <template #default="{ row }">{{ row.created_at ? row.created_at.slice(0, 10) : '' }}</template>
-          </el-table-column>
-          <el-table-column label="归属导生" width="140">
-            <template #default="{ row }">
-              <el-select v-if="row.role === 'student'" v-model="row._mentor" size="small" placeholder="选导生(可选)" style="width:100%">
-                <el-option v-for="m in joinMentors" :key="m.user_id" :label="m.username" :value="m.user_id" />
-              </el-select>
-              <span v-else>—</span>
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="140">
-            <template #default="{ row }">
-              <el-button size="small" type="success" link @click="approveJoin(row)">批准</el-button>
-              <el-button size="small" type="danger" link @click="rejectJoin(row)">拒绝</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
+        <template v-else>
+          <div style="margin-bottom: 12px; margin-top: 12px;">
+            <el-button type="primary" size="small" :disabled="!stuJoinSel.length" :loading="batchApproving"
+              @click="batchApproveJoin(stuJoinSel)">通过选中（{{ stuJoinSel.length }}）</el-button>
+            <el-button size="small" :loading="batchApproving"
+              @click="confirmApproveAll(studentJoinRequests)">一键通过</el-button>
+          </div>
+          <el-table :data="studentJoinRequests" border size="small"
+            @selection-change="(rows) => (stuJoinSel = rows)">
+            <el-table-column type="selection" width="40" />
+            <el-table-column label="申请人" prop="username" width="110" />
+            <el-table-column label="邮箱" prop="email" min-width="160" show-overflow-tooltip />
+            <!-- 09-12 砍学员报名意向大组：组别随归属导生继承（导生组=名片 tags），申请列表不再展示 -->
+            <el-table-column label="事由" prop="reason" min-width="140" show-overflow-tooltip />
+            <el-table-column label="提交时间" width="110">
+              <template #default="{ row }">{{ row.created_at ? row.created_at.slice(0, 10) : '' }}</template>
+            </el-table-column>
+            <el-table-column label="归属导生" width="140">
+              <template #default="{ row }">
+                <el-select v-if="row.role === 'student'" v-model="row._mentor" size="small" placeholder="选导生(可选)" style="width:100%">
+                  <el-option v-for="m in joinMentors" :key="m.user_id" :label="m.username" :value="m.user_id" />
+                </el-select>
+                <span v-else>—</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="140">
+              <template #default="{ row }">
+                <el-button size="small" type="success" link @click="approveJoin(row)">批准</el-button>
+                <el-button size="small" type="danger" link @click="rejectJoin(row)">拒绝</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </template>
       </el-tab-pane>
 
       <!-- ⑧ 选导生（learning 营老师/超管恒显；09-12 重组：导生全生命周期一页——
@@ -218,7 +229,15 @@
         <!-- ── ① 导生招募：待审导生报名（自由报名走审核）+ 导入即导生（超管） ── -->
         <h4 class="ms-sec-title">导生招募</h4>
         <template v-if="mentorJoinRequests.length">
-          <el-table :data="mentorJoinRequests" border size="small">
+          <div style="margin-bottom: 12px;">
+            <el-button type="primary" size="small" :disabled="!mentorJoinSel.length" :loading="batchApproving"
+              @click="batchApproveJoin(mentorJoinSel)">通过选中（{{ mentorJoinSel.length }}）</el-button>
+            <el-button size="small" :loading="batchApproving"
+              @click="confirmApproveAll(mentorJoinRequests)">一键通过</el-button>
+          </div>
+          <el-table :data="mentorJoinRequests" border size="small"
+            @selection-change="(rows) => (mentorJoinSel = rows)">
+            <el-table-column type="selection" width="40" />
             <el-table-column label="报名导生" prop="username" width="110" />
             <el-table-column label="邮箱" prop="email" min-width="160" show-overflow-tooltip />
             <el-table-column label="事由" prop="reason" min-width="120" show-overflow-tooltip />
@@ -1216,6 +1235,50 @@ function rejectJoin(row) {
       ElMessage.error(e.response?.data?.message || '操作失败');
     }
   });
+}
+
+// ── 批量通过（09-16 多选/一键）：学员申请与导生报名通用，走 batch-approve 逐项回报端点 ──
+const stuJoinSel = ref([]);
+const mentorJoinSel = ref([]);
+const batchApproving = ref(false);
+
+function batchApproveJoin(rows) {
+  guarded(() => submitBatchApprove(rows));
+}
+// 一键通过波及全部待审，先确认再执行（通过选中=显式选择即意图，直接执行）
+function confirmApproveAll(rows) {
+  guarded(async () => {
+    try {
+      await ElMessageBox.confirm(`将一次性通过全部 ${rows.length} 项待审批申请`, '一键通过',
+        { type: 'warning', confirmButtonText: '全部通过', cancelButtonText: '取消' });
+    } catch { return; }   // 用户取消
+    await submitBatchApprove(rows);
+  });
+}
+async function submitBatchApprove(rows) {
+  if (!rows.length) return;
+  batchApproving.value = true;
+  try {
+    // 学员行带 row._mentor（未启用选导生的营期生效；导生行恒 null）
+    const items = rows.map((r) => ({ id: r.id, team_mentor_id: r._mentor ?? null }));
+    const r = await api.post(`/camp/sessions/${campId}/join-requests/batch-approve`, { items });
+    ElMessage.success(r.data?.message || '批量通过完成');
+    // 契约红线（members/batch 同款）：部分成功必须逐项列明，不允许显示为全部成功
+    const failed = (r.data?.results || []).filter((x) => x.status === 'failed');
+    if (failed.length) {
+      const detail = failed.map((f) => {
+        const row = rows.find((rr) => rr.id === f.id);
+        return `${row?.username || f.id}：${f.message}`;
+      }).join('；');
+      ElMessage.warning(`未通过 ${failed.length} 项——${detail}`);
+    }
+    fetchAll();
+    fetchJoinRequests();
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '批量通过失败');
+  } finally {
+    batchApproving.value = false;
+  }
 }
 async function updateMentor(row, mentorId) {
   try {
