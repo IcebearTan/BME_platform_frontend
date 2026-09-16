@@ -234,7 +234,7 @@ onMounted(() => {
 
     <div style="margin: 20px;">
       <DewCard no-hover class="table-card">
-        <el-table :data="userMedals" style="width: 100%; max-height: 800px; overflow-y: auto;">
+        <el-table :data="userMedals" style="width: 100%" max-height="calc(100vh - 320px)">
           <el-table-column v-for="item in tableLabel" :key="item.prop" :prop="item.prop" :label="item.label"
             :width="item.width ? item.width : 125" />
 

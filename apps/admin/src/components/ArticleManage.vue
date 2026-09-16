@@ -141,7 +141,8 @@ export default {
       <DewCard no-hover class="table-card">
         <el-table
           :data="articles"
-          style="width: 100%; overflow: auto; height: calc(100% - 40px); border-radius: 10px;"
+          style="width: 100%; border-radius: 10px;"
+          max-height="calc(100vh - 320px)"
           :row-style="{ height: '40px' }"
         >
           <el-table-column
@@ -194,8 +195,8 @@ export default {
   user-select: text;
 }
 
+/* 表体高度由 el-table max-height prop 内滚（视口锚定），卡片不再定高裁切 */
 .table-card {
-  max-height: 600px;
   overflow: hidden;
 }
 

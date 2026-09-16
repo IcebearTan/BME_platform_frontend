@@ -221,7 +221,7 @@
 
       <div class="selectable" style="margin: 20px;">
         <DewCard no-hover class="table-card">
-          <el-table :data="Groups" style="width: 100%; max-height: 500px; overflow-y: auto;">
+          <el-table :data="Groups" style="width: 100%" max-height="calc(100vh - 320px)">
             <el-table-column v-for="item in tableLabel" :key="item.prop" :prop="item.prop" :label="item.label"
               :width="item.width ? item.width : 125" :align="item.align" />
             <el-table-column fixed="right" label="Operations" min-width="120">

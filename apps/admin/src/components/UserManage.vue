@@ -186,7 +186,8 @@ onMounted(() => {
       <DewCard no-hover class="table-card">
         <el-table
           :data="users"
-          style="width: 100%; overflow-y: auto; height: calc(100% - 40px);"
+          style="width: 100%"
+          max-height="calc(100vh - 320px)"
           :row-style="{ height: '40px' }"
         >
           <el-table-column v-for="item in tableLabel" :key="item.prop" :prop="item.prop" :label="item.label"
@@ -268,8 +269,8 @@ onMounted(() => {
 
 <style scoped>
 /* 页头/筛选/分页样式由 styles/pages.css 统一提供 */
+/* 表体高度由 el-table max-height prop 内滚（视口锚定），卡片不再定高裁切 */
 .table-card {
-  max-height: 600px;
   overflow: hidden;
 }
 
