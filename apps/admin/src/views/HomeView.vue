@@ -92,7 +92,7 @@ export default {
             cancelButtonText: '取消',
             type: 'warning',
           }).then(() => {
-            this.store.dispatch('logout');
+            this.store.dispatch('clearUser');
             this.router.push('/login');
             this.$message.success('已退出登录');
           });
