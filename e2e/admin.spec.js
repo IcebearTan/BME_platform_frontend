@@ -445,3 +445,49 @@ test('首页轮播管理：列表渲染 + 新建帧弹窗校验', async ({ page 
 
   expect(pageErrors).toEqual([])
 })
+
+// 回归：退出登录全链路（2fde712 按需引入曾漏注册 $confirm/$message，点退出无反应；
+// 且 logout action 只清 user 不清 token，退出后免密直进）。两层都要守住。
+test('退出登录：确认弹窗 → 清 token → 跳登录页', async ({ page }) => {
+  await loginAsStaff(page)
+  const pageErrors = []
+  page.on('pageerror', (e) => pageErrors.push(e.message))
+
+  await page.goto(`${BASE}/`)
+  await expect(page.locator('.admin-layout')).toBeVisible()
+
+  // 头像下拉 → 退出登录 → $confirm 确认框必须能弹出（函数式 API 注册回归）
+  await page.locator('.user-profile').click()
+  await page.locator('.el-dropdown-menu__item').filter({ hasText: '退出登录' }).click()
+  const confirmBox = page.locator('.el-message-box').filter({ hasText: '确定要退出登录吗' })
+  await expect(confirmBox).toBeVisible()
+  await confirmBox.getByRole('button', { name: /确定/ }).click()
+
+  // 跳登录页 + token 双清（localStorage 键与 vuex-persistedstate 状态）
+  await expect(page).toHaveURL(new RegExp(`${BASE.replace('/', '\\/')}/login$`))
+  await expect(page.locator('input[placeholder="输入密码"]')).toBeVisible()
+  const token = await page.evaluate(() => localStorage.getItem('bme-admin-token'))
+  const stateToken = await page.evaluate(
+    () => JSON.parse(localStorage.getItem('bme-admin-state') || '{}').token
+  )
+  expect(token).toBeNull()
+  expect(stateToken).toBeNull()
+
+  // 退出后访问受保护页：应被 401 踢回登录。
+  // 不能复用当前 page：loginAsStaff 的 addInitScript 每次 goto 都会重新播种 token，
+  // 故同 context 新开页面（共享 localStorage，已是退出态），mock 还原真实鉴权语义
+  const fresh = await page.context().newPage()
+  await fresh.route('http://127.0.0.1:5001/user/user_index', (route) => {
+    const auth = route.request().headers()['authorization']
+    if (!auth) return route.fulfill({ status: 401, json: { code: 401, message: 'token缺失' } })
+    return route.fulfill({
+      json: { code: 200, role: 'super_admin', permissions: [], data: { username: 'e2e' } },
+    })
+  })
+  await fresh.goto(`${BASE}/user-manage/users`)
+  // 401 处理器有 1s 延迟跳转（等 toast 显示完），等 URL 而非固定 sleep
+  await expect(fresh).toHaveURL(/\/admin\/login$/, { timeout: 6000 })
+  await fresh.close()
+
+  expect(pageErrors).toEqual([])
+})

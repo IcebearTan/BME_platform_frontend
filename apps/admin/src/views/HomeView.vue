@@ -92,7 +92,8 @@ export default {
             cancelButtonText: '取消',
             type: 'warning',
           }).then(() => {
-            this.store.dispatch('clearUser');
+            // logout action 连 token 一起清（clearUser 只清用户信息，token 会残留）
+            this.store.dispatch('logout');
             this.router.push('/login');
             this.$message.success('已退出登录');
           });

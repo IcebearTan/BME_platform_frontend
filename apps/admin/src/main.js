@@ -1,7 +1,8 @@
 import { createApp } from 'vue'
 // EP 组件由 unplugin-vue-components 按需解析，不再全量注册。
-// 全局保留：v-loading 指令 + ElMessage/ElMessageBox 函数式组件样式
-import { ElLoading } from 'element-plus'
+// 全局保留：v-loading 指令 + ElMessage/ElMessageBox 函数式 API 及其样式
+// （Options API 组件用 this.$message / this.$confirm，按需引入后不会自动挂载，须手动注册）
+import { ElLoading, ElMessage, ElMessageBox } from 'element-plus'
 import 'element-plus/es/components/loading/style/css'
 import 'element-plus/es/components/message/style/css'
 import 'element-plus/es/components/message-box/style/css'
@@ -20,6 +21,12 @@ import '@vueup/vue-quill/dist/vue-quill.snow.css'
 const app = createApp(App)
 
 app.use(ElLoading)   // v-loading 指令 + 服务
+
+// 函数式 API 挂回全局：否则 this.$confirm 点退出无反应、this.$message 在跳转前抛错把登录卡死
+app.config.globalProperties.$message = ElMessage
+app.config.globalProperties.$confirm = ElMessageBox.confirm
+app.config.globalProperties.$alert = ElMessageBox.alert
+app.config.globalProperties.$prompt = ElMessageBox.prompt
 
 // 注册 Quill 编辑器组件（富文本全局件）
 app.component('QuillEditor', QuillEditor)

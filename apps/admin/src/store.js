@@ -36,7 +36,11 @@ export default new Vuex.Store({
             commit('setUser', user)
         },
         logout({ commit }) {
+            // 退出必须连 token 一起清：isLogin getter 与 api 拦截器都以 token 为准，
+            // 只清 user 的话 token 仍在 localStorage，退出后任何页面免密直进
             commit('clearUser');
+            commit('clearToken');
+            localStorage.removeItem('bme-admin-token');
         }
 
     },
