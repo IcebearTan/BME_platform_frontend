@@ -401,6 +401,12 @@
         </template>
       </el-tab-pane>
 
+      <!-- ⑨ 学习进度（09-16：培训营各组营员学习进度看板——按导生组分桶的认证子矩阵；
+           lazy=首次激活才挂载拉数（逐学员逐课聚合查询较重）；archived 营可读作结营复盘） -->
+      <el-tab-pane v-if="session.category === 'learning'" label="学习进度" name="progress" lazy>
+        <CampProgressBoard :sid="Number(campId)" />
+      </el-tab-pane>
+
       <!-- 项目营：申报审核（v1.3 阶段3；申报窗口仅 upcoming） -->
       <el-tab-pane v-if="isProjectCamp && canManage" label="项目申报" name="papp">
         <el-alert :type="session.status === 'upcoming' ? 'success' : 'info'" :closable="false"
@@ -765,6 +771,7 @@ import { ref, reactive, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useStore } from 'vuex';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import CampProgressBoard from './CampProgressBoard.vue';
 
 const route = useRoute();
 const router = useRouter();

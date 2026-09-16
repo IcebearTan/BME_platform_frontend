@@ -300,6 +300,80 @@ test('营期详情保留选导生与成员添加能力', async ({ page }) => {
   expect(pageErrors).toEqual([])
 })
 
+test('营期详情学习进度看板：分组子矩阵 + 汇总条 + 未分组', async ({ page }) => {
+  await loginAsStaff(page)
+  await mockCampSessionDetail(page)
+  const pageErrors = []
+  page.on('pageerror', (e) => pageErrors.push(e.message))
+
+  // 看板数据：1 个有方向组（已完结/认证中/未开始三种格子态）+ 未分组桶
+  await page.route('http://127.0.0.1:5001/camp/sessions/1/progress/board', (route) =>
+    route.fulfill({ json: { code: 200,
+      summary: { group_count: 1, student_count: 3, certified_chapters: 4,
+        total_chapters: 9, completed_courses: 1, certified_rate: 44 },
+      groups: [
+        { mentor_user_id: 101, mentor_name: '林泽宇', direction: '硬件组', hint: null,
+          certified_rate: 56,
+          courses: [
+            { course_id: 11, course_title: '生物医学工程导论' },
+            { course_id: 12, course_title: '电路基础' },
+          ],
+          students: [
+            { student_user_id: 201, username: '测试学员20', certified_rate: 78, courses: [
+              { course_id: 11, course_title: '生物医学工程导论', certified_chapters: 3,
+                total_chapters: 3, score_avg: 88, course_status: 'completed',
+                chapters: [{ chapter_id: 1, name: '1.1 概述', order: 1, lessons: 2,
+                  lessons_completed: 2, certified: true, certified_at: '2026-09-10 10:00',
+                  certified_by: 101, score: 88, material_count: 1 }] },
+              { course_id: 12, course_title: '电路基础', certified_chapters: 1,
+                total_chapters: 4, score_avg: null, course_status: 'active',
+                chapters: [{ chapter_id: 2, name: '2.1 元件', order: 1, lessons: 3,
+                  lessons_completed: 1, certified: true, certified_at: '2026-09-12 15:00',
+                  certified_by: 101, score: null, material_count: 0 }] },
+            ] },
+            { student_user_id: 202, username: '测试学员21', certified_rate: 0, courses: [
+              { course_id: 11, course_title: '生物医学工程导论', certified_chapters: 0,
+                total_chapters: 3, score_avg: null, course_status: null,
+                chapters: [{ chapter_id: 1, name: '1.1 概述', order: 1, lessons: 2,
+                  lessons_completed: 1, certified: false, certified_at: null,
+                  certified_by: null, score: null, material_count: 0 }] },
+              { course_id: 12, course_title: '电路基础', certified_chapters: 0,
+                total_chapters: 4, score_avg: null, course_status: null, chapters: [] },
+            ] },
+          ] },
+        { mentor_user_id: null, mentor_name: null, direction: null,
+          hint: '尚未归属导生（开放报名后随导生继承方向）', certified_rate: null, courses: [],
+          students: [{ student_user_id: 203, username: '测试学员22', certified_rate: null, courses: [] }] },
+      ] } }))
+
+  await page.goto(`${BASE}/camp/sessions/1`)
+
+  // 培训营（learning）恒显学习进度 tab；lazy=点击后才拉看板数据
+  const boardRequest = page.waitForRequest(
+    (request) => request.url() === 'http://127.0.0.1:5001/camp/sessions/1/progress/board')
+  await page.getByRole('tab', { name: '学习进度' }).click()
+  await boardRequest
+
+  // 汇总条 + 组头（导生/方向/人数/组认证率）+ 未分组桶
+  // 注：不单独断言导生名「林泽宇」——成员 tab（默认已渲染）同名单元格会撞 strict mode
+  await expect(page.getByText('认证章节 4/9', { exact: true })).toBeVisible()
+  await expect(page.getByText('已完结课程 1', { exact: true })).toBeVisible()
+  await expect(page.getByText('3 名学员 · 1 个导生组', { exact: true })).toBeVisible()
+  await expect(page.getByText('硬件组', { exact: true })).toBeVisible()
+  await expect(page.getByText('组认证率 56%', { exact: true })).toBeVisible()
+  await expect(page.getByText('未分组', { exact: true })).toBeVisible()
+  await expect(page.getByText(/尚未归属导生/)).toBeVisible()
+
+  // 三种格子态：已完结（绿）=课程汇总态齐；认证中 n/m；未认证仅自学
+  await expect(page.getByText('已完结 3/3', { exact: true })).toBeVisible()
+  await expect(page.getByText('1/4', { exact: true })).toBeVisible()
+  await expect(page.getByText('0/3', { exact: true })).toBeVisible()
+  // 逐章明细在 title tooltip（悬停可见），不占格子版面
+  await expect(page.locator('div[title*="生物医学工程导论 · 均分 88"]')).toHaveCount(1)
+
+  expect(pageErrors).toEqual([])
+})
+
 // 社团配置 mock（Phase C 起任命弹窗读 /admin/club/*，提交走 id 轨道）
 async function mockClubMeta(page) {
   await page.route('http://127.0.0.1:5001/admin/club/positions', (route) => route.fulfill({
