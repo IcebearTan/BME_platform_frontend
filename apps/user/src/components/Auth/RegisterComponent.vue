@@ -62,7 +62,7 @@
 
 <script setup>
 import { ref, reactive, computed } from 'vue'
-import api from '../../api'
+import api, { session } from '../../api'
 import md5 from 'js-md5'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
@@ -147,7 +147,7 @@ const submitEmail = async () => {
       data: { User_Email: registerForm.email },
     })
     if (res.data.code === 200) {
-      localStorage.setItem('bme-user-token', res.data.token)
+      session.save(res.data)
       ElMessage.success('验证码已发送到您的邮箱，请查收')
       if (timer) clearInterval(timer)
       count.value = 60
@@ -193,7 +193,7 @@ const submitForm = async () => {
     })
     if (res.data.code === 200) {
       // 后端注册即登录（返回真 token）：直接进已登录态，不再绕 /login 重登一次
-      localStorage.setItem('bme-user-token', res.data.token)
+      session.save(res.data)
       store.commit('setToken', res.data.token)                 // state.token 只在启动时读 localStorage，session 内需显式同步
       store.commit('setUser', { ...res.data, role: 'user' })   // 注册回包仅 token+User_Name，新用户恒 user 角色
       store.commit('setAvatar', 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png')

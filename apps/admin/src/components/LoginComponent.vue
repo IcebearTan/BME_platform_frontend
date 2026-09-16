@@ -1,6 +1,6 @@
 <script>
 import { useStore } from 'vuex';
-import api from '../api';
+import api, { session } from '../api';
 import md5 from 'js-md5';
 import { DewCard, DewInput, DewButton } from '@bme/dew-ui';
 import { User, Lock } from '@element-plus/icons-vue';
@@ -51,8 +51,8 @@ export default {
                 });
 
                 if (res.data.code == 200) {
-                    // 将数据存入浏览器
-                    localStorage.setItem("bme-admin-token", res.data.token)
+                    // 存 token 对（access + refresh，静默续期用）
+                    session.save(res.data)
                     this.store.commit('setUser', res.data)
                     this.$message({
                         message: '登录成功',

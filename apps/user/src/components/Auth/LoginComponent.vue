@@ -65,7 +65,7 @@
 import { ref, computed } from 'vue'
 import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
-import api from '../../api'
+import api, { session } from '../../api'
 import { assetUrl } from '../../services/campService'
 import md5 from 'js-md5'
 import { ElMessage } from 'element-plus'
@@ -133,7 +133,7 @@ async function submitForm() {
       },
     })
     if (res.data.code === 200) {
-      localStorage.setItem('bme-user-token', res.data.token)
+      session.save(res.data)
       store.commit('setUser', res.data)
       await fetchAvatar()
       router.push('/home')

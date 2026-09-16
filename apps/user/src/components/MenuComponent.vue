@@ -47,7 +47,7 @@ import { ClickOutside as vClickOutside } from 'element-plus'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Calendar, User, SwitchButton } from '@element-plus/icons-vue'
-import api from '../api'
+import api, { session } from '../api'
 import { assetUrl } from '../services/campService'
 import NotificationBell from './Notification/NotificationBell.vue'
 import campLogo from '../assets/秋季学期营.png'
@@ -157,8 +157,9 @@ const onClickOutside = () => {
 }
 
 const logOut = () => {
+    // 后端吊销 access+refresh（fire-and-forget）+ 本地双清，再整页重置
+    session.revoke()
     store.dispatch('logout')
-    localStorage.removeItem('bme-user-token')
     window.location.reload()
 }
 

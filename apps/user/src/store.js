@@ -89,8 +89,11 @@ export default new Vuex.Store({
             commit('setAvatar', avatar)
         },
         logout({ commit }) {
+            // clearToken 补齐（2026-09-16 加固）：原先只清 user/avatar，
+            // 持久化 state.token 残留旧值，reload 后 isLogin getter 假真
             commit('clearUser');
             commit('clearAvatar');
+            commit('clearToken');
         },
 
     },
