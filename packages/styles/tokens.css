@@ -431,3 +431,16 @@
   --dew-tint-default-from: rgba(59,130,246,0.25);
   --dew-tint-default-to:   rgba(139,92,246,0.15);
 }
+
+/* ── 等级徽标 LV1-4 色阶（两端共用单源；半透明底，明暗两态均可用）──
+   灰(LV1 新人) → 绿(LV2 成长) → 琥珀(LV3 进阶) → 红(LV4 满级)；
+   与语义色错位使用：这是「等级身份」不是状态语义 */
+.lv-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; line-height: 18px;
+  padding: 0 8px; border-radius: 999px; letter-spacing: 0.02em;
+}
+.lv-badge.lv-1 { color: #8a9099; background: rgba(138, 144, 153, 0.14); }
+.lv-badge.lv-2 { color: #009961; background: rgba(0, 153, 97, 0.12); }
+.lv-badge.lv-3 { color: #b57a00; background: rgba(200, 143, 20, 0.13); }
+.lv-badge.lv-4 { color: #d63a3a; background: rgba(214, 58, 58, 0.11); }

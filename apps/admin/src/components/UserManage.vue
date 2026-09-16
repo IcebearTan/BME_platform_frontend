@@ -87,8 +87,8 @@ const handlePageChange = (page) => {
 };
 
 // ── 角色 / 等级 / 状态 展示 ──
-const LEVEL_TAG_TYPES = { 1: 'info', 2: 'success', 3: 'warning', 4: 'danger' };
-const levelTagType = (level) => LEVEL_TAG_TYPES[level] || 'info';
+// 等级徽标走全局 .lv-badge 色阶（@bme/styles/tokens.css，两端共用）
+const levelBadgeClass = (level) => ['lv-badge', `lv-${level || 1}`];
 const roleText = (row) => (row.role === 'super_admin' ? '管理员' : '用户');
 const banned = (row) => row.status === 'banned';
 
@@ -151,6 +151,40 @@ const toggleBan = async (row) => {
   }
 };
 
+// ── 批量升级（09-16）：选中用户各升一级，逐项回报（LV4 不再上升）──
+const selection = ref([]);
+const batchUpgrading = ref(false);
+
+async function batchUpgrade() {
+  const rows = selection.value;
+  if (!rows.length || batchUpgrading.value) return;
+  try {
+    await ElMessageBox.confirm(
+      `将把选中的 ${rows.length} 名用户各升一级（已是 LV4 的不再变化）。`,
+      '批量升级', { confirmButtonText: '升级', cancelButtonText: '取消', type: 'warning' });
+  } catch { return; }   // 用户取消
+  batchUpgrading.value = true;
+  try {
+    const res = await api.post('/admin/users/level/batch',
+      { user_ids: rows.map((r) => r.User_Id) });
+    ElMessage.success(res.data?.message || '批量升级完成');
+    // 契约红线：部分失败逐项列明，不允许显示为全部成功
+    const failed = (res.data?.results || []).filter((x) => x.status === 'failed');
+    if (failed.length) {
+      const detail = failed.map((f) => {
+        const row = rows.find((r) => r.User_Id === f.user_id);
+        return `${row?.User_Name || f.user_id}：${f.message}`;
+      }).join('；');
+      ElMessage.warning(`未升级 ${failed.length} 人——${detail}`);
+    }
+    fetchUsers();
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '批量升级失败');
+  } finally {
+    batchUpgrading.value = false;
+  }
+}
+
 onMounted(() => {
   fetchUsers();
 })
@@ -184,12 +218,20 @@ onMounted(() => {
 
     <div style="margin: 20px;">
       <DewCard no-hover class="table-card">
+        <!-- 批量操作条（09-16 批量升级；与搜索/分页共存） -->
+        <div class="batch-bar">
+          <el-button type="primary" size="small" :disabled="!selection.length" :loading="batchUpgrading"
+            @click="batchUpgrade">批量升级（{{ selection.length }}）</el-button>
+          <span class="batch-tip">选中用户各升一级；LV4 为满级不再上升</span>
+        </div>
         <el-table
           :data="users"
           style="width: 100%"
           max-height="calc(100vh - 320px)"
           :row-style="{ height: '40px' }"
+          @selection-change="(rows) => (selection = rows)"
         >
+          <el-table-column type="selection" width="40" />
           <el-table-column v-for="item in tableLabel" :key="item.prop" :prop="item.prop" :label="item.label"
             :width="item.width ? item.width : 125" />
           <el-table-column label="角色" width="110" align="center">
@@ -201,7 +243,7 @@ onMounted(() => {
           </el-table-column>
           <el-table-column label="等级" width="90" align="center">
             <template #default="{ row }">
-              <el-tag v-if="row.level" :type="levelTagType(row.level)" size="small">LV{{ row.level }}</el-tag>
+              <span v-if="row.level" :class="levelBadgeClass(row.level)">LV{{ row.level }}</span>
               <span v-else>—</span>
             </template>
           </el-table-column>
@@ -277,4 +319,9 @@ onMounted(() => {
 .table-card :deep(.dew-card__body) {
   padding: 0;
 }
+.batch-bar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px; border-bottom: 1px solid var(--el-border-color-lighter, #ebeef5);
+}
+.batch-tip { font-size: 12px; color: var(--el-text-color-secondary, #909399); }
 </style>

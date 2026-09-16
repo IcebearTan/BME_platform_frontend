@@ -616,3 +616,27 @@ test('周考模式：学期校区营报名不收承诺日（按周累计）', as
 
   expect(errors).toEqual([])
 })
+
+// 09-16 LV1 也可见报名路径：中心组 hint 指明门槛 + 工作台锁定卡（等级规则不该到 LV2 才被看见）
+test('导生报名路径对 LV1 可见：中心组 hint + 工作台锁定卡', async ({ page }) => {
+  const errors = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  await loginAsUser(page, [], 'user', 1)
+
+  await page.goto(`${BASE}/camp`, { waitUntil: 'domcontentloaded' })
+  // 中心：「导生可报名」组对 LV1 可见，hint 告知 LV2 门槛
+  await expect(page.locator('.group-title').filter({ hasText: /^导生可报名$/ })).toBeVisible()
+  await expect(page.getByText('报名导生需 LV2——达到后即可在本组营期自助报名')).toBeVisible()
+
+  // 进工作台：报名卡为锁定态（升级指引 + 禁用按钮），不渲染可点的报名按钮
+  await page.locator('.camp-card', { hasText: '秋季导生营' }).getByRole('button', { name: '进入营期' }).click()
+  await expect(page).toHaveURL(/sid=21/)
+  await expect(page.getByText('报名成为本营导生')).toBeVisible()
+  await expect(page.getByText(/达到 LV2 即可在报名窗口内自助报名导生/)).toBeVisible()
+  const lockedBtn = page.getByRole('button', { name: 'LV2 后可报名' })
+  await expect(lockedBtn).toBeVisible()
+  await expect(lockedBtn).toBeDisabled()
+  await expect(page.getByRole('button', { name: '报名成为导生' })).toHaveCount(0)
+
+  expect(errors).toEqual([])
+})

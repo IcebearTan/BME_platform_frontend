@@ -642,3 +642,40 @@ test('营期列表：逻辑删除（running 营无删除入口）', async ({ pag
 
   expect(pageErrors).toEqual([])
 })
+
+// 用户管理·批量升级（09-16）：多选+确认+逐项回报（LV4 满级回报失败）+ LV 徽标色阶
+test('用户管理：批量升级 + 等级徽标色阶', async ({ page }) => {
+  await loginAsStaff(page)
+  const pageErrors = []
+  page.on('pageerror', (e) => pageErrors.push(e.message))
+  await page.route('http://127.0.0.1:5001/user/user_list', (route) =>
+    route.fulfill({ json: [
+      { User_Id: 1, User_Name: 'alice', role: 'super_admin', admin_tag: 'teacher', join_time: '2026-08-01', User_Email: 'a@b.c', level: 1, status: 'active' },
+      { User_Id: 2, User_Name: 'bob', role: 'user', join_time: '2026-08-02', User_Email: 'd@e.f', level: 3, status: 'active' },
+      { User_Id: 3, User_Name: 'carol', role: 'user', join_time: '2026-08-03', User_Email: 'g@h.i', level: 4, status: 'active' },
+    ] }))
+  let batchBody = null
+  await page.route('http://127.0.0.1:5001/admin/users/level/batch', (route) => {
+    batchBody = route.request().postDataJSON()
+    return route.fulfill({ json: { code: 200, message: '已升级 1/2 人', upgraded: 1, results: [
+      { user_id: 2, username: 'bob', status: 'upgraded', old_level: 3, level: 4 },
+      { user_id: 3, username: 'carol', status: 'failed', message: '已是最高等级 LV4' },
+    ] } })
+  })
+
+  await page.goto(`${BASE}/user-manage/users`)
+  // LV 徽标色阶（.lv-badge.lv-N 全局体系）
+  await expect(page.locator('.lv-badge.lv-1').filter({ hasText: 'LV1' })).toBeVisible()
+  await expect(page.locator('.lv-badge.lv-4').filter({ hasText: 'LV4' })).toBeVisible()
+
+  // 勾选 bob + carol → 批量升级（确认弹窗）→ 逐项回报
+  await page.getByRole('row', { name: 'bob' }).locator('.el-checkbox').click()
+  await page.getByRole('row', { name: 'carol' }).locator('.el-checkbox').click()
+  await page.getByRole('button', { name: '批量升级（2）' }).click()
+  await page.getByRole('button', { name: '升级', exact: true }).click()
+  await expect(page.getByText('已升级 1/2 人')).toBeVisible()
+  await expect(page.getByText(/未升级 1 人——carol：已是最高等级 LV4/)).toBeVisible()
+  expect(batchBody).toEqual({ user_ids: [2, 3] })
+
+  expect(pageErrors).toEqual([])
+})

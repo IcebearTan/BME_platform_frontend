@@ -98,16 +98,19 @@ const isStudentPending = (s) => props.pending.student.has(s.id);
 //    兜底组吃掉剩余状态机组合，任何营不落空；空组隐藏）──
 const groups = computed(() => {
   const ss = props.sessions;
-  // 导生报名窗口内的待开放营（自由报名，2026-09-12）：LV≥2 才见本组，与「即将开始」互斥；
+  // 导生报名窗口内的待开放营（自由报名，2026-09-12）：09-16 起 LV1 也见本组
+  // （hint 告知 LV2 门槛——等级规则不该到 LV2 才被看见），与「即将开始」互斥；
   // 仅 learning 营（项目营无导生身份，申报入口在 ProjectApplyCard）
   const mentorTodo = (s) => s.status === 'upcoming' && !s.is_member
-    && s.category === 'learning' && !props.isStaff && props.myLevel >= 2;
+    && s.category === 'learning' && !props.isStaff;
   // taken 记账：已入组的营不再重复，剩余进兜底组（如超管视角的 selecting 营、draft 草稿）
   const taken = new Set();
   const pick = (arr) => { arr.forEach((s) => taken.add(s.id)); return arr; };
   const define = (key, title, hint, items) => (items.length ? { key, title, hint, items } : null);
   return [
-    define('todo', '导生可报名', '导生报名窗口开放中，报名后待管理员审核',
+    define('todo', '导生可报名',
+      props.myLevel >= 2 ? '导生报名窗口开放中，报名后待管理员审核'
+        : '报名导生需 LV2——达到后即可在本组营期自助报名',
       pick(ss.filter(mentorTodo))),
     define('joinable', '可报名', '选择阶段的营，提交申请待审批',
       // 超管不显示可报名组（后端 camp.py 管理员报名一律 400，预判入口而非事后报错）

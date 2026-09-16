@@ -62,8 +62,8 @@
               <div class="register-hint">营期成员由你在管理端「营期管理」中直接分配；如需体验报名流程，请使用学员账号。</div>
             </DewCard>
             <template v-else>
-              <!-- 导生自由报名（2026-09-12 起资格名单退役）：learning 营 + 窗口内（upcoming/selecting）+ LV≥2；
-                   选择阶段与下方学员报名表单并存（导生卡在上） -->
+              <!-- 导生自由报名（2026-09-12 起资格名单退役）：learning 营 + 窗口内（upcoming/selecting）；
+                   09-16 LV1 也可见（锁定态告知升级路径——等级规则不该到 LV2 才被看见），LV≥2 可报名 -->
               <DewCard v-if="mentorApplyOpen"
                        variant="inset" size="lg" :no-hover="true" class="register-card">
                 <!-- 报名待审核：安静态 + 撤回（审核前可反悔重新提交） -->
@@ -72,6 +72,12 @@
                   <div class="register-hint">已提交导生报名申请，管理员审核通过后即可布置名片、参与选导生。审核前可撤回。</div>
                   <DewButton type="ghost" :loading="cancellingSid === current.id"
                     @click="cancelMentorRegister(current)">撤回报名</DewButton>
+                </template>
+                <!-- LV1 锁定态：看得见路径、够得着目标 -->
+                <template v-else-if="myLevel < 2">
+                  <div class="register-title">报名成为本营导生</div>
+                  <div class="register-hint">你当前是 LV1——达到 LV2 即可在报名窗口内自助报名导生；等级由管理员按平台参与度调整，多打卡、多发作品，升级很快。</div>
+                  <DewButton type="glass" disabled>LV2 后可报名</DewButton>
                 </template>
                 <template v-else>
                   <div class="register-title">报名成为本营导生</div>
@@ -290,13 +296,14 @@ const pendingMentorSids = ref(new Set());
 const pendingStudentSids = ref(new Set());
 const pendingMap = computed(() => ({ mentor: pendingMentorSids.value, student: pendingStudentSids.value }));
 const isMentorPending = (s) => pendingMentorSids.value.has(s.id);
-// 导生报名卡开放条件：learning 营 + 窗口内（upcoming/selecting）+ LV≥2；
+// 导生报名卡开放条件：learning 营 + 窗口内（upcoming/selecting）；
+// 09-16 起不看等级——LV1 渲染锁定态（告知升级路径），LV≥2 才有报名按钮；
 // 学员申请在审时不重复展示（后端 pending 去重不分角色，点了也只是幂等 200）
+const myLevel = computed(() => store.getters.level || 1);
 const mentorApplyOpen = computed(() => {
   const s = current.value;
   return !!(s && s.category === 'learning'
     && (s.status === 'upcoming' || s.status === 'selecting')
-    && (store.getters.level || 1) >= 2
     && !pendingStudentSids.value.has(s.id));
 });
 // 兜底卡（无可做动作）：导生卡/申报卡/学员表单均未渲染时
@@ -308,6 +315,7 @@ const noCampAction = computed(() => {
 });
 async function registerMentor(s) {
   if (registeringSid.value || isMentorPending(s)) return;
+  if (myLevel.value < 2) return;   // 双保险：锁定态按钮已禁用，此处兜底
   registeringSid.value = s.id;
   try {
     const r = await campService.registerMentor(s.id);

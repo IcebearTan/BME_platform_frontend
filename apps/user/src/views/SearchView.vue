@@ -75,7 +75,7 @@
                     <div class="user-info">
                       <div class="user-name-line">
                         <span class="user-name">{{ u.username }}</span>
-                        <span v-if="u.level" class="user-level">LV{{ u.level }}</span>
+                        <span v-if="u.level" :class="['lv-badge', `lv-${u.level}`]">LV{{ u.level }}</span>
                       </div>
                       <div class="user-sub">
                         {{ [u.institute, u.major].filter(Boolean).join(' · ') || '这位同学还没有填写院系信息' }}
@@ -291,10 +291,7 @@ watch(() => [route.query.kw, route.query.tab], ([nk]) => {
 .user-info { flex: 1; min-width: 0; }
 .user-name-line { display: flex; align-items: center; gap: 8px; }
 .user-name { font-size: 15px; font-weight: 600; color: var(--dew-text-heading); }
-.user-level {
-  font-size: 11px; color: var(--color-primary); font-weight: 600;
-  background: var(--color-primary-light); border-radius: 999px; padding: 1px 8px;
-}
+/* 等级徽标走全局 .lv-badge 色阶（@bme/styles/tokens.css） */
 .user-sub {
   font-size: 13px; color: var(--dew-text-muted); margin-top: 3px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;

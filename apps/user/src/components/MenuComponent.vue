@@ -265,8 +265,8 @@ const handleUserInfo = () => {
                             <el-avatar :src="User_Avatar" alt="头像" :size="44" />
                             <div class="avatar-pop__info">
                                 <div class="avatar-pop__name">{{ $store.state.user?.User_Name }}</div>
-                                <div class="avatar-pop__role avatar-pop__role--level"
-                                    :class="{ 'avatar-pop__role--admin': levelLabel === '超管' }">
+                                <div class="avatar-pop__role"
+                                    :class="levelLabel === '超管' ? 'avatar-pop__role--admin' : ['lv-badge', `lv-${store.getters.level || 1}`]">
                                     {{ levelLabel }}
                                 </div>
                             </div>
@@ -1041,8 +1041,7 @@ const handleUserInfo = () => {
   padding: 1px 8px;
   border-radius: var(--radius-full);
 }
-/* 等级徽标（LV1-4，无等级显示 LV1）：替代原角色文案；超管变体换醒目色防误读 */
-.avatar-pop__role--level { color: var(--color-primary); background: var(--color-primary-light); }
+/* 等级徽标（LV1-4 色阶走全局 .lv-badge，见 @bme/styles/tokens.css）；超管变体换醒目色防误读 */
 .avatar-pop__role--admin { color: var(--color-warning); background: var(--color-warning-light); }
 .avatar-pop__actions {
   margin-top: 6px;
