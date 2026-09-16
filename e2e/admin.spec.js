@@ -605,3 +605,40 @@ test('退出登录：确认弹窗 → 清 token → 跳登录页', async ({ page
 
   expect(pageErrors).toEqual([])
 })
+
+// 营期列表·逻辑删除（09-16）：确认弹窗 → DELETE → 刷新；进行中营不显示删除按钮
+test('营期列表：逻辑删除（running 营无删除入口）', async ({ page }) => {
+  await loginAsStaff(page)
+  const pageErrors = []
+  page.on('pageerror', (e) => pageErrors.push(e.message))
+
+  await page.route('http://127.0.0.1:5001/camp/sessions', (route) =>
+    route.fulfill({ json: { code: 200, sessions: [
+      { id: 61, name: '草稿测试营', category: 'learning', status: 'draft',
+        start_date: '2026-10-01', end_date: '2026-10-30', member_count: 0, is_featured: false },
+      { id: 63, name: '进行中的营', category: 'learning', status: 'running',
+        start_date: '2026-09-01', end_date: '2026-09-30', member_count: 2, is_featured: false },
+      { id: 64, name: '已归档营', category: 'project', status: 'archived',
+        start_date: '2026-07-01', end_date: '2026-08-31', member_count: 5, is_featured: false },
+    ] } }))
+  await page.route('http://127.0.0.1:5001/camp/cycles', (route) =>
+    route.fulfill({ json: { code: 200, cycles: [] } }))
+  let deleteHit = null
+  await page.route('http://127.0.0.1:5001/camp/sessions/61', (route) => {
+    deleteHit = route.request().method()
+    return route.fulfill({ json: { code: 200, message: '已删除（逻辑删除，数据保留，可由管理员恢复）' } })
+  })
+
+  await page.goto(`${BASE}/camp/sessions`)
+  // 进行中营无删除按钮（先结营再删）；草稿/归档营有
+  await expect(page.getByRole('row', { name: /进行中的营/ }).getByRole('button', { name: '删除' })).toHaveCount(0)
+  await page.getByRole('row', { name: /草稿测试营/ }).getByRole('button', { name: '删除' }).click()
+
+  const confirmBox = page.getByRole('dialog').filter({ hasText: '删除营期' })
+  await expect(confirmBox.getByText(/逻辑删除/)).toBeVisible()
+  await confirmBox.getByRole('button', { name: '删除', exact: true }).click()
+  await expect(page.getByText('已删除（逻辑删除，数据保留，可由管理员恢复）')).toBeVisible()
+  expect(deleteHit).toBe('DELETE')
+
+  expect(pageErrors).toEqual([])
+})

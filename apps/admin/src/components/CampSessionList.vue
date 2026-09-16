@@ -26,12 +26,14 @@
           <el-button v-else-if="canManage" size="small" link @click="setFeatured(row)">设为招募</el-button>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="230" fixed="right">
+      <el-table-column label="操作" width="290" fixed="right">
         <template #default="{ row }">
           <el-button size="small" type="primary" @click="goDetail(row.id)">详情</el-button>
           <el-button v-if="canManage" size="small" @click="openEdit(row)">编辑</el-button>
           <el-button v-if="canManage && NEXT_ACTION[row.status]" size="small" type="primary" plain @click="transition(row, NEXT_ACTION[row.status])">{{ NEXT_ACTION[row.status].label }}</el-button>
           <el-button v-if="canManage && row.status === 'upcoming'" size="small" @click="transition(row, { action: 'retract', label: '撤回发布' })">撤回</el-button>
+          <!-- 09-16 逻辑删除：进行中营不可删（后端同款门禁），先结营归档再删 -->
+          <el-button v-if="canManage && row.status !== 'running'" size="small" type="danger" link @click="deleteCamp(row)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -196,6 +198,21 @@ async function setFeatured(row) {
   } catch (e) {
     ElMessage.error(e.response?.data?.message || '设置失败');
   }
+}
+
+// 逻辑删除（09-16）：物理数据全保留，从所有列表隐藏；招募指针连带清除
+function deleteCamp(row) {
+  ElMessageBox.confirm(
+    `删除后「${row.name}」将从所有列表隐藏（逻辑删除：成员、考勤与档案数据保留，可由管理员恢复）。`,
+    '删除营期', { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' }
+  ).then(async () => {
+    const res = await api.delete(`/camp/sessions/${row.id}`);
+    ElMessage.success(res.data?.message || '已删除');
+    fetchList();
+  }).catch((e) => {
+    if (e === 'cancel' || e === 'close') return;
+    ElMessage.error(e.response?.data?.message || '删除失败');
+  });
 }
 
 onMounted(() => {
