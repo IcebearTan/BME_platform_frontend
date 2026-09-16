@@ -17,34 +17,45 @@
       </div>
 
       <template v-else>
-        <!-- 头部 -->
+        <!-- 头部（09-16v2 档案层语法：黑顶条+白体+黑 hairline 页脚条；徽标独立成行，按钮沉底条） -->
         <header class="d-hero">
-          <div class="d-eyebrow">// PROJECT_FILE — #{{ String(p.id).padStart(4, '0') }}</div>
-          <div class="d-title-row">
-            <h1 class="d-title">{{ p.title }}</h1>
-            <span :class="['src-badge', `src-${p.source}`]">{{ p.source_text }}</span>
-            <span :class="['p-status', `ps-${p.project_status}`]">{{ p.project_status_text }}</span>
-            <span v-if="p.status === 'hidden'" class="hidden-tag">已下架</span>
+          <div class="d-hero-body">
+            <div class="d-hero-main">
+              <div class="d-eyebrow">// PROJECT_FILE</div>
+              <h1 class="d-title">{{ p.title }}</h1>
+              <div class="d-chips">
+                <span :class="['hero-chip', p.source === 'camp' ? 'hc-solid' : 'hc-outline']">{{ p.source_text }}</span>
+                <span :class="['st-line', `st-${p.project_status}`]"><i class="st-dot"></i>{{ p.project_status_text }}</span>
+                <span v-if="p.status === 'hidden'" class="hero-chip hidden-tag">已下架</span>
+              </div>
+            </div>
+            <div class="d-file-no" aria-hidden="true">#{{ String(p.id).padStart(4, '0') }}</div>
           </div>
-          <div class="d-meta">
-            <span v-if="p.camp_name" class="d-camp">来自营期「{{ p.camp_name }}」<template v-if="p.camp_cycle"> · {{ p.camp_cycle }}</template></span>
-            <span class="m-sep">//</span>
-            <span>@{{ p.owner_name }}</span>
-            <span class="m-sep">//</span>
-            <span>{{ p.view_count }} VIEWS</span>
-            <span class="m-sep">//</span>
-            <span>{{ (p.created_at || '').slice(0, 10) }}</span>
-          </div>
-          <div class="xl-actions d-actions">
-            <button type="button" :class="['xl-btn', 'sm', p.favorited ? 'pink' : 'ghost']" @click="toggleFav">
-              {{ p.favorited ? '已收藏' : '收藏' }}
-            </button>
-            <template v-if="p.can_manage">
-              <button type="button" class="xl-btn sm ghost" @click="openEdit">编辑</button>
-              <button type="button" class="xl-btn sm ghost" @click="toggleStatus">
-                {{ p.status === 'visible' ? '下架' : '恢复上架' }}
+          <div class="d-hero-foot">
+            <div class="d-meta">
+              <span v-if="p.camp_name" class="d-camp">来自营期「{{ p.camp_name }}」<template v-if="p.camp_cycle"> · {{ p.camp_cycle }}</template></span>
+              <span v-if="p.camp_name" class="m-sep">//</span>
+              <span>{{ p.view_count }} VIEWS</span>
+              <span class="m-sep">//</span>
+              <span>{{ p.favorite_count || 0 }} FAVS</span>
+              <span class="m-sep">//</span>
+              <span>{{ (p.created_at || '').slice(0, 10) }}</span>
+              <template v-if="p.updated_at && p.updated_at.slice(0, 10) !== (p.created_at || '').slice(0, 10)">
+                <span class="m-sep">//</span>
+                <span>UPDATED {{ p.updated_at.slice(0, 10) }}</span>
+              </template>
+            </div>
+            <div class="d-actions">
+              <button type="button" :class="['xl-btn', 'sm', 'ghost', 'fav-btn', { 'is-faved': p.favorited }]" @click="toggleFav">
+                <span v-if="p.favorited" class="fav-dot"></span>{{ p.favorited ? '已收藏' : '收藏' }}
               </button>
-            </template>
+              <template v-if="p.can_manage">
+                <button type="button" class="xl-btn sm ghost" @click="openEdit">编辑</button>
+                <button type="button" :class="['xl-btn', 'sm', 'ghost', p.status === 'visible' ? 'danger' : '']" @click="toggleStatus">
+                  {{ p.status === 'visible' ? '下架' : '恢复上架' }}
+                </button>
+              </template>
+            </div>
           </div>
         </header>
 
@@ -86,24 +97,37 @@
             </section>
           </div>
 
-          <!-- 侧栏：资料区 + 成员 + 标签 -->
+          <!-- 侧栏：创建者卡（白·档案层）+ 档案合一卡（资料/成员/标签，09-16v2 合并空壳卡） -->
           <aside class="d-aside">
-            <section v-if="p.links?.length" class="sec-card">
-              <div class="xl-sec-label">// ASSETS — 资料区</div>
-              <a v-for="(l, i) in p.links" :key="i" :href="l.url" target="_blank" rel="noopener" class="link-item">
-                {{ l.label || l.url }}
-              </a>
-            </section>
-            <section v-if="p.members?.length" class="sec-card">
-              <div class="xl-sec-label">// CREW — 项目成员</div>
-              <div class="chip-wrap">
-                <span v-for="(m, i) in p.members" :key="i" class="member-chip">{{ m }}</span>
+            <section class="sec-card creator-card">
+              <div class="xl-sec-label">// CREATOR — 创建者</div>
+              <div class="creator-row">
+                <div class="creator-avatar">{{ (p.owner_name || '?')[0] }}</div>
+                <div class="creator-info">
+                  <div class="creator-name">{{ p.owner_name || '—' }}</div>
+                  <div class="creator-sub">{{ p.source_text }}发布</div>
+                </div>
               </div>
             </section>
-            <section v-if="p.tags?.length" class="sec-card">
-              <div class="xl-sec-label">// TAGS — 标签</div>
-              <div class="chip-wrap">
-                <span v-for="t in p.tags" :key="t" class="member-chip">{{ t }}</span>
+            <section v-if="p.links?.length || p.members?.length || p.tags?.length" class="sec-card">
+              <div class="xl-sec-label">// INDEX — 档案</div>
+              <div v-if="p.links?.length" class="idx-group">
+                <div class="idx-key">ASSETS · 资料</div>
+                <a v-for="(l, i) in p.links" :key="i" :href="l.url" target="_blank" rel="noopener" class="link-item">
+                  {{ l.label || l.url }}
+                </a>
+              </div>
+              <div v-if="p.members?.length" class="idx-group">
+                <div class="idx-key">CREW · 成员</div>
+                <div class="chip-wrap">
+                  <span v-for="(m, i) in p.members" :key="i" class="member-chip">{{ m }}</span>
+                </div>
+              </div>
+              <div v-if="p.tags?.length" class="idx-group">
+                <div class="idx-key">TAGS · 标签</div>
+                <div class="chip-wrap">
+                  <span v-for="t in p.tags" :key="t" class="member-chip">{{ t }}</span>
+                </div>
               </div>
             </section>
           </aside>
@@ -143,6 +167,27 @@
             </div>
           </div>
         </Teleport>
+
+        <!-- 下架确认（09-16：XLab 白色确认弹层，替代裸 ELP MessageBox） -->
+        <Teleport to="body">
+          <div v-if="confirmDlg" class="xdlg-overlay" @click.self="confirmDlg = false">
+            <div class="xlab-dialog xdlg-narrow">
+              <div class="xdlg-head">
+                <span class="xdlg-title">// CONFIRM — 下架项目</span>
+                <button type="button" class="xdlg-close" @click="confirmDlg = false"><el-icon><Close /></el-icon></button>
+              </div>
+              <div class="confirm-body">
+                <p class="confirm-text">下架后其他用户将看不到「{{ p.title }}」，可随时恢复上架。</p>
+                <div class="xl-actions">
+                  <button type="button" class="xl-btn ghost" @click="confirmDlg = false">取消</button>
+                  <button type="button" class="xl-btn pink" :disabled="statusBusy" @click="applyStatus('hidden')">
+                    {{ statusBusy ? 'TRANSMITTING…' : '确认下架' }}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Teleport>
       </template>
     </div>
 
@@ -158,7 +203,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage } from 'element-plus';
 import { ArrowLeft, Close } from '@element-plus/icons-vue';
 import MenuComponent from '../components/MenuComponent.vue';
 import api from '../api';
@@ -229,21 +274,32 @@ async function toggleFav() {
   }
 }
 
-async function toggleStatus() {
-  const next = p.value.status === 'visible' ? 'hidden' : 'visible';
+// ── 上下架：下架走 XLab 白色确认弹层（confirmDlg），恢复上架直接执行 ──
+const confirmDlg = ref(false);
+const statusBusy = ref(false);
+
+async function applyStatus(next) {
+  if (statusBusy.value) return;
+  statusBusy.value = true;
   try {
-    if (next === 'hidden') {
-      await ElMessageBox.confirm('下架后其他用户将看不到这个项目（可恢复）', '下架项目', {
-        confirmButtonText: '下架', cancelButtonText: '取消', type: 'warning',
-      });
-    }
     const r = await showcaseService.setProjectStatus(p.value.id, next);
     ElMessage.success(r.message || '已处理');
     p.value = { ...p.value, status: next };
+    confirmDlg.value = false;
   } catch (e) {
-    if (e === 'cancel' || e === 'close') return;
     ElMessage.error(e.response?.data?.message || '操作失败');
+  } finally {
+    statusBusy.value = false;
   }
+}
+
+function toggleStatus() {
+  const next = p.value.status === 'visible' ? 'hidden' : 'visible';
+  if (next === 'hidden') {
+    confirmDlg.value = true;
+    return;
+  }
+  applyStatus(next);
 }
 
 // ── 编辑 ──
@@ -289,39 +345,76 @@ async function saveEdit() {
   font-family: var(--xl-mono); font-size: 12px; letter-spacing: 0.08em; color: var(--xl-dim);
   transition: color 0.15s, border-color 0.15s;
 }
-.back:hover { color: var(--xl-green); border-color: var(--xl-line); }
+.back:hover { color: #fff; border-color: var(--xl-line-strong); }
 .d-skel { height: 360px; }
 
-.d-hero { margin-bottom: 18px; }
-.d-eyebrow { font-family: var(--xl-mono); font-size: 11.5px; letter-spacing: 0.12em; color: var(--xl-green); margin-bottom: 10px; }
-.d-title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.d-title {
-  font-size: 26px; font-weight: 750; color: #fff; margin: 0; letter-spacing: 0.5px;
-  text-shadow: 1px 0 rgba(0, 255, 156, 0.22), -1px 0 rgba(255, 46, 151, 0.22);
+/* 09-16v2 档案层语法：白=档案层（黑顶条 4px + 白体 + 黑 hairline 页脚条），
+   hero 与创建者卡同构；黑卡统一提亮拉层次。绿粉只留语义身份的小面积使用。 */
+.d-hero { margin-bottom: 18px; background: #fff; color: #111; border-top: 4px solid #111; }
+.d-hero-body {
+  padding: 20px 22px 20px;
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 18px;
 }
-.hidden-tag { font-family: var(--xl-mono); font-size: 11px; padding: 2px 8px; color: var(--xl-pink); border: 1px solid rgba(255, 46, 151, 0.5); }
+.d-hero-main { min-width: 0; }
+.d-eyebrow { font-family: var(--xl-mono); font-size: 12.5px; letter-spacing: 0.12em; color: #8a8a8a; }
+.d-title { font-size: 30px; font-weight: 800; color: #111; margin: 10px 0 10px; letter-spacing: 0.5px; line-height: 1.15; }
+/* 右侧档案编号大字（浅灰实心水印，填充 hero 右留白、强化档案感） */
+.d-file-no {
+  font-family: var(--xl-mono); font-size: 64px; font-weight: 800; line-height: 1;
+  color: #dedede; user-select: none;
+  letter-spacing: 0.04em; flex-shrink: 0; margin-top: 8px;
+}
+/* 徽标独立成行：来源=黑白 chips（身份），状态=弱化文字+色点（不与操作色打架） */
+.d-chips { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 4px; }
+.hero-chip {
+  font-family: var(--xl-mono); font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
+  height: 24px; display: inline-flex; align-items: center; padding: 0 12px;
+}
+.hc-solid { background: #111; color: #fff; }
+.hc-outline { border: 1px solid #111; color: #111; }
+.st-line { font-family: var(--xl-mono); font-size: 11.5px; letter-spacing: 0.08em; color: #888; display: inline-flex; align-items: center; gap: 8px; height: 24px; }
+.st-dot { width: 8px; height: 8px; display: inline-block; }
+.st-ongoing .st-dot { background: #00915d; }
+.st-done .st-dot { background: #e2137f; }
+.st-idea .st-dot { background: #999; }
+.hidden-tag { border: 1px solid #e2137f; color: #e2137f; }
+/* 页脚条：meta 与按钮同条内居中对齐——按钮不再悬空 */
+.d-hero-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
+  border-top: 1px solid #111; padding: 15px 22px;
+}
 .d-meta {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-  font-family: var(--xl-mono); font-size: 11.5px; letter-spacing: 0.05em; color: var(--xl-dim); margin-top: 10px;
+  font-family: var(--xl-mono); font-size: 11.5px; letter-spacing: 0.05em; color: #555;
 }
-.m-sep { color: var(--xl-faint); }
-.d-camp { color: var(--xl-green); font-weight: 600; }
-.d-actions { margin-top: 14px; }
+.m-sep { color: #b3b3b3; }
+.d-camp { color: #111; font-weight: 700; }
+.d-actions { display: flex; gap: 10px; }
+.d-hero .xl-btn { display: inline-flex; align-items: center; }
+.d-hero .xl-btn.ghost { color: #111; border-color: #111; }
+.d-hero .xl-btn.ghost:hover { background: #111; color: #fff; }
+.d-hero .xl-btn.danger { color: #e2137f; border-color: #e2137f; }
+.d-hero .xl-btn.danger:hover { background: #e2137f; color: #fff; }
+.fav-dot { width: 7px; height: 7px; background: #e2137f; display: inline-block; margin-right: 7px; }
 
-.d-layout { display: grid; grid-template-columns: 1fr 300px; gap: 14px; align-items: start; }
+.d-layout { display: grid; grid-template-columns: 1fr 300px; gap: 16px; align-items: start; }
 @media (max-width: 900px) { .d-layout { grid-template-columns: 1fr; } }
-.d-main, .d-aside { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+@media (max-width: 640px) {
+  .d-file-no { font-size: 40px; -webkit-text-stroke-width: 1px; }
+  .d-title { font-size: 24px; }
+}
+.d-main, .d-aside { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 
 .sec-card {
-  background: var(--xl-panel); border: 1px solid var(--xl-line);
-  border-top: 2px solid rgba(0, 255, 156, 0.35);
+  background: #101010; border: 1px solid rgba(255, 255, 255, 0.14);
+  border-top: 3px solid rgba(255, 255, 255, 0.5);
   padding: 15px 18px 17px; display: flex; flex-direction: column; gap: 10px;
 }
 .sec-text { font-size: 13.5px; color: var(--xl-dim); line-height: 1.8; margin: 0; }
 .sec-text.pre { white-space: pre-wrap; }
 .sec-empty { font-family: var(--xl-mono); font-size: 12px; letter-spacing: 0.06em; color: var(--xl-faint); }
 
-.link-item { font-family: var(--xl-mono); font-size: 12px; letter-spacing: 0.04em; color: var(--xl-green); text-decoration: none; word-break: break-all; }
+.link-item { font-family: var(--xl-mono); font-size: 12px; letter-spacing: 0.04em; color: #fff; text-decoration: none; word-break: break-all; }
 .link-item::before { content: '>> '; color: var(--xl-faint); }
 .link-item:hover { text-decoration: underline; }
 .chip-wrap { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -336,6 +429,30 @@ async function saveEdit() {
 .thread-title { font-size: 13.5px; font-weight: 600; color: #fff; }
 .thread-content { font-size: 13px; color: var(--xl-dim); line-height: 1.7; margin: 0; white-space: pre-wrap; }
 .thread-form { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--xl-line); padding-top: 12px; margin-top: 2px; }
+.thread-form .xl-input::placeholder { color: rgba(255, 255, 255, 0.5); }
 
 .edit-form { padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+
+/* 下架确认弹层（窄版） */
+.xdlg-narrow { width: min(420px, 100%); }
+.confirm-body { padding: 18px 16px 16px; display: flex; flex-direction: column; gap: 18px; }
+.confirm-text { margin: 0; font-size: 13.5px; color: #333; line-height: 1.75; }
+
+/* 创建者卡：与 hero 同构的白色档案层（黑顶条 4px），内边距对齐 sec-card 卡层级 */
+.creator-card { background: #fff; border: none; border-top: 4px solid #111; padding: 15px 18px; }
+.creator-card .xl-sec-label { color: #8a8a8a; }
+.creator-row { display: flex; align-items: center; gap: 12px; margin-top: 4px; }
+.creator-avatar {
+  width: 40px; height: 40px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: #111; color: #fff;
+  font-family: var(--xl-mono); font-size: 19px; font-weight: 800;
+}
+.creator-name { font-size: 14.5px; font-weight: 700; color: #111; }
+.creator-sub { font-family: var(--xl-mono); font-size: 10.5px; color: #8a8a8a; margin-top: 3px; letter-spacing: 0.06em; }
+
+/* 档案合一卡：资料/成员/标签分组，hairline 分隔 */
+.idx-group { display: flex; flex-direction: column; gap: 8px; padding-top: 10px; border-top: 1px solid var(--xl-line); }
+.idx-group:first-of-type { border-top: none; padding-top: 2px; }
+.idx-key { font-family: var(--xl-mono); font-size: 10.5px; letter-spacing: 0.1em; color: var(--xl-faint); }
 </style>

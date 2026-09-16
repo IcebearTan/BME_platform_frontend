@@ -74,7 +74,8 @@ textarea.xl-input { resize: vertical; line-height: 1.6; }
 .xlab-root .ps-done { color: var(--xl-pink); }
 
 /* ── 区块标签 / 空态 / 骨架 ── */
-.xl-sec-label { font-family: var(--xl-mono); font-size: 11.5px; letter-spacing: 0.12em; color: var(--xl-green); }
+/* 区块标签（09-16 黑白基调）：绿→白，彩色只留给语义身份（来源标/状态字/主按钮） */
+.xl-sec-label { font-family: var(--xl-mono); font-size: 11.5px; letter-spacing: 0.12em; color: rgba(255, 255, 255, 0.88); }
 .xl-empty { border: 1px dashed rgba(255, 255, 255, 0.22); padding: 56px 24px; text-align: center; }
 .xl-empty-code { font-family: var(--xl-mono); font-size: 15px; letter-spacing: 0.14em; color: var(--xl-faint); margin-bottom: 10px; }
 .xl-empty-hint { font-size: 12.5px; color: var(--xl-faint); line-height: 1.7; }
@@ -86,26 +87,44 @@ textarea.xl-input { resize: vertical; line-height: 1.6; }
 }
 @keyframes xlab-shimmer { to { background-position: -200% 0; } }
 
-/* ── 弹层（Teleport 到 body，自带前缀）── */
+/* ── 弹层（Teleport 到 body，自带前缀）—— 全白路线（09-16 用户定调）：
+   纯白面板 + 灰阶层次 + 柔和深投影；品牌色只留主按钮荧光绿与聚焦环，
+   选中 chip 走黑底白字反白。黑白对撞的黑描边/硬投影已弃。 */
 .xdlg-overlay {
   position: fixed; inset: 0; z-index: 2000;
-  background: rgba(0, 0, 0, 0.78);
+  background: rgba(0, 0, 0, 0.55);
   display: flex; align-items: flex-start; justify-content: center;
   padding: 8vh 16px 24px; overflow-y: auto;
 }
-.xlab-dialog { width: min(560px, 100%); background: #0a0a0a; border: 1px solid var(--xl-line-strong); box-shadow: 8px 8px 0 rgba(0, 255, 156, 0.12); }
-.xdlg-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 13px 16px; border-bottom: 1px solid var(--xl-line); }
-.xdlg-title { font-family: var(--xl-mono); font-size: 12px; font-weight: 700; letter-spacing: 0.1em; color: var(--xl-green); }
-.xdlg-close { display: flex; background: transparent; border: 1px solid transparent; color: var(--xl-dim); cursor: pointer; padding: 4px; }
-.xdlg-close:hover { color: #fff; border-color: var(--xl-line); }
+.xlab-dialog {
+  width: min(560px, 100%);
+  background: #fff; color: #111;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+}
+.xdlg-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 13px 16px; border-bottom: 1px solid #e6e6e6; }
+.xdlg-title { font-family: var(--xl-mono); font-size: 12px; font-weight: 700; letter-spacing: 0.1em; color: #111; }
+.xdlg-close { display: flex; background: transparent; border: 1px solid transparent; color: rgba(0, 0, 0, 0.58); cursor: pointer; padding: 4px; }
+.xdlg-close:hover { color: #000; border-color: #c9c9c9; }
 
-/* ── 弹层表单字段 ── */
-.xl-field { font-family: var(--xl-mono); font-size: 12px; letter-spacing: 0.06em; color: #fff; display: flex; align-items: baseline; gap: 8px; }
-.xl-no { color: var(--xl-green); font-size: 10.5px; }
-.xl-req { font-style: normal; font-size: 10px; letter-spacing: 0.1em; color: var(--xl-pink); }
-.xl-opt { font-style: normal; font-size: 10.5px; color: var(--xl-faint); }
-.xl-note { font-size: 12px; color: var(--xl-faint); line-height: 1.6; }
+/* ── 弹层表单字段（弹窗内白底口径；页面主体输入/chips 仍走上方黑底规则）── */
+.xl-field { font-family: var(--xl-mono); font-size: 12px; letter-spacing: 0.06em; color: #111; display: flex; align-items: baseline; gap: 8px; }
+.xl-no { color: #b3b3b3; font-size: 10.5px; }
+.xl-req { font-style: normal; font-size: 10px; letter-spacing: 0.1em; color: #e2137f; }
+.xl-opt { font-style: normal; font-size: 10.5px; color: rgba(0, 0, 0, 0.36); }
+.xl-note { font-size: 12px; color: rgba(0, 0, 0, 0.36); line-height: 1.6; }
 .xl-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
+.xlab-dialog .xl-input { background: #fff; border-color: #c9c9c9; color: #111; }
+.xlab-dialog .xl-input::placeholder { color: rgba(0, 0, 0, 0.36); }
+.xlab-dialog .xl-input:focus { border-color: #00915d; box-shadow: 0 0 0 3px rgba(0, 158, 102, 0.14); }
+.xlab-dialog .xl-chip { border-color: #c9c9c9; color: rgba(0, 0, 0, 0.58); }
+.xlab-dialog .xl-chip:hover { border-color: #999; color: #000; }
+.xlab-dialog .xl-chip.on { background: #111; border-color: #111; color: #fff; }
+.xlab-dialog .xl-btn.ghost { color: #111; border-color: #c9c9c9; }
+.xlab-dialog .xl-btn.ghost:hover { background: #111; color: #fff; border-color: #111; }
+.xlab-dialog .xl-btn.primary { box-shadow: 0 6px 18px rgba(0, 158, 102, 0.3); }
+.xlab-dialog .xl-btn.primary:hover:not(:disabled) { box-shadow: 0 8px 22px rgba(0, 158, 102, 0.38); }
+.xlab-dialog .xl-btn.pink { box-shadow: 0 6px 18px rgba(226, 19, 127, 0.28); }
+.xlab-dialog .xl-btn.pink:hover:not(:disabled) { box-shadow: 0 8px 22px rgba(226, 19, 127, 0.36); }
 
 /* ── 页脚 ── */
 .xlab-foot { border-top: 1px solid var(--xl-line); }

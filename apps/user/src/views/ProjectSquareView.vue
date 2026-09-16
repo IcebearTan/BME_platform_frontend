@@ -4,7 +4,10 @@
        共享主题在 ../styles/xlab.css，豁免 DewUI。 -->
   <div class="xlab-root">
     <div style="height: 60px;"></div>
-    <MenuComponent />
+    <!-- 导航自动收纳：进 XLab 即上缩出屏，悬停顶部热区展开（弹层打开期间不收纳；触屏设备豁免） -->
+    <div class="xlab-navdock" :class="{ 'nav-open': navOpen }" @mouseenter="navEnter" @mouseleave="navLeave">
+      <MenuComponent />
+    </div>
 
     <!-- HERO：大幅宣传区（蓝图网格 + 扫描线 + RGB 分流 glitch） -->
     <header class="xlab-hero">
@@ -45,21 +48,18 @@
           <div class="sec-count">{{ projects.length }} ITEMS</div>
         </div>
         <div class="xl-chip-row">
+          <span class="row-key k-src">来源</span>
           <button v-for="f in sourceFilters" :key="f.value" type="button"
-                  :class="['xl-chip', { on: filters.source === f.value }]" @click="setFilter('source', f.value)">
+                  :class="['xl-chip', 'chip-src', { on: filters.source === f.value }]" @click="setFilter('source', f.value)">
             {{ f.label }}
           </button>
         </div>
         <div class="xl-chip-row">
+          <span class="row-key k-st">状态</span>
           <button v-for="f in statusFilters" :key="f.value" type="button"
-                  :class="['xl-chip', { on: filters.project_status === f.value }]" @click="setFilter('project_status', f.value)">
+                  :class="['xl-chip', 'chip-st', { on: filters.project_status === f.value }]" @click="setFilter('project_status', f.value)">
             {{ f.label }}
           </button>
-        </div>
-        <div v-if="allTags.length" class="xl-chip-row">
-          <button type="button" :class="['xl-chip', 'tag', { on: !filters.tag }]" @click="setFilter('tag', null)">全部标签</button>
-          <button v-for="t in allTags" :key="t" type="button"
-                  :class="['xl-chip', 'tag', { on: filters.tag === t }]" @click="setFilter('tag', t)">{{ t }}</button>
         </div>
       </div>
 
@@ -145,7 +145,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { Search, Close } from '@element-plus/icons-vue';
@@ -155,11 +155,29 @@ import '../styles/xlab.css';
 
 const router = useRouter();
 
+// ── 导航自动收纳：进页即上缩，悬停顶部热区展开 ──
+// 头像等 DewPopover click 触发且 teleport 到 body（不在 dock 子树），鼠标移入弹层会触发
+// mouseleave——离屏前查 .dew-popover（v-if 渲染，存在即有弹层开着）兜底不收纳；240ms 宽限消抖
+const navOpen = ref(false);
+let navCloseTimer = null;
+function navEnter() {
+  clearTimeout(navCloseTimer);
+  navOpen.value = true;
+}
+function navLeave() {
+  clearTimeout(navCloseTimer);
+  navCloseTimer = setTimeout(() => {
+    // 仅当有弹层开着才保持展开（!!：querySelector 无命中为 null，!null===true 会反逻辑）
+    navOpen.value = !!document.querySelector('.dew-popover');
+  }, 240);
+}
+onBeforeUnmount(() => clearTimeout(navCloseTimer));
+
 const loading = ref(true);
 const projects = ref([]);
 const allTags = ref([]);
 const keyword = ref('');
-const filters = ref({ source: null, project_status: null, tag: null });
+const filters = ref({ source: null, project_status: null });
 
 const sourceFilters = [
   { label: '全部来源', value: null },
@@ -187,7 +205,6 @@ async function load() {
     const params = {};
     if (filters.value.source) params.source = filters.value.source;
     if (filters.value.project_status) params.project_status = filters.value.project_status;
-    if (filters.value.tag) params.tag = filters.value.tag;
     const kw = keyword.value.trim();
     if (kw) params.q = kw;
     const d = await showcaseService.fetchProjects(params);
@@ -399,6 +416,29 @@ async function save() {
 .p-views { font-family: var(--xl-mono); font-size: 10.5px; letter-spacing: 0.06em; color: var(--xl-faint); margin-left: auto; }
 
 .create-form { padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+
+/* ── 导航自动收纳 ──
+   dock=顶部 22px 悬停热区（z 低于菜单 1000，展开态不挡菜单交互；菜单收起时热区裸露可唤起）；
+   菜单本体 fixed，仅以 transform 出/入屏；触屏/窄屏豁免（无 hover，保持常驻） */
+.xlab-navdock { position: fixed; top: 0; left: 0; right: 0; height: 22px; z-index: 999; }
+.xlab-navdock :deep(.el-menu-demo) {
+  transform: translateY(-102%);
+  transition: transform 0.3s cubic-bezier(0.2, 0.85, 0.25, 1);
+}
+.xlab-navdock.nav-open :deep(.el-menu-demo) { transform: translateY(0); }
+@media (hover: none), (max-width: 768px) {
+  .xlab-navdock { height: 0; }
+  .xlab-navdock :deep(.el-menu-demo) { transform: none; }
+}
+
+/* ── 筛选行：来源=荧光绿 / 状态=荧光粉 双色身份（行标签加大提亮；选中粉降饱和防刺眼） ── */
+.row-key {
+  font-family: var(--xl-mono); font-size: 12px; letter-spacing: 0.14em; font-weight: 600;
+  align-self: center; margin-right: 6px; flex-shrink: 0;
+}
+.k-src { color: var(--xl-green); }
+.k-st { color: var(--xl-pink); }
+.xl-chip.chip-st.on { background: #e2137f; border-color: #e2137f; color: #000; }
 
 @media (prefers-reduced-motion: reduce) {
   .glitch::before, .glitch::after, .ticker-track, .cursor, .stat.live .dot { animation: none; }

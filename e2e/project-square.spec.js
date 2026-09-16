@@ -94,3 +94,64 @@ test('项目广场：分享我的项目弹窗（community 免审上架）', asyn
 
   expect(errors).toEqual([])
 })
+
+// 导航自动收纳（09-16）：进页上缩 / 悬停热区展开 / 移开 240ms 宽限后缩回
+// 回归锚：初版 navLeave 里 !querySelector 无弹层时为 true，曾导致移开恒展开
+test('XLab 导航自动收纳：悬停展开、移开缩回', async ({ page }) => {
+  const errors = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  await loginAsUser(page)
+  await page.goto(`${BASE}/projects`, { waitUntil: 'domcontentloaded' })
+  const menu = page.locator('.el-menu-demo').first()
+
+  // 进页即收起（translateY 为负）
+  await expect(menu).toHaveCSS('transform', /matrix\(1, 0, 0, 1, 0, -/)
+  // 悬停顶部热区 → 展开
+  await page.mouse.move(640, 8)
+  await expect(menu).toHaveCSS('transform', 'matrix(1, 0, 0, 1, 0, 0)')
+  // 移开到页面中部 → 宽限后缩回
+  await page.mouse.move(640, 500)
+  await expect(menu).toHaveCSS('transform', /matrix\(1, 0, 0, 1, 0, -/)
+
+  expect(errors).toEqual([])
+})
+
+// 详情页（09-16 黑白重构）：反白 hero/创建者卡/收藏数 + 白色编辑弹窗 + XLab 风下架确认（替代裸 ELP）
+test('XLab 详情：反白 hero + 创建者卡 + 白色弹窗 + 下架确认弹层', async ({ page }) => {
+  const errors = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  await loginAsUser(page)
+
+  // 后注册优先：详情/上下架具体路由压过 loginAsUser 的 includes 列表兜底
+  await page.route('http://127.0.0.1:5001/showcase/projects/802', (route) =>
+    route.fulfill({ json: { code: 200, project: { ...LIST.projects[1], favorited: true, can_manage: true, favorite_count: 3 } } }))
+  await page.route('http://127.0.0.1:5001/showcase/projects/802/status', (route) =>
+    route.fulfill({ json: { code: 200, message: '已处理' } }))
+
+  await page.goto(`${BASE}/projects/802`, { waitUntil: 'domcontentloaded' })
+  await expect(page.locator('.d-title')).toHaveText('宿舍智能门锁')
+
+  // 反白 hero（大白色块）+ 收藏数入 meta + 创建者卡在右栏
+  await expect(page.locator('.d-hero')).toHaveCSS('background-color', 'rgb(255, 255, 255)')
+  await expect(page.getByText('3 FAVS', { exact: true })).toBeVisible()
+  await expect(page.locator('.creator-card').getByText('proj_s1')).toBeVisible()
+
+  // 下架：XLab 白色确认弹层（不再走裸 ELP MessageBox）
+  await page.getByRole('button', { name: '下架', exact: true }).click()
+  await expect(page.locator('.xdlg-narrow')).toBeVisible()
+  await expect(page.locator('.el-message-box')).toHaveCount(0)
+  const putStatus = page.waitForRequest((req) =>
+    req.url().includes('/showcase/projects/802/status') && req.method() === 'PUT')
+  await page.getByRole('button', { name: '确认下架' }).click()
+  expect((await putStatus).postDataJSON()).toEqual({ status: 'hidden' })
+  await expect(page.locator('.hidden-tag')).toBeVisible()
+
+  // 编辑弹窗同为白色
+  await page.getByRole('button', { name: '编辑', exact: true }).click()
+  const editDlg = page.locator('.xlab-dialog').filter({ hasText: '编辑项目' })
+  await expect(editDlg).toBeVisible()
+  await expect(editDlg).toHaveCSS('background-color', 'rgb(255, 255, 255)')
+  await editDlg.getByRole('button', { name: '取消' }).click()
+
+  expect(errors).toEqual([])
+})
