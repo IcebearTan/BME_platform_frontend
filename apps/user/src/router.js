@@ -14,6 +14,8 @@ const loadCourses = () => import('./components/Course/CoursesComponent.vue')
 const loadCourseDetails = () => import('./components/Course/CourseDetailsComponent.vue')
 const loadExamList = () => import('./components/ExamListComponent.vue')
 const loadUserIndex = () => import('./views/UserIndex.vue')
+// 全站搜索（B.2 五域框架，第一步=用户域）
+const loadSearchView = () => import('./views/SearchView.vue')
 const loadUserCenter = () => import('./views/UserCenter.vue')
 const loadUserInfo = () => import('./components/User/UserInfoComponent.vue')
 const loadUserSettings = () => import('./components/User/UserSettingsComponent.vue')
@@ -129,6 +131,13 @@ const router = createRouter({
             path: '/profile/:id',
             name: 'user-profile',
             component: loadUserIndex,
+            meta: { requiresAuth: true }
+        },
+        {
+            // 全站搜索（五域框架，第一步=用户域；主导航搜索框回车进入）
+            path: '/search',
+            name: 'search',
+            component: loadSearchView,
             meta: { requiresAuth: true }
         },
         {

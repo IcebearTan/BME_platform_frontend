@@ -117,6 +117,13 @@ const isSearchInputExpand = () => {
 const searchInputClass = ref('search-input')
 const searchInput = ref(null)
 
+// 全站搜索入口（B.2 第一步：用户域）：回车跳 /search，URL 带关键词
+const goSearch = () => {
+    const kw = (searchInput.value || '').trim()
+    if (!kw) return
+    router.push({ path: '/search', query: { kw } })
+}
+
 // 主题状态管理
 const isDarkMode = computed(() => store.getters.isDarkMode)
 
@@ -222,6 +229,7 @@ const handleUserInfo = () => {
                     suffix-icon="Search"
                     @focus="isSearchInputExpand()"
                     @blur="isSearchInputExpand()"
+                    @keyup.enter="goSearch"
                     :class="searchInputClass"
                 />
 

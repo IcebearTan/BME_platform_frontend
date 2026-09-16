@@ -261,3 +261,53 @@ test('社区广场：讨论卡与文章卡作者徽章', async ({ page }) => {
   await expect(page.locator('.ac-author').filter({ hasText: '林知遥' }).getByText('组长')).toBeVisible()
   expect(pageErrors).toEqual([])
 })
+
+// 全站搜索·用户域（B.2 第一步，2026-09-16）：导航搜索框回车 → /search → 结果 → 进个人主页
+test('全站搜索用户域：导航回车进搜索页，点结果进个人主页', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('bme-user-token', 'e2e-mock-token')
+    localStorage.setItem('bme-user-state', JSON.stringify({
+      token: 'e2e-mock-token', isLogin: true, isDarkMode: false,
+      user: { username: 'test_user', role: 'user' }, checkinInfo: {},
+    }))
+  })
+  const pageErrors = []
+  page.on('pageerror', (e) => pageErrors.push(e.message))
+
+  await page.route('http://127.0.0.1:5001/**', (route) =>
+    route.fulfill({ json: { code: 200 } }))
+
+  let searchQuery = null
+  // glob 匹配要带 * —— 实际请求带 ?keyword=&page= 查询串，裸 URL 匹配不到会漏进兜底
+  await page.route('http://127.0.0.1:5001/user/search*', (route) => {
+    searchQuery = route.request().url()
+    return route.fulfill({ json: { code: 200, total: 2, page: 1, page_size: 20, users: [
+      { id: 52, username: '学员小一', avatar_url: null, level: 1, institute: '生物医学工程学院', major: '生物医学工程' },
+      { id: 61, username: '小算盘', avatar_url: null, level: 3, institute: null, major: null },
+    ] } })
+  })
+  await page.route('http://127.0.0.1:5001/user/profile/52', (route) =>
+    route.fulfill({ json: { code: 200, User_Name: '学员小一', User_Id: 52, data: null } }))
+
+  // 导航死壳激活：输入关键词回车 → /search?kw=
+  await page.goto(`${BASE}/home`)
+  await page.getByPlaceholder('搜索', { exact: true }).fill('小')
+  await page.getByPlaceholder('搜索', { exact: true }).press('Enter')
+  await expect(page).toHaveURL(/\/search\?kw=%E5%B0%8F/)
+  await expect(page.getByText('找到 2 位与「小」相关的用户', { exact: true })).toBeVisible()
+  await expect(page.locator('.user-row').filter({ hasText: '学员小一' })).toBeVisible()
+  await expect(page.getByText('LV3', { exact: true })).toBeVisible()
+  // 未填院系走兜底文案
+  await expect(page.getByText('这位同学还没有填写院系信息')).toBeVisible()
+  // 五域框架：其余域禁用占位
+  await expect(page.locator('.domain-chip.is-disabled').filter({ hasText: '项目' })).toBeVisible()
+  // 请求带分页默认参数
+  expect(searchQuery).toContain('keyword=%E5%B0%8F')
+  expect(searchQuery).toContain('page_size=20')
+
+  // 点结果 → 个人主页
+  await page.locator('.user-row').filter({ hasText: '学员小一' }).click()
+  await expect(page).toHaveURL(/\/profile\/52$/)
+
+  expect(pageErrors).toEqual([])
+})
