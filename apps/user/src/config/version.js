@@ -2,19 +2,31 @@
 // 这个文件用于统一管理版本号和更新信息
 
 // 当前版本号（会在构建时被 vite.config.js 读取）
-export const APP_VERSION = '3.2.0'
+export const APP_VERSION = '3.2.1'
 
 // 构建日期（会在构建时自动生成）
 export const BUILD_DATE = new Date().toLocaleDateString('zh-CN')
 
 // 更新日期（手动设置）
-export const UPDATE_DATE = '2026/9/15'
+export const UPDATE_DATE = '2026/9/16'
 
 // 更新公告的唯一标识（基于更新日期和版本号）
-export const ANNOUNCEMENT_ID = `20260915-v3.2.0`
+export const ANNOUNCEMENT_ID = `20260916-v3.2.1`
 
 // 版本更新日志
 export const VERSION_CHANGELOG = {
+    '3.2.1': {
+        date: '2026/9/16',
+        features: [
+            '登录安全加固：令牌自动静默续期，登录状态更安全可靠',
+            '全站搜索上线第一步：主导航新增搜索框，支持搜索用户',
+            '营期申请批量审批：待审学员可多选通过，导生申请一键通过',
+            '营期详情新增「学习进度」看板：按导生团队查看章节认证进度',
+            'XLab 全新黑白视觉：导航、弹窗与项目档案页改版',
+            '项目详情页展示收藏数'
+        ],
+        importantNotice: '本次升级包含登录安全加固，所有用户需重新登录一次；账号与历史数据均保持不变。'
+    },
     '3.2.0': {
         date: '2026/9/15',
         features: [
