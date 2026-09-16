@@ -35,8 +35,12 @@ export default new Vuex.Store({
         setUser({ commit }, user) {
             commit('setUser', user)
         },
+        // 退出登录必须三件套：清 user/token state + 删 localStorage 里的 token
+        // （token 是 api.js 请求头与 isLogin getter 的数据源，漏一个都会“退出后仍登录中”）
         logout({ commit }) {
             commit('clearUser');
+            commit('clearToken');
+            localStorage.removeItem('bme-admin-token');
         }
 
     },
