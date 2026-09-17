@@ -700,3 +700,40 @@ test('用户管理：批量升级 + 等级徽标色阶', async ({ page }) => {
 
   expect(pageErrors).toEqual([])
 })
+
+// 用户管理·批量调级（09-17）：多选 + 弹窗选目标等级 + skipped 汇总在 message 回报
+test('用户管理：批量调级为指定等级', async ({ page }) => {
+  await loginAsStaff(page)
+  const pageErrors = []
+  page.on('pageerror', (e) => pageErrors.push(e.message))
+  await page.route('http://127.0.0.1:5001/user/user_list', (route) =>
+    route.fulfill({ json: [
+      { User_Id: 2, User_Name: 'bob', role: 'user', join_time: '2026-08-02', User_Email: 'd@e.f', level: 3, status: 'active' },
+      { User_Id: 3, User_Name: 'carol', role: 'user', join_time: '2026-08-03', User_Email: 'g@h.i', level: 4, status: 'active' },
+    ] }))
+  let setBody = null
+  await page.route('http://127.0.0.1:5001/admin/users/level/batch_set', (route) => {
+    setBody = route.request().postDataJSON()
+    return route.fulfill({ json: { code: 200, message: '已调整 1/2 人（1 人已是 LV4）', updated: 1, results: [
+      { user_id: 2, username: 'bob', status: 'set', old_level: 3, level: 4 },
+      { user_id: 3, username: 'carol', status: 'skipped', old_level: 4, level: 4 },
+    ] } })
+  })
+
+  await page.goto(`${BASE}/user-manage/users`)
+  // 勾选 bob(LV3) + carol(LV4) → 批量调级 → 弹窗选 LV4 → 确认
+  await page.getByRole('row', { name: 'bob' }).locator('.el-checkbox').click()
+  await page.getByRole('row', { name: 'carol' }).locator('.el-checkbox').click()
+  await page.getByRole('button', { name: '批量调级（2）' }).click()
+  const setDialog = page.getByRole('dialog', { name: '批量调整等级' })
+  await expect(setDialog.getByText('将把选中的 2 名用户统一调整为：')).toBeVisible()
+  await setDialog.locator('.el-select').click()
+  const levelDropdown = page.locator('.el-select__popper:visible')
+  await levelDropdown.getByText('LV4', { exact: true }).click()
+  await setDialog.getByRole('button', { name: '确认调整' }).click()
+  // skipped 不算失败：汇总进 success message，不弹逐项 warning
+  await expect(page.getByText('已调整 1/2 人（1 人已是 LV4）')).toBeVisible()
+  expect(setBody).toEqual({ user_ids: [2, 3], level: 4 })
+
+  expect(pageErrors).toEqual([])
+})

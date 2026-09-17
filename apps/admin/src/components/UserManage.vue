@@ -185,6 +185,35 @@ async function batchUpgrade() {
   }
 }
 
+// ── 批量调级（09-17）：选中用户统一设为指定等级（与批量升级互补：+1 vs 指定值）──
+const batchDlg = reactive({ visible: false, submitting: false, level: 1 });
+
+async function batchSetLevel() {
+  const rows = selection.value;
+  if (!rows.length || batchDlg.submitting) return;
+  batchDlg.submitting = true;
+  try {
+    const res = await api.post('/admin/users/level/batch_set',
+      { user_ids: rows.map((r) => r.User_Id), level: batchDlg.level });
+    ElMessage.success(res.data?.message || '批量调级完成');
+    // 契约红线：部分失败逐项列明，不允许显示为全部成功（skipped 已在 message 汇总）
+    const failed = (res.data?.results || []).filter((x) => x.status === 'failed');
+    if (failed.length) {
+      const detail = failed.map((f) => {
+        const row = rows.find((r) => r.User_Id === f.user_id);
+        return `${row?.User_Name || f.user_id}：${f.message}`;
+      }).join('；');
+      ElMessage.warning(`未调整 ${failed.length} 人——${detail}`);
+    }
+    batchDlg.visible = false;
+    fetchUsers();
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '批量调级失败');
+  } finally {
+    batchDlg.submitting = false;
+  }
+}
+
 onMounted(() => {
   fetchUsers();
 })
@@ -218,11 +247,13 @@ onMounted(() => {
 
     <div style="margin: 20px;">
       <DewCard no-hover class="table-card">
-        <!-- 批量操作条（09-16 批量升级；与搜索/分页共存） -->
+        <!-- 批量操作条（09-16 批量升级；09-17 批量调级；与搜索/分页共存） -->
         <div class="batch-bar">
           <el-button type="primary" size="small" :disabled="!selection.length" :loading="batchUpgrading"
             @click="batchUpgrade">批量升级（{{ selection.length }}）</el-button>
-          <span class="batch-tip">选中用户各升一级；LV4 为满级不再上升</span>
+          <el-button size="small" :disabled="!selection.length"
+            @click="batchDlg.visible = true">批量调级（{{ selection.length }}）</el-button>
+          <span class="batch-tip">升级=每人 +1（LV4 满级不再上升）；调级=统一设为指定等级</span>
         </div>
         <el-table
           :data="users"
@@ -306,6 +337,21 @@ onMounted(() => {
         </div>
       </template>
     </el-dialog>
+
+    <!-- 批量调级弹窗：选中用户统一设为指定等级（已是该等级的保持不变） -->
+    <el-dialog v-model="batchDlg.visible" title="批量调整等级" width="420px">
+      <div class="batch-dlg-tip">将把选中的 {{ selection.length }} 名用户统一调整为：</div>
+      <el-select v-model="batchDlg.level" style="width: 100%;">
+        <el-option v-for="n in [1, 2, 3, 4]" :key="n" :label="`LV${n}`" :value="n" />
+      </el-select>
+      <div class="batch-dlg-tip muted">已是该等级的用户保持不变；等级即时生效，可随时再次调整。</div>
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="batchDlg.visible = false">取消</el-button>
+          <el-button type="primary" :loading="batchDlg.submitting" @click="batchSetLevel">确认调整</el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -324,4 +370,6 @@ onMounted(() => {
   padding: 10px 12px; border-bottom: 1px solid var(--el-border-color-lighter, #ebeef5);
 }
 .batch-tip { font-size: 12px; color: var(--el-text-color-secondary, #909399); }
+.batch-dlg-tip { font-size: 14px; color: var(--el-text-color-primary, #303133); margin-bottom: 10px; }
+.batch-dlg-tip.muted { font-size: 12px; color: var(--el-text-color-secondary, #909399); margin: 10px 0 0; }
 </style>
