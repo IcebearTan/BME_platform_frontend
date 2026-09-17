@@ -184,7 +184,7 @@ const studentTabs = computed(() => {
   const t = [
     { value: 'overview', label: '看板' },
     { value: 'study', label: '学习方向' },
-    { value: 'meetings', label: '组会' },       // 09-17 组会留档：导生组纪要（组员只读）
+    { value: 'meetings', label: '组会任务' },   // 09-17 教学单元：纪要+布置+我的提交（待办聚合条置顶）
   ];
   if (caps.value.attendance) t.push({ value: 'attendance', label: '我的考勤' });
   if (caps.value.leave) t.push({ value: 'leave', label: '请假' });
@@ -196,7 +196,7 @@ const mentorTabs = computed(() => {
   const t = [
     { value: 'overview', label: '看板' },
     { value: 'members', label: '学员进度' },   // 09-14 用户定：内容=学习进度+按章认证，别叫「团队成员」
-    { value: 'meetings', label: '组会' },       // 09-17 组会留档：组长（导生）提交纪要
+    { value: 'meetings', label: '组会任务' },   // 09-17 教学单元：发起组会→布置→审阅→打包
   ];
   if (caps.value.attendance) t.push({ value: 'dashboard', label: '团队考勤' });
   if (caps.value.leave) t.push({ value: 'leave', label: '请假审批' });

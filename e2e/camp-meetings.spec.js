@@ -77,7 +77,7 @@ test('学员·培训组组会只读：tab 列表渲染，无提交入口', async
 
   await page.goto(`${BASE}/camp?sid=1&tab=meetings`, { waitUntil: 'domcontentloaded' })
   // tab 与组信息
-  await expect(page.getByRole('button', { name: '组会', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: '组会任务', exact: true })).toBeVisible()
   await expect(page.locator('.cm-head-meta')).toContainText('组长 导生阿明')
   // 纪要内容与附件（文件链接 + 视频占位壳）
   await expect(page.locator('.mtg-title')).toHaveText('第一周组会 · 方向讨论')
@@ -85,43 +85,53 @@ test('学员·培训组组会只读：tab 列表渲染，无提交入口', async
   await expect(page.locator('.video-shell')).toContainText('组会录像.mp4')
   await expect(page.locator('.video-shell')).toContainText('500.0MB · 点击播放')
   // 组员只读：无任何管理入口
-  await expect(page.getByRole('button', { name: '记录组会' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: '发起组会' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: '编辑' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: '删除' })).toHaveCount(0)
   expect(errors).toEqual([])
 })
 
-test('导生·培训组提交组会：弹窗校验与提交后列表刷新', async ({ page }) => {
+test('导生·发起组会：创建后直达布置编辑（发起即布置）', async ({ page }) => {
   const errors = []
   page.on('pageerror', (e) => errors.push(e.message))
   const posted = { count: 0, body: '' }
   const meetings = []
+  const created = { ...MEETING, id: 12, title: '第二周组会 · 阶段小结', meeting_date: '2026-09-23' }
   await loginAsUser(page, [
     { url: '/team-meetings', resp: (route) => route.request().method() === 'POST'
         ? (posted.count += 1,
            posted.body = route.request().postData() || '',
-           route.fulfill({ json: { code: 200, message: '组会纪要已提交', meeting: MEETING } }))
+           route.fulfill({ json: { code: 200, message: '组会纪要已提交', meeting: created } }))
         : route.fulfill({ json: TEAM_MEETINGS(true, meetings) }) },
+    // 新建组会的详情（空布置）——发起即布置直达编辑态
+    { url: '/camp/meetings/12/detail',
+      json: { code: 200, is_leader: true, meeting: created,
+              students: [{ user_id: 52, username: '学员小一' }],
+              tasks: [], chapters: [], chapter_catalog: [] } },
   ])
 
   await page.goto(`${BASE}/camp?sid=1&tab=meetings`, { waitUntil: 'domcontentloaded' })
-  await expect(page.getByRole('button', { name: '记录组会' })).toBeVisible()
-  await expect(page.locator('.cm-none')).toContainText('还没有组会记录')
+  await expect(page.getByRole('button', { name: '发起组会' })).toBeVisible()
+  await expect(page.locator('.cm-none')).toContainText('还没有组会')
 
-  // 打开弹窗：必填未齐时提交禁用
-  await page.getByRole('button', { name: '记录组会' }).click()
+  // 创建弹窗：必填未齐时提交禁用
+  await page.getByRole('button', { name: '发起组会' }).click()
   const dlg = page.locator('.dew-dialog')
   await expect(dlg).toBeVisible()
   await expect(page.getByRole('button', { name: '提交纪要' })).toBeDisabled()
-  // 填齐三项（日期缺省今天，主题+纪要文字）→ 启用并提交
   await page.getByPlaceholder('如：第一周组会 · 方向讨论').fill('第二周组会 · 阶段小结')
   await dlg.locator('input[type="date"]').fill('2026-09-23')
   await page.getByPlaceholder('议题、结论与分工（文字与附件至少其一）').fill('各方向进度汇报。')
   await expect(page.getByRole('button', { name: '提交纪要' })).toBeEnabled()
-  // 提交后列表回读刷新（GET 追加该条）
-  meetings.push({ ...MEETING, id: 12, title: '第二周组会 · 阶段小结', meeting_date: '2026-09-23' })
+  // 创建成功 → 不回列表，直接进入详情的布置编辑态（引导条 + 任务编辑器）
+  meetings.push(created)
   await page.getByRole('button', { name: '提交纪要' }).click()
-  await expect(dlg).toBeHidden()
+  await expect(page.locator('.dew-dialog')).toHaveCount(1)
+  await expect(dlg.locator('.create-banner')).toContainText('现在布置本期的课外任务与课内进度')
+  await expect(dlg.locator('.field-label', { hasText: '课外任务' })).toBeVisible()
+  // 关详情回列表：新纪录就位（scope 到详情弹窗——创建弹窗离场中短暂共存）
+  await dlg.filter({ hasText: '组会 · 第二周组会' }).locator('.dew-dialog__close').click()
+  await expect(page.locator('.dew-dialog')).toHaveCount(0)
   await expect(page.locator('.mtg-title')).toHaveText('第二周组会 · 阶段小结')
   expect(posted.count).toBe(1)
   expect(posted.body).toContain('第二周组会 · 阶段小结')
@@ -138,7 +148,7 @@ test('学员未编组：空态分流不报错', async ({ page }) => {
 
   await page.goto(`${BASE}/camp?sid=1&tab=meetings`, { waitUntil: 'domcontentloaded' })
   await expect(page.locator('.empty-text')).toContainText('尚未分配导生')
-  await expect(page.getByRole('button', { name: '记录组会' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: '发起组会' })).toHaveCount(0)
   expect(errors).toEqual([])
 })
 
@@ -163,7 +173,7 @@ test('项目组成员·项目看板组会区块：只读渲染', async ({ page }
   await expect(page.locator('.mtg-title')).toHaveText('项目周会 · 进度同步')
   await expect(page.locator('.video-shell')).toContainText('点击播放')
   // 组员只读：项目看板内也无组会管理入口
-  await expect(page.getByRole('button', { name: '记录组会' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: '发起组会' })).toHaveCount(0)
   expect(errors).toEqual([])
 })
 
@@ -280,8 +290,9 @@ test('组员·组会详情：任务提交与我的认证态', async ({ page }) =
   ])
 
   await page.goto(`${BASE}/camp?sid=1&tab=meetings`, { waitUntil: 'domcontentloaded' })
-  await expect(page.locator('.mtg-assign')).toContainText('待提交 1')
-  await page.locator('.mtg-card').first().click()
+  // 待办聚合条置顶直达（作业不藏卡片里），点击直开详情
+  await expect(page.locator('.pending-strip')).toContainText('项任务待提交')
+  await page.getByRole('button', { name: '去提交' }).click()
   const dlg = page.locator('.dew-dialog')
   await expect(dlg).toBeVisible()
   // 我的任务：一已交一未交；课内章节认证态

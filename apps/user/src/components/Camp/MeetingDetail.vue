@@ -44,10 +44,18 @@
           <DewButton v-if="writable" type="ghost" size="sm" class="md-sec-act"
                      @click="toggleAssignEdit">{{ editingAssign ? '收起编辑' : '编辑布置' }}</DewButton>
         </div>
+        <div v-if="justCreated" class="create-banner">
+          本期组会已创建——现在布置本期的课外任务与课内进度。
+        </div>
 
         <template v-if="!editingAssign">
-          <div v-if="!detail.tasks.length && !detail.chapters.length" class="md-none">
-            尚未布置——点「编辑布置」添加课外任务与课内章节。
+          <div v-if="!detail.tasks.length && !detail.chapters.length && writable"
+               class="assign-empty">
+            <DewButton type="glass" size="md" @click="toggleAssignEdit">布置本期任务</DewButton>
+            <span class="assign-empty-hint">课外任务（文字/文件提交）+ 课内章节（联动按章认证）</span>
+          </div>
+          <div v-else-if="!detail.tasks.length && !detail.chapters.length" class="md-none">
+            本期未布置任务。
           </div>
           <div v-for="t in detail.tasks" :key="t.id" class="task-line">
             <DewTag size="sm" round>{{ t.submit_type_text }}</DewTag>
@@ -97,8 +105,8 @@
         </template>
       </section>
 
-      <!-- ③ 我的任务（组员） -->
-      <section v-if="!isLeader" class="md-sec">
+      <!-- ③ 我的任务（组员；待办条直达锚点） -->
+      <section v-if="!isLeader" ref="tasksSection" class="md-sec">
         <div class="md-sec-head">
           <span class="md-sec-title">我的任务</span>
           <span class="md-sec-meta">{{ myPending ? `待提交 ${myPending}` : '全部完成' }}</span>
@@ -242,7 +250,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, nextTick } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { VideoPlay } from '@element-plus/icons-vue';
 import { DewDialog, DewButton, DewInput, DewSelect, DewTag, DewBadge, DewSkeleton } from '@bme/dew-ui';
@@ -253,6 +261,8 @@ const props = defineProps({
   sid: { type: Number, required: true },
   meetingId: { type: Number, default: null },
   campStatus: { type: String, default: null },    // archived 时整体只读
+  autoAssign: { type: Boolean, default: false },  // 发起组会后直达布置编辑（消费一次）
+  focusTasks: { type: Boolean, default: false },  // 待办条直达「我的任务」区
 });
 const emit = defineEmits(['update:modelValue', 'changed', 'edit']);
 
@@ -260,6 +270,7 @@ const writable = computed(() => props.campStatus !== 'archived');
 const loading = ref(false);
 const detail = ref(null);
 const isLeader = computed(() => !!detail.value?.is_leader);
+const tasksSection = ref(null);
 
 async function load() {
   if (!props.meetingId) return;
@@ -271,8 +282,21 @@ async function load() {
     ElMessage.error(e.response?.data?.message || '加载组会详情失败');
   } finally { loading.value = false; }
 }
-watch(() => [props.modelValue, props.meetingId], ([open]) => {
-  if (open) { openStudent.value = null; editingAssign.value = false; load(); }
+watch(() => [props.modelValue, props.meetingId], async ([open]) => {
+  if (open) {
+    openStudent.value = null;
+    editingAssign.value = false;
+    justCreated.value = false;
+    await load();
+    // 发起即布置：创建后停在布置编辑态；待办条进来滚动到我的任务区
+    if (props.autoAssign && isLeader.value && writable.value) {
+      toggleAssignEdit();
+      justCreated.value = true;
+    }
+    if (props.focusTasks && tasksSection.value) {
+      nextTick(() => tasksSection.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    }
+  }
 });
 
 const fmtSize = (n) => {
@@ -307,6 +331,7 @@ const typeOptions = [
   { label: '需交文字', value: 'text' },
 ];
 const editingAssign = ref(false);
+const justCreated = ref(false);      // 发起组会直达布置的引导条（保存/收起后消失）
 const assignForm = ref({ chapters: [], tasks: [] });
 const savingAssign = ref(false);
 const canSaveAssign = computed(() => assignForm.value.tasks.every((t) => t.title.trim()));
@@ -317,6 +342,8 @@ function toggleAssignEdit() {
       tasks: (detail.value?.tasks || []).map((t) => ({
         id: t.id, title: t.title, note: t.note || '', submit_type: t.submit_type })),
     };
+  } else {
+    justCreated.value = false;
   }
   editingAssign.value = !editingAssign.value;
 }
@@ -340,6 +367,7 @@ async function saveAssignments() {
     });
     detail.value = d;
     editingAssign.value = false;
+    justCreated.value = false;
     ElMessage.success('布置已保存');
     emit('changed');
   } catch (e) {
@@ -511,6 +539,18 @@ a.att-link { align-self: flex-start; }
 .chapter-item .cert.ok { color: var(--color-success); }
 .chapter-item .cert:not(.ok) { color: var(--dew-text-faint); }
 
+.create-banner {
+  font-size: 12.5px; color: var(--color-primary); line-height: 1.6;
+  padding: 8px 12px; border-radius: 8px;
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 22%, transparent);
+}
+.assign-empty {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 16px; border-radius: 10px;
+  border: 1px dashed color-mix(in srgb, var(--color-primary) 30%, transparent);
+}
+.assign-empty-hint { font-size: 12px; color: var(--dew-text-faint); }
 .course-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
 .course-name { font-size: 12.5px; font-weight: 650; color: var(--dew-text-heading); }
 .chapter-chips { display: flex; flex-wrap: wrap; gap: 6px; }

@@ -14,6 +14,14 @@
     </DewCard>
 
     <template v-else>
+      <!-- 组员待办聚合条（09-17 用户引导：作业是组会域的高频动作，置顶直达，不再翻卡片找） -->
+      <div v-if="!isLeader && pendingTotal > 0" class="pending-strip" role="status">
+        <span class="pending-num">{{ pendingTotal }}</span>
+        <span class="pending-text">项任务待提交</span>
+        <DewButton type="glass" size="sm" class="pending-go" @click="goPending">去提交</DewButton>
+      </div>
+      <div v-else-if="!isLeader && hasAnyTask" class="pending-done">本期组会任务已全部提交</div>
+
       <div class="cm-head">
         <span class="cm-head-meta">
           {{ isUnit
@@ -21,11 +29,11 @@
             : `导生组 · 组长 ${group.mentor_name} · 组员 ${group.member_count} 人 · 共 ${meetings.length} 次` }}
         </span>
         <DewButton v-if="isLeader && writable" type="glass" size="sm" class="cm-add"
-                   @click="openCreate">记录组会</DewButton>
+                   @click="openCreate">发起组会</DewButton>
       </div>
 
       <div v-if="!meetings.length" class="cm-none">
-        {{ isLeader ? '还没有组会记录——开完会在这里留下纪要、文件或录像。' : '还没有组会记录' }}
+        {{ isLeader ? '还没有组会——发起第一期，布置任务与课内进度，纪要文件录像随会留档。' : '还没有组会记录' }}
       </div>
 
       <div v-else class="cm-list">
@@ -129,9 +137,11 @@
       </div>
     </DewDialog>
 
-    <!-- 组会详情（教学单元：纪要/布置/任务/审阅三区，导生与组员视角分流） -->
+    <!-- 组会详情（教学单元：纪要/布置/任务/审阅三区，导生与组员视角分流）。
+         autoAssign：发起组会后直达布置编辑；focusTasks：待办条直达我的任务区 -->
     <MeetingDetail v-model="detailDlg" :sid="sid" :meeting-id="detailId"
-                   :camp-status="campStatus" @changed="load" @edit="openEdit" />
+                   :camp-status="campStatus" :auto-assign="detailAutoAssign"
+                   :focus-tasks="detailFocusTasks" @changed="load" @edit="openEdit" />
 
     <input ref="fileInput" type="file" multiple class="file-hidden" @change="onFilesPicked" />
     <input ref="videoInput" type="file" accept="video/*" class="file-hidden" @change="onFilesPicked" />
@@ -176,11 +186,25 @@ watch(() => [props.sid, props.unitId], load, { immediate: true });
 
 // ── 组会详情（教学单元：卡片点击进入）──
 const detailId = ref(null);
+const detailAutoAssign = ref(false);   // 发起组会后直达布置编辑（消费一次即复位）
+const detailFocusTasks = ref(false);   // 待办条直达「我的任务」区
 const detailDlg = computed({
   get: () => detailId.value != null,
-  set: (v) => { if (!v) detailId.value = null; },
+  set: (v) => {
+    if (!v) { detailId.value = null; detailAutoAssign.value = false; detailFocusTasks.value = false; }
+  },
 });
 function openDetail(m) { detailId.value = m.id; }
+
+// 组员待办聚合：跨组会待提交总数 + 最近一期有待办的组会（列表已按日期倒序）
+const pendingTotal = computed(() => meetings.value.reduce((n, m) => n + (m.my_pending || 0), 0));
+const hasAnyTask = computed(() => meetings.value.some((m) => m.task_count));
+function goPending() {
+  const target = meetings.value.find((m) => (m.my_pending || 0) > 0);
+  if (!target) return;
+  detailFocusTasks.value = true;
+  openDetail(target);
+}
 
 // ── 记录 / 编辑（组长·负责人）──
 const dlg = ref(false);
@@ -218,6 +242,7 @@ async function save() {
       content: form.value.content.trim(),
       files: form.value.files,
     };
+    const wasCreate = !editing.value;
     const r = editing.value
       ? await campService.updateMeeting(editing.value.id, payload)
       : isUnit.value
@@ -226,6 +251,11 @@ async function save() {
     ElMessage.success(r.message || '组会纪要已保存');
     dlg.value = false;
     load();
+    // 发起即布置（09-17 用户引导）：创建成功直达详情的布置编辑态，一次会话完成纪要+布置
+    if (wasCreate && r.meeting?.id) {
+      detailAutoAssign.value = true;
+      detailId.value = r.meeting.id;
+    }
   } catch (e) {
     ElMessage.error(e.response?.data?.message || '保存失败');
   } finally { saving.value = false; }
@@ -306,6 +336,25 @@ const fmtSize = (n) => {
 .cm-head-meta { font-size: 12.5px; color: var(--dew-text-muted); }
 .cm-add { margin-left: auto; }
 .cm-none { font-size: 12.5px; color: var(--dew-text-faint); padding: 6px 2px; }
+
+/* 组员待办聚合条：作业是高频动作，醒目置顶直达 */
+.pending-strip {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px; border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--color-warning) 35%, transparent);
+  background: color-mix(in srgb, var(--color-warning) 9%, transparent);
+}
+.pending-num {
+  font-size: 22px; font-weight: 800; color: var(--color-warning);
+  font-variant-numeric: tabular-nums; line-height: 1;
+}
+.pending-text { font-size: 13.5px; font-weight: 600; color: var(--dew-text-heading); }
+.pending-go { margin-left: auto; }
+.pending-done {
+  font-size: 12.5px; color: var(--color-success);
+  padding: 8px 12px; border-radius: 10px;
+  background: color-mix(in srgb, var(--color-success) 8%, transparent);
+}
 
 .cm-list { display: flex; flex-direction: column; gap: 10px; }
 .mtg-card {

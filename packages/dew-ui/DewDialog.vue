@@ -1,12 +1,13 @@
 <template>
   <Teleport to="body">
-    <!-- 遮罩：半透明深色 + backdrop-blur -->
-    <Transition name="dew-dialog-scrim">
+    <!-- 遮罩：半透明深色 + backdrop-blur；:duration 兜底——两弹窗同时开合时
+         transitionend 偶发不触发，离场元素滞留 DOM 且遮挡点击，强制到时移除 -->
+    <Transition name="dew-dialog-scrim" :duration="320">
       <div v-if="modelValue" class="dew-dialog-scrim"></div>
     </Transition>
 
     <!-- 弹窗面板：居中容器 + 点击空白关闭 -->
-    <Transition name="dew-dialog-panel">
+    <Transition name="dew-dialog-panel" :duration="320">
       <div v-if="modelValue" class="dew-dialog-panel" @click.self="onBackdropClick">
         <div class="dew-dialog" role="dialog" aria-modal="true" :class="{ 'dew-dialog--glass': glass }" :style="dialogStyle">
           <!-- 标题栏 -->

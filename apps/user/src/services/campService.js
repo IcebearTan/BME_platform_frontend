@@ -307,6 +307,9 @@ export const campService = {
     const r = await api.get(`/camp/meetings/${mid}/submissions/zip/token`)
     return assetUrl(r.data.url)
   },
+  // 团队任务提交汇总（学员进度页作业维度徽标：每生 已交/总数）
+  fetchTeamTaskSummary: (sid) =>
+    api.get(`/camp/sessions/${sid}/team/task-summary`).then(r => r.data),
 }
 
 // 附件短签直连共用：换签后拼 API_URL 得完整 URL（相对 /camp/... 路径）

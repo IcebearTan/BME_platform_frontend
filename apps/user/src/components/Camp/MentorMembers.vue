@@ -13,11 +13,21 @@
       </div>
 
       <template v-else>
+        <!-- 组会任务提交总览（09-17 作业维度）：与章节认证并显，未交名单一眼可见 -->
+        <div v-if="taskTotal" :class="['task-strip', { warn: pendingNames.length }]">
+          组会任务：全组 {{ progress.students.reduce((n, s) => n + taskDone(s.student_user_id), 0) }}/{{ taskTotal * progress.students.length }} 已交
+          <template v-if="pendingNames.length"> · 未交：{{ pendingNames.join('、') }}</template>
+          <template v-else> · 全部完成</template>
+        </div>
         <div v-if="!progress.students?.length" class="empty">本团队暂无学员</div>
         <div v-else class="member-rows">
           <div v-for="s in progress.students" :key="s.student_user_id" class="member-row">
             <button type="button" class="row-head" @click="toggleExpand(s.student_user_id)">
               <span class="row-name">{{ s.username }}</span>
+              <span v-if="taskTotal"
+                    :class="['task-badge', { miss: taskDone(s.student_user_id) < taskTotal }]">
+                任务 {{ taskDone(s.student_user_id) }}/{{ taskTotal }}
+              </span>
               <span class="row-meta">
                 <span v-for="c in s.courses" :key="c.course_id" class="course-chip">
                   {{ c.course_title }} {{ c.certified_chapters }}/{{ c.total_chapters }}<template v-if="c.score_avg != null"> · 均 {{ c.score_avg }}</template><template v-if="c.course_status === 'completed'"> · 完成</template>
@@ -105,7 +115,7 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { DewCard, DewButton, DewDialog, DewInput } from '@bme/dew-ui';
 import { ElMessage, ElMessageBox, ElIcon } from 'element-plus';
 import { ArrowDown } from '@element-plus/icons-vue';
@@ -118,6 +128,14 @@ const SCORE_RE = /^([0-9]|[1-9]\d|100)$/;   // 0-100 整数
 const progress = ref({});
 const expanded = ref(null);
 const acting = ref(false);
+
+// ── 组会任务维度（09-17）：每生 已交/总数 徽标 + 顶部未交名单（与章节认证并显）──
+const taskSummary = ref(null);
+const taskDone = (uid) => taskSummary.value?.summary?.find((x) => x.user_id === uid)?.submitted ?? 0;
+const taskTotal = computed(() => taskSummary.value?.task_total || 0);
+const pendingNames = computed(() => (progress.value.students || [])
+  .filter((s) => taskDone(s.student_user_id) < taskTotal.value)
+  .map((s) => s.username));
 
 // ── 章节材料弹层（09-14）──
 const matDlg = ref({
@@ -176,6 +194,10 @@ function toggleExpand(uid) {
 
 async function load() {
   expanded.value = null;
+  // 任务汇总静默并行（失败只丢徽标，不阻断认证矩阵）
+  campService.fetchTeamTaskSummary(props.sid)
+    .then((d) => { taskSummary.value = d; })
+    .catch(() => { taskSummary.value = null; });
   try {
     const d = await campService.fetchTeamProgress(props.sid);
     progress.value = d.data || d;
@@ -264,6 +286,25 @@ watch(() => props.sid, load, { immediate: true });
 }
 .row-head:hover { border-color: var(--dew-text-faint); }
 .row-name { flex-shrink: 0; font-size: 14px; font-weight: 600; color: var(--dew-text-heading); }
+/* 组会任务徽标（09-17 作业维度）：与课程认证 chip 并排，未交满时警示色 */
+.task-badge {
+  flex-shrink: 0; font-size: 11.5px; font-weight: 600; color: var(--color-success);
+  padding: 1px 8px; border-radius: 999px;
+  background: color-mix(in srgb, var(--color-success) 9%, transparent);
+}
+.task-badge.miss {
+  color: var(--color-warning);
+  background: color-mix(in srgb, var(--color-warning) 12%, transparent);
+}
+.task-strip {
+  font-size: 12.5px; color: var(--dew-text-muted); line-height: 1.6;
+  padding: 8px 12px; border-radius: 8px; margin-bottom: 10px;
+  background: color-mix(in srgb, var(--dew-text-muted) 6%, transparent);
+}
+.task-strip.warn {
+  color: var(--dew-text-heading);
+  background: color-mix(in srgb, var(--color-warning) 10%, transparent);
+}
 .row-meta {
   flex: 1; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
   font-size: 12px; color: var(--dew-text-muted); justify-content: flex-end;
