@@ -58,7 +58,10 @@
               :disabled="locked"
               @update:model-value="updateBio"
             />
-            <span class="bio-counter">{{ Array.from(form.bio).length }}/1000</span>
+            <div class="bio-meta">
+              <span class="form-hint">粘贴以 http:// 或 https:// 开头的完整网址，学员可直接点击访问</span>
+              <span class="bio-counter">{{ Array.from(form.bio).length }}/1000</span>
+            </div>
           </div>
 
           <div class="form-item">
@@ -251,7 +254,8 @@ watch(() => props.sid, load, { immediate: true });
 .head-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .head-row h3 { margin: 0; font-size: 16px; font-weight: 600; }
 .head-hint { font-size: 12px; color: var(--dew-text-muted); }
-.bio-counter { align-self: flex-end; font-size: 11px; color: var(--dew-text-faint); }
+.bio-meta { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.bio-counter { flex: none; font-size: 11px; color: var(--dew-text-faint); }
 
 .profile-body { display: flex; gap: 32px; align-items: flex-start; }
 @media (max-width: 860px) { .profile-body { flex-direction: column; } }

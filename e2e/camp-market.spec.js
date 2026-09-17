@@ -29,7 +29,7 @@ const DEADLINES = {
 const MENTORS = {
   mentors: [
     { user_id: 13, username: 'test_mentor', photo_url: '/camp/ms/photo/test.svg', avatar: null,
-      capacity: 8, matched: 7, remaining: 1, full: false, tags: ['硬件组'], bio: '搞硬件的' },
+      capacity: 8, matched: 7, remaining: 1, full: false, tags: ['硬件组'], bio: '搞硬件的，项目资料：https://example.com/mentor-kit。' },
     { user_id: 20, username: '满员导生', photo_url: null, avatar: null,
       capacity: 3, matched: 3, remaining: 0, full: true, tags: ['软件组'], bio: '' },
     { user_id: 21, username: '软件导生', photo_url: null, avatar: null,
@@ -117,6 +117,10 @@ test('市集营业：collecting 可逛可收志愿', async ({ page }) => {
   await expect(page.getByRole('dialog')).toContainText('修改时整组替换志愿，以最后一次提交为准。')
   await page.keyboard.press('Escape')
   await expect(page.getByText('可带 8 人', { exact: true })).toBeVisible()
+  const cardBioLink = page.locator('.market-grid .bio').getByRole('link', { name: 'https://example.com/mentor-kit' })
+  await expect(cardBioLink).toHaveAttribute('href', 'https://example.com/mentor-kit')
+  await expect(cardBioLink).toHaveAttribute('target', '_blank')
+  await expect(cardBioLink).toHaveAttribute('rel', 'noopener noreferrer')
   await expect(page.getByText('名额不限', { exact: true })).toBeVisible()
   await expect(page.locator('.bio').filter({ hasText: '这位导生有点神秘，先看看标签吧~~' })).not.toHaveClass(/is-multiline/)
   await expect(page.getByText(/已经有.*位同学上车/)).toHaveCount(0)
@@ -148,7 +152,8 @@ test('市集营业：collecting 可逛可收志愿', async ({ page }) => {
   // 加入志愿 → 托盘计数变化
   await page.getByRole('button', { name: '查看 test_mentor 的完整介绍' }).click()
   const detail = page.getByRole('dialog')
-  await expect(detail.locator('.detail-bio')).toHaveText('搞硬件的')
+  await expect(detail.locator('.detail-bio')).toHaveText('搞硬件的，项目资料：https://example.com/mentor-kit。')
+  await expect(detail.getByRole('link', { name: 'https://example.com/mentor-kit' })).toHaveAttribute('href', 'https://example.com/mentor-kit')
   await detail.getByRole('button', { name: '加入心仪导生 test_mentor' }).click()
   await expect(detail.getByText('已选为第 1 志愿')).toBeVisible()
   await page.keyboard.press('Escape')

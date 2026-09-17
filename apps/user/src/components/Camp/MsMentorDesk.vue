@@ -38,7 +38,13 @@
             <div v-if="profile.tags?.length" class="locked-tags">
               <DewTag v-for="t in profile.tags" :key="t" size="sm" round>{{ t }}</DewTag>
             </div>
-            <p class="locked-bio">{{ profile.bio || '（未填写介绍）' }}</p>
+            <p class="locked-bio"><template v-for="(token, tokenIndex) in lockedBioTokens" :key="`${token.type}-${tokenIndex}`"><a
+              v-if="token.type === 'link'"
+              class="bio-link"
+              :href="token.value"
+              target="_blank"
+              rel="noopener noreferrer"
+            >{{ token.value }}</a><span v-else>{{ token.value }}</span></template></p>
           </div>
         </div>
       </DewCard>
@@ -167,6 +173,7 @@ import { DewButton, DewCard, DewInput, DewTag } from '@bme/dew-ui';
 import MsPhaseBar from './MsPhaseBar.vue';
 import MsMentorProfile from './MsMentorProfile.vue';
 import { campService, assetUrl } from '../../services/campService';
+import { tokenizeHttpUrls } from '../../utils/linkifyText';
 
 const props = defineProps({ sid: { type: [Number, String], required: true } });
 
@@ -199,6 +206,7 @@ const rosterFiltered = computed(() => {
 });
 
 const profile = computed(() => phaseInfo.value?.me?.profile || null);
+const lockedBioTokens = computed(() => tokenizeHttpUrls(profile.value?.bio || '（未填写介绍）'));
 const locked = computed(() => phaseInfo.value?.me?.profile_locked ?? true);
 const preferenceCounts = computed(() => [
   { rank: 1, label: '一志愿', count: suitors.value.filter((s) => s.rank === 1).length },
@@ -338,6 +346,12 @@ watch(() => props.sid, () => { loading.value = true; reloadAll(); }, { immediate
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+.bio-link {
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.bio-link:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; border-radius: 2px; }
 
 /* 意向单（订单式列表） */
 .suitor-list { display: flex; flex-direction: column; gap: 10px; }
