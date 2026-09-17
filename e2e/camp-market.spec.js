@@ -536,7 +536,17 @@ test('团队与学习认证：多课程按章认证+评分（0-100），可撤�
   await expect(page.locator('.mat-list').getByText('点灯实验记录：电阻 220Ω')).toBeVisible()
   const matAtt = page.locator('.mat-list .att-link', { hasText: 'led.png' })
   await expect(matAtt).toBeVisible()
-  await expect(matAtt).toHaveAttribute('href', /\/camp\/materials\/attachments\/19$/)
+  // 附件下载走短签直连（2026-09-17 修裸链 401）：点击 → 换 token → 开签名 URL
+  await page.evaluate(() => {
+    window.__opened = []
+    window.open = (u) => { window.__opened.push(String(u)); return null }
+  })
+  await page.route('**/camp/materials/attachments/19/token', (route) =>
+    route.fulfill({ json: { code: 200, expires_in: 7200,
+      url: '/camp/materials/attachments/19?u=201&e=1789600000&st=abc' } }))
+  await matAtt.click()
+  await expect.poll(() => page.evaluate(() => window.__opened[0]))
+    .toContain('/camp/materials/attachments/19?')
   await page.locator('.mat-list').locator('.mat-row', { hasText: '点灯实验记录' })
     .getByRole('button', { name: '删除' }).click()
   await page.locator('.el-message-box').getByRole('button', { name: '删除' }).click()

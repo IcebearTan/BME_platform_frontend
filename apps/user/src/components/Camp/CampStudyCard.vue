@@ -54,10 +54,10 @@
                 <div class="mat-main">
                   <div v-if="m.content" class="mat-content">{{ m.content }}</div>
                   <div v-if="m.attachments?.length" class="mat-atts">
-                    <a v-for="a in m.attachments" :key="a.id"
-                       :href="campService.chapterMaterialAttachmentUrl(a.id)" target="_blank" class="att-link">
+                    <button v-for="a in m.attachments" :key="a.id" type="button"
+                            class="att-link" @click="downloadAtt(a)">
                       {{ a.filename }}{{ a.size ? `（${Math.round(a.size / 1024)}KB）` : '' }}
-                    </a>
+                    </button>
                   </div>
                   <span class="mat-time">{{ (m.created_at || '').slice(0, 16).replace('T', ' ') }}</span>
                 </div>
@@ -168,6 +168,16 @@ async function submitMaterial(ch) {
   }
 }
 
+// 附件下载：先换短签直连再开新窗（裸链带不了 Authorization 头，2026-09-17 修旧链 401）
+async function downloadAtt(a) {
+  try {
+    const url = await campService.fetchMaterialAttachmentUrl(a.id);
+    window.open(url, '_blank');
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '下载失败');
+  }
+}
+
 async function removeMaterial(m) {
   try {
     await ElMessageBox.confirm('删除后导生将不再可见，确定删除这条材料？', '删除材料',
@@ -248,6 +258,7 @@ onMounted(async () => {
 .mat-content { font-size: 13px; color: var(--dew-text-heading); line-height: 1.6; word-break: break-word; }
 .mat-atts { display: flex; flex-wrap: wrap; gap: 6px 12px; }
 .att-link {
+  border: none; background: none; padding: 0; cursor: pointer; text-align: left;
   font-size: 12.5px; color: var(--color-primary); text-decoration: none;
   border-bottom: 1px dashed color-mix(in srgb, var(--color-primary) 45%, transparent);
 }

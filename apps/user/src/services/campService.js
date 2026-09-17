@@ -79,7 +79,10 @@ export const campService = {
     }).then(r => r.data)
   },
   deleteChapterMaterial: (mid) => api.delete(`/camp/materials/${mid}`).then(r => r.data),
-  chapterMaterialAttachmentUrl: (aid) => `${API_URL}/camp/materials/attachments/${aid}`,
+  // 附件短签直连（2026-09-17 修旧链裸链 401：<a target=_blank> 带不了 Authorization 头，
+  // 点击下载时先换签再开新窗；2h 多次有效，见后端 blueprints/media_sign.py）
+  fetchMaterialAttachmentUrl: (aid) =>
+    fetchSignedMediaUrl(`/camp/materials/attachments/${aid}/token`),
 
   // 请假提交 / 我的请假历史
   submitLeave: (sid, start_date, end_date, reason) =>
@@ -247,7 +250,8 @@ export const campService = {
   },
   reviewSubmission: (subId, body) =>
     api.post(`/camp/submissions/${subId}/review`, body).then(r => r.data),
-  attachmentUrl: (aid) => `${API_URL}/camp/submissions/attachments/${aid}`,
+  fetchSubmissionAttachmentUrl: (aid) =>
+    fetchSignedMediaUrl(`/camp/submissions/attachments/${aid}/token`),
   // 成果：登记（负责人）/ 核验（admin）
   fetchOutcomes: (unitId) =>
     api.get(`/camp/units/${unitId}/outcomes`).then(r => r.data),
@@ -277,10 +281,14 @@ export const campService = {
   deleteMeetingAttachment: (aid) =>
     api.delete(`/camp/meetings/attachments/${aid}`).then(r => r.data),
   // 媒体直连短签（<a>/<video> 带不了 Authorization 头；点击下载/播放时换取，2h 有效）
-  fetchMeetingAttachmentUrl: async (aid) => {
-    const r = await api.get(`/camp/meetings/attachments/${aid}/token`)
-    return assetUrl(r.data.url)
-  },
+  fetchMeetingAttachmentUrl: (aid) =>
+    fetchSignedMediaUrl(`/camp/meetings/attachments/${aid}/token`),
+}
+
+// 附件短签直连共用：换签后拼 API_URL 得完整 URL（相对 /camp/... 路径）
+async function fetchSignedMediaUrl(tokenPath) {
+  const r = await api.get(tokenPath)
+  return assetUrl(r.data.url)
 }
 
 // 组会表单 → FormData（文字字段 + Files[] 多文件一步式，与章节材料同款）

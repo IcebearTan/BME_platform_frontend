@@ -55,8 +55,8 @@
                   </div>
                   <p v-if="s.content" class="chain-content">{{ s.content }}</p>
                   <div v-if="s.attachments?.length" class="chain-atts">
-                    <a v-for="a in s.attachments" :key="a.id" :href="campService.attachmentUrl(a.id)"
-                       target="_blank" class="att-link">{{ a.filename }}{{ a.size ? `（${Math.round(a.size / 1024)}KB）` : '' }}</a>
+                    <button v-for="a in s.attachments" :key="a.id" type="button"
+                            class="att-link" @click="downloadAtt(a)">{{ a.filename }}{{ a.size ? `（${Math.round(a.size / 1024)}KB）` : '' }}</button>
                   </div>
                 </div>
               </div>
@@ -85,8 +85,8 @@
               </div>
               <p v-if="s.content" class="chain-content">{{ s.content }}</p>
               <div v-if="s.attachments?.length" class="chain-atts">
-                <a v-for="a in s.attachments" :key="a.id" :href="campService.attachmentUrl(a.id)"
-                   target="_blank" class="att-link">{{ a.filename }}{{ a.size ? `（${Math.round(a.size / 1024)}KB）` : '' }}</a>
+                <button v-for="a in s.attachments" :key="a.id" type="button"
+                        class="att-link" @click="downloadAtt(a)">{{ a.filename }}{{ a.size ? `（${Math.round(a.size / 1024)}KB）` : '' }}</button>
               </div>
             </div>
             <div v-if="!m.submissions.length" class="chain-empty">尚无提交</div>
@@ -189,6 +189,16 @@ const evalDlg = ref(false);
 const evalSaving = ref(false);
 const evalTarget = ref({ mid: null, memberUid: null, memberName: '', nodeTitle: '' });
 const evalForm = ref({ score: '', comment: '' });
+
+// 附件下载：先换短签直连再开新窗（裸链带不了 Authorization 头，2026-09-17 修旧链 401）
+async function downloadAtt(a) {
+  try {
+    const url = await campService.fetchSubmissionAttachmentUrl(a.id);
+    window.open(url, '_blank');
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '下载失败');
+  }
+}
 
 function toggleExpand(id) {
   const s = new Set(expanded.value);
@@ -408,7 +418,10 @@ async function addMilestone() {
 .chain-content { font-size: 12.5px; color: var(--dew-text-muted); margin: 0; line-height: 1.6; }
 .chain-note { font-size: 12px; color: var(--color-warning); margin: 0; }
 .chain-atts { display: flex; flex-wrap: wrap; gap: 8px; }
-.att-link { font-size: 12px; color: var(--color-primary); text-decoration: none; }
+.att-link {
+  font-size: 12px; color: var(--color-primary); text-decoration: none;
+  border: none; background: none; padding: 0; cursor: pointer; text-align: left;
+}
 .att-link:hover { text-decoration: underline; }
 .chain-empty { font-size: 12px; color: var(--dew-text-faint); }
 

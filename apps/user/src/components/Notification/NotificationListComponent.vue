@@ -320,6 +320,10 @@ function handleClick(item) {
       case 'mentor_selection':
         router.push({ path: '/camp', query: { tab: 'ms', sid } })
         break
+      case 'camp_meeting':
+        // 组会纪要：培训营直达「组会」tab；项目营无营期层 tab，CampView 自动回落 ProjectHub
+        router.push({ path: '/camp', query: { tab: 'meetings', sid } })
+        break
       default:
         router.push('/camp')
     }

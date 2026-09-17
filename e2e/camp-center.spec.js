@@ -543,7 +543,17 @@ test('学习方向卡：多课程认证进度/评分 + 章节材料提交三件�
   await expect(matPanel.getByText('点灯实验记录：电阻 220Ω')).toBeVisible()
   const att = matPanel.locator('.att-link', { hasText: 'led.png' })
   await expect(att).toBeVisible()
-  await expect(att).toHaveAttribute('href', /\/camp\/materials\/attachments\/19$/)
+  // 附件下载走短签直连（2026-09-17 修裸链 401）：点击 → 换 token → 开签名 URL
+  await page.evaluate(() => {
+    window.__opened = []
+    window.open = (u) => { window.__opened.push(String(u)); return null }
+  })
+  await page.route('**/camp/materials/attachments/19/token', (route) =>
+    route.fulfill({ json: { code: 200, expires_in: 7200,
+      url: '/camp/materials/attachments/19?u=62&e=1789600000&st=abc' } }))
+  await att.click()
+  await expect.poll(() => page.evaluate(() => window.__opened[0]))
+    .toContain('/camp/materials/attachments/19?')
 
   // 提交：说明 + 附件 → multipart（chapter_id + content + Files）
   let submitBody = ''
