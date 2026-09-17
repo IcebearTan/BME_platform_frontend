@@ -19,7 +19,7 @@
         <DewSkeleton variant="rect" width="100%" height="320" rounded="8px" />
       </div>
 
-      <div v-else-if="!open" class="market-closed">
+      <div v-else-if="!open && !browsing" class="market-closed">
         <DewCard variant="inset" size="lg" :no-hover="true">
           <MsPhaseBar :phase="phaseInfo.phase" />
           <div class="closed-label">{{ closedText }}</div>
@@ -43,7 +43,8 @@
           </div>
           <div class="poster-float">
             <div class="live-ticker" role="timer">
-              <span class="ticker-label">截止时间：</span><strong>{{ countdownText }}</strong>
+              <span class="ticker-label">{{ browsing ? '距开启提交：' : '截止时间：' }}</span><strong>{{ countdownText }}</strong>
+              <span v-if="browsing && openAtText" class="ticker-sub">{{ openAtText }} 开启</span>
             </div>
           </div>
         </section>
@@ -86,7 +87,7 @@
               :key="mentor.user_id"
               :mentor="mentor"
               :picked-rank="rankOf(mentor.user_id)"
-              :selectable="true"
+              :selectable="submittable"
               :selection-disabled="selectionLocked"
               :index="index"
               :favorite-enabled="true"
@@ -100,6 +101,7 @@
         </section>
 
         <MsPreferenceTray
+          v-if="submittable"
           :picks="picks"
           :mentor-names="mentorNames"
           :round="1"
@@ -152,23 +154,33 @@ const submitting = ref(false);
 const nowTs = ref(Date.now());
 let countdownTimer = null;
 let statsTimer = null;
+let browseRolloverFired = false;
 
 const open = computed(() => phaseInfo.value?.me?.submittable_round === 1);
 const submittable = computed(() => phaseInfo.value?.me?.submittable_round === 1);
+// 浏览期：已入营学员可逛市集/收藏，志愿开始前不能选人（开放报名 → 志愿开始 的只读窗口）
+const browsing = computed(() => phaseInfo.value?.phase === 'upcoming');
 const meRound1 = computed(() => phaseInfo.value?.me?.round1 || []);
 const alreadySubmitted = computed(() => submittable.value && meRound1.value.length > 0);
 
-const activeDeadline = computed(() => phaseInfo.value?.deadlines?.preference_deadline || '');
-const deadlineMs = computed(() => {
-  if (!activeDeadline.value) return null;
-  const timestamp = new Date(activeDeadline.value.replace(' ', 'T')).getTime();
+const parseDateTime = (text) => {
+  if (!text) return null;
+  const timestamp = new Date(text.replace(' ', 'T')).getTime();
   return Number.isNaN(timestamp) ? null : timestamp;
-});
+};
+const deadlineMs = computed(() => parseDateTime(phaseInfo.value?.deadlines?.preference_deadline));
+const openAtText = computed(() => phaseInfo.value?.deadlines?.preference_start || '');
+const openAtMs = computed(() => parseDateTime(openAtText.value));
 const expiredByClock = computed(() => deadlineMs.value !== null && deadlineMs.value <= nowTs.value);
 const countdownText = computed(() => {
-  if (deadlineMs.value === null) return '待定';
-  const secondsLeft = Math.max(0, Math.floor((deadlineMs.value - nowTs.value) / 1000));
-  if (secondsLeft <= 0) return '已截止';
+  const targetMs = browsing.value ? openAtMs.value : deadlineMs.value;
+  if (targetMs === null) return '待定';
+  const secondsLeft = Math.max(0, Math.floor((targetMs - nowTs.value) / 1000));
+  if (secondsLeft <= 0) return browsing.value ? '即将开启' : '已截止';
+  if (secondsLeft > 48 * 3600) {
+    const days = Math.floor(secondsLeft / 86400);
+    return `${days}天 ${Math.floor((secondsLeft % 86400) / 3600)}小时`;
+  }
   const hours = Math.floor(secondsLeft / 3600);
   const minutes = Math.floor((secondsLeft % 3600) / 60);
   const seconds = secondsLeft % 60;
@@ -192,7 +204,6 @@ const closedText = computed(() => {
   if (!phase) return '';
   if (phase.me?.my_mentor) return '你已匹配到导生';
   if (phase.phase === 'done') return '本轮市集已收摊';
-  if (phase.phase === 'upcoming') return '市集尚未开门';
   return '市集暂不营业';
 });
 const closedHint = computed(() => {
@@ -202,14 +213,13 @@ const closedHint = computed(() => {
   if (phase.phase === 'done') return meRound1.value.length
     ? '志愿已截止，老师正在协调分配，结果在工作台公布'
     : '选导生已结束';
-  if (phase.phase === 'upcoming') return `${phase.deadlines.preference_start || ''} 开门，届时可浏览名片并提交志愿`;
   return '';
 });
 
 const rankOf = (mentorId) => picks.value.findIndex((pick) => pick.mentor_id === mentorId) + 1;
 
 function addPick(mentor) {
-  if (expiredByClock.value) return;
+  if (!submittable.value || expiredByClock.value) return;
   if (picks.value.some((pick) => pick.mentor_id === mentor.user_id)) return;
   if (mentor.full) { ElMessage.warning('该导生名额已满'); return; }
   if (picks.value.length >= 3) { ElMessage.warning('最多选择 3 位心仪导生'); return; }
@@ -290,6 +300,7 @@ async function load() {
       picks.value = [];
     }
     if (!tagItems.value.some((item) => item.value === activeTag.value)) activeTag.value = 'all';
+    browseRolloverFired = false;
   } catch {
     ElMessage.error('加载团购导生信息失败');
   } finally {
@@ -306,7 +317,15 @@ async function refreshPhaseStats() {
 }
 
 function startLiveUpdates() {
-  countdownTimer = window.setInterval(() => { nowTs.value = Date.now(); }, 1000);
+  countdownTimer = window.setInterval(() => {
+    nowTs.value = Date.now();
+    // 浏览期到点（志愿开始时刻过钟）：立即拉新阶段+志愿切收集态，不等 30s 轮询
+    if (browsing.value && openAtMs.value !== null && openAtMs.value <= nowTs.value
+        && !browseRolloverFired) {
+      browseRolloverFired = true;
+      load();
+    }
+  }, 1000);
   statsTimer = window.setInterval(refreshPhaseStats, 30_000);
 }
 function stopLiveUpdates() {
@@ -417,6 +436,7 @@ onUnmounted(stopLiveUpdates);
   font-weight: 800;
 }
 .ticker-label { font-size: 14px; }
+.ticker-sub { margin-left: 8px; font-size: 12px; font-weight: 600; color: var(--dew-text-muted); }
 .live-ticker strong { color: var(--color-warning); font-size: 15px; font-weight: 900; font-variant-numeric: tabular-nums; }
 .head-tool {
   display: inline-flex;

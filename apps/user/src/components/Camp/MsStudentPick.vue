@@ -73,10 +73,17 @@
         </template>
       </DewCard>
 
-      <!-- 未开始 -->
-      <DewCard v-else-if="phaseInfo.phase === 'upcoming'" variant="default" size="lg" :no-hover="true" class="section-card">
-        <div class="result-label">选导生即将开始</div>
-        <div class="result-hint">{{ phaseInfo.deadlines.preference_start || '' }} 起可浏览导生名片并提交志愿，届时会有通知。</div>
+      <!-- 浏览期（志愿开始前）：可逛市集收藏心仪导生，暂不能提交 -->
+      <DewCard
+        v-else-if="phaseInfo.phase === 'upcoming'" variant="default" size="lg" :no-hover="true"
+        tinted accent="primary" class="section-card"
+      >
+        <div class="cta-label">市集提前逛</div>
+        <div class="cta-title">先去逛导生市集，收藏心仪导生</div>
+        <div class="cta-meta" v-if="phaseInfo.deadlines.preference_start">
+          {{ phaseInfo.deadlines.preference_start }} 起可提交志愿，届时会有通知
+        </div>
+        <DewButton type="glass" @click="goMarket">先去逛逛</DewButton>
       </DewCard>
 
       <!-- 感谢信：只在正式结果发布后紧跟结果卡 -->
@@ -166,7 +173,7 @@ const phaseCaption = computed(() => {
   if (p.phase === 'collecting')
     return `浏览导生名片，提交 1-3 个有序志愿 · ${p.deadlines.preference_deadline || ''} 截止${submittedText.value ? ` · ${submittedText.value}` : ''}`;
   if (p.phase === 'done') return '志愿已截止，导生分配由老师协调后公布';
-  if (p.phase === 'upcoming') return '导生正在准备名片';
+  if (p.phase === 'upcoming') return '浏览期：可先逛市集收藏心仪导生，暂不能提交志愿';
   return '';
 });
 

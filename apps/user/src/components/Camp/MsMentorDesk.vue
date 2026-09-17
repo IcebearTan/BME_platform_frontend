@@ -209,7 +209,7 @@ const preferenceCounts = computed(() => [
 const deskCaption = computed(() => {
   const p = phaseInfo.value;
   if (!p) return '';
-  if (p.phase === 'upcoming') return `完善名片，${p.deadlines.preference_start || ''} 起学员可见`;
+  if (p.phase === 'upcoming') return `完善名片 · 学员已可浏览市集，${p.deadlines.preference_start || ''} 起可提交志愿`;
   if (p.phase === 'collecting') return `学员正在提交志愿 · ${p.deadlines.preference_deadline || ''} 截止后由老师统一协调分配`;
   if (p.phase === 'done') return '志愿已截止：在下方锁定你的学员（名额内），老师仍可批量指派回填';
   return '';

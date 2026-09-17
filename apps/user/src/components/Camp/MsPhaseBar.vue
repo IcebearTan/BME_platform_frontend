@@ -28,7 +28,7 @@ const currentIndex = computed(() => INDEX[props.phase] ?? -1);
 const steps = computed(() => {
   const cur = currentIndex.value;
   const all = [
-    { key: 'upcoming', label: '未开始' },
+    { key: 'upcoming', label: '浏览与准备' },
     { key: 'collecting', label: '收集志愿' },
     { key: 'done', label: '已截止出结果' },
   ];

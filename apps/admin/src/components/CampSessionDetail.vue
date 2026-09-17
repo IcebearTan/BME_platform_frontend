@@ -306,6 +306,9 @@
                   <span style="margin:0 4px;">至</span>
                   <el-date-picker v-model="msCfg.deadline" type="datetime" value-format="YYYY-MM-DD HH:mm"
                     format="MM-DD HH:mm" placeholder="截止（后进线下协调）" style="width:46%" />
+                  <div class="hint" style="line-height:1.6;">
+                    开放报名后学员即可浏览市集、收藏导生（只读浏览期）；到「开始」时间才能提交/修改志愿，到「截止」时间锁定待协调指派。浏览期长度 = 开放报名时刻至志愿开始时间
+                  </div>
                 </el-form-item>
                 <el-form-item label="分类方向" required>
                   <div class="ms-cfg-dirs">
@@ -338,7 +341,7 @@
               </div>
               <div v-if="!sessionDirections.length" class="hint">尚未配置方向</div>
               <div class="hint" style="margin-top:6px;">
-                志愿窗口：{{ session.ms_preference_start || '—' }} ~ {{ session.ms_preference_deadline || '—' }}
+                志愿窗口：{{ session.ms_preference_start || '—' }} ~ {{ session.ms_preference_deadline || '—' }}（开始前学员仅可浏览收藏）
               </div>
             </div>
           </template>

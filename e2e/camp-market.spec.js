@@ -272,6 +272,35 @@ test('志愿截止打烊：市集出示收摊卡并引导回工作台', async ({
   expect(errors).toEqual([])
 })
 
+test('浏览期（开放报名后·志愿开始前）：可逛可收藏，暂不能选人提交', async ({ page }) => {
+  const errors = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  await loginAsStudent(page, phaseOf('upcoming'))
+
+  await page.goto(`${BASE}/camp/1/market`, { waitUntil: 'domcontentloaded' })
+  // 市集开门：海报 + 名片照常展示，可按方向筛选
+  await expect(page.locator('.poster-art img')).toBeVisible()
+  await expect(page.locator('.live-ticker')).toContainText('距开启提交：')
+  await expect(page.locator('.live-ticker')).toContainText(`${DEADLINES.preference_start} 开启`)
+  await expect(page.locator('.market-count')).toHaveText(/4 位导生共 4 位/)
+  await page.getByRole('button', { name: '软件组', exact: true }).click()
+  await expect(page.locator('.market-count')).toHaveText(/2 位导生共 4 位/)
+  // 只读口径：无抢购/加入按钮、无志愿托盘
+  await expect(page.getByRole('button', { name: /加入心仪导生/ })).toHaveCount(0)
+  await expect(page.locator('.ms-tray-wrap')).toHaveCount(0)
+  // 收藏在浏览期可用（个人便签）
+  await page.getByRole('button', { name: '收藏 软件导生', exact: true }).click()
+  await expect(page.getByRole('button', { name: '取消收藏 软件导生', exact: true })).toHaveAttribute('aria-pressed', 'true')
+
+  // 工作台 ms tab：浏览期 CTA 引导先逛
+  await page.goto(`${BASE}/camp?tab=ms&sid=1`, { waitUntil: 'domcontentloaded' })
+  await expect(page.getByText('先去逛导生市集，收藏心仪导生')).toBeVisible()
+  await page.getByRole('button', { name: '先去逛逛' }).click()
+  await expect(page).toHaveURL(/\/camp\/1\/market$/)
+
+  expect(errors).toEqual([])
+})
+
 test('导生工作台：谁报了我只读名单，无收人按钮', async ({ page }) => {
   const errors = []
   page.on('pageerror', (e) => errors.push(e.message))
