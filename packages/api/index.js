@@ -6,8 +6,14 @@ import axios from 'axios'
 
 // access(2h)/refresh(14d) 双令牌：401 时单飞调 /auth/refresh 换新对并重放原请求；
 // refresh 也失败才走 onUnauthorized 踢下线。旧后端无 /auth/refresh 时 404 → 同样踢下线，安全降级。
-export function createApiClient({ baseURL, tokenKey, onUnauthorized }) {
+// onRefreshed：续期响应若带身份字段（role/permissions/level，2026-09-17 起）回调给
+// 消费 app 同步 store——否则 store 里的 role 只在登录时写一次，后台改身份后旧客户端
+// 要到重新登录才生效（降级用户营期页 isStaff 假真）。
+export function createApiClient({ baseURL, tokenKey, onUnauthorized, onRefreshed }) {
   const refreshKey = `${tokenKey}-refresh`
+  // 运行期可换的引用：main.js 里 api.setOnRefreshed(store 回调)，
+  // 避免 api.js ↔ store.js 静态循环依赖（admin 的 store 已反向 import api）
+  let identityHandler = onRefreshed || null
   const api = axios.create({
     baseURL,
     headers: {
@@ -34,9 +40,16 @@ export function createApiClient({ baseURL, tokenKey, onUnauthorized }) {
         headers: { Authorization: `Bearer ${rt}` },
       })
       .then((res) => {
-        const { token, refresh_token: newRt } = res.data || {}
+        const { token, refresh_token: newRt, role, permissions, level } = res.data || {}
         if (token) localStorage.setItem(tokenKey, token)
         if (newRt) localStorage.setItem(refreshKey, newRt)
+        if (identityHandler && (role !== undefined || permissions !== undefined || level !== undefined)) {
+          try {
+            identityHandler({ role, permissions, level })
+          } catch (e) {
+            // 身份同步失败不影响续期本身（token 已落本地，重放继续）
+          }
+        }
         return token || null
       })
       .catch(() => null)
@@ -67,6 +80,9 @@ export function createApiClient({ baseURL, tokenKey, onUnauthorized }) {
       return Promise.reject(error)
     },
   )
+
+  // 续期身份回调的运行期挂载（见上 identityHandler 注释）
+  api.setOnRefreshed = (fn) => { identityHandler = fn }
 
   return api
 }

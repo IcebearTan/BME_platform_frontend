@@ -41,6 +41,18 @@ export default new Vuex.Store({
             // 登录响应整体入 store 时顺带提取等级（level 为 LV1-4 整数，1 为默认）
             if (user && user.level != null) state.level = normalizeLevel(user.level)
         },
+        // 401 静默续期时同步最新身份（2026-09-17）：后台改了 role/权限/等级，
+        // 旧客户端无须重新登录即自愈；未登录（state.user 为空）时忽略
+        patchIdentity(state, identity) {
+            if (!state.user || !identity) return
+            const { role, permissions, level } = identity
+            state.user = {
+                ...state.user,
+                ...(role !== undefined && { role }),
+                ...(permissions !== undefined && { permissions }),
+            }
+            if (level != null) state.level = normalizeLevel(level)
+        },
         setLevel(state, level) {
             state.level = normalizeLevel(level)
         },

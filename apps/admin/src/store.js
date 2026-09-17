@@ -21,6 +21,17 @@ export default new Vuex.Store({
         setUser(state, user) {
             state.user = user
         },
+        // 401 静默续期时同步最新身份（2026-09-17）：后台改了 role/权限，
+        // 旧客户端无须重新登录即自愈；未登录（state.user 为空）时忽略
+        patchIdentity(state, identity) {
+            if (!state.user || !identity) return
+            const { role, permissions } = identity
+            state.user = {
+                ...state.user,
+                ...(role !== undefined && { role }),
+                ...(permissions !== undefined && { permissions }),
+            }
+        },
         clearUser(state) {
             state.user = null
         },

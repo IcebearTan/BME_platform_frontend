@@ -12,8 +12,13 @@ import '@bme/styles/article-content.css'
 import App from './App.vue'
 import router from './router'
 import store from './store'
+import api from './api'
 //import './utils/rem.js';
 //import './flexible.js';
+
+// 续期即同步身份（2026-09-17）：store 里的 role/permissions 只在登录时写一次，
+// 后台改身份后旧客户端要重新登录才生效；挂上后 401 静默续期时自动拉平
+api.setOnRefreshed((identity) => store.commit('patchIdentity', identity))
 
 const app = createApp(App)
 
