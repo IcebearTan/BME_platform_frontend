@@ -134,6 +134,13 @@ async function mockCampSessionDetail(page) {
       ],
       unmatched_emails: [] } } })
   )
+  // 按姓名搜人（手头只有名字没有邮箱）：username 模糊匹配，回邮箱/等级，已在营供置灰
+  await page.route('**/camp/sessions/1/mentor-import/search*', (route) =>
+    route.fulfill({ json: { code: 200, data: { keyword: '沈', users: [
+      { user_id: 303, username: '沈若彤', email: 'ruotong@example.test', level: 2, institute: '物理学院', major: null, already_member: false },
+      { user_id: 304, username: '沈亦航', email: 'yihang@example.test', level: 3, institute: null, major: null, already_member: true },
+    ] } } })
+  )
   // 通用拦截的 data:{} 会破坏 availableCourses 的数组契约（pageerror 断言会抓住），按真实形状补齐
   await page.route('http://127.0.0.1:5001/course/list', (route) =>
     route.fulfill({ json: [] })
@@ -244,6 +251,19 @@ test('营期详情保留选导生与成员添加能力', async ({ page }) => {
   await expect(page.getByText('导生招募', { exact: true })).toBeVisible()
   await expect(page.getByRole('row', { name: /mentor@example.test/ })).toBeVisible()
 
+  // 按姓名搜人：只有名字没有邮箱时，远程搜索挑人 → 邮箱自动回填导入框；已在营选项置灰
+  // （EP 新版 select 的 placeholder 是 span 非 input 属性：点击展开后键盘输入）
+  const searchRequest = page.waitForRequest((request) =>
+    request.url().includes('/camp/sessions/1/mentor-import/search')
+      && request.method() === 'GET')
+  await page.locator('.elig-search').click()
+  await page.keyboard.type('沈')
+  expect((await searchRequest).url()).toContain('keyword=')
+  await expect(page.getByRole('option', { name: /沈亦航/ })).toBeDisabled()
+  await page.getByRole('option', { name: /沈若彤/ }).click()
+  await expect(page.locator('textarea[placeholder*="导生邮箱"]')).toHaveValue(/ruotong@example.test/)
+  await expect(page.getByText('已添加 沈若彤')).toBeVisible()
+
   // 按等级填充：默认 LV2，请求体携带 min_level，候选邮箱回填导入框
   const genRequest = page.waitForRequest((request) =>
     request.url() === 'http://127.0.0.1:5001/camp/sessions/1/mentor-import/candidates-by-level'
@@ -257,7 +277,8 @@ test('营期详情保留选导生与成员添加能力', async ({ page }) => {
   await expect(page.getByText('预览结果（2 个邮箱）', { exact: true })).toBeVisible()
   await expect(page.getByRole('cell', { name: '方子航', exact: true })).toBeVisible()
   await expect(page.getByText('将导入', { exact: true })).toBeVisible()
-  await expect(page.getByText('已在营', { exact: true })).toBeVisible()
+  // 「已在营」锚定预览表格行（搜索下拉置灰选项的同名标签会残留在关闭的 popper 里）
+  await expect(page.getByRole('row', { name: /罗雨薇/ }).getByText('已在营', { exact: true })).toBeVisible()
 
   // 确认导入：members/batch 以导生身份直接入营（已在营的罗雨薇被剔除）
   const importRequest = page.waitForRequest((request) =>

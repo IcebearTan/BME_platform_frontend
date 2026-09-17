@@ -256,8 +256,24 @@
 
         <template v-if="isSuperAdmin">
           <h4 class="ms-sec-title">导入导生（直接入营，不经报名审核）</h4>
+          <el-select v-model="eligibility.pickedId" filterable remote clearable
+            class="elig-search" size="small" placeholder="按姓名搜索添加（手头只有名字时用）"
+            :remote-method="searchMentorCandidates" :loading="eligibility.searching"
+            no-data-text="无匹配用户" @change="addPickedCandidate">
+            <el-option v-for="u in eligibility.searchResults" :key="u.user_id"
+              :value="u.user_id" :label="u.username" :disabled="u.already_member">
+              <div class="elig-opt">
+                <span class="elig-opt-name">{{ u.username }}</span>
+                <span class="elig-opt-mail">{{ u.email }}</span>
+                <span class="elig-opt-meta">
+                  LV{{ u.level || 1 }}<template v-if="u.institute"> · {{ u.institute }}</template><template v-if="u.major"> · {{ u.major }}</template>
+                </span>
+                <el-tag v-if="u.already_member" type="info" size="small">已在营</el-tag>
+              </div>
+            </el-option>
+          </el-select>
           <el-input v-model="eligibility.raw" type="textarea" :rows="3"
-            placeholder="粘贴导生邮箱，换行或逗号分隔均可，自动去重" />
+            placeholder="粘贴导生邮箱，换行或逗号分隔均可，自动去重（上方搜人后自动回填）" />
           <div class="elig-toolbar">
             <el-button size="small" :loading="eligibility.previewing" @click="previewEligibility">预览</el-button>
             <el-button size="small" type="primary" :loading="eligibility.confirming" @click="confirmEligibility">确认导入</el-button>
@@ -1299,7 +1315,38 @@ const eligibility = reactive({
   raw: '', emails: [],
   preview: null, previewing: false, confirming: false,
   minLevel: 2, generating: false,
+  pickedId: null, searchResults: [], searching: false,
 });
+
+// 按姓名搜人（只读选人器）：300ms 防抖远程搜索，选中即把邮箱回填导入框
+let mentorSearchTimer = null;
+function searchMentorCandidates(keyword) {
+  clearTimeout(mentorSearchTimer);
+  const kw = (keyword || '').trim();
+  if (!kw) { eligibility.searchResults = []; return; }
+  mentorSearchTimer = setTimeout(async () => {
+    eligibility.searching = true;
+    try {
+      const res = await api.get(`/camp/sessions/${campId}/mentor-import/search`, { params: { keyword: kw } });
+      eligibility.searchResults = res.data.data?.users || [];
+    } catch {
+      eligibility.searchResults = [];
+    } finally {
+      eligibility.searching = false;
+    }
+  }, 300);
+}
+
+function addPickedCandidate(uid) {
+  const u = eligibility.searchResults.find((r) => r.user_id === uid);
+  eligibility.pickedId = null;          // 选完即清空：作为「搜一个加一个」的追加器
+  if (!u) return;
+  const emails = parseEmails();
+  if (emails.includes((u.email || '').toLowerCase())) { ElMessage.info('该导生已在导入框中'); return; }
+  eligibility.raw = eligibility.raw.trim() ? `${eligibility.raw.trim()}\n${u.email}` : u.email;
+  eligibility.preview = null;           // 名单变了，旧预览作废
+  ElMessage.success(`已添加 ${u.username}`);
+}
 
 // 粘贴文本 → 去重邮箱数组（换行/中英文逗号/分号/空白均可分隔）
 function parseEmails() {
@@ -1881,6 +1928,11 @@ async function reviseArchive() {
   background: var(--fill-color-light, #f5f7fa); color: var(--text-regular, #606266);
 }
 /* 候选池工具栏：间距统一交给 flex gap（覆盖 el-button 相邻默认 margin） */
+.elig-search { width: 100%; max-width: 420px; display: block; margin-bottom: 8px; }
+.elig-opt { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.elig-opt-name { font-weight: 600; flex: none; }
+.elig-opt-mail { color: var(--el-text-color-secondary); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.elig-opt-meta { margin-left: auto; color: var(--el-text-color-secondary); font-size: 12px; flex: none; }
 .elig-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 10px 0 4px; }
 .elig-toolbar :deep(.el-button + .el-button) { margin-left: 0; }
 .elig-toolbar :deep(.el-divider--vertical) { margin: 0; }
