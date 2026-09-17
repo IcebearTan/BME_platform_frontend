@@ -29,14 +29,15 @@
       </div>
 
       <div v-else class="cm-list">
-        <div v-for="m in meetings" :key="m.id" class="mtg-card">
+        <div v-for="m in meetings" :key="m.id" class="mtg-card" role="button" tabindex="0"
+             @click="openDetail(m)" @keydown.enter="openDetail(m)">
           <div class="mtg-head">
             <span class="mtg-title">{{ m.title }}</span>
             <span class="mtg-date">{{ m.meeting_date }}</span>
             <span class="mtg-by">{{ m.creator_name }} 记录</span>
             <template v-if="isLeader && writable">
-              <DewButton type="ghost" size="sm" @click="openEdit(m)">编辑</DewButton>
-              <DewButton type="ghost" size="sm" @click="delMeeting(m)">删除</DewButton>
+              <DewButton type="ghost" size="sm" @click.stop="openEdit(m)">编辑</DewButton>
+              <DewButton type="ghost" size="sm" @click.stop="delMeeting(m)">删除</DewButton>
             </template>
           </div>
           <p v-if="m.content" class="mtg-content">{{ m.content }}</p>
@@ -47,16 +48,29 @@
                 <video v-if="videoSrcs[a.id]" :src="videoSrcs[a.id]" controls
                        preload="metadata" playsinline></video>
                 <button v-else type="button" class="video-shell"
-                        :disabled="videoLoading === a.id" @click="playVideo(a)">
+                        :disabled="videoLoading === a.id" @click.stop="playVideo(a)">
                   <el-icon><VideoPlay /></el-icon>
                   <span class="video-name">{{ a.filename }}</span>
                   <span class="video-size">{{ fmtSize(a.size) }} · 点击播放</span>
                 </button>
               </div>
-              <button v-else type="button" class="att-link" @click="downloadAtt(a)">
+              <button v-else type="button" class="att-link" @click.stop="downloadAtt(a)">
                 {{ a.filename }}（{{ fmtSize(a.size) }}）
               </button>
             </template>
+          </div>
+          <!-- 布置摘要（教学单元）：导生=提交进度；组员=我的待提交；点击卡片进详情 -->
+          <div v-if="m.task_count || m.chapter_count" class="mtg-assign">
+            <DewTag v-if="m.task_count" size="sm" round>{{ m.task_count }} 任务</DewTag>
+            <DewTag v-if="m.task_count && isLeader" size="sm" round>
+              提交 {{ m.submission_count }}/{{ m.expected_count }}
+            </DewTag>
+            <DewTag v-else-if="m.task_count && m.my_pending > 0" size="sm" round type="warning">
+              待提交 {{ m.my_pending }}
+            </DewTag>
+            <DewTag v-else-if="m.task_count" size="sm" round type="success">任务已交齐</DewTag>
+            <DewTag v-if="m.chapter_count" size="sm" round>课内 {{ m.chapter_count }} 章</DewTag>
+            <span class="mtg-open">详情</span>
           </div>
         </div>
       </div>
@@ -115,6 +129,10 @@
       </div>
     </DewDialog>
 
+    <!-- 组会详情（教学单元：纪要/布置/任务/审阅三区，导生与组员视角分流） -->
+    <MeetingDetail v-model="detailDlg" :sid="sid" :meeting-id="detailId"
+                   :camp-status="campStatus" @changed="load" @edit="openEdit" />
+
     <input ref="fileInput" type="file" multiple class="file-hidden" @change="onFilesPicked" />
     <input ref="videoInput" type="file" accept="video/*" class="file-hidden" @change="onFilesPicked" />
   </div>
@@ -124,8 +142,9 @@
 import { ref, computed, watch } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { VideoPlay } from '@element-plus/icons-vue';
-import { DewCard, DewButton, DewInput, DewDialog, DewSkeleton } from '@bme/dew-ui';
+import { DewCard, DewButton, DewInput, DewDialog, DewTag, DewSkeleton } from '@bme/dew-ui';
 import { campService, todayLocal } from '../../services/campService';
+import MeetingDetail from './MeetingDetail.vue';
 
 const props = defineProps({
   sid: { type: Number, required: true },
@@ -154,6 +173,14 @@ async function load() {
   } finally { loading.value = false; }
 }
 watch(() => [props.sid, props.unitId], load, { immediate: true });
+
+// ── 组会详情（教学单元：卡片点击进入）──
+const detailId = ref(null);
+const detailDlg = computed({
+  get: () => detailId.value != null,
+  set: (v) => { if (!v) detailId.value = null; },
+});
+function openDetail(m) { detailId.value = m.id; }
 
 // ── 记录 / 编辑（组长·负责人）──
 const dlg = ref(false);
@@ -286,7 +313,10 @@ const fmtSize = (n) => {
   padding: 12px 14px; border-radius: 12px;
   background: var(--dew-card-bg, rgba(148,163,184,.06));
   border: 1px solid var(--dew-card-border, transparent);
+  cursor: pointer;
+  transition: transform 0.25s var(--dew-bounce, ease), border-color 0.2s ease;
 }
+.mtg-card:hover { transform: translateY(-1px); border-color: color-mix(in srgb, var(--color-primary) 26%, transparent); }
 .mtg-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .mtg-title { font-size: 13.5px; font-weight: 650; color: var(--dew-text-heading); }
 .mtg-date { font-size: 12.5px; color: var(--dew-text-muted); }
@@ -295,7 +325,17 @@ const fmtSize = (n) => {
 .mtg-content {
   margin: 0; font-size: 13px; line-height: 1.7; color: var(--dew-text-text, var(--dew-text-heading));
   white-space: pre-wrap; word-break: break-word;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3;
+  line-clamp: 3; overflow: hidden;
 }
+/* 布置摘要行（教学单元）：点卡片进详情看任务/审阅 */
+.mtg-assign {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  border-top: 1px dashed var(--dew-card-border, rgba(148,163,184,.2));
+  padding-top: 8px; margin-top: 2px;
+}
+.mtg-open { margin-left: auto; font-size: 12px; color: var(--color-primary); opacity: 0.85; }
+.mtg-card:hover .mtg-open { opacity: 1; }
 
 .mtg-atts { display: flex; flex-direction: column; gap: 8px; }
 .att-link {

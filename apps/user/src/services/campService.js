@@ -283,6 +283,30 @@ export const campService = {
   // 媒体直连短签（<a>/<video> 带不了 Authorization 头；点击下载/播放时换取，2h 有效）
   fetchMeetingAttachmentUrl: (aid) =>
     fetchSignedMediaUrl(`/camp/meetings/attachments/${aid}/token`),
+
+  // ── 组会·教学单元（2026-09-17：一次组会 = 纪要 + 课内章节布置 + 课外任务 + 审阅打包）──
+  // 详情（视角分流：导生=审阅矩阵 + 章节目录；组员=我的任务与认证态）
+  fetchMeetingDetail: (mid) =>
+    api.get(`/camp/meetings/${mid}/detail`).then(r => r.data),
+  // 保存布置：chapters 整组替换（team 域）；tasks 带 id=更新/无 id=新增/缺席=删（有提交拒删）
+  saveMeetingAssignments: (mid, body) =>
+    api.put(`/camp/meetings/${mid}/assignments`, body).then(r => r.data),
+  // 组员提交任务（multipart：content + Files[]；每人一条 upsert）
+  submitMeetingTask: (tid, content, files = []) => {
+    const fd = new FormData()
+    if (content != null) fd.append('content', content)
+    files.forEach((f) => fd.append('Files', f))
+    return api.post(`/camp/meetings/tasks/${tid}/submission`, fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }).then(r => r.data)
+  },
+  deleteMeetingTaskAttachment: (aid) =>
+    api.delete(`/camp/meetings/task-attachments/${aid}`).then(r => r.data),
+  // 一键打包本次组会全部提交（zip 按学生/任务分文件夹）
+  fetchMeetingZipUrl: async (mid) => {
+    const r = await api.get(`/camp/meetings/${mid}/submissions/zip/token`)
+    return assetUrl(r.data.url)
+  },
 }
 
 // 附件短签直连共用：换签后拼 API_URL 得完整 URL（相对 /camp/... 路径）
