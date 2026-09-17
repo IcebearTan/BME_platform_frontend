@@ -237,21 +237,10 @@ test('营期详情保留选导生与成员添加能力', async ({ page }) => {
   await expect(page.getByRole('cell', { name: '林泽宇', exact: true }).first()).toBeVisible()
   await expect(page.getByRole('cell', { name: '测试学员20', exact: true })).toBeVisible()
 
-  // 出勤 tab（09-12 三模式：考勤模式设置卡所在，旧数据无 policy 回退 daily）
-  await page.getByRole('tab', { name: '出勤' }).click()
+  // 营期设置 tab（09-17 集中管理：考勤模式/门槛开关/选导生配置收拢于此；旧数据无 policy 回退默认）
+  await page.getByRole('tab', { name: '营期设置' }).click()
   await expect(page.getByText(/假期营 · 每日承诺出勤/)).toBeVisible()
-
-  // 学员申请：纯学员列表（09-12 重组——导生报名挪「选导生」tab 招募区）
-  await page.getByRole('tab', { name: '学员申请' }).click()
-  await expect(page.getByRole('row', { name: /申请学员/ })).toBeVisible()
-  await expect(page.getByRole('row', { name: /报名导生/ })).toHaveCount(0)
-
-  // 选导生 tab：导生全生命周期一页——招募（待审导生报名 + 导入即导生）→ 方向配置 → 流程运营
-  await page.getByRole('tab', { name: '选导生' }).click()
-  await expect(page.getByText('导生招募', { exact: true })).toBeVisible()
-  await expect(page.getByRole('row', { name: /mentor@example.test/ })).toBeVisible()
-
-  // 09-17 门槛可配置：招募区门槛开关（mock 无新位 → 回退类型默认=开，旧营期口径）
+  // 09-17 门槛可配置：门槛开关（mock 无新位 → 回退类型默认=开，旧营期口径）
   await expect(page.getByText('报名等级门槛')).toBeVisible()
   await expect(page.getByText('LV2 及以上才能自助报名导生（默认）')).toBeVisible()
   // 切换即保存：PUT /camp/sessions/1 携带 policy.mentor_level_gate=false
@@ -260,6 +249,20 @@ test('营期详情保留选导生与成员添加能力', async ({ page }) => {
     request.url() === 'http://127.0.0.1:5001/camp/sessions/1' && request.method() === 'PUT')
   await page.locator('.gate-row .el-switch').click()
   expect((await gateRequest).postDataJSON()).toEqual({ policy: { mentor_level_gate: false } })
+
+  // 出勤 tab：设置迁走后只留数据运营（daily 回退 → 重生成按钮锁定剩余内容）
+  await page.getByRole('tab', { name: '出勤' }).click()
+  await expect(page.getByRole('button', { name: '重生成承诺出勤日' })).toBeVisible()
+
+  // 学员申请：纯学员列表（09-12 重组——导生报名挪「选导生」tab 招募区）
+  await page.getByRole('tab', { name: '学员申请' }).click()
+  await expect(page.getByRole('row', { name: /申请学员/ })).toBeVisible()
+  await expect(page.getByRole('row', { name: /报名导生/ })).toHaveCount(0)
+
+  // 选导生 tab：纯运营一页——招募（待审导生报名 + 导入即导生）→ 流程运营（配置已迁「营期设置」）
+  await page.getByRole('tab', { name: '选导生' }).click()
+  await expect(page.getByText('导生招募', { exact: true })).toBeVisible()
+  await expect(page.getByRole('row', { name: /mentor@example.test/ })).toBeVisible()
 
   // 按姓名搜人：只有名字没有邮箱时，远程搜索挑人 → 邮箱自动回填导入框；已在营选项置灰
   // （EP 新版 select 的 placeholder 是 span 非 input 属性：点击展开后键盘输入）
@@ -328,6 +331,33 @@ test('营期详情保留选导生与成员添加能力', async ({ page }) => {
   await page.getByRole('button', { name: '加入（1）', exact: true }).click()
   expect((await addRequest).postDataJSON()).toEqual(
     { items: [{ user_id: 301, role: 'student', team_mentor_id: null }] })
+  expect(pageErrors).toEqual([])
+})
+
+// 营期设置（09-17 集中管理）：三区块分区渲染 + ?tab= 深链直达/切换跟随
+test('营期设置：三区块分区渲染 + ?tab= 深链', async ({ page }) => {
+  await loginAsStaff(page)
+  await mockCampSessionDetail(page)
+  const pageErrors = []
+  page.on('pageerror', (e) => pageErrors.push(e.message))
+  // 深链直达：初始化读 query（mock 营 running/learning → 三区块齐备）
+  await page.goto(`${BASE}/camp/sessions/1?tab=settings`)
+
+  await expect(page.getByRole('tab', { name: '营期设置' })).toHaveAttribute('aria-selected', 'true')
+  // 三区块标题齐备（learning 营：准入门槛/考勤模式/选导生流程）
+  for (const title of ['准入门槛', '考勤模式', '选导生流程']) {
+    await expect(page.locator('.set-card__title', { hasText: title })).toBeVisible()
+  }
+  // 准入门槛：导生报名门槛开关（回退默认开）
+  await expect(page.locator('.gate-row').getByText('报名等级门槛')).toBeVisible()
+  // 考勤模式：三模式 radio 回退 daily
+  await expect(page.getByText(/假期营 · 每日承诺出勤/)).toBeVisible()
+  // 选导生流程：mock status=running → 配置锁定只读
+  await expect(page.getByText(/配置锁定只读/)).toBeVisible()
+
+  // URL 同步：切走 tab 后 query 跟随（replace 不进历史栈）
+  await page.getByRole('tab', { name: '成员' }).click()
+  await expect(page).toHaveURL(/tab=members/)
   expect(pageErrors).toEqual([])
 })
 
