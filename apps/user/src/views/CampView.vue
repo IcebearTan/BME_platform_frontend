@@ -73,15 +73,17 @@
                   <DewButton type="ghost" :loading="cancellingSid === current.id"
                     @click="cancelMentorRegister(current)">撤回报名</DewButton>
                 </template>
-                <!-- LV1 锁定态：看得见路径、够得着目标 -->
-                <template v-else-if="myLevel < 2">
+                <!-- LV1 锁定态：看得见路径、够得着目标（本营开了等级门槛才锁；门槛关闭 LV1 可直接报名） -->
+                <template v-else-if="mentorGateOn(current) && myLevel < 2">
                   <div class="register-title">报名成为本营导生</div>
                   <div class="register-hint">你当前是 LV1——达到 LV2 即可在报名窗口内自助报名导生；等级由管理员按平台参与度调整，多打卡、多发作品，升级很快。</div>
                   <DewButton type="glass" disabled>LV2 后可报名</DewButton>
                 </template>
                 <template v-else>
                   <div class="register-title">报名成为本营导生</div>
-                  <div class="register-hint">LV2 及以上可在报名窗口内自助报名导生；报名后需管理员审核，通过后即可布置名片、参与选导生。</div>
+                  <div class="register-hint">{{ mentorGateOn(current)
+                    ? 'LV2 及以上可在报名窗口内自助报名导生；报名后需管理员审核，通过后即可布置名片、参与选导生。'
+                    : '本营未设等级门槛，报名窗口内均可自助报名导生；报名后需管理员审核，通过后即可布置名片、参与选导生。' }}</div>
                   <DewButton type="glass" :loading="registeringSid === current.id" @click="registerMentor(current)">
                     报名成为导生
                   </DewButton>
@@ -300,6 +302,9 @@ const isMentorPending = (s) => pendingMentorSids.value.has(s.id);
 // 09-16 起不看等级——LV1 渲染锁定态（告知升级路径），LV≥2 才有报名按钮；
 // 学员申请在审时不重复展示（后端 pending 去重不分角色，点了也只是幂等 200）
 const myLevel = computed(() => store.getters.level || 1);
+// 09-17 门槛可配置：policy.capabilities.mentor_level_gate 营期行覆盖，缺位回退开
+//（=旧硬编码 LV2 门槛，旧营期/旧响应行为不变）；关闭后 LV1 也能自助报名
+const mentorGateOn = (s) => s?.policy?.capabilities?.mentor_level_gate ?? true;
 const mentorApplyOpen = computed(() => {
   const s = current.value;
   return !!(s && s.category === 'learning'
@@ -315,7 +320,7 @@ const noCampAction = computed(() => {
 });
 async function registerMentor(s) {
   if (registeringSid.value || isMentorPending(s)) return;
-  if (myLevel.value < 2) return;   // 双保险：锁定态按钮已禁用，此处兜底
+  if (mentorGateOn(s) && myLevel.value < 2) return;   // 双保险：锁定态按钮已禁用，此处兜底
   registeringSid.value = s.id;
   try {
     const r = await campService.registerMentor(s.id);

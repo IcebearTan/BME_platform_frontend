@@ -107,9 +107,12 @@ const groups = computed(() => {
   const taken = new Set();
   const pick = (arr) => { arr.forEach((s) => taken.add(s.id)); return arr; };
   const define = (key, title, hint, items) => (items.length ? { key, title, hint, items } : null);
+  // 09-17 门槛营期行可配置：组内存在关闭门槛的营时，LV1 也有可报目标，hint 不再讲 LV2
+  const mentorGateOn = (s) => s?.policy?.capabilities?.mentor_level_gate ?? true;
+  const anyGateOff = ss.filter(mentorTodo).some((s) => !mentorGateOn(s));
   return [
     define('todo', '导生可报名',
-      props.myLevel >= 2 ? '导生报名窗口开放中，报名后待管理员审核'
+      (props.myLevel >= 2 || anyGateOff) ? '导生报名窗口开放中，报名后待管理员审核'
         : '报名导生需 LV2——达到后即可在本组营期自助报名',
       pick(ss.filter(mentorTodo))),
     define('joinable', '可报名', '选择阶段的营，提交申请待审批',
@@ -135,7 +138,8 @@ function roleText(s) {
   if (s.is_member) return s.my_role === 'mentor' ? '导生' : '学员';
   if (isMentorPending(s)) return '导生报名待审核';
   if (isStudentPending(s)) return '入营申请待审核';
-  if (s.status === 'upcoming' && s.category === 'learning' && !props.isStaff && props.myLevel >= 2) return '可报导生';
+  if (s.status === 'upcoming' && s.category === 'learning' && !props.isStaff
+    && (!(s.policy?.capabilities?.mentor_level_gate ?? true) || props.myLevel >= 2)) return '可报导生';
   return '未参与';
 }
 function roleClass(s) {

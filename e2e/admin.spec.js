@@ -251,6 +251,16 @@ test('营期详情保留选导生与成员添加能力', async ({ page }) => {
   await expect(page.getByText('导生招募', { exact: true })).toBeVisible()
   await expect(page.getByRole('row', { name: /mentor@example.test/ })).toBeVisible()
 
+  // 09-17 门槛可配置：招募区门槛开关（mock 无新位 → 回退类型默认=开，旧营期口径）
+  await expect(page.getByText('报名等级门槛')).toBeVisible()
+  await expect(page.getByText('LV2 及以上才能自助报名导生（默认）')).toBeVisible()
+  // 切换即保存：PUT /camp/sessions/1 携带 policy.mentor_level_gate=false
+  //（el-switch 的原生 input 视觉隐藏，Playwright 点外层 .el-switch 容器）
+  const gateRequest = page.waitForRequest((request) =>
+    request.url() === 'http://127.0.0.1:5001/camp/sessions/1' && request.method() === 'PUT')
+  await page.locator('.gate-row .el-switch').click()
+  expect((await gateRequest).postDataJSON()).toEqual({ policy: { mentor_level_gate: false } })
+
   // 按姓名搜人：只有名字没有邮箱时，远程搜索挑人 → 邮箱自动回填导入框；已在营选项置灰
   // （EP 新版 select 的 placeholder 是 span 非 input 属性：点击展开后键盘输入）
   const searchRequest = page.waitForRequest((request) =>

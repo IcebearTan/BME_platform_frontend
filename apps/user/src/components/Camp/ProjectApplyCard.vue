@@ -25,8 +25,18 @@
         </div>
       </DewCard>
 
+      <!-- 09-17 门槛可配置：本营开了负责人申报等级门槛且当前 LV1 → 锁定态（默认关=零门槛史，不渲染本卡） -->
+      <DewCard v-if="leaderGateOn && myLevel < 2 && mine.can_apply"
+               variant="inset" size="lg" :no-hover="true" class="apply-card">
+        <div class="apply-title">申报一个新项目</div>
+        <div class="apply-hint">
+          本营项目负责人申报需 LV2 及以上——你当前是 LV1；等级由管理员按平台参与度调整，多打卡、多发作品，升级很快。
+        </div>
+        <DewButton type="glass" disabled>LV2 后可申报</DewButton>
+      </DewCard>
+
       <!-- 申报表单（upcoming 恒开；被拒项目直接重报即可） -->
-      <DewCard v-if="mine.can_apply" variant="inset" size="lg" :no-hover="true" class="apply-card">
+      <DewCard v-else-if="mine.can_apply" variant="inset" size="lg" :no-hover="true" class="apply-card">
         <div class="apply-title">申报一个新项目</div>
         <div class="apply-hint">
           管理员审核通过后项目创建并对全营展示，你自动入营开始组队；可同时申报多个项目，负责多少个不受限制。
@@ -123,6 +133,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { useStore } from 'vuex';
 import { ElMessage } from 'element-plus';
 import { DewCard, DewButton, DewInput, DewSelect, DewSkeleton } from '@bme/dew-ui';
 import { campService } from '../../services/campService';
@@ -131,6 +142,11 @@ const props = defineProps({
   session: { type: Object, required: true },   // 营期行（project 营）
 });
 const emit = defineEmits(['submitted']);
+
+const store = useStore();
+// 09-17 门槛可配置：leader_level_gate 营期行覆盖，缺位回退关（=项目营上线以来零门槛，旧营期行为不变）
+const myLevel = computed(() => store.getters.level || 1);
+const leaderGateOn = computed(() => props.session?.policy?.capabilities?.leader_level_gate ?? false);
 
 const MODE_OPTS = [
   { label: '整队交付（负责人交·老师审）', value: 'team' },
@@ -195,6 +211,7 @@ onMounted(() => {
 
 async function submit() {
   if (submitting.value || !canSubmit.value) return;
+  if (leaderGateOn.value && myLevel.value < 2) return;   // 双保险：锁定态按钮已禁用，此处兜底
   submitting.value = true;
   try {
     const nodes = form.value.template_nodes

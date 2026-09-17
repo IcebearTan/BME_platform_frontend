@@ -228,6 +228,14 @@
       <el-tab-pane v-if="canManage && session.category === 'learning'" label="选导生" name="ms">
         <!-- ── ① 导生招募：待审导生报名（自由报名走审核）+ 导入即导生（超管） ── -->
         <h4 class="ms-sec-title">导生招募</h4>
+        <!-- 09-17 门槛可配置：开关即时保存（model-value 单向绑数据源，失败不刷新即回滚）；导入路径不受限 -->
+        <div class="gate-row">
+          <span class="gate-label">报名等级门槛</span>
+          <el-switch :model-value="gateOn('mentor_level_gate')" :loading="gateSaving.mentor_level_gate"
+            :disabled="!manageWritable" @change="saveGate('mentor_level_gate')" />
+          <span class="hint">{{ gateOn('mentor_level_gate')
+            ? 'LV2 及以上才能自助报名导生（默认）' : '不设等级门槛，所有学员均可自助报名' }}</span>
+        </div>
         <template v-if="mentorJoinRequests.length">
           <div style="margin-bottom: 12px;">
             <el-button type="primary" size="small" :disabled="!mentorJoinSel.length" :loading="batchApproving"
@@ -252,7 +260,11 @@
             </el-table-column>
           </el-table>
         </template>
-        <el-alert v-else type="info" :closable="false" title="暂无待审的导生报名（LV≥2 学员可在报名窗口内自助报名）" style="margin-bottom: 10px;" />
+        <el-alert v-else type="info" :closable="false"
+          :title="gateOn('mentor_level_gate')
+            ? '暂无待审的导生报名（LV≥2 学员可在报名窗口内自助报名）'
+            : '暂无待审的导生报名（学员可在报名窗口内自助报名，本营未设等级门槛）'"
+          style="margin-bottom: 10px;" />
 
         <template v-if="isSuperAdmin">
           <h4 class="ms-sec-title">导入导生（直接入营，不经报名审核）</h4>
@@ -451,6 +463,14 @@
           :title="session.status === 'upcoming'
             ? '申报期开放中：负责人提交申报，审核通过即建项目、负责人自动入营'
             : '申报期已结束（项目申报仅在「待开放」阶段进行），此处可查看历史申报'" />
+        <!-- 09-17 门槛可配置：项目营负责人申报等级门槛（默认关=上线以来零门槛）；仅拦自助申报，admin 换负责人不受限 -->
+        <div class="gate-row">
+          <span class="gate-label">申报等级门槛</span>
+          <el-switch :model-value="gateOn('leader_level_gate')" :loading="gateSaving.leader_level_gate"
+            :disabled="!manageWritable" @change="saveGate('leader_level_gate')" />
+          <span class="hint">{{ gateOn('leader_level_gate')
+            ? 'LV2 及以上才能申报成为项目负责人' : '不设等级门槛，所有学员均可申报负责人（默认）' }}</span>
+        </div>
         <el-table :data="pApps" border size="small" style="margin-top: 12px;" v-loading="pAppsLoading">
           <el-table-column type="expand">
             <template #default="{ row }">
@@ -904,6 +924,28 @@ async function saveProjectAtt() {
     ElMessage.error(e.response?.data?.message || '保存失败');
   } finally {
     projectAtt.saving = false;
+  }
+}
+
+// 09-17 等级门槛开关（policy.capabilities 营期行覆盖，即时保存失败回滚）：
+// 回退值与类型默认一致——mentor_level_gate 默认开（=旧硬编码 LV2 门槛）、leader_level_gate 默认关
+//（=项目营上线以来零门槛），旧营期 policy 无此位时行为不变
+const gateOn = (k) => {
+  if (k === 'leader_level_gate') return session.value?.policy?.capabilities?.[k] ?? false;
+  return session.value?.policy?.capabilities?.[k] ?? true;
+};
+const gateSaving = reactive({ mentor_level_gate: false, leader_level_gate: false });
+async function saveGate(key) {
+  if (gateSaving[key] || !manageWritable.value) return;
+  gateSaving[key] = true;
+  try {
+    await api.put(`/camp/sessions/${campId}`, { policy: { [key]: !gateOn(key) } });
+    ElMessage.success('门槛设置已保存');
+    await fetchAll();
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '保存失败');
+  } finally {
+    gateSaving[key] = false;
   }
 }
 watch(attModeSaved, (m) => { attCfg.mode = m; }, { immediate: true });
@@ -1908,6 +1950,9 @@ async function reviseArchive() {
 .header { margin-bottom: 12px; display: flex; align-items: center; gap: 12px; }
 .header .title { font-size: 18px; font-weight: 600; }
 .hint { margin-left: 12px; color: #909399; font-size: 12px; }
+/* 09-17 等级门槛开关行（导生招募/项目申报 tab 共用） */
+.gate-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.gate-label { font-size: 13px; font-weight: 500; }
 .ms-sec-title { margin: 16px 0 8px; font-size: 14px; font-weight: 600; }
 .batch-msg { margin-left: 6px; font-size: 12px; color: #909399; }
 /* 批量指派导入条 */

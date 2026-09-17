@@ -640,3 +640,33 @@ test('导生报名路径对 LV1 可见：中心组 hint + 工作台锁定卡', a
 
   expect(errors).toEqual([])
 })
+
+// 09-17 门槛可配置：mentor_level_gate=false 的营 LV1 直接可报（上一条已验缺位回退=默认开）
+test('导生报名门槛可关闭：LV1 直接见报名按钮', async ({ page }) => {
+  const errors = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  // 定制 mock：追加门槛关闭的 upcoming 培训营（不动共享 SESSIONS，默认开的旧营口径不受影响）
+  const openGate = { ...SESSIONS, sessions: [...SESSIONS.sessions, {
+    id: 29, name: '免门槛导生营', category: 'learning', cycle_name: '2026 秋季',
+    start_date: '2026-10-01', end_date: '2026-11-30', status: 'upcoming',
+    is_member: false, my_role: null, member_count: 0,
+    mentor_selection_enabled: false,
+    policy: { capabilities: { attendance: true, leave: true, seat: true, mentor_level_gate: false } },
+  }] }
+  await loginAsUser(page, [{ url: '/camp/sessions', json: openGate }], 'user', 1)
+
+  await page.goto(`${BASE}/camp`, { waitUntil: 'domcontentloaded' })
+  // 中心组 hint 不再讲 LV2（组内存在免门槛营——anyGateOff 生效），卡片身份 LV1 也标可报
+  await expect(page.getByText('报名导生需 LV2——达到后即可在本组营期自助报名')).toHaveCount(0)
+  await expect(page.locator('.camp-card', { hasText: '免门槛导生营' })
+    .locator('.card-role', { hasText: '可报导生' })).toBeVisible()
+
+  // 进工作台：LV1 直接可报（无锁定卡），hint 讲「未设等级门槛」
+  await page.locator('.camp-card', { hasText: '免门槛导生营' }).getByRole('button', { name: '进入营期' }).click()
+  await expect(page).toHaveURL(/sid=29/)
+  await expect(page.getByText('本营未设等级门槛，报名窗口内均可自助报名导生')).toBeVisible()
+  await expect(page.getByRole('button', { name: '报名成为导生' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'LV2 后可报名' })).toHaveCount(0)
+
+  expect(errors).toEqual([])
+})
