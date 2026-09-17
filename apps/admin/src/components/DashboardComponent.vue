@@ -76,6 +76,7 @@
 </template>
 
 <script>
+import { markRaw } from 'vue';
 import api from '../api';
 import { DewCard } from '@bme/dew-ui';
 import {
@@ -85,7 +86,7 @@ import {
 
 export default {
   name: 'DashboardComponent',
-  components: { DewCard },
+  components: { DewCard, Clock, Lightning, ArrowRight },
   data() {
     return {
       stats: {
@@ -101,11 +102,11 @@ export default {
       },
       recentActivities: [],
       quickActions: [
-        { title: '发布文章', description: '撰写新的学习内容', icon: Edit, color: '#3b82f6', bg: 'rgba(59,130,246,0.12)', route: '/editor' },
-        { title: '用户管理', description: '管理系统用户', icon: User, color: '#10b981', bg: 'rgba(16,185,129,0.12)', route: '/user-manage/users' },
-        { title: '社团干事', description: '任命与卸任管理', icon: Avatar, color: '#8b5cf6', bg: 'rgba(139,92,246,0.12)', route: '/officer/manage' },
-        { title: '课程管理', description: '管理课程内容', icon: Reading, color: '#f59e0b', bg: 'rgba(245,158,11,0.12)', route: '/course/manage' },
-        { title: '勋章管理', description: '设置与发放勋章', icon: Trophy, color: '#ef4444', bg: 'rgba(239,68,68,0.12)', route: '/medal/manage' },
+        { title: '发布文章', description: '撰写新的学习内容', icon: markRaw(Edit), color: '#3b82f6', bg: 'rgba(59,130,246,0.12)', route: '/editor' },
+        { title: '用户管理', description: '管理系统用户', icon: markRaw(User), color: '#10b981', bg: 'rgba(16,185,129,0.12)', route: '/user-manage/users' },
+        { title: '社团干事', description: '任命与卸任管理', icon: markRaw(Avatar), color: '#8b5cf6', bg: 'rgba(139,92,246,0.12)', route: '/officer/manage' },
+        { title: '课程管理', description: '管理课程内容', icon: markRaw(Reading), color: '#f59e0b', bg: 'rgba(245,158,11,0.12)', route: '/course/manage' },
+        { title: '勋章管理', description: '设置与发放勋章', icon: markRaw(Trophy), color: '#ef4444', bg: 'rgba(239,68,68,0.12)', route: '/medal/manage' },
       ],
     };
   },

@@ -301,11 +301,15 @@ watch(() => props.sid, () => { loading.value = true; reloadAll(); }, { immediate
 .ms-loading { min-height: 160px; }
 
 .phase-caption {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px dashed var(--dew-card-flat-border, rgba(0, 0, 0, 0.08));
-  font-size: 12.5px;
-  color: var(--dew-text-muted);
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 12px;
+  padding: 4px 10px;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 24%, transparent);
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 7%, transparent);
 }
 
 .head-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }

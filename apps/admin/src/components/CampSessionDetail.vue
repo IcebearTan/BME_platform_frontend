@@ -57,7 +57,29 @@
       <!-- ③ 出勤（09-12 三模式：模式设置 + daily 模式的承诺出勤日管理；
            项目营 09-13 独立口径：活动考勤恒开，仅控周打卡统计条。
            tab 存在性看保存态 attModeSaved——编辑态切换不再使 tab 消失（off 营可切回）） -->
-      <el-tab-pane v-if="capOn('attendance') || attModeSaved === 'off'" label="出勤" name="plan">
+      <el-tab-pane v-if="capOn('attendance') || attModeSaved === 'off'" name="plan">
+        <template #label>
+          <span class="att-tab-label">
+            出勤
+            <el-popover placement="bottom-start" :width="360" trigger="click" popper-class="att-help-popover">
+              <template #reference>
+                <button type="button" class="att-help-trigger" aria-label="查看出勤说明" @click.stop>
+                  <el-icon><InfoFilled /></el-icon>
+                </button>
+              </template>
+              <div class="att-help-content">
+                <div class="att-help-title">出勤设置说明</div>
+                <ul>
+                  <li>假期营按学员承诺日期逐日统计；期望到岗用于判断迟到，最低时长留空则不判断达标。</li>
+                  <li>“仅工作日”开启后，承诺出勤日只覆盖营期内的周一至周五。</li>
+                  <li>切换到其他模式会清空承诺出勤日；切回假期营后需保存并重新生成。</li>
+                  <li>新学员加入时自动生成；手动重生成可重复执行，并会清理范围外或不符合工作日规则的旧日期。</li>
+                  <li>校区培训按周累计打卡次数与时长；远程培训不启用考勤。</li>
+                </ul>
+              </div>
+            </el-popover>
+          </span>
+        </template>
         <!-- 项目营：考勤=活动考勤（负责人在项目看板发起活动+勾选出席），无培训营三模式 -->
         <template v-if="isProjectCamp">
           <div class="att-cfg-card">
@@ -80,46 +102,37 @@
         <template v-else>
         <div class="att-cfg-card">
           <h4 class="ms-sec-title" style="margin:0 0 10px;">考勤模式</h4>
-          <el-radio-group v-model="attCfg.mode" :disabled="!manageWritable" style="flex-direction: column; align-items: stretch; gap: 8px;">
-            <el-radio value="daily">假期营 · 每日承诺出勤——报名选到岗日，按日打卡评估出勤/迟到/时长</el-radio>
-            <el-radio value="weekly">学期 · 校区培训 · 按周累计——不收承诺日，考察每周打卡次数与时长</el-radio>
-            <el-radio value="off">学期 · 远程培训 · 不考勤</el-radio>
+          <el-radio-group v-model="attCfg.mode" :disabled="!manageWritable" class="att-mode-list">
+            <div class="att-mode-option" :class="{ active: attCfg.mode === 'daily' }">
+              <el-radio value="daily">假期营</el-radio>
+              <div v-if="attCfg.mode === 'daily' && manageWritable" class="att-daily-panel">
+                <el-form label-width="90px" size="small">
+                  <el-form-item label="期望到岗">
+                    <el-time-picker v-model="attCfg.expectedCheckIn" value-format="HH:mm" format="HH:mm"
+                      placeholder="如 09:00" style="width: 100%;" />
+                  </el-form-item>
+                  <el-form-item label="最低时长">
+                    <el-input-number v-model="attCfg.minDailyHours" :min="0" :step="0.5" />
+                    <span class="att-unit">小时/日</span>
+                  </el-form-item>
+                  <el-form-item label="仅工作日"><el-switch v-model="attCfg.weekdaysOnly" /></el-form-item>
+                </el-form>
+                <el-button v-if="attModeSaved === 'daily'" type="primary" plain size="small" @click="regenPlan">
+                  重生成承诺出勤日
+                </el-button>
+              </div>
+            </div>
+            <div class="att-mode-option" :class="{ active: attCfg.mode === 'weekly' }">
+              <el-radio value="weekly">学期 · 校区培训</el-radio>
+            </div>
+            <div class="att-mode-option" :class="{ active: attCfg.mode === 'off' }">
+              <el-radio value="off">学期 · 远程培训</el-radio>
+            </div>
           </el-radio-group>
-
-          <!-- A 模式考勤参数（09-12 从建营弹窗迁入：仅每日模式需要） -->
-          <el-form v-if="attCfg.mode === 'daily' && manageWritable" label-width="90px" size="small" style="margin-top: 12px; max-width: 480px;">
-            <el-form-item label="期望到岗">
-              <el-time-picker v-model="attCfg.expectedCheckIn" value-format="HH:mm" format="HH:mm"
-                placeholder="如 09:00（判迟到基准，不填不判）" style="width: 100%;" />
-            </el-form-item>
-            <el-form-item label="最低时长">
-              <el-input-number v-model="attCfg.minDailyHours" :min="0" :step="0.5" /> 小时/日
-              <span class="hint" style="margin-left: 6px;">不填不判达标</span>
-            </el-form-item>
-            <el-form-item label="仅工作日">
-              <el-switch v-model="attCfg.weekdaysOnly" />
-              <span class="hint" style="margin-left: 6px;">承诺出勤日 = 营期范围内工作日</span>
-            </el-form-item>
-          </el-form>
-
-          <div style="margin-top: 10px;">
+          <div class="att-save-row">
             <el-button v-if="manageWritable" type="primary" size="small" :loading="attCfg.saving" @click="saveAttMode">保存</el-button>
-            <span class="hint" style="margin-left:8px;">切换出「每日」会清空本营承诺出勤日；切回需手动重生成</span>
           </div>
         </div>
-
-        <template v-if="attModeSaved === 'daily'">
-          <el-alert type="info" :closable="false"
-            :title="`本营 ${studentMembers.length} 名学员；承诺出勤日按营期范围内工作日（${session.weekdays_only ? '仅周一~周五' : '含周末'}）展开`" />
-          <div style="margin-top: 12px;">
-            <el-button v-if="manageWritable" type="primary" @click="regenPlan">重生成承诺出勤日</el-button>
-            <span class="hint">加入新学员时自动生成；此处可手动重生成（幂等，自动清理范围外/范围内周末的旧承诺日）</span>
-          </div>
-        </template>
-        <el-alert v-else type="info" :closable="false" style="margin-top: 12px;"
-          :title="attModeSaved === 'weekly'
-            ? '按周累计模式：学员报名不收承诺日，出勤看板按周统计打卡次数与时长'
-            : '本营不考勤：报名/工作台均不出考勤入口，保存后考勤能力关闭'" />
         </template>
       </el-tab-pane>
 
@@ -289,7 +302,24 @@
         <!-- 方向制配置卡：draft/upcoming 可编辑（选导生开跑后锁定只读） -->
         <div class="ms-cfg-card">
           <div class="ms-cfg-head">
-            <h4 class="ms-sec-title" style="margin:0;">选导生与方向配置</h4>
+            <div class="ms-cfg-title-row">
+              <h4 class="ms-sec-title" style="margin:0;">选导生与方向配置</h4>
+              <el-popover placement="bottom-start" :width="360" trigger="click" popper-class="ms-help-popover">
+                <template #reference>
+                  <button type="button" class="att-help-trigger" aria-label="查看选导生配置说明" @click.stop>
+                    <el-icon><InfoFilled /></el-icon>
+                  </button>
+                </template>
+                <div class="ms-help-content">
+                  <div class="ms-help-title">配置说明</div>
+                  <ul>
+                    <li>导生发布名片并选择一个方向，学员提交 1-3 个志愿，双方互选后开营。</li>
+                    <li>志愿截止后不再线上提交，后续情况由工作人员线下协调。</li>
+                    <li>每个方向至少关联一门课程；学员继承归属导生方向的全部课程。</li>
+                  </ul>
+                </div>
+              </el-popover>
+            </div>
             <span v-if="!msCfgEditable" class="hint">选导生已开跑（{{ statusLabel(session.status) }}），配置锁定只读</span>
           </div>
 
@@ -793,6 +823,7 @@ import { ref, reactive, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useStore } from 'vuex';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { InfoFilled } from '@element-plus/icons-vue';
 import CampProgressBoard from './CampProgressBoard.vue';
 
 const route = useRoute();
@@ -1890,6 +1921,7 @@ async function reviseArchive() {
 /* 选导生与方向配置卡（09-12：配置从建营弹窗迁入详情） */
 .ms-cfg-card { border: 1px solid var(--el-border-color-light, #e4e7ed); border-radius: 6px; padding: 12px 14px; margin-bottom: 14px; }
 .ms-cfg-head { display: flex; align-items: center; justify-content: space-between; }
+.ms-cfg-title-row { display: inline-flex; align-items: center; gap: 5px; }
 .ms-cfg-dirs { width: 100%; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
 .ms-cfg-dir-row { display: flex; gap: 8px; align-items: center; width: 100%; }
 .ms-cfg-readonly { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
@@ -1900,5 +1932,28 @@ async function reviseArchive() {
 /* 考勤模式设置卡（09-12 三模式） */
 .att-cfg-card { border: 1px solid var(--el-border-color-light, #e4e7ed); border-radius: 6px; padding: 12px 14px; margin-bottom: 14px; }
 .att-cfg-card :deep(.el-radio) { height: auto; align-items: flex-start; margin-right: 0; }
+.att-tab-label { display: inline-flex; align-items: center; gap: 5px; }
+.att-help-trigger {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; padding: 0; border: 0; border-radius: 50%;
+  color: var(--el-text-color-secondary); background: transparent; cursor: pointer;
+}
+.att-help-trigger:hover { color: var(--el-color-primary); background: var(--el-fill-color-light); }
+.att-mode-list { width: 100%; display: flex; flex-direction: column; align-items: stretch; gap: 6px; }
+.att-mode-option { padding: 8px 10px; border-radius: 6px; }
+.att-mode-option.active { background: var(--el-fill-color-light); }
+.att-daily-panel {
+  max-width: 500px; margin: 8px 0 2px 24px; padding: 12px 14px;
+  border-left: 2px solid var(--el-color-primary); background: var(--el-bg-color);
+}
+.att-daily-panel :deep(.el-form-item:last-child) { margin-bottom: 12px; }
+.att-unit { margin-left: 8px; color: var(--el-text-color-regular); }
+.att-save-row { margin-top: 10px; }
+:global(.att-help-popover .att-help-title),
+:global(.ms-help-popover .ms-help-title) { margin-bottom: 8px; font-weight: 600; color: var(--el-text-color-primary); }
+:global(.att-help-popover ul),
+:global(.ms-help-popover ul) { margin: 0; padding-left: 18px; color: var(--el-text-color-regular); line-height: 1.65; }
+:global(.att-help-popover li + li),
+:global(.ms-help-popover li + li) { margin-top: 5px; }
 
 </style>
