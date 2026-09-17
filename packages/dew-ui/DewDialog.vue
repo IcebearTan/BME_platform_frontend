@@ -8,7 +8,7 @@
     <!-- 弹窗面板：居中容器 + 点击空白关闭 -->
     <Transition name="dew-dialog-panel">
       <div v-if="modelValue" class="dew-dialog-panel" @click.self="onBackdropClick">
-        <div class="dew-dialog" :class="{ 'dew-dialog--glass': glass }" :style="dialogStyle">
+        <div class="dew-dialog" role="dialog" aria-modal="true" :class="{ 'dew-dialog--glass': glass }" :style="dialogStyle">
           <!-- 标题栏 -->
           <div class="dew-dialog__header">
             <slot name="header">

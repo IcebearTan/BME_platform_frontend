@@ -49,7 +49,7 @@
           </div>
         </section>
 
-        <el-dialog v-model="rulesVisible" title="选导生规则" width="min(680px, 94vw)" append-to-body>
+        <DewDialog v-model="rulesVisible" title="选导生规则" width="min(680px, 94vw)">
           <div class="rules rules-dialog">
             <div class="rule">
               <span class="rule-num">1</span>
@@ -64,7 +64,7 @@
               <div><b>截止前可修改</b><p>修改时整组替换志愿，以最后一次提交为准。</p></div>
             </div>
           </div>
-        </el-dialog>
+        </DewDialog>
 
         <section class="market-browser" aria-label="浏览导生名片">
           <div class="market-toolbar">
@@ -125,7 +125,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { Back, Document } from '@element-plus/icons-vue';
 import MenuComponent from '../components/MenuComponent.vue';
-import { DewButton, DewButtonBar, DewCard, DewSkeleton } from '@bme/dew-ui';
+import { DewButton, DewButtonBar, DewCard, DewDialog, DewSkeleton } from '@bme/dew-ui';
 import MsPhaseBar from '../components/Camp/MsPhaseBar.vue';
 import MsMentorCard from '../components/Camp/MsMentorCard.vue';
 import MsPreferenceTray from '../components/Camp/MsPreferenceTray.vue';

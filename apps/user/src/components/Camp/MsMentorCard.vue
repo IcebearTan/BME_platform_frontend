@@ -86,15 +86,7 @@
         <slot name="action"></slot>
       </div>
     </div>
-    <el-dialog
-      v-model="detailVisible"
-      :title="mentor.username + ' 的导生名片'"
-      width="min(680px, 94vw)"
-      top="5vh"
-      :style="{ background: 'var(--dew-card-flat-bg)' }"
-      append-to-body
-      class="mentor-detail-dialog"
-    >
+    <DewDialog v-model="detailVisible" :title="`${mentor.username} 的导生名片`" width="min(680px, 94vw)">
       <div class="mentor-detail">
         <div class="detail-heading">
           <h3>{{ mentor.username }}</h3>
@@ -117,14 +109,14 @@
           </button>
         </div>
       </template>
-    </el-dialog>
+    </DewDialog>
   </DewCard>
 </template>
 
 <script setup>
 import { computed, ref } from 'vue';
 import { ZoomIn, ArrowRight, ShoppingCart, Star, StarFilled } from '@element-plus/icons-vue';
-import { DewCard, DewTag } from '@bme/dew-ui';
+import { DewCard, DewDialog, DewTag } from '@bme/dew-ui';
 import { assetUrl } from '../../services/campService';
 
 const props = defineProps({
@@ -352,14 +344,14 @@ const bioMultiline = computed(() => hasBio.value && displayBio.value.length > 15
 
 .detail-link { display: inline-flex; align-items: center; align-self: flex-start; gap: 6px; padding: 0; margin: 0 0 14px; min-height: 28px; border: 0; background: transparent; color: var(--color-primary); font: inherit; font-size: 13px; cursor: pointer; }
 .detail-link:hover { text-decoration: underline; }
-.mentor-detail { max-height: 65vh; overflow-y: auto; color: var(--dew-text-heading); }
+.mentor-detail { color: var(--dew-text-heading); }
 .detail-heading { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
 .detail-heading h3 { margin: 0; font-size: 22px; overflow-wrap: anywhere; }
 .detail-heading > span { color: var(--dew-text-muted); }
 .detail-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .detail-bio { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 16px; line-height: 1.9; margin: 24px 0; }
 .detail-photo { display: block; width: 100%; height: auto; border-radius: 6px; }
-.detail-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 50px; }
+.detail-footer { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 50px; }
 .detail-picked { color: var(--color-primary); }
 
 @media (prefers-reduced-motion: reduce) {
