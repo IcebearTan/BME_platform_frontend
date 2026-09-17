@@ -50,6 +50,12 @@
         <ProjectActivities :sid="sid" :session="session" :unit-id="cur.unit_id" />
       </DewCard>
 
+      <!-- 组会纪要（09-17：负责人提交文字/文件/录像纪要，组员查看；结营只读） -->
+      <div class="sec-title">组会纪要</div>
+      <DewCard variant="default" :no-hover="true" class="sec-card">
+        <CampMeetings :sid="sid" :unit-id="cur.unit_id" :camp-status="session.status" />
+      </DewCard>
+
       <!-- 周考勤（09-13：项目营开了周打卡后负责人的成员×周面板，两区并显不并口径） -->
       <template v-if="role === 'leader' && weeklyOn">
         <div class="sec-title">周考勤</div>
@@ -132,6 +138,7 @@ import { showcaseService } from '../../services/showcaseService';
 import ProjectRoster from './ProjectRoster.vue';
 import ProjectMilestones from './ProjectMilestones.vue';
 import ProjectActivities from './ProjectActivities.vue';
+import CampMeetings from './CampMeetings.vue';
 import ProjectWeeklyAttendance from './ProjectWeeklyAttendance.vue';
 import TemplateEditor from './TemplateEditor.vue';
 

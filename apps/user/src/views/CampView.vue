@@ -120,10 +120,12 @@
           <MentorLeave v-else-if="tab === 'leave'" :sid="sid" />
           <MentorReward v-else-if="tab === 'reward'" :sid="sid" />
           <MentorMembers v-else-if="tab === 'members'" :sid="sid" />
+          <CampMeetings v-else-if="tab === 'meetings'" :sid="sid" :camp-status="current?.status" />
         </template>
         <template v-else-if="current?.is_member">
           <MsStudentPick v-if="tab === 'ms'" :sid="sid" :camp-status="current.status" />
           <CampStudyCard v-else-if="tab === 'study'" :sid="sid" />
+          <CampMeetings v-else-if="tab === 'meetings'" :sid="sid" :camp-status="current?.status" />
           <CampAttendance v-else-if="tab === 'attendance'" :sid="sid" />
           <LeaveApply v-else-if="tab === 'leave'" :sid="sid" />
         </template>
@@ -144,6 +146,7 @@ import { ArrowLeft } from '@element-plus/icons-vue';
 import { campService, MS_PHASE_LABEL } from '../services/campService';
 import CampOverview from '../components/Camp/CampOverview.vue';
 import CampStudyCard from '../components/Camp/CampStudyCard.vue';
+import CampMeetings from '../components/Camp/CampMeetings.vue';
 import CampAttendance from '../components/Camp/CampAttendance.vue';
 import LeaveApply from '../components/Camp/LeaveApply.vue';
 import MentorDashboard from '../components/Camp/MentorDashboard.vue';
@@ -183,6 +186,7 @@ const studentTabs = computed(() => {
   const t = [
     { value: 'overview', label: '看板' },
     { value: 'study', label: '学习方向' },
+    { value: 'meetings', label: '组会' },       // 09-17 组会留档：导生组纪要（组员只读）
   ];
   if (caps.value.attendance) t.push({ value: 'attendance', label: '我的考勤' });
   if (caps.value.leave) t.push({ value: 'leave', label: '请假' });
@@ -198,6 +202,7 @@ const mentorTabs = computed(() => {
   t.push(
     { value: 'reward', label: '发奖励' },
     { value: 'members', label: '学员进度' },   // 09-14 用户定：内容=学习进度+按章认证，别叫「团队成员」
+    { value: 'meetings', label: '组会' },       // 09-17 组会留档：组长（导生）提交纪要
   );
   if (current.value?.mentor_selection_enabled) t.splice(1, 0, { value: 'ms', label: '选导生' });
   return t;

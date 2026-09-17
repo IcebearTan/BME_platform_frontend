@@ -256,4 +256,39 @@ export const campService = {
   // 结营档案（成员可读；修正 admin）
   fetchArchive: (sid) =>
     api.get(`/camp/sessions/${sid}/archive`).then(r => r.data),
+
+  // ── 组会留档（2026-09-17：培训组=导生组 / 项目组；组长与负责人提交，组员查看）──
+  // 我的培训组组会（导生=本人组，学员=归属导生组；未编组返回 group=null 空态）
+  fetchTeamMeetings: (sid) =>
+    api.get(`/camp/sessions/${sid}/team-meetings`).then(r => r.data),
+  fetchUnitMeetings: (unitId) =>
+    api.get(`/camp/units/${unitId}/meetings`).then(r => r.data),
+  createTeamMeeting: (sid, form) =>
+    api.post(`/camp/sessions/${sid}/team-meetings`, meetingFormData(form),
+      { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data),
+  createUnitMeeting: (unitId, form) =>
+    api.post(`/camp/units/${unitId}/meetings`, meetingFormData(form),
+      { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data),
+  updateMeeting: (mid, form) =>
+    api.put(`/camp/meetings/${mid}`, meetingFormData(form),
+      { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data),
+  deleteMeeting: (mid) =>
+    api.delete(`/camp/meetings/${mid}`).then(r => r.data),
+  deleteMeetingAttachment: (aid) =>
+    api.delete(`/camp/meetings/attachments/${aid}`).then(r => r.data),
+  // 媒体直连短签（<a>/<video> 带不了 Authorization 头；点击下载/播放时换取，2h 有效）
+  fetchMeetingAttachmentUrl: async (aid) => {
+    const r = await api.get(`/camp/meetings/attachments/${aid}/token`)
+    return assetUrl(r.data.url)
+  },
+}
+
+// 组会表单 → FormData（文字字段 + Files[] 多文件一步式，与章节材料同款）
+function meetingFormData({ title, meeting_date, content, files = [] }) {
+  const fd = new FormData()
+  fd.append('title', title)
+  fd.append('meeting_date', meeting_date)
+  if (content) fd.append('content', content)
+  files.forEach((f) => fd.append('Files', f))
+  return fd
 }
