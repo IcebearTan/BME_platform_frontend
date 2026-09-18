@@ -58,7 +58,10 @@
               :disabled="locked"
               @update:model-value="updateBio"
             />
-            <span class="bio-counter">{{ Array.from(form.bio).length }}/1000</span>
+            <div class="bio-meta">
+              <span class="form-hint">粘贴以 http:// 或 https:// 开头的完整网址，学员可直接点击访问</span>
+              <span class="bio-counter">{{ Array.from(form.bio).length }}/1000</span>
+            </div>
           </div>
 
           <div class="form-item">
@@ -190,9 +193,9 @@ function onDrop(e) {
 async function doUpload(options) {
   const file = options.file;
   if (!['image/jpeg', 'image/png', 'image/jpg'].includes(file.type)) {
-    ElMessage.error('仅支持 jpg / png 格式'); return;
+    ElMessage.error('图片格式不支持，请上传 JPG 或 PNG 图片'); return;
   }
-  if (file.size / 1024 / 1024 > 5) { ElMessage.error('照片不能超过 5MB'); return; }
+  if (file.size / 1024 / 1024 > 5) { ElMessage.error('图片超过 5MB，请选择更小的图片'); return; }
   uploading.value = true;
   try {
     const r = await campService.uploadMsPhoto(props.sid, file);
@@ -248,10 +251,11 @@ watch(() => props.sid, load, { immediate: true });
 <style scoped>
 .profile-card { width: 100%; }
 
-.head-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.head-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .head-row h3 { margin: 0; font-size: 16px; font-weight: 600; }
 .head-hint { font-size: 12px; color: var(--dew-text-muted); }
-.bio-counter { align-self: flex-end; font-size: 11px; color: var(--dew-text-faint); }
+.bio-meta { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.bio-counter { flex: none; font-size: 11px; color: var(--dew-text-faint); }
 
 .profile-body { display: flex; gap: 32px; align-items: flex-start; }
 @media (max-width: 860px) { .profile-body { flex-direction: column; } }
@@ -315,6 +319,22 @@ watch(() => props.sid, load, { immediate: true });
 .form-actions { display: flex; justify-content: flex-end; }
 
 .tag-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.tag-chips :deep(.dew-btn) {
+  min-width: 92px;
+  border: 1px solid rgba(64, 158, 255, 0.28);
+  transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
+}
+.tag-chips :deep(.dew-btn--lit) {
+  border: 2px solid var(--color-primary, #409eff) !important;
+  background: rgba(64, 158, 255, 0.14) !important;
+  color: var(--color-primary, #1677ff) !important;
+  box-shadow: 0 0 0 3px rgba(64, 158, 255, 0.12) !important;
+  font-weight: 600;
+}
+.tag-chips :deep(.dew-btn:focus-visible) {
+  outline: 2px solid var(--color-primary, #409eff);
+  outline-offset: 2px;
+}
 
 /* 名额步进器 */
 .stepper { display: flex; align-items: center; gap: 10px; }

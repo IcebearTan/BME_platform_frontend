@@ -153,6 +153,49 @@ test('登录页正常渲染', async ({ page }) => {
   await expect(page.locator('input[placeholder="输入邮箱"]')).toBeVisible()
 })
 
+test('管理员提交登录后进入仪表盘且首屏无组件异常', async ({ page }) => {
+  const pageErrors = []
+  const componentWarnings = []
+  page.on('pageerror', (error) => pageErrors.push(error.message))
+  page.on('console', (message) => {
+    if (message.type() === 'warning' && /Failed to resolve component|accessed during render|made a reactive object/.test(message.text())) {
+      componentWarnings.push(message.text())
+    }
+  })
+
+  await page.route('http://127.0.0.1:5001/**', (route) => {
+    const url = route.request().url()
+    if (url.includes('/auth/admin_login')) {
+      return route.fulfill({ json: {
+        code: 200,
+        token: 'e2e-login-token',
+        role: 'super_admin',
+        permissions: [],
+        User_Name: 'e2e 管理员',
+      } })
+    }
+    if (url.includes('/user/user_index')) {
+      return route.fulfill({ json: {
+        code: 200,
+        role: 'super_admin',
+        permissions: [],
+        User_Name: 'e2e 管理员',
+      } })
+    }
+    return route.fulfill({ json: { code: 200, data: {} } })
+  })
+
+  await page.goto(`${BASE}/login`)
+  await page.getByPlaceholder('输入邮箱').fill('admin@example.com')
+  await page.getByPlaceholder('输入密码').fill('Experience2026!')
+  await page.getByRole('button', { name: '登录' }).click()
+
+  await expect(page).toHaveURL(`${BASE}/`)
+  await expect(page.getByRole('heading', { name: /欢迎回来/ })).toBeVisible()
+  expect(pageErrors).toEqual([])
+  expect(componentWarnings).toEqual([])
+})
+
 test('管理布局壳挂载（侧边栏 + 主区域）', async ({ page }) => {
   await loginAsStaff(page)
   await page.goto(`${BASE}/`)
@@ -237,9 +280,13 @@ test('营期详情保留选导生与成员添加能力', async ({ page }) => {
   await expect(page.getByRole('cell', { name: '林泽宇', exact: true }).first()).toBeVisible()
   await expect(page.getByRole('cell', { name: '测试学员20', exact: true })).toBeVisible()
 
-  // 营期设置 tab（09-17 集中管理：考勤模式/门槛开关/选导生配置收拢于此；旧数据无 policy 回退默认）
+  // 营期设置 tab（09-17 集中管理：考勤模式/门槛开关/选导生配置收拢于此；旧数据无 policy 回退默认。
+  // 09-18 并自 jiayuanpush：考勤模式选项卡式布局 + 帮助弹窗）
   await page.getByRole('tab', { name: '营期设置' }).click()
-  await expect(page.getByText(/假期营 · 每日承诺出勤/)).toBeVisible()
+  await expect(page.getByText('假期营', { exact: true })).toBeVisible()
+  await expect(page.locator('.att-daily-panel')).toBeVisible()
+  await expect(page.getByRole('button', { name: '查看出勤说明' })).toBeVisible()
+  await expect(page.getByRole('button', { name: '查看选导生配置说明' })).toBeVisible()
   // 09-17 门槛可配置：门槛开关（mock 无新位 → 回退类型默认=开，旧营期口径）
   await expect(page.getByText('报名等级门槛')).toBeVisible()
   await expect(page.getByText('LV2 及以上才能自助报名导生（默认）')).toBeVisible()
@@ -350,8 +397,9 @@ test('营期设置：三区块分区渲染 + ?tab= 深链', async ({ page }) => 
   }
   // 准入门槛：导生报名门槛开关（回退默认开）
   await expect(page.locator('.gate-row').getByText('报名等级门槛')).toBeVisible()
-  // 考勤模式：三模式 radio 回退 daily
-  await expect(page.getByText(/假期营 · 每日承诺出勤/)).toBeVisible()
+  // 考勤模式：三模式选项卡回退 daily（09-18 并自 jiayuanpush 布局改版，参数内联 daily 卡）
+  await expect(page.getByText('假期营', { exact: true })).toBeVisible()
+  await expect(page.locator('.att-daily-panel')).toBeVisible()
   // 选导生流程：mock status=running → 配置锁定只读
   await expect(page.getByText(/配置锁定只读/)).toBeVisible()
 

@@ -1,13 +1,15 @@
 <script>
+import { markRaw } from 'vue';
 import { useStore } from 'vuex';
 import api, { session } from '../api';
 import md5 from 'js-md5';
+import { ElMessage } from 'element-plus';
 import { DewCard, DewInput, DewButton } from '@bme/dew-ui';
 import { User, Lock } from '@element-plus/icons-vue';
 
 export default {
     name: 'LoginComponent',
-    components: { DewCard, DewInput, DewButton },
+    components: { DewCard, DewInput, DewButton, User, Lock },
 
     data() {
         return {
@@ -15,6 +17,8 @@ export default {
                 password: "",
                 email: "",
             },
+            User: markRaw(User),
+            Lock: markRaw(Lock),
             isLoading: false,
             rules: {
                 password: [
@@ -54,14 +58,14 @@ export default {
                     // 存 token 对（access + refresh，静默续期用）
                     session.save(res.data)
                     this.store.commit('setUser', res.data)
-                    this.$message({
+                    ElMessage({
                         message: '登录成功',
                         type: 'success'
                     });
                     this.$router.push('/')
                 }
                 if (res.data.code == 400) {
-                    this.$message.error('密码错误或邮箱不存在');
+                    ElMessage.error('密码错误或邮箱不存在');
                 }
             } catch (error) {
                 const data = error.response?.data;
@@ -74,7 +78,7 @@ export default {
                         msg = (data.message[k] && data.message[k][0]) || '账号或密码错误';
                     }
                 }
-                this.$message.error(msg);
+                ElMessage.error(msg);
             } finally {
                 this.isLoading = false;
             }

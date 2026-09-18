@@ -60,7 +60,14 @@
       </div>
 
       <p class="bio" :class="{ 'is-multiline': bioMultiline }">
-        <span class="bio-text">“{{ displayBio }}”</span>
+        <span class="bio-text">“<template v-for="(token, tokenIndex) in bioTokens" :key="`${token.type}-${tokenIndex}`"><a
+          v-if="token.type === 'link'"
+          class="bio-link"
+          :href="token.value"
+          target="_blank"
+          rel="noopener noreferrer"
+          @click.stop
+        >{{ token.value }}</a><span v-else>{{ token.value }}</span></template>”</span>
       </p>
 
       <button class="detail-link" type="button" :aria-label="`查看 ${mentor.username} 的完整介绍`" @click="detailVisible = true">
@@ -95,7 +102,13 @@
         <div v-if="mentor.tags?.length" class="detail-tags">
           <DewTag v-for="(tag, index) in mentor.tags" :key="tag" :type="index === 1 ? 'warning' : 'success'" size="sm" round class="mentor-tag" :title="tag"><span class="mentor-tag-text">{{ tag }}</span></DewTag>
         </div>
-        <p class="detail-bio">{{ displayBio }}</p>
+        <p class="detail-bio"><template v-for="(token, tokenIndex) in bioTokens" :key="`${token.type}-${tokenIndex}`"><a
+          v-if="token.type === 'link'"
+          class="bio-link"
+          :href="token.value"
+          target="_blank"
+          rel="noopener noreferrer"
+        >{{ token.value }}</a><span v-else>{{ token.value }}</span></template></p>
         <img v-if="photoSrc" class="detail-photo" :src="photoSrc" :alt="`${mentor.username} 的展示图片`" />
       </div>
       <template #footer>
@@ -118,6 +131,7 @@ import { computed, ref } from 'vue';
 import { ZoomIn, ArrowRight, ShoppingCart, Star, StarFilled } from '@element-plus/icons-vue';
 import { DewCard, DewDialog, DewTag } from '@bme/dew-ui';
 import { assetUrl } from '../../services/campService';
+import { tokenizeHttpUrls } from '../../utils/linkifyText';
 
 const props = defineProps({
   mentor: { type: Object, required: true },
@@ -150,6 +164,7 @@ const displayBio = computed(() => {
   if (!bio) return '这位导生有点神秘，先看看标签吧~~';
   return bio;
 });
+const bioTokens = computed(() => tokenizeHttpUrls(displayBio.value));
 const bioMultiline = computed(() => hasBio.value && displayBio.value.length > 15);
 </script>
 
@@ -310,6 +325,13 @@ const bioMultiline = computed(() => hasBio.value && displayBio.value.length > 15
   text-align: center;
 }
 .bio.is-multiline .bio-text { text-align: start; }
+.bio-link {
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+.bio-link:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; border-radius: 2px; }
 .tag-row { display: flex; flex: none; flex-wrap: wrap; align-items: flex-start; gap: 8px 6px; margin-top: 10px; margin-bottom: 4px; }
 .mentor-tag { flex: none; max-width: 100%; box-sizing: border-box; }
 .mentor-tag-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

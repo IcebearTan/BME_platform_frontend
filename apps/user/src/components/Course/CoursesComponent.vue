@@ -178,9 +178,9 @@ onMounted(() => {
             <LearningPathComponent />
     </div>
     <div class="mainContainer" :class="themeClass">
-        <div style="width: 1300px;">
+        <div class="category-nav-row">
             <div class="button-group-container">
-                <DewButtonBar :items="categories" v-model="currentCategory" />
+                <DewButtonBar :items="categories" v-model="currentCategory" size="lg" />
             </div>
         </div>
 
@@ -785,12 +785,43 @@ onMounted(() => {
     overflow: hidden;
 }
 
+.category-nav-row {
+    width: min(1300px, calc(100% - 40px));
+    display: flex;
+    justify-content: center;
+    margin-top: 30px;
+}
+
 .button-group-container {
     display: flex;
-    /* justify-content: center; */
-    margin-top: 30px;
-    margin-left: 10px;
-    margin-right: auto;
+    justify-content: center;
+}
+
+.button-group-container :deep(.dew-bar--lg) {
+    gap: 6px;
+    padding: 5px;
+}
+
+.button-group-container :deep(.dew-bar--lg .dew-bar__item) {
+    min-width: 112px;
+    height: 44px;
+    padding: 0 22px;
+    font-size: 15px;
+}
+
+@media (max-width: 640px) {
+    .category-nav-row {
+        width: calc(100% - 24px);
+        overflow-x: auto;
+        justify-content: flex-start;
+    }
+
+    .button-group-container :deep(.dew-bar--lg .dew-bar__item) {
+        min-width: 88px;
+        height: 40px;
+        padding: 0 14px;
+        font-size: 13px;
+    }
 }
 
 /* 激活状态按钮 */
