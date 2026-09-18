@@ -1,7 +1,8 @@
 import { test, expect } from '@playwright/test'
 
-// 组会留档（2026-09-17）：培训组（/camp tab，unitId 缺省走 team-meetings）与项目组
-// （ProjectBoard 内嵌，/camp/units/:id/meetings）。组长/负责人提交，组员只读。
+// 组会（2026-09-17 留档；09-18 生命周期重构：发起→布置→会后提交纪要）：培训组
+// （/camp tab，unitId 缺省走 team-meetings）与项目组（ProjectBoard 内嵌，/camp/units/:id/meetings）。
+// 组长/负责人发起与归档纪要，组员只读+交任务；状态派生自有纪要（content/附件）。
 // mock 后端数据，零依赖真实库；契约对齐 camp_meeting.py（group/is_leader/meetings/attachments）。
 
 const BASE = 'http://127.0.0.1:18081/AMEII'
@@ -91,19 +92,21 @@ test('学员·培训组组会只读：tab 列表渲染，无提交入口', async
   expect(errors).toEqual([])
 })
 
-test('导生·发起组会：创建后直达布置编辑（发起即布置）', async ({ page }) => {
+test('导生·发起组会：轻量创建（主题+日期）后直达布置编辑', async ({ page }) => {
   const errors = []
   page.on('pageerror', (e) => errors.push(e.message))
   const posted = { count: 0, body: '' }
   const meetings = []
-  const created = { ...MEETING, id: 12, title: '第二周组会 · 阶段小结', meeting_date: '2026-09-23' }
+  // 新流程：创建=主题+日期（无纪要/附件 → 待布置态），纪要第 3 步会后归档
+  const created = { ...MEETING, id: 12, title: '第二周组会 · 阶段小结', meeting_date: '2026-09-23',
+    content: null, attachments: [], task_count: 0, chapter_count: 0 }
   await loginAsUser(page, [
     { url: '/team-meetings', resp: (route) => route.request().method() === 'POST'
         ? (posted.count += 1,
            posted.body = route.request().postData() || '',
-           route.fulfill({ json: { code: 200, message: '组会纪要已提交', meeting: created } }))
+           route.fulfill({ json: { code: 200, message: '组会已创建', meeting: created } }))
         : route.fulfill({ json: TEAM_MEETINGS(true, meetings) }) },
-    // 新建组会的详情（空布置）——发起即布置直达编辑态
+    // 新建组会的详情（空布置）——创建后直达布置编辑态
     { url: '/camp/meetings/12/detail',
       json: { code: 200, is_leader: true, meeting: created,
               students: [{ user_id: 52, username: '学员小一' }],
@@ -112,27 +115,31 @@ test('导生·发起组会：创建后直达布置编辑（发起即布置）', 
 
   await page.goto(`${BASE}/camp?sid=1&tab=meetings`, { waitUntil: 'domcontentloaded' })
   await expect(page.getByRole('button', { name: '发起组会' })).toBeVisible()
-  await expect(page.locator('.cm-none')).toContainText('还没有组会')
+  await expect(page.locator('.empty-title')).toContainText('还没有组会')
 
-  // 创建弹窗：必填未齐时提交禁用
+  // 创建弹窗：三步流程条 + 轻量表单（主题/日期，无纪要字段）；必填未齐时禁用
   await page.getByRole('button', { name: '发起组会' }).click()
   const dlg = page.locator('.dew-dialog')
   await expect(dlg).toBeVisible()
-  await expect(page.getByRole('button', { name: '提交纪要' })).toBeDisabled()
+  await expect(dlg.locator('.flow-steps')).toContainText('会后提交纪要')
+  await expect(page.getByRole('button', { name: '创建并去布置' })).toBeDisabled()
   await page.getByPlaceholder('如：第一周组会 · 方向讨论').fill('第二周组会 · 阶段小结')
   await dlg.locator('input[type="date"]').fill('2026-09-23')
-  await page.getByPlaceholder('议题、结论与分工（文字与附件至少其一）').fill('各方向进度汇报。')
-  await expect(page.getByRole('button', { name: '提交纪要' })).toBeEnabled()
-  // 创建成功 → 不回列表，直接进入详情的布置编辑态（引导条 + 任务编辑器）
+  await expect(page.getByRole('button', { name: '创建并去布置' })).toBeEnabled()
+  // 创建成功 → 直达独立「布置」弹窗（第 2 步引导条 + 任务编辑器；不经过详情）
   meetings.push(created)
-  await page.getByRole('button', { name: '提交纪要' }).click()
+  await page.getByRole('button', { name: '创建并去布置' }).click()
   await expect(page.locator('.dew-dialog')).toHaveCount(1)
-  await expect(dlg.locator('.create-banner')).toContainText('现在布置本期的课外任务与课内进度')
-  await expect(dlg.locator('.field-label', { hasText: '课外任务' })).toBeVisible()
-  // 关详情回列表：新纪录就位（scope 到详情弹窗——创建弹窗离场中短暂共存）
-  await dlg.filter({ hasText: '组会 · 第二周组会' }).locator('.dew-dialog__close').click()
+  await expect(page.locator('.ma-banner')).toContainText('现在布置本期的课外任务与课内进度')
+  await expect(page.locator('.dew-dialog .field-label', { hasText: '课外任务' })).toBeVisible()
+  await page.getByRole('dialog').filter({ hasText: '布置 · 第二周组会' })
+    .locator('.dew-dialog__close').click()
   await expect(page.locator('.dew-dialog')).toHaveCount(0)
+  // 列表新卡片=待布置态，右下角双动作（去布置 / 提交纪要）各自直达独立弹窗
   await expect(page.locator('.mtg-title')).toHaveText('第二周组会 · 阶段小结')
+  await expect(page.locator('.mtg-status')).toHaveText('待布置')
+  await expect(page.locator('.mtg-foot-acts').getByRole('button', { name: '去布置' })).toBeVisible()
+  await expect(page.locator('.mtg-foot-acts').getByRole('button', { name: '提交纪要' })).toBeVisible()
   expect(posted.count).toBe(1)
   expect(posted.body).toContain('第二周组会 · 阶段小结')
   expect(posted.body).toContain('2026-09-23')
@@ -147,7 +154,7 @@ test('学员未编组：空态分流不报错', async ({ page }) => {
   ])
 
   await page.goto(`${BASE}/camp?sid=1&tab=meetings`, { waitUntil: 'domcontentloaded' })
-  await expect(page.locator('.empty-text')).toContainText('尚未分配导生')
+  await expect(page.locator('.empty-title')).toContainText('尚未分配导生')
   await expect(page.getByRole('button', { name: '发起组会' })).toHaveCount(0)
   expect(errors).toEqual([])
 })
@@ -242,8 +249,9 @@ test('导生·组会详情：布置编辑与审阅矩阵', async ({ page }) => {
   ])
 
   await page.goto(`${BASE}/camp?sid=1&tab=meetings`, { waitUntil: 'domcontentloaded' })
-  // 列表卡布置摘要：提交进度 + 详情入口
-  await expect(page.locator('.mtg-assign')).toContainText('提交 2/4')
+  // 列表卡：状态章（有纪要=已完结）+ 布置摘要（提交进度）+ 详情入口
+  await expect(page.locator('.mtg-status')).toHaveText('已完结')
+  await expect(page.locator('.mtg-stats')).toContainText('提交 2/4')
   await page.locator('.mtg-card').first().click()
   const dlg = page.locator('.dew-dialog')
   await expect(dlg).toBeVisible()
@@ -255,16 +263,28 @@ test('导生·组会详情：布置编辑与审阅矩阵', async ({ page }) => {
   await expect(dlg.locator('.matrix').first()).toContainText('1 文件')
   await expect(dlg.locator('.matrix').first()).toContainText('未交')
   await expect(dlg.locator('.cert-cell.ok')).toHaveText('88 分')
+  // 章节认证：点未认证格子 → DewUI 认证弹窗（打分可空）→ 认证成功
+  await dlg.locator('.cert-cell:not(.ok)').first().click()
+  const certDlg = page.locator('.dew-dialog').last()
+  await expect(certDlg).toContainText('章节认证')
+  await expect(certDlg).toContainText('学员小二')
+  await certDlg.locator('input').fill('90')
+  await certDlg.getByRole('button', { name: '认证', exact: true }).click()
+  await expect(page.locator('.el-message', { hasText: '已认证' })).toBeVisible()
+  await expect(page.locator('.cert-form')).toHaveCount(0)
   // 点成员名展开提交明细（内嵌短签直链 <a>）——限定任务矩阵（章节矩阵也有同名表头）
   await dlg.locator('.matrix').first().locator('.m-name', { hasText: '学员小一' }).click()
   await expect(dlg.locator('.student-panel')).toContainText('env.png')
-  // 编辑布置：勾新章节 + 加任务 → 保存
+  // 编辑布置：详情关闭 → 独立布置弹窗（不叠窗）；勾新章节 + 加任务 → 保存后自动关闭
   await dlg.getByRole('button', { name: '编辑布置' }).click()
-  await dlg.locator('.ch-chip', { hasText: '第二章：材料' }).click()
-  await dlg.getByRole('button', { name: '添加任务' }).click()
-  await dlg.getByPlaceholder('任务标题（如：读一篇方向综述并写笔记）').last().fill('翻译练习')
-  await dlg.getByRole('button', { name: '保存布置' }).click()
+  await expect(page.locator('.dew-dialog')).toHaveCount(1)
+  await expect(page.locator('.dew-dialog')).toContainText('布置 ·')
+  await page.locator('.ch-chip', { hasText: '第二章：材料' }).click()
+  await page.locator('.dew-dialog').getByRole('button', { name: '添加任务' }).click()
+  await page.getByPlaceholder('任务标题（如：读一篇方向综述并写笔记）').last().fill('翻译练习')
+  await page.locator('.dew-dialog').getByRole('button', { name: '保存布置' }).click()
   await expect(page.locator('.el-message', { hasText: '布置已保存' })).toBeVisible()
+  await expect(page.locator('.dew-dialog')).toHaveCount(0)
   expect(assignBody).toContain('翻译练习')
   const parsed = JSON.parse(assignBody || '{}')
   expect(parsed.chapters).toEqual(expect.arrayContaining([7, 8]))
@@ -292,7 +312,7 @@ test('组员·组会详情：任务提交与我的认证态', async ({ page }) =
   await page.goto(`${BASE}/camp?sid=1&tab=meetings`, { waitUntil: 'domcontentloaded' })
   // 待办聚合条置顶直达（作业不藏卡片里），点击直开详情
   await expect(page.locator('.pending-strip')).toContainText('项任务待提交')
-  await page.getByRole('button', { name: '去提交' }).click()
+  await page.locator('.pending-strip').getByRole('button', { name: '去提交' }).click()
   const dlg = page.locator('.dew-dialog')
   await expect(dlg).toBeVisible()
   // 我的任务：一已交一未交；课内章节认证态

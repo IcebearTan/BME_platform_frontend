@@ -1,7 +1,7 @@
 <template>
-  <!-- 组会详情（2026-09-17 教学单元）：一次组会 = 纪要 + 布置（课内章节 + 课外任务）+ 提交 + 审阅。
-       视角分流：导生 = 纪要 + 布置编辑 + 审阅矩阵（提交明细 / 章节认证 / 一键打包）；
-       组员 = 纪要 + 我的任务（提交/修改）+ 我的章节认证态。公共外壳，角色子区。 -->
+  <!-- 组会详情（2026-09-17 教学单元；09-18 生命周期化）：一次组会 = 发起 → 布置（课内章节+课外任务）
+       → 会后提交纪要。视角分流：导生 = 纪要（提交/编辑）+ 布置编辑 + 审阅矩阵（提交明细 /
+       章节认证 / 一键打包）；组员 = 纪要 + 我的任务（提交/修改）+ 我的章节认证态。公共外壳，角色子区。 -->
   <DewDialog :model-value="modelValue" @update:model-value="$emit('update:modelValue', $event)"
              :title="`组会 · ${detail?.meeting?.title || ''}`" width="min(920px, 96vw)"
              :close-on-click-modal="!submitDlg" :close-on-press-escape="!submitDlg">
@@ -11,98 +11,62 @@
     <div v-else-if="!detail" class="md-none">组会不存在或已被删除。</div>
     <div v-else class="meeting-detail">
 
-      <!-- ① 纪要（双视角共用；附件直链：纪要走点击换签，任务附件为回包内嵌短签） -->
+      <!-- ① 纪要（双视角共用；附件直链：纪要走点击换签，任务附件为回包内嵌短签）。
+           生命周期第 3 步：未归档=占位提示（导生可就地提交），归档后=正文+附件 -->
       <section class="md-sec">
         <div class="md-sec-head">
           <span class="md-sec-title">纪要</span>
           <span class="md-sec-meta">{{ detail.meeting.meeting_date }} · {{ detail.meeting.creator_name }} 记录</span>
           <DewButton v-if="isLeader && writable" type="ghost" size="sm" class="md-sec-act"
-                     @click="$emit('edit', detail.meeting)">编辑纪要</DewButton>
+                     @click="$emit('edit', detail.meeting)">{{ hasMinutes ? '编辑纪要' : '提交纪要' }}</DewButton>
         </div>
-        <p v-if="detail.meeting.content" class="md-content">{{ detail.meeting.content }}</p>
-        <div v-if="detail.meeting.attachments.length" class="md-atts">
-          <template v-for="a in detail.meeting.attachments" :key="a.id">
-            <div v-if="a.is_video" class="md-video">
-              <video v-if="videoSrcs[a.id]" :src="videoSrcs[a.id]" controls preload="metadata" playsinline></video>
-              <button v-else type="button" class="video-shell" @click="playVideo(a)">
-                <el-icon><VideoPlay /></el-icon>
-                <span class="video-name">{{ a.filename }}</span>
-                <span class="video-size">{{ fmtSize(a.size) }} · 点击播放</span>
+        <template v-if="hasMinutes">
+          <p v-if="detail.meeting.content" class="md-content">{{ detail.meeting.content }}</p>
+          <div v-if="detail.meeting.attachments.length" class="md-atts">
+            <template v-for="a in detail.meeting.attachments" :key="a.id">
+              <div v-if="a.is_video" class="md-video">
+                <video v-if="videoSrcs[a.id]" :src="videoSrcs[a.id]" controls preload="metadata" playsinline></video>
+                <button v-else type="button" class="video-shell" @click="playVideo(a)">
+                  <el-icon><VideoPlay /></el-icon>
+                  <span class="video-name">{{ a.filename }}</span>
+                  <span class="video-size">{{ fmtSize(a.size) }} · 点击播放</span>
+                </button>
+              </div>
+              <button v-else type="button" class="att-link" @click="downloadAtt(a)">
+                {{ a.filename }}（{{ fmtSize(a.size) }}）
               </button>
-            </div>
-            <button v-else type="button" class="att-link" @click="downloadAtt(a)">
-              {{ a.filename }}（{{ fmtSize(a.size) }}）
-            </button>
-          </template>
+            </template>
+          </div>
+        </template>
+        <div v-else class="minutes-pending">
+          {{ isLeader
+            ? '纪要待提交——开完会后在此归档文字、会议文件与录像。'
+            : '纪要尚未归档，会后由组长提交。' }}
         </div>
       </section>
 
-      <!-- ② 布置（导生） -->
+      <!-- ② 布置（导生·只读概览）：编辑走独立「布置」弹窗（emit assign，父层关详情再开，不叠窗） -->
       <section v-if="isLeader" class="md-sec">
         <div class="md-sec-head">
           <span class="md-sec-title">布置</span>
           <DewButton v-if="writable" type="ghost" size="sm" class="md-sec-act"
-                     @click="toggleAssignEdit">{{ editingAssign ? '收起编辑' : '编辑布置' }}</DewButton>
+                     @click="$emit('assign', detail.meeting)">编辑布置</DewButton>
         </div>
-        <div v-if="justCreated" class="create-banner">
-          本期组会已创建——现在布置本期的课外任务与课内进度。
+        <div v-if="!detail.tasks.length && !detail.chapters.length" class="md-none">
+          本期未布置任务。
         </div>
-
-        <template v-if="!editingAssign">
-          <div v-if="!detail.tasks.length && !detail.chapters.length && writable"
-               class="assign-empty">
-            <DewButton type="glass" size="md" @click="toggleAssignEdit">布置本期任务</DewButton>
-            <span class="assign-empty-hint">课外任务（文字/文件提交）+ 课内章节（联动按章认证）</span>
-          </div>
-          <div v-else-if="!detail.tasks.length && !detail.chapters.length" class="md-none">
-            本期未布置任务。
-          </div>
-          <div v-for="t in detail.tasks" :key="t.id" class="task-line">
-            <DewTag size="sm" round>{{ t.submit_type_text }}</DewTag>
-            <span class="task-title">{{ t.title }}</span>
-            <span v-if="t.note" class="task-note">{{ t.note }}</span>
-            <span class="task-stat">已交 {{ t.submission_count }}/{{ detail.students.length }}</span>
-          </div>
-          <div v-if="detail.chapters.length" class="chapter-line">
-            <span class="chapter-label">课内</span>
-            <span v-for="c in detail.chapters" :key="c.chapter_id" class="chapter-item">
-              {{ c.chapter_title }}<i class="sep">·</i>{{ c.certified_count }}/{{ detail.students.length }} 认证
-            </span>
-          </div>
-        </template>
-
-        <template v-else>
-          <template v-if="detail.chapter_catalog">
-            <div class="field-label">课内章节（到下次组会前完成认证，可多选）</div>
-            <div v-for="course in detail.chapter_catalog" :key="course.course_id" class="course-group">
-              <div class="course-name">{{ course.course_title }}</div>
-              <div class="chapter-chips">
-                <button v-for="ch in course.chapters" :key="ch.id" type="button"
-                        :class="['ch-chip', { on: assignForm.chapters.includes(ch.id) }]"
-                        @click="toggleChapter(ch.id)">{{ ch.name }}</button>
-              </div>
-            </div>
-            <div v-if="!detail.chapter_catalog.some((c) => c.chapters.length)" class="md-none">
-              方向课程暂无章节，先在营期设置的分类方向中绑定课程。
-            </div>
-          </template>
-          <div class="field-label">课外任务</div>
-          <div v-for="(t, i) in assignForm.tasks" :key="i" class="task-edit">
-            <div class="task-edit-row">
-              <DewInput v-model="t.title" size="sm" class="task-title-input"
-                        placeholder="任务标题（如：读一篇方向综述并写笔记）" />
-              <DewSelect v-model="t.submit_type" size="sm" class="task-type" :options="typeOptions" />
-              <button type="button" class="row-x" title="移除该任务" @click="assignForm.tasks.splice(i, 1)">×</button>
-            </div>
-            <DewInput v-model="t.note" size="sm" class="task-note-input" placeholder="说明（选填，写给组员看的任务要求）" />
-          </div>
-          <div class="assign-actions">
-            <DewButton type="ghost" size="sm" @click="addTask">添加任务</DewButton>
-            <DewButton type="glass" size="sm" :loading="savingAssign" :disabled="!canSaveAssign"
-                       @click="saveAssignments">保存布置</DewButton>
-          </div>
-          <div class="assign-hint">已有人提交的任务不会被删除（保护学生数据），只能改标题与说明。</div>
-        </template>
+        <div v-for="t in detail.tasks" :key="t.id" class="task-line">
+          <DewTag size="sm" round>{{ t.submit_type_text }}</DewTag>
+          <span class="task-title">{{ t.title }}</span>
+          <span v-if="t.note" class="task-note">{{ t.note }}</span>
+          <span class="task-stat">已交 {{ t.submission_count }}/{{ detail.students.length }}</span>
+        </div>
+        <div v-if="detail.chapters.length" class="chapter-line">
+          <span class="chapter-label">课内</span>
+          <span v-for="c in detail.chapters" :key="c.chapter_id" class="chapter-item">
+            {{ c.chapter_title }}<i class="sep">·</i>{{ c.certified_count }}/{{ detail.students.length }} 认证
+          </span>
+        </div>
       </section>
 
       <!-- ③ 我的任务（组员；待办条直达锚点） -->
@@ -245,15 +209,40 @@
         </div>
       </div>
     </DewDialog>
+    <!-- 章节认证（DewUI 弹窗，替代 ELP MessageBox）：未认证=打分可空；已认证=改分/撤销 -->
+    <DewDialog v-model="certDlg" title="章节认证" width="420px">
+      <div class="cert-form">
+        <p class="cert-line">
+          {{ certTarget?.student?.username }} · {{ certTarget?.chapter?.course_title }} /
+          {{ certTarget?.chapter?.chapter_title }}
+          <template v-if="certTarget?.cur">
+            （已认证{{ certTarget.cur.score != null ? ` ${certTarget.cur.score} 分` : '，未打分' }}）
+          </template>
+        </p>
+        <div class="cert-field">分数（0-100，留空 = 只认证不打分）</div>
+        <DewInput v-model="certScore" placeholder="如 88，可留空" @keydown.enter="saveCert" />
+        <div v-if="!certScoreValid" class="cert-err">分数须为 0-100 的整数或留空</div>
+        <div class="cert-actions">
+          <DewButton v-if="certTarget?.cur" type="danger" size="sm"
+                     :loading="certSaving" @click="revokeCert">撤销认证</DewButton>
+          <DewButton v-else type="ghost" size="sm" @click="certDlg = false">取消</DewButton>
+          <DewButton type="glass" size="sm" :loading="certSaving"
+                     :disabled="!certScoreValid" @click="saveCert">
+            {{ certTarget?.cur ? '保存' : '认证' }}
+          </DewButton>
+        </div>
+      </div>
+    </DewDialog>
+
     <input ref="fileInput" type="file" multiple class="file-hidden" @change="onFilesPicked" />
   </DewDialog>
 </template>
 
 <script setup>
 import { ref, computed, watch, nextTick } from 'vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage } from 'element-plus';
 import { VideoPlay } from '@element-plus/icons-vue';
-import { DewDialog, DewButton, DewInput, DewSelect, DewTag, DewBadge, DewSkeleton } from '@bme/dew-ui';
+import { DewDialog, DewButton, DewInput, DewTag, DewBadge, DewSkeleton } from '@bme/dew-ui';
 import { campService, assetUrl } from '../../services/campService';
 
 const props = defineProps({
@@ -261,15 +250,16 @@ const props = defineProps({
   sid: { type: Number, required: true },
   meetingId: { type: Number, default: null },
   campStatus: { type: String, default: null },    // archived 时整体只读
-  autoAssign: { type: Boolean, default: false },  // 发起组会后直达布置编辑（消费一次）
   focusTasks: { type: Boolean, default: false },  // 待办条直达「我的任务」区
 });
-const emit = defineEmits(['update:modelValue', 'changed', 'edit']);
+const emit = defineEmits(['update:modelValue', 'changed', 'edit', 'assign']);
 
 const writable = computed(() => props.campStatus !== 'archived');
 const loading = ref(false);
 const detail = ref(null);
 const isLeader = computed(() => !!detail.value?.is_leader);
+const hasMinutes = computed(() =>          // 已完结=有纪要（文字或附件），与列表 statusOf 同口径
+  !!(detail.value?.meeting?.content || '').trim() || !!(detail.value?.meeting?.attachments || []).length);
 const tasksSection = ref(null);
 
 async function load() {
@@ -285,14 +275,8 @@ async function load() {
 watch(() => [props.modelValue, props.meetingId], async ([open]) => {
   if (open) {
     openStudent.value = null;
-    editingAssign.value = false;
-    justCreated.value = false;
     await load();
-    // 发起即布置：创建后停在布置编辑态；待办条进来滚动到我的任务区
-    if (props.autoAssign && isLeader.value && writable.value) {
-      toggleAssignEdit();
-      justCreated.value = true;
-    }
+    // 待办条进来滚动到我的任务区
     if (props.focusTasks && tasksSection.value) {
       nextTick(() => tasksSection.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
     }
@@ -324,56 +308,7 @@ async function downloadAtt(a) {
   }
 }
 
-// ── 布置编辑（导生）──
-const typeOptions = [
-  { label: '文字或文件', value: 'any' },
-  { label: '需交文件', value: 'file' },
-  { label: '需交文字', value: 'text' },
-];
-const editingAssign = ref(false);
-const justCreated = ref(false);      // 发起组会直达布置的引导条（保存/收起后消失）
-const assignForm = ref({ chapters: [], tasks: [] });
-const savingAssign = ref(false);
-const canSaveAssign = computed(() => assignForm.value.tasks.every((t) => t.title.trim()));
-function toggleAssignEdit() {
-  if (!editingAssign.value) {
-    assignForm.value = {
-      chapters: (detail.value?.chapters || []).map((c) => c.chapter_id),
-      tasks: (detail.value?.tasks || []).map((t) => ({
-        id: t.id, title: t.title, note: t.note || '', submit_type: t.submit_type })),
-    };
-  } else {
-    justCreated.value = false;
-  }
-  editingAssign.value = !editingAssign.value;
-}
-function toggleChapter(chapterId) {
-  const arr = assignForm.value.chapters;
-  const i = arr.indexOf(chapterId);
-  if (i >= 0) arr.splice(i, 1); else arr.push(chapterId);
-}
-function addTask() {
-  assignForm.value.tasks.push({ id: null, title: '', note: '', submit_type: 'any' });
-}
-async function saveAssignments() {
-  if (savingAssign.value || !canSaveAssign.value) return;
-  savingAssign.value = true;
-  try {
-    const d = await campService.saveMeetingAssignments(props.meetingId, {
-      chapters: assignForm.value.chapters,
-      tasks: assignForm.value.tasks.map((t) => ({
-        ...(t.id ? { id: t.id } : {}), title: t.title.trim(),
-        note: (t.note || '').trim() || null, submit_type: t.submit_type })),
-    });
-    detail.value = d;
-    editingAssign.value = false;
-    justCreated.value = false;
-    ElMessage.success('布置已保存');
-    emit('changed');
-  } catch (e) {
-    ElMessage.error(e.response?.data?.message || '保存布置失败');
-  } finally { savingAssign.value = false; }
-}
+// ── 布置编辑：已独立为 MeetingAssign 弹窗（09-18），详情只读概览 + emit assign ──
 
 // ── 我的任务（组员）──
 const myPending = computed(() => (detail.value?.tasks || [])
@@ -449,46 +384,44 @@ async function downloadZip() {
 }
 const zipLoading = ref(false);
 
-// 章节认证格子：未认证→prompt 打分（可空）；已认证→改分/撤销（复用学员进度同款 API）
-async function certCell(c, s) {
+// 章节认证格子：点开 DewUI 认证弹窗（未认证=打分可空；已认证=改分/撤销，复用学员进度同款 API）
+const certDlg = ref(false);
+const certTarget = ref(null);     // { chapter, student, cur }
+const certScore = ref('');
+const certSaving = ref(false);
+const certScoreValid = computed(() => /^$|^(100|[1-9]?\d)$/.test(certScore.value.trim()));
+function certCell(c, s) {
   if (!writable.value) return;
-  const cur = c.certs[String(s.user_id)];
+  certTarget.value = { chapter: c, student: s, cur: c.certs[String(s.user_id)] || null };
+  certScore.value = certTarget.value.cur?.score != null ? String(certTarget.value.cur.score) : '';
+  certDlg.value = true;
+}
+async function saveCert() {
+  const t = certTarget.value;
+  if (!t || certSaving.value || !certScoreValid.value) return;
+  certSaving.value = true;
   try {
-    if (!cur) {
-      const { value } = await ElMessageBox.prompt(
-        `认证 ${s.username} 的「${c.chapter_title}」。分数 0-100，留空 = 只认证不打分。`, '按章认证',
-        { confirmButtonText: '认证', cancelButtonText: '取消',
-          inputPattern: /^$|^(100|[1-9]?\d)$/, inputErrorMessage: '分数须为 0-100 或留空' },
-      );
-      await campService.certifyChapter(props.sid, s.user_id, c.chapter_id,
-        value === '' ? null : Number(value));
-      ElMessage.success('已认证');
-    } else {
-      const action = await ElMessageBox.confirm(
-        `${s.username} 已认证${cur.score != null ? `（${cur.score} 分）` : ''}。`, '章节认证',
-        { confirmButtonText: '改分', cancelButtonText: '撤销认证',
-          distinguishCancelAndClose: true, type: 'warning' });
-      if (action !== 'confirm') return;
-      const { value } = await ElMessageBox.prompt(
-        `「${c.chapter_title}」新分数 0-100，留空 = 改为只认证不打分。`, '改分',
-        { confirmButtonText: '保存', cancelButtonText: '取消',
-          inputPattern: /^$|^(100|[1-9]?\d)$/, inputErrorMessage: '分数须为 0-100 或留空' });
-      await campService.certifyChapter(props.sid, s.user_id, c.chapter_id,
-        value === '' ? null : Number(value));
-      ElMessage.success('已改分');
-    }
+    await campService.certifyChapter(props.sid, t.student.user_id, t.chapter.chapter_id,
+      certScore.value.trim() === '' ? null : Number(certScore.value.trim()));
+    ElMessage.success(t.cur ? '已更新认证' : '已认证');
+    certDlg.value = false;
     load();
-  } catch (act) {
-    if (act === 'cancel') {   // distinguishCancelAndClose：取消按钮=撤销认证，关闭=不动
-      try {
-        await campService.revokeChapterCertification(props.sid, s.user_id, c.chapter_id);
-        ElMessage.success('已撤销认证');
-        load();
-      } catch (e) {
-        ElMessage.error(e.response?.data?.message || '撤销失败');
-      }
-    }
-  }
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '认证失败');
+  } finally { certSaving.value = false; }
+}
+async function revokeCert() {
+  const t = certTarget.value;
+  if (!t || certSaving.value) return;
+  certSaving.value = true;
+  try {
+    await campService.revokeChapterCertification(props.sid, t.student.user_id, t.chapter.chapter_id);
+    ElMessage.success('已撤销认证');
+    certDlg.value = false;
+    load();
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '撤销失败');
+  } finally { certSaving.value = false; }
 }
 </script>
 
@@ -517,7 +450,7 @@ a.att-link { align-self: flex-start; }
 .video-shell {
   display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
   padding: 10px 14px; border-radius: 10px; cursor: pointer;
-  border: 1px dashed var(--dew-card-border, rgba(148,163,184,.25));
+  border: 1px solid var(--dew-card-border, rgba(148,163,184,.25));
   background: transparent; color: var(--dew-text-muted); font-size: 12.5px;
   transition: transform 0.25s var(--dew-bounce, ease), color 0.2s ease;
 }
@@ -539,50 +472,15 @@ a.att-link { align-self: flex-start; }
 .chapter-item .cert.ok { color: var(--color-success); }
 .chapter-item .cert:not(.ok) { color: var(--dew-text-faint); }
 
-.create-banner {
-  font-size: 12.5px; color: var(--color-primary); line-height: 1.6;
-  padding: 8px 12px; border-radius: 8px;
-  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
-  border: 1px solid color-mix(in srgb, var(--color-primary) 22%, transparent);
+/* 纪要未归档（进行中）：占位提示，会后由组长提交 */
+.minutes-pending {
+  font-size: 12.5px; color: var(--dew-text-faint); line-height: 1.7;
+  padding: 2px 0;
 }
-.assign-empty {
-  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
-  padding: 16px; border-radius: 10px;
-  border: 1px dashed color-mix(in srgb, var(--color-primary) 30%, transparent);
-}
-.assign-empty-hint { font-size: 12px; color: var(--dew-text-faint); }
-.course-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
-.course-name { font-size: 12.5px; font-weight: 650; color: var(--dew-text-heading); }
-.chapter-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.ch-chip {
-  padding: 3px 12px; border-radius: 999px; font-size: 12.5px; cursor: pointer;
-  border: 1px solid var(--dew-card-border, rgba(148,163,184,.25));
-  background: transparent; color: var(--dew-text-muted);
-  transition: transform 0.2s var(--dew-bounce, ease), color 0.2s ease, border-color 0.2s ease;
-}
-.ch-chip:hover { transform: translateY(-1px); }
-.ch-chip.on {
-  color: var(--color-primary);
-  border-color: color-mix(in srgb, var(--color-primary) 40%, transparent);
-  background: color-mix(in srgb, var(--color-primary) 9%, transparent);
-}
-.task-edit { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
-.task-edit-row { display: flex; align-items: center; gap: 8px; }
-.task-title-input { flex: 1; min-width: 0; }
-.task-type { width: 130px; flex: none; }
-.task-note-input { width: 100%; }
-.row-x {
-  border: none; background: none; padding: 0 4px; cursor: pointer; line-height: 1;
-  font-size: 15px; color: var(--dew-text-faint);
-}
-.row-x:hover { color: var(--color-danger, #e5484d); }
-.assign-actions { display: flex; justify-content: flex-end; gap: 10px; }
-.assign-hint { font-size: 12px; color: var(--dew-text-faint); }
 .field-label { font-size: 12.5px; font-weight: 600; color: var(--dew-text-muted); margin-top: 4px; }
 
-/* 我的任务 */
-.my-task { display: flex; flex-direction: column; gap: 6px; padding: 8px 0; border-bottom: 1px dashed var(--dew-card-border, rgba(148,163,184,.2)); }
-.my-task:last-of-type { border-bottom: none; }
+/* 我的任务（无分割线，靠间距分组） */
+.my-task { display: flex; flex-direction: column; gap: 6px; padding: 8px 0; }
 .my-content {
   margin: 0; font-size: 13px; line-height: 1.7; color: var(--dew-text-text, var(--dew-text-heading));
   white-space: pre-wrap; word-break: break-word;
@@ -646,4 +544,12 @@ a.att-link { align-self: flex-start; }
 .picker-hint { font-size: 12px; color: var(--dew-text-faint); }
 .form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px; }
 .file-hidden { display: none; }
+
+/* 章节认证弹窗（DewUI，替代 ELP MessageBox） */
+.cert-form { display: flex; flex-direction: column; gap: 8px; }
+.cert-line { margin: 0; font-size: 13px; font-weight: 600; color: var(--dew-text-heading); line-height: 1.6; }
+.cert-field { font-size: 12.5px; color: var(--dew-text-muted); }
+.cert-err { font-size: 12px; color: var(--color-danger, #e5484d); }
+.cert-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
+.cert-actions .dew-button:first-child { margin-right: auto; }
 </style>
