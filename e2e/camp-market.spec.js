@@ -5,6 +5,9 @@ import { test, expect } from '@playwright/test'
 
 const BASE = 'http://127.0.0.1:18081/AMEII'
 
+// 200 字上限内的长留言（真实场景：导生端列表单行放不下，需"展开"看全文）
+const LONG_NOTE = '想加入硬件组学习嵌入式开发。此前自学过 C 语言与数字电路，做过流水灯、按键消抖和串口通信的小实验，也在面包板上搭过 51 的最小系统。这次营期希望能跟着您系统学习 STM32，从原理图、PCB 打样到固件调试完整走一遍，做出第一个能拿得出手的实物项目。我时间充裕，愿意投入，也乐于帮同学排查问题，期待有机会加入您的队伍。'
+
 const SESSIONS = {
   code: 200,
   sessions: [{
@@ -320,9 +323,9 @@ test('导生工作台：谁报了我只读名单，无收人按钮', async ({ pa
         code: 200, round: 1, preview: true, phase: 'collecting',
         capacity: 3, matched: 0, remaining: 3,
         suitors: [
-          { user_id: 201, username: '学员小张', avatar: null, rank: 1, note: '想学硬件', matched: false, matched_mentor_name: null },
+          { user_id: 201, username: '学员小张', avatar: null, rank: 1, note: LONG_NOTE, matched: false, matched_mentor_name: null },
           { user_id: 202, username: '学员小王', avatar: null, rank: 2, note: '', matched: true, matched_mentor_name: '别的导生' },
-          { user_id: 203, username: '学员小李', avatar: null, rank: 1, note: '', matched: false, matched_mentor_name: null },
+          { user_id: 203, username: '学员小李', avatar: null, rank: 1, note: '求带', matched: false, matched_mentor_name: null },
           { user_id: 204, username: '学员小赵', avatar: null, rank: 3, note: '', matched: false, matched_mentor_name: null },
         ],
       },
@@ -353,6 +356,16 @@ test('导生工作台：谁报了我只读名单，无收人按钮', async ({ pa
   await expect(page.getByText('三志愿 1')).toBeVisible()
   await expect(page.getByText('学员小张')).toBeVisible()
   await expect(page.getByText('已分配给 别的导生')).toBeVisible()
+
+  // 长留言：默认单行省略（几何溢出），展开见全文，收起回省略；短留言/空留言不给开关
+  const zhangNote = page.locator('.suitor-item', { hasText: '学员小张' }).locator('.note-text')
+  const clipped = () => zhangNote.evaluate((el) => el.scrollWidth > el.clientWidth + 1)
+  await expect(clipped()).resolves.toBe(true)
+  await expect(page.locator('.suitor-item', { hasText: '学员小李' }).getByRole('button', { name: '展开' })).toHaveCount(0)
+  await page.locator('.suitor-item', { hasText: '学员小张' }).getByRole('button', { name: '展开' }).click()
+  await expect(clipped()).resolves.toBe(false)
+  await page.locator('.suitor-item', { hasText: '学员小张' }).getByRole('button', { name: '收起' }).click()
+  await expect(clipped()).resolves.toBe(true)
   // 单轮制：收集期名单纯只读，勾选动作只在截止后的人员确认页出现
   await expect(page.getByRole('button', { name: '收下' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: '预览', exact: true })).toHaveCount(0)
@@ -374,7 +387,7 @@ test('导生人员确认：志愿截止后可锁定/释放学员', async ({ page
 
   // 勾选/释放接口直接改内存名单，roster 回读最新状态（同一营内闭环）
   const students = [
-    { user_id: 201, username: '学员小张', avatar: null, rank: 1, note: '想学硬件', submitted: true, status: 'free', mentor_name: null, source: null },
+    { user_id: 201, username: '学员小张', avatar: null, rank: 1, note: LONG_NOTE, submitted: true, status: 'free', mentor_name: null, source: null },
     { user_id: 202, username: '学员小王', avatar: null, rank: null, note: null, submitted: true, status: 'taken', mentor_name: '别的导生', source: null },
     { user_id: 203, username: '学员小赵', avatar: null, rank: null, note: null, submitted: false, status: 'free', mentor_name: null, source: null },
     { user_id: 204, username: '学员小钱', avatar: null, rank: 2, note: '', submitted: true, status: 'mine', mentor_name: null, source: 'mentor_pick' },
@@ -410,6 +423,12 @@ test('导生人员确认：志愿截止后可锁定/释放学员', async ({ page
   await expect(page.locator('.pick-item', { hasText: '学员小李' }).getByText('老师指派')).toBeVisible()
   await expect(page.locator('.pick-item', { hasText: '学员小李' }).getByRole('button')).toHaveCount(0)
   await expect(page.locator('.pick-item', { hasText: '学员小钱' }).getByRole('button', { name: '释放' })).toBeVisible()
+
+  // 长留言同样可展开：截断态溢出 → 展开后不溢出（收起/展开开关与收集期共用一套逻辑）
+  const zhangNote = page.locator('.pick-item', { hasText: '学员小张' }).locator('.note-text')
+  await expect(zhangNote.evaluate((el) => el.scrollWidth > el.clientWidth + 1)).resolves.toBe(true)
+  await page.locator('.pick-item', { hasText: '学员小张' }).getByRole('button', { name: '展开' }).click()
+  await expect(zhangNote.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).resolves.toBe(true)
 
   // 锁定小赵（剩 1 个名额）→ 满员，其他 free 行转「名额已满」
   await page.locator('.pick-item', { hasText: '学员小赵' }).getByRole('button', { name: '锁定' }).click()

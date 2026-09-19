@@ -1,5 +1,5 @@
 <template>
-  <div class="ms-mentor-desk">
+  <div ref="rootEl" class="ms-mentor-desk">
     <DewCard v-if="loading" variant="default" size="lg" :no-hover="true">
       <div v-loading="true" class="ms-loading"></div>
     </DewCard>
@@ -81,7 +81,16 @@
                 <span class="suitor-name">{{ s.username }}</span>
                 <span class="rank-chip">志愿 {{ s.rank }}</span>
               </div>
-              <p v-if="s.note" class="suitor-note">“{{ s.note }}”</p>
+              <p
+                v-if="s.note" class="suitor-note"
+                :class="{ open: noteOpen.has(String(s.user_id)) }"
+              >
+                <span class="note-text" :data-uid="s.user_id">“{{ s.note }}”</span>
+                <button
+                  v-if="noteOpen.has(String(s.user_id)) || noteLong.has(String(s.user_id))"
+                  type="button" class="note-toggle" @click="toggleNote(s.user_id)"
+                >{{ noteOpen.has(String(s.user_id)) ? '收起' : '展开' }}</button>
+              </p>
             </div>
             <div class="suitor-side">
               <span v-if="s.matched" class="taken-tag">已分配给 {{ s.matched_mentor_name || '其他导生' }}</span>
@@ -136,7 +145,16 @@
                   <span v-else-if="s.submitted" class="rank-plain">志愿未选我</span>
                   <span v-else class="rank-plain">未交志愿</span>
                 </div>
-                <p v-if="s.note" class="suitor-note">“{{ s.note }}”</p>
+                <p
+                  v-if="s.note" class="suitor-note"
+                  :class="{ open: noteOpen.has(String(s.user_id)) }"
+                >
+                  <span class="note-text" :data-uid="s.user_id">“{{ s.note }}”</span>
+                  <button
+                    v-if="noteOpen.has(String(s.user_id)) || noteLong.has(String(s.user_id))"
+                    type="button" class="note-toggle" @click="toggleNote(s.user_id)"
+                  >{{ noteOpen.has(String(s.user_id)) ? '收起' : '展开' }}</button>
+                </p>
               </div>
               <div class="suitor-side pick-side">
                 <DewTag v-if="s.status === 'mine' && s.source === 'admin'" size="sm">老师指派</DewTag>
@@ -164,7 +182,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, reactive, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 import { useStore } from 'vuex';
 import { ElMessage } from 'element-plus';
@@ -198,6 +216,29 @@ const rosterStudents = ref([]);
 const rosterLoading = ref(false);
 const rosterQuery = ref('');
 const actingId = ref(null);      // 正在勾选/释放的学员（行级 loading）
+
+// 留言展开：note 默认单行省略，溢出的给"展开/收起"开关
+const rootEl = ref(null);
+const noteOpen = reactive(new Set());   // 已展开的 user_id
+const noteLong = reactive(new Set());   // 截断态下实际溢出的 user_id
+
+const toggleNote = (uid) => {
+  const k = String(uid);
+  noteOpen.has(k) ? noteOpen.delete(k) : noteOpen.add(k);
+};
+
+// 渲染后实测 .note-text 溢出（scrollWidth > clientWidth）；展开态跳过（按钮由 noteOpen 兜底）
+function detectLongNotes() {
+  nextTick(() => {
+    noteLong.clear();
+    rootEl.value?.querySelectorAll('.suitor-note:not(.open) .note-text').forEach((t) => {
+      if (t.scrollWidth > t.clientWidth + 1) noteLong.add(t.dataset.uid);
+    });
+  });
+}
+
+onMounted(() => window.addEventListener('resize', detectLongNotes));
+onBeforeUnmount(() => window.removeEventListener('resize', detectLongNotes));
 
 const rosterFiltered = computed(() => {
   const q = rosterQuery.value.trim();
@@ -236,6 +277,7 @@ async function loadRoster() {
     rosterStudents.value = [];
   } finally {
     rosterLoading.value = false;
+    detectLongNotes();
   }
 }
 
@@ -288,10 +330,16 @@ async function reloadAll() {
     }
   } finally {
     loading.value = false;
+    detectLongNotes();
   }
 }
 
-watch(() => props.sid, () => { loading.value = true; reloadAll(); }, { immediate: true });
+watch(() => props.sid, () => {
+  loading.value = true;
+  noteOpen.clear();
+  noteLong.clear();
+  reloadAll();
+}, { immediate: true });
 </script>
 
 <style scoped>
@@ -386,10 +434,35 @@ watch(() => props.sid, () => { loading.value = true; reloadAll(); }, { immediate
   margin: 4px 0 0;
   font-size: 12.5px;
   color: var(--dew-text-muted);
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.note-text {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.suitor-note.open .note-text {
+  white-space: normal;
+  overflow: visible;
+  line-height: 1.6;
+}
+.note-toggle {
+  flex: none;
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--color-primary);
+  cursor: pointer;
+}
+.note-toggle:hover { text-decoration: underline; text-underline-offset: 2px; }
+.note-toggle:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; border-radius: 2px; }
 .suitor-side { flex: none; }
 .taken-tag { font-size: 12px; color: var(--dew-text-muted); }
 .rank-plain { font-size: 11.5px; color: var(--dew-text-faint); }
