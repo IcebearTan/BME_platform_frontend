@@ -118,7 +118,7 @@
           <MsMentorDesk v-if="tab === 'ms'" :sid="sid" />
           <MentorDashboard v-else-if="tab === 'dashboard'" :sid="sid" />
           <MentorLeave v-else-if="tab === 'leave'" :sid="sid" />
-          <MentorMembers v-else-if="tab === 'members'" :sid="sid" />
+          <MentorMembers v-else-if="tab === 'members'" :sid="sid" @go-meetings="tab = 'meetings'" />
           <CampMeetings v-else-if="tab === 'meetings'" :sid="sid" :camp-status="current?.status" />
         </template>
         <template v-else-if="current?.is_member">

@@ -209,30 +209,10 @@
         </div>
       </div>
     </DewDialog>
-    <!-- 章节认证（DewUI 弹窗，替代 ELP MessageBox）：未认证=打分可空；已认证=改分/撤销 -->
-    <DewDialog v-model="certDlg" title="章节认证" width="420px">
-      <div class="cert-form">
-        <p class="cert-line">
-          {{ certTarget?.student?.username }} · {{ certTarget?.chapter?.course_title }} /
-          {{ certTarget?.chapter?.chapter_title }}
-          <template v-if="certTarget?.cur">
-            （已认证{{ certTarget.cur.score != null ? ` ${certTarget.cur.score} 分` : '，未打分' }}）
-          </template>
-        </p>
-        <div class="cert-field">分数（0-100，留空 = 只认证不打分）</div>
-        <DewInput v-model="certScore" placeholder="如 88，可留空" @keydown.enter="saveCert" />
-        <div v-if="!certScoreValid" class="cert-err">分数须为 0-100 的整数或留空</div>
-        <div class="cert-actions">
-          <DewButton v-if="certTarget?.cur" type="danger" size="sm"
-                     :loading="certSaving" @click="revokeCert">撤销认证</DewButton>
-          <DewButton v-else type="ghost" size="sm" @click="certDlg = false">取消</DewButton>
-          <DewButton type="glass" size="sm" :loading="certSaving"
-                     :disabled="!certScoreValid" @click="saveCert">
-            {{ certTarget?.cur ? '保存' : '认证' }}
-          </DewButton>
-        </div>
-      </div>
-    </DewDialog>
+    <!-- 章节认证（09-19 抽共享 ChapterCertDialog，与学员进度看板同款交互） -->
+    <ChapterCertDialog v-model="certDlg" :sid="sid"
+                       :student="certTarget?.student" :chapter="certTarget?.chapter"
+                       :cert="certTarget?.cur" :readonly="!writable" @done="load" />
 
     <input ref="fileInput" type="file" multiple class="file-hidden" @change="onFilesPicked" />
   </DewDialog>
@@ -244,6 +224,7 @@ import { ElMessage } from 'element-plus';
 import { VideoPlay } from '@element-plus/icons-vue';
 import { DewDialog, DewButton, DewInput, DewTag, DewBadge, DewSkeleton } from '@bme/dew-ui';
 import { campService, assetUrl } from '../../services/campService';
+import ChapterCertDialog from './ChapterCertDialog.vue';
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -384,44 +365,14 @@ async function downloadZip() {
 }
 const zipLoading = ref(false);
 
-// 章节认证格子：点开 DewUI 认证弹窗（未认证=打分可空；已认证=改分/撤销，复用学员进度同款 API）
+// 章节认证格子：点开共享 ChapterCertDialog（09-19 抽出，与学员进度看板同款；
+// 写端点同一个 team/progress/certify，行为不变）
 const certDlg = ref(false);
 const certTarget = ref(null);     // { chapter, student, cur }
-const certScore = ref('');
-const certSaving = ref(false);
-const certScoreValid = computed(() => /^$|^(100|[1-9]?\d)$/.test(certScore.value.trim()));
 function certCell(c, s) {
   if (!writable.value) return;
   certTarget.value = { chapter: c, student: s, cur: c.certs[String(s.user_id)] || null };
-  certScore.value = certTarget.value.cur?.score != null ? String(certTarget.value.cur.score) : '';
   certDlg.value = true;
-}
-async function saveCert() {
-  const t = certTarget.value;
-  if (!t || certSaving.value || !certScoreValid.value) return;
-  certSaving.value = true;
-  try {
-    await campService.certifyChapter(props.sid, t.student.user_id, t.chapter.chapter_id,
-      certScore.value.trim() === '' ? null : Number(certScore.value.trim()));
-    ElMessage.success(t.cur ? '已更新认证' : '已认证');
-    certDlg.value = false;
-    load();
-  } catch (e) {
-    ElMessage.error(e.response?.data?.message || '认证失败');
-  } finally { certSaving.value = false; }
-}
-async function revokeCert() {
-  const t = certTarget.value;
-  if (!t || certSaving.value) return;
-  certSaving.value = true;
-  try {
-    await campService.revokeChapterCertification(props.sid, t.student.user_id, t.chapter.chapter_id);
-    ElMessage.success('已撤销认证');
-    certDlg.value = false;
-    load();
-  } catch (e) {
-    ElMessage.error(e.response?.data?.message || '撤销失败');
-  } finally { certSaving.value = false; }
 }
 </script>
 
@@ -544,12 +495,4 @@ a.att-link { align-self: flex-start; }
 .picker-hint { font-size: 12px; color: var(--dew-text-faint); }
 .form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px; }
 .file-hidden { display: none; }
-
-/* 章节认证弹窗（DewUI，替代 ELP MessageBox） */
-.cert-form { display: flex; flex-direction: column; gap: 8px; }
-.cert-line { margin: 0; font-size: 13px; font-weight: 600; color: var(--dew-text-heading); line-height: 1.6; }
-.cert-field { font-size: 12.5px; color: var(--dew-text-muted); }
-.cert-err { font-size: 12px; color: var(--color-danger, #e5484d); }
-.cert-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
-.cert-actions .dew-button:first-child { margin-right: auto; }
 </style>

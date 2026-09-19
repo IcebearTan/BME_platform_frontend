@@ -528,35 +528,37 @@ test('团队与学习认证：多课程按章认证+评分（0-100），可撤�
 
   await page.goto(`${BASE}/camp?tab=members&sid=1`, { waitUntil: 'domcontentloaded' })
 
-  // 方向 chip + 学员行两门课各自的进度 chip
+  // 方向 chip + 两层表头（课程/章节）；每课汇总列 k/n · 均分（09-19 看板化）
   await expect(page.getByRole('heading', { name: /学员进度/ })).toBeVisible()
   await expect(page.locator('.dir-chip', { hasText: '硬件组' })).toBeVisible()
-  await expect(page.getByText('嵌入式入门 1/2 · 均 88')).toBeVisible()
-  await expect(page.getByText('电路基础 0/1')).toBeVisible()
+  await expect(page.locator('.h-course-title', { hasText: '嵌入式入门' })).toBeVisible()
+  await expect(page.locator('.h-ch-name', { hasText: '欧姆定律' })).toBeVisible()
+  await expect(page.locator('.board tbody .sum', { hasText: '1/2' })
+    .filter({ hasText: '均 88' })).toBeVisible()
+  await expect(page.locator('.board tbody .sum', { hasText: '0/1' })).toBeVisible()
 
-  // 展开学员 → 已认证章带分数；跨课认证：电路基础未认证章，弹评分框填 95
-  await page.locator('.row-head', { hasText: '学员小张' }).click()
-  await expect(page.locator('.ch-row', { hasText: 'GPIO 点灯' }).locator('.ch-score', { hasText: '88 分' })).toBeVisible()
-  await page.locator('.course-sec', { hasText: '电路基础' })
-    .locator('.ch-row', { hasText: '欧姆定律' }).getByRole('button', { name: '认证' }).click()
-  await page.locator('.score-form input').fill('95')
-  await page.locator('.score-actions').getByRole('button', { name: '认证' }).click()
+  // 已认证章带分数；跨课认证：点电路基础未认证格（data-ch=21）→ 共享认证弹窗填 95
+  await expect(page.locator('td.cell[data-ch="11"]')).toHaveText(/88/)
+  await page.locator('td.cell[data-ch="21"]').click()
+  await page.locator('.cert-form input').fill('95')
+  await page.locator('.cert-actions').getByRole('button', { name: '认证', exact: true }).click()
   await expect.poll(() => lastBody).toEqual({ student_user_id: 201, chapter_id: 21, score: 95 })
 
-  // 回读：电路基础 1/1 · 均 95
-  await expect(page.getByText('电路基础 1/1 · 均 95')).toBeVisible()
+  // 回读：电路基础汇总 1/1 · 均 95
+  await expect(page.locator('.board tbody .sum', { hasText: '1/1' })
+    .filter({ hasText: '均 95' })).toBeVisible()
 
-  // 改分：GPIO 88 → 92（重复 POST 带 score）
-  await page.locator('.ch-row', { hasText: 'GPIO 点灯' }).getByRole('button', { name: '改分' }).click()
-  await page.locator('.score-form input').fill('92')
-  await page.locator('.score-actions').getByRole('button', { name: '保存' }).click()
+  // 改分：点已认证格（11，弹窗预填 88）→ 92（重复 POST 带 score）
+  await page.locator('td.cell[data-ch="11"]').click()
+  await expect(page.locator('.cert-form')).toContainText('已认证 88 分')
+  await page.locator('.cert-form input').fill('92')
+  await page.locator('.cert-actions').getByRole('button', { name: '保存', exact: true }).click()
   await expect.poll(() => lastBody).toEqual({ student_user_id: 201, chapter_id: 11, score: 92 })
-  await expect(page.locator('.ch-score', { hasText: '92 分' })).toBeVisible()
+  await expect(page.locator('td.cell[data-ch="11"]')).toHaveText(/92/)
 
-  // 章节材料（09-14）：「材料 1」chip 打开弹层 → 内容/附件下载链接；删除后弹层空态+chip 归零
-  const gpioRow = page.locator('.ch-row', { hasText: 'GPIO 点灯' })
-  await expect(gpioRow.locator('.mat-chip', { hasText: '材料 1' })).toBeVisible()
-  await gpioRow.locator('.mat-chip').click()
+  // 章节材料（09-14）：材料角标打开弹层 → 内容/附件下载链接；删后空态+角标归零（内存闭环）
+  await expect(page.locator('td.cell[data-ch="11"] .mat-dot')).toHaveText('1')
+  await page.locator('td.cell[data-ch="11"] .mat-dot').click()
   await expect(page.locator('.mat-list').getByText('点灯实验记录：电阻 220Ω')).toBeVisible()
   const matAtt = page.locator('.mat-list .att-link', { hasText: 'led.png' })
   await expect(matAtt).toBeVisible()
@@ -571,16 +573,19 @@ test('团队与学习认证：多课程按章认证+评分（0-100），可撤�
   await matAtt.click()
   await expect.poll(() => page.evaluate(() => window.__opened[0]))
     .toContain('/camp/materials/attachments/19?')
+  // 删除确认改 DewUI 弹窗（09-19）
   await page.locator('.mat-list').locator('.mat-row', { hasText: '点灯实验记录' })
     .getByRole('button', { name: '删除' }).click()
-  await page.locator('.el-message-box').getByRole('button', { name: '删除' }).click()
+  await page.locator('.del-actions').getByRole('button', { name: '删除', exact: true }).click()
   await expect(page.locator('.mat-list').getByText('该学员本章暂无材料')).toBeVisible()
   expect(matDeleted).toBe(true)
-  await page.locator('.dew-dialog__close').click()   // 关材料弹层，撤销断言不受遮挡
+  await expect(page.locator('td.cell[data-ch="11"] .mat-dot')).toHaveCount(0)
+  await page.locator('.dew-dialog__close').first().click()   // 关材料弹层，撤销断言不受遮挡
 
   // 撤销回到未认证态
-  await page.locator('.ch-row', { hasText: '欧姆定律' }).getByRole('button', { name: '撤销' }).click()
-  await expect(page.getByText('电路基础 0/1')).toBeVisible()
+  await page.locator('td.cell[data-ch="21"]').click()
+  await page.locator('.cert-actions').getByRole('button', { name: '撤销认证' }).click()
+  await expect(page.locator('.board tbody .sum', { hasText: '0/1' })).toBeVisible()
 
   expect(errors).toEqual([])
 })
