@@ -13,7 +13,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useStore } from 'vuex'
 import { ElMessage } from 'element-plus'
 import { Share, Star, StarFilled, ChatDotRound, Collection, View } from '@element-plus/icons-vue'
-import { DewCard, DewSkeleton } from '@bme/dew-ui'
+import { DewCard, DewSkeleton, DewImage } from '@bme/dew-ui'
 import { MdPreview, MdCatalog } from 'md-editor-v3'
 import 'md-editor-v3/lib/preview.css'
 import '@bme/editor/md-setup' // 自托管 highlight.js（与编辑器共享）
@@ -39,6 +39,7 @@ const articleTime = ref('')
 const articleAuthor = ref('')
 const authorAvatar = ref('')
 const authorId = ref(null)
+const coverUrl = ref('')       // 封面（09-19 社区重设计：有封面时 hero 大图）
 
 // 互动状态（点赞 / 收藏 / 计数），v2 走 discussion reaction 体系
 const {
@@ -62,6 +63,7 @@ const getArticle = async () => {
     authorId.value = d.author_id ?? null
     authorAvatar.value = assetUrl(d.author_avatar || '') || ''
     contentMd.value = d.content_md || ''
+    coverUrl.value = d.cover ? assetUrl(d.cover) : ''
     // 详情接口附带的计数（匿名也有），回填互动 composable
     initCounts(d.like_count ?? 0, d.reply_count ?? 0, d.view_count ?? 0)
   } catch (e) {
@@ -118,6 +120,8 @@ onMounted(async () => {
     <div class="article-layout">
       <!-- 主列：正文 -->
       <div class="article-primary">
+        <!-- 封面 hero（09-19）：官方推文/带封面文章的头图，跨主列全宽 -->
+        <DewImage v-if="coverUrl" class="article-hero" :src="coverUrl" ratio="16/9" alt="文章封面" />
         <DewCard variant="flat" size="lg" class="article-main">
           <!-- 头部 -->
           <header class="article-header">
@@ -240,6 +244,14 @@ onMounted(async () => {
 }
 
 /* flat 正文卡：清掉 DewCard 默认内边距，由内部三段自定义 */
+/* 封面 hero（09-19）：正文卡之上的全宽头图 */
+.article-hero {
+  width: 100%;
+  margin-bottom: 16px;
+  border-radius: var(--radius-lg, 14px);
+  overflow: hidden;
+}
+
 .article-main :deep(.dew-card__body) {
   padding: 0;
 }

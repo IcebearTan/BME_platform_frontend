@@ -42,6 +42,12 @@
       {{ expanded ? '收起' : '展开全文' }}
     </button>
 
+    <!-- 图集（09-19 社区重设计）：1-4 图自适应网格，点击大图查看 -->
+    <div v-if="images.length" :class="['dc-images', `dc-images--${Math.min(images.length, 4)}`]">
+      <DewImage v-for="(img, i) in images" :key="img" class="dc-images__item"
+                :src="img" ratio="4/3" alt="帖子图片" @click.stop="openViewer(i)" />
+    </div>
+
     <!-- 操作按钮 -->
     <div class="dc-actions">
       <button
@@ -64,50 +70,68 @@
       </button>
     </div>
 
-    <!-- 回复列表 -->
-    <div v-if="discussion.replies && discussion.replies.length > 0" class="dc-replies">
-      <div class="dc-replies-header">{{ discussion.reply_count }} 条回复</div>
-      <div
-        v-for="reply in discussion.replies"
-        :key="reply.id"
-        class="dc-reply"
-      >
-        <el-avatar :size="28" :src="reply.author_avatar">{{ (reply.author || '?').charAt(0) }}</el-avatar>
-        <div class="dc-reply-body">
-          <div class="dc-reply-head">
-            <span class="dc-reply-name">{{ reply.author }}</span>
-            <span class="dc-reply-time">{{ reply.time }}</span>
-          </div>
-          <div class="dc-reply-text">{{ reply.content }}</div>
-          <button
-            class="dc-action dc-action--sm"
-            :class="{ 'is-liked': reply.liked }"
-            @click.stop="handleReplyLike(reply)"
-          >
-            <el-icon><StarFilled v-if="reply.liked" /><Star v-else /></el-icon>
-            <span>{{ reply.like_count || 0 }}</span>
-          </button>
-        </div>
-      </div>
-      <button
-        v-if="discussion.reply_count > discussion.replies.length && !allLoaded"
-        class="dc-more-replies"
-        @click.stop="loadMoreReplies"
-      >
-        查看更多回复
+    <!-- 回复区（09-19 紧凑化）：默认折叠为一行摘要，展开才显示回复串与输入框 -->
+    <div v-if="discussion.reply_count > 0 || showReplyInput" class="dc-replies">
+      <button v-if="!repliesExpanded && discussion.reply_count > 0" class="dc-replies-toggle" @click.stop="repliesExpanded = true">
+        <el-icon><ChatDotRound /></el-icon>
+        查看 {{ discussion.reply_count }} 条回复
+        <span v-if="discussion.replies && discussion.replies.length" class="dc-replies-peek">
+          {{ discussion.replies[0].author }}：{{ discussion.replies[0].content.slice(0, 30) }}
+        </span>
       </button>
+      <template v-if="repliesExpanded">
+        <div class="dc-replies-header">{{ discussion.reply_count }} 条回复</div>
+        <div
+          v-for="reply in discussion.replies"
+          :key="reply.id"
+          class="dc-reply"
+        >
+          <el-avatar :size="28" :src="reply.author_avatar">{{ (reply.author || '?').charAt(0) }}</el-avatar>
+          <div class="dc-reply-body">
+            <div class="dc-reply-head">
+              <span class="dc-reply-name">{{ reply.author }}</span>
+              <span class="dc-reply-time">{{ reply.time }}</span>
+            </div>
+            <div class="dc-reply-text">{{ reply.content }}</div>
+            <button
+              class="dc-action dc-action--sm"
+              :class="{ 'is-liked': reply.liked }"
+              @click.stop="handleReplyLike(reply)"
+            >
+              <el-icon><StarFilled v-if="reply.liked" /><Star v-else /></el-icon>
+              <span>{{ reply.like_count || 0 }}</span>
+            </button>
+          </div>
+        </div>
+        <button
+          v-if="discussion.reply_count > discussion.replies.length && !allLoaded"
+          class="dc-more-replies"
+          @click.stop="loadMoreReplies"
+        >
+          查看更多回复
+        </button>
+      </template>
+
+      <!-- 回复输入框（展开后或点回复按钮时显示） -->
+      <div v-if="showReplyInput" class="dc-reply-input">
+        <DewInput
+          v-model="replyContent"
+          type="textarea"
+          :rows="2"
+          placeholder="写下你的回复..."
+        />
+        <DewButton size="sm" :active="true" @click="submitReply">回复</DewButton>
+      </div>
     </div>
 
-    <!-- 回复输入框 -->
-    <div v-if="showReplyInput" class="dc-reply-input">
-      <DewInput
-        v-model="replyContent"
-        type="textarea"
-        :rows="2"
-        placeholder="写下你的回复..."
-      />
-      <DewButton size="sm" :active="true" @click="submitReply">回复</DewButton>
-    </div>
+    <!-- 图集大图查看器 -->
+    <el-image-viewer
+      v-if="viewerVisible"
+      :url-list="images"
+      :initial-index="viewerIndex"
+      teleported
+      @close="viewerVisible = false"
+    />
   </DewCard>
 </template>
 
@@ -132,6 +156,18 @@ const emit = defineEmits(['like', 'reply', 'delete', 'user-click'])
 const store = useStore()
 const showReplyInput = ref(false)
 const replyContent = ref('')
+
+// 回复区紧凑化（09-19）：默认折叠为摘要行，点开才显示回复串
+const repliesExpanded = ref(false)
+
+// 帖子图集（09-19）：feed 映射后已是完整 URL
+const images = computed(() => props.discussion.images || [])
+const viewerVisible = ref(false)
+const viewerIndex = ref(0)
+const openViewer = (i) => {
+  viewerIndex.value = i
+  viewerVisible.value = true
+}
 
 // 正文折叠：超过阈值截断，提供「展开全文 / 收起」
 const COLLAPSE_THRESHOLD = 200
@@ -509,6 +545,43 @@ const handleDelete = async () => {
 }
 
 /* 回复列表 */
+/* 图集（09-19）：1 图大 / 2-4 图网格，点击大图查看 */
+.dc-images {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+.dc-images--1 { grid-template-columns: minmax(0, 420px); }
+.dc-images--2, .dc-images--4 { grid-template-columns: repeat(2, 1fr); }
+.dc-images--3 { grid-template-columns: repeat(3, 1fr); }
+.dc-images__item { width: 100%; cursor: zoom-in; border-radius: var(--radius-sm, 8px); overflow: hidden; }
+
+/* 回复折叠摘要行（09-19 紧凑化） */
+.dc-replies-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: var(--radius-sm, 8px);
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--dew-text-muted);
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.dc-replies-toggle:hover { background: rgba(0, 0, 0, 0.07); color: var(--dew-text-heading); }
+.dc-replies-peek {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--dew-text-faint);
+}
+
 .dc-replies {
   margin-bottom: 4px;
 }

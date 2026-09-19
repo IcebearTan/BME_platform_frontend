@@ -21,60 +21,35 @@
       <MobileMenuComponent v-if="isMobile && isMobileMenuOpen" @close="toggleMobileMenu" />
 
       <el-main class="community-main-container">
-        <!-- 三栏布局容器 -->
+        <!-- 双栏布局容器（左主列 + 右运营栏） -->
         <div class="community-layout">
-          <!-- 左侧导航栏 (暂时禁用) -->
-          <aside class="left-sidebar" v-if="false">
-            <div class="nav-menu">
-              <div
-                v-for="item in navItems"
-                :key="item.value"
-                :class="['nav-item', { 'active': activeFilter === item.value }]"
-                @click="handleFilterChange(item.value)"
-              >
-                <el-icon><component :is="item.icon" /></el-icon>
-                <span>{{ item.label }}</span>
-              </div>
-            </div>
-          </aside>
-
           <!-- 中间主内容区 -->
           <main class="main-content">
-            <!-- 顶部活动Banner (暂时禁用) -->
-            <div class="activity-banner" v-if="false">
-              <el-carousel
-                :interval="5000"
-                height="120px"
-                indicator-position="outside"
-                arrow="hover"
-              >
-                <el-carousel-item v-for="topic in topics" :key="topic.id">
-                  <div class="banner-item" @click="handleTopicClick(topic)" :style="{ background: topic.coverGradient }">
-                    <div class="banner-content-wrapper">
-                      <!-- 左侧内容区 -->
-                      <div class="banner-left">
-                        <div class="banner-header">
-                          <el-icon class="banner-icon"><Collection /></el-icon>
-                          <span class="banner-category">活动专题</span>
-                        </div>
-                        <h3 class="banner-title">{{ topic.title }}</h3>
-                        <p class="banner-description">{{ topic.description }}</p>
-                        <div class="banner-meta">
-                          <span class="meta-tag">{{ topic.articleCount }} 篇内容</span>
-                          <span class="meta-tag">{{ topic.viewCount }} 浏览</span>
-                        </div>
-                      </div>
-                      <!-- 右侧操作区 -->
-                      <div class="banner-right">
-                        <el-button class="banner-action-btn" size="small" round>
-                          查看详情
-                          <el-icon class="el-icon--right"><ArrowRight /></el-icon>
-                        </el-button>
-                      </div>
+            <!-- 公告条（社区重设计 09-19）：最近的系统重要通知，细条不占版面，点击进通知中心 -->
+            <div v-if="noticeItem" class="notice-bar" @click="router.push('/notifications')">
+              <span class="notice-bar__tag">公告</span>
+              <span class="notice-bar__text">{{ noticeItem.title }}</span>
+              <el-icon class="notice-bar__arrow"><ArrowRight /></el-icon>
+            </div>
+
+            <!-- 推文精选带（09-19）：官方推文大封面卡，feed 正文流不重复出现 -->
+            <div v-if="spotlightItems.length" class="spotlight-band">
+              <div class="spotlight-head">
+                <span class="spotlight-title">精选推文</span>
+                <span class="spotlight-sub">官方出品</span>
+              </div>
+              <div class="spotlight-track">
+                <div v-for="s in spotlightItems" :key="s.id" class="spotlight-card" @click="goSpotlight(s.id)">
+                  <DewImage class="spotlight-card__cover" :src="assetUrl(s.cover)" ratio="16/9" alt="推文封面" />
+                  <div class="spotlight-card__body">
+                    <div class="spotlight-card__title">{{ s.title }}</div>
+                    <div class="spotlight-card__meta">
+                      <span>{{ s.author_name }}</span>
+                      <span>{{ (s.publish_time || '').slice(5, 10) }}</span>
                     </div>
                   </div>
-                </el-carousel-item>
-              </el-carousel>
+                </div>
+              </div>
             </div>
 
             <!-- 筛选栏：类型分类(全部/文章/讨论) × 排序(热度/最新) 正交双控件 -->
@@ -140,9 +115,16 @@
             </div>
           </main>
 
-          <!-- 右侧栏 - 写文章入口 + 发布帖子 -->
+          <!-- 右侧栏 - 发帖入口 + 写文章 + XLAB 引流（09-19 重构：发帖改弹层，加项目现场） -->
           <aside class="right-sidebar">
-            <!-- 写文章入口（长文创作，与发帖框同列） -->
+            <!-- 发帖入口：一行输入形态，点击弹层发帖（支持图片） -->
+            <div class="post-entry" @click="openCreateDlg">
+              <el-icon class="post-entry__icon"><EditPen /></el-icon>
+              <span class="post-entry__hint">分享点什么…</span>
+              <span class="post-entry__btn">发帖</span>
+            </div>
+
+            <!-- 写文章入口（长文创作） -->
             <DewCard size="lg" interactive class="write-entry" @click="router.push('/article-editor-v2')">
               <div class="write-entry__inner">
                 <div class="write-entry__icon">
@@ -156,36 +138,25 @@
               </div>
             </DewCard>
 
-            <!-- 发布帖子卡片 -->
-            <DewCard size="lg" divided class="create-post-card">
+            <!-- XLAB 引流：正在做的项目（09-19，社区为项目广场导流） -->
+            <DewCard v-if="xlabProjects.length" size="lg" class="xlab-card">
               <template #header>
-                <span class="create-post-title">发布新帖</span>
+                <div class="xlab-card__head" @click="router.push('/projects')">
+                  <span class="xlab-card__title">项目现场</span>
+                  <span class="xlab-card__more">进入 XLAB<el-icon><ArrowRight /></el-icon></span>
+                </div>
               </template>
-              <div class="form-field">
-                <label class="form-label">标题</label>
-                <DewInput
-                  v-model="newThread.title"
-                  placeholder="请输入帖子标题"
-                />
+              <div class="xlab-card__list">
+                <div v-for="prj in xlabProjects" :key="prj.id" class="xlab-item" @click="router.push(`/projects/${prj.id}`)">
+                  <DewImage v-if="prj.cover_thumb || prj.cover" class="xlab-item__cover"
+                            :src="assetUrl(prj.cover_thumb || prj.cover)" ratio="1/1" width="44px" alt="项目封面" />
+                  <div v-else class="xlab-item__cover xlab-item__cover--ph">{{ (prj.title || '?')[0] }}</div>
+                  <div class="xlab-item__body">
+                    <div class="xlab-item__name">{{ prj.title }}</div>
+                    <div class="xlab-item__meta">{{ prj.project_status_text }}<template v-if="prj.camp_name"> · {{ prj.camp_name }}</template></div>
+                  </div>
+                </div>
               </div>
-              <div class="form-field">
-                <label class="form-label">内容</label>
-                <DewInput
-                  v-model="newThread.content"
-                  type="textarea"
-                  :rows="4"
-                  placeholder="分享你的想法..."
-                />
-              </div>
-              <DewButton
-                :active="true"
-                block
-                :disabled="createLoading"
-                @click="submitNewThread"
-                class="submit-btn"
-              >
-                发布帖子
-              </DewButton>
             </DewCard>
           </aside>
         </div>
@@ -196,117 +167,32 @@
       </el-footer> -->
     </el-container>
 
-    <!-- 帖子详情对话框 (已禁用，改用内联展示) -->
-    <div v-if="false">
-    <el-dialog
-      v-model="threadDetailVisible"
-      :title="currentThread?.title"
-      width="700px"
-      :class="['thread-detail-dialog', { 'theme-dark': isDarkMode }]"
-    >
-      <div v-if="currentThread" class="thread-detail">
-        <div class="thread-author">
-          <el-avatar :size="40" :src="currentThread.author_avatar || ''" />
-          <div class="author-info">
-            <div class="author-name">{{ currentThread.author_name }}</div>
-            <div class="thread-time">{{ formatTimeAgo(currentThread.created_at) }}</div>
+    <!-- 发帖弹层（09-19）：右栏入口/移动端入口点击打开，支持图片 ≤4 张 -->
+    <DewDialog v-model="createDlg" title="发布新帖" width="560px">
+      <div class="create-dlg__form">
+        <DewInput v-model="newThread.title" placeholder="标题（至少 4 字）" />
+        <DewInput v-model="newThread.content" type="textarea" :rows="5"
+                  placeholder="分享你的想法（至少 10 字）…" />
+        <div class="create-dlg__images">
+          <div v-for="(img, i) in pendingImages" :key="img.url" class="create-dlg__img-cell">
+            <img :src="img.url" alt="待传图片" />
+            <button type="button" class="create-dlg__img-del" @click="removePendingImage(i)">×</button>
           </div>
+          <button v-if="pendingImages.length < 4" type="button" class="create-dlg__img-add"
+                  :disabled="imgUploading" @click="postImgInput?.click()">
+            {{ imgUploading ? '上传中…' : '+ 图片' }}
+          </button>
         </div>
-        <div class="thread-content">{{ currentThread.content }}</div>
-        <div class="thread-actions">
-          <el-button :type="currentThread.liked ? 'primary' : 'default'" text @click="handleThreadLike(currentThread)">
-            <el-icon><StarFilled v-if="currentThread.liked" /><Star v-else /></el-icon>
-            <span>{{ currentThread.liked ? '已赞' : '点赞' }}</span>
-            <span v-if="currentThread.like_count">({{ currentThread.like_count }})</span>
-          </el-button>
-          <el-button text>
-            <el-icon><ChatDotRound /></el-icon>
-            {{ currentThread.reply_count }} 回复
-          </el-button>
-          <el-button text>
-            <el-icon><View /></el-icon>
-            {{ currentThread.view_count }} 浏览
-          </el-button>
-        </div>
-
-        <!-- 回复列表 -->
-        <div class="replies-section">
-          <h4>全部回复 ({{ threadReplies.length }})</h4>
-          <div v-for="reply in threadReplies" :key="reply.id" class="reply-item">
-            <el-avatar :size="32" :src="reply.author_avatar || ''" />
-            <div class="reply-content">
-              <div class="reply-header">
-                <span class="reply-author">{{ reply.author_name }}</span>
-                <span class="reply-time">{{ formatTimeAgo(reply.created_at) }}</span>
-              </div>
-              <div class="reply-text">{{ reply.content }}</div>
-              <div class="reply-actions">
-                <el-button text size="small" @click="handleReplyLike(reply)">
-                  {{ reply.liked ? '已赞' : '赞' }} ({{ reply.like_count }})
-                </el-button>
-              </div>
-              <!-- 子回复 -->
-              <div v-if="reply.children && reply.children.length > 0" class="children-replies">
-                <div v-for="child in reply.children" :key="child.id" class="reply-item child-reply">
-                  <el-avatar :size="28" :src="child.author_avatar || ''" />
-                  <div class="reply-content">
-                    <div class="reply-header">
-                      <span class="reply-author">{{ child.author_name }}</span>
-                      <span class="reply-time">{{ formatTimeAgo(child.created_at) }}</span>
-                    </div>
-                    <div class="reply-text">{{ child.content }}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- 添加回复 -->
-          <div class="add-reply">
-            <el-input
-              v-model="newReplyContent"
-              type="textarea"
-              :rows="3"
-              placeholder="写下你的回复..."
-            />
-            <el-button type="primary" @click="submitReply" :loading="replyLoading">提交回复</el-button>
-          </div>
-        </div>
-      </div>
-    </el-dialog>
-    </div>
-
-    <!-- 创建帖子对话框 (已禁用，改用侧边栏) -->
-    <div v-if="false">
-    <el-dialog
-      v-model="createThreadVisible"
-      title="发布新帖"
-      width="600px"
-      :class="['create-thread-dialog', { 'theme-dark': isDarkMode }]"
-    >
-      <div class="create-thread-form">
-        <el-form :model="newThread" label-width="80px">
-          <el-form-item label="标题">
-            <el-input v-model="newThread.title" placeholder="请输入帖子标题" maxlength="100" show-word-limit />
-          </el-form-item>
-          <el-form-item label="内容">
-            <el-input
-              v-model="newThread.content"
-              type="textarea"
-              :rows="6"
-              placeholder="请输入帖子内容..."
-              maxlength="5000"
-              show-word-limit
-            />
-          </el-form-item>
-        </el-form>
+        <div class="create-dlg__hint">图片最多 4 张，jpg/png/webp ≤10MB</div>
       </div>
       <template #footer>
-        <el-button @click="createThreadVisible = false">取消</el-button>
-        <el-button type="primary" @click="submitNewThread" :loading="createLoading">发布</el-button>
+        <DewButton :disabled="createLoading" @click="createDlg = false">取消</DewButton>
+        <DewButton :active="true" :disabled="createLoading || !canSubmitThread" @click="submitNewThread">
+          {{ createLoading ? '发布中…' : '发布' }}
+        </DewButton>
       </template>
-    </el-dialog>
-    </div>
+    </DewDialog>
+    <input ref="postImgInput" type="file" accept="image/jpeg,image/png,image/webp" hidden @change="onPostImgPick" />
   </div>
 </template>
 
@@ -318,14 +204,13 @@ import MenuComponent from '../components/MenuComponent.vue'
 import MobileMenuComponent from '../components/MobileMenuComponent.vue'
 import DiscussionCard from '../components/Community/DiscussionCard.vue'
 import ArticleCard from '../components/Community/ArticleCard.vue'
-import { DewButtonBar, DewCard, DewInput, DewButton, DewSkeleton } from '@bme/dew-ui'
+import { DewButtonBar, DewCard, DewInput, DewButton, DewSkeleton, DewDialog, DewImage } from '@bme/dew-ui'
 import api from '../api'
 import { assetUrl } from '../services/campService'
-import {
-  Grid, Collection, ChatDotRound, User, TrendCharts, ArrowRight
-} from '@element-plus/icons-vue'
+import { showcaseService } from '../services/showcaseService'
+import { ArrowRight } from '@element-plus/icons-vue'
 import { Menu as Expand } from '@element-plus/icons-vue'
-import { View, Star, StarFilled, EditPen } from '@element-plus/icons-vue'
+import { EditPen } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
 const store = useStore()
@@ -347,21 +232,6 @@ const checkScreenSize = () => {
 
 const toggleMobileMenu = () => {
   isMobileMenuOpen.value = !isMobileMenuOpen.value
-}
-
-// 左侧导航项
-const navItems = ref([
-  { label: '全部', value: 'all', icon: Grid },
-  { label: '关注', value: 'following', icon: User },
-  { label: '专题', value: 'topics', icon: Collection },
-  { label: '热门', value: 'trending', icon: TrendCharts }
-])
-
-const activeFilter = ref('all')
-
-const handleFilterChange = (value) => {
-  activeFilter.value = value
-  ElMessage.info(`切换到: ${navItems.value.find(item => item.value === value)?.label}`)
 }
 
 // 类型分类 × 排序 双控件（正交：任一变化都重置到第 1 页重拉）
@@ -412,6 +282,8 @@ const fetchThreads = async (reset = false) => {
           title: item.title,
           summary: item.summary,
           introduction: item.summary,
+          cover: item.cover || null,
+          cover_thumb: item.cover_thumb || null,
           author_name: item.author_name,
           author: item.author_name,
           authorId: item.author_id,
@@ -430,6 +302,7 @@ const fetchThreads = async (reset = false) => {
         title: item.title,
         content: item.summary,
         summary: item.summary,
+        images: (item.images || []).map(u => assetUrl(u)),
         category: '全局',
         author: item.author_name,
         authorId: item.author_id,
@@ -499,158 +372,101 @@ const formatTimeAgo = (dateStr) => {
 }
 
 // 专题数据
-const topics = ref([
-  {
-    id: 1,
-    title: 'Python编程入门',
-    description: '从零开始学习Python编程基础',
-    coverGradient: 'linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%)',
-    articleCount: 25,
-    viewCount: '1.2k'
-  },
-  {
-    id: 2,
-    title: '前端开发技巧',
-    description: '现代前端开发最佳实践',
-    coverGradient: 'linear-gradient(135deg, #fef3c7 0%, #fed7aa 100%)',
-    articleCount: 32,
-    viewCount: '2.5k'
-  },
-  {
-    id: 3,
-    title: '数据结构与算法',
-    description: '掌握核心算法和数据结构',
-    coverGradient: 'linear-gradient(135deg, #e0e7ff 0%, #ddd6fe 100%)',
-    articleCount: 18,
-    viewCount: '980'
-  },
-  {
-    id: 4,
-    title: '机器学习实战',
-    description: '实战项目驱动的机器学习课程',
-    coverGradient: 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)',
-    articleCount: 15,
-    viewCount: '1.8k'
-  }
-])
+// ── 社区重设计（09-19）：公告条 / 推文精选带 / XLAB 引流 ──
+const noticeItem = ref(null)          // 顶部公告条：最近一条 system 重要通知
+const spotlightItems = ref([])        // 精选带：官方推文（feed 不重复出现）
+const xlabProjects = ref([])          // 右栏项目现场：进行中的 XLAB 项目
 
-// 混合信息流数据（现在只显示讨论贴）
+async function fetchNoticeBar() {
+  try {
+    const res = await api.get('/notification/list', { params: { category: 'system', per_page: 5 } })
+    const rows = res.data?.data?.notifications || []
+    noticeItem.value = rows.find(n => n.is_important) || null
+  } catch { /* 公告条静默隐藏 */ }
+}
+async function fetchSpotlight() {
+  try {
+    const res = await api.get('/community/spotlight', { params: { limit: 3 } })
+    spotlightItems.value = res.data?.data || []
+  } catch { /* 精选带静默隐藏 */ }
+}
+async function fetchXlabProjects() {
+  try {
+    const res = await showcaseService.fetchProjects({ project_status: 'ongoing' })
+    const rows = res.projects || []
+    // 有封面的优先，最多 4 个
+    rows.sort((a, b) => Number(!!(b.cover_thumb || b.cover)) - Number(!!(a.cover_thumb || a.cover)))
+    xlabProjects.value = rows.slice(0, 4)
+  } catch { /* 引流卡静默隐藏 */ }
+}
+const goSpotlight = (id) => router.push({ path: '/article-v2', query: { id } })
+
+// ── 混合信息流 ──
 const feedItems = ref([])
-
-// 加载状态
 const loading = ref(true)
 const hasMore = ref(true)
 
-// （原 base64 头像 fetchAvatar 已移除：改用后端相对路径 author_avatar，见 enrichDiscussion）
-
-// 帖子详情相关状态
-const threadDetailVisible = ref(false)
-const currentThread = ref(null)
-const threadReplies = ref([])
-const newReplyContent = ref('')
-const replyLoading = ref(false)
-
-// 创建帖子相关状态
-const createThreadVisible = ref(false)
-const newThread = ref({
-  title: '',
-  content: '',
-  scope_type: 'global',
-  scope_id: null
-})
+// ── 发帖弹层（09-19，替代右栏整卡表单；图片先传图床拿 URL 再随帖提交） ──
+const createDlg = ref(false)
 const createLoading = ref(false)
+const newThread = ref({ title: '', content: '', scope_type: 'global', scope_id: null })
+const pendingImages = ref([])         // [{ url }]（已传图床的相对 URL）
+const imgUploading = ref(false)
+const postImgInput = ref(null)
 
-// 事件处理
-const handleTopicClick = (topic) => {
-  ElMessage.info(`进入专题: ${topic.title}`)
+const canSubmitThread = computed(() =>
+  newThread.value.title.trim().length >= 4 && newThread.value.content.trim().length >= 10)
+
+function openCreateDlg() {
+  newThread.value = { title: '', content: '', scope_type: 'global', scope_id: null }
+  pendingImages.value = []
+  createDlg.value = true
 }
-
-// 点赞帖子
-const handleThreadLike = async (thread) => {
+function removePendingImage(i) {
+  pendingImages.value.splice(i, 1)
+}
+async function onPostImgPick(e) {
+  const file = e.target.files?.[0]
+  e.target.value = ''
+  if (!file || imgUploading.value) return
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+    ElMessage.error('图片仅支持 jpg/png/webp'); return
+  }
+  if (file.size > 10 * 1024 * 1024) { ElMessage.error('图片不能超过 10MB'); return }
+  imgUploading.value = true
   try {
-    const res = await api.post('/discussions/reactions', {
-      target_type: 'thread',
-      target_id: thread.id,
-      reaction_type: 'like'
-    })
-    if (res.data && res.data.data) {
-      thread.liked = res.data.data.liked
-      thread.likes = (thread.likes || 0) + (thread.liked ? 1 : -1)
-    }
-  } catch (error) {
-    console.error('点赞失败:', error)
+    const fd = new FormData()
+    fd.append('image', file)
+    const res = await api.post('/discussions/upload_image', fd)
+    pendingImages.value.push({ url: res.data.url })
+  } catch (err) {
+    ElMessage.error(err.response?.data?.message || '图片上传失败')
+  } finally {
+    imgUploading.value = false
   }
 }
 
-// 点赞回复
-const handleReplyLike = async (reply) => {
-  try {
-    const res = await api.post('/discussions/reactions', {
-      target_type: 'reply',
-      target_id: reply.id,
-      reaction_type: 'like'
-    })
-    if (res.data && res.data.data) {
-      reply.liked = res.data.data.liked
-      reply.like_count = (reply.like_count || 0) + (reply.liked ? 1 : -1)
-    }
-  } catch (error) {
-    console.error('点赞失败:', error)
-  }
-}
-
-// 提交新帖子
+// 提交新帖子（带图集）
 const submitNewThread = async () => {
-  if (!newThread.value.title || !newThread.value.content) {
-    ElMessage.warning('请填写标题和内容')
-    return
-  }
+  if (!canSubmitThread.value || createLoading.value) return
   createLoading.value = true
   try {
-    const res = await api.post('/discussions/threads', newThread.value)
+    const res = await api.post('/discussions/threads', {
+      ...newThread.value,
+      images: pendingImages.value.map(x => x.url),
+    })
     if (res.data && res.data.code === 201) {
       ElMessage.success('发布成功')
-      createThreadVisible.value = false
+      createDlg.value = false
       fetchThreads(true) // 刷新列表（重置到第1页）
     }
   } catch (error) {
-    console.error('发布帖子失败:', error)
-    ElMessage.error('发布失败')
+    ElMessage.error(error.response?.data?.message || '发布失败')
   } finally {
     createLoading.value = false
   }
 }
 
-// 提交回复
-const submitReply = async () => {
-  if (!newReplyContent.value.trim()) {
-    ElMessage.warning('请输入回复内容')
-    return
-  }
-  if (!currentThread.value) return
-  replyLoading.value = true
-  try {
-    const res = await api.post(`/discussions/threads/${currentThread.value.id}/replies`, {
-      content: newReplyContent.value
-    })
-    if (res.data && res.data.code === 201) {
-      ElMessage.success('回复成功')
-      newReplyContent.value = ''
-      // 刷新回复列表
-      const repliesRes = await api.get(`/discussions/threads/${currentThread.value.id}/replies`)
-      if (repliesRes.data && repliesRes.data.data) {
-        threadReplies.value = repliesRes.data.data
-      }
-      // 更新回复数
-      currentThread.value.reply_count = (currentThread.value.reply_count || 0) + 1
-    }
-  } catch (error) {
-    console.error('回复失败:', error)
-    ElMessage.error('回复失败')
-  } finally {
-    replyLoading.value = false
-  }
-}
 
 const loadMore = () => {
   if (!loading.value && hasMore.value) fetchThreads(false)
@@ -681,6 +497,9 @@ onMounted(() => {
   checkScreenSize()
   window.addEventListener('resize', checkScreenSize)
   fetchThreads(true)
+  fetchNoticeBar()
+  fetchSpotlight()
+  fetchXlabProjects()
 })
 
 // 监听类型/排序变化：重置到第 1 页并重拉
@@ -701,14 +520,15 @@ onUnmounted(() => {
   transition: background 0.4s ease;
 }
 
+/* 背景和布局 —— 极光底降噪（09-19 社区重设计：内容流信息密度高，高彩度底放大混乱感，
+   降到 aurora-bg-standard 克制档；卡片叙事交给内容本身） */
 .theme-light.community-view-container {
   background:
-    radial-gradient(ellipse 60% 50% at 12% 18%, rgba(96, 165, 250, 0.26), transparent 60%),
-    radial-gradient(ellipse 55% 60% at 88% 12%, rgba(244, 114, 182, 0.24), transparent 55%),
-    radial-gradient(ellipse 70% 55% at 82% 88%, rgba(52, 211, 153, 0.22), transparent 60%),
-    radial-gradient(ellipse 55% 60% at 8% 92%, rgba(251, 191, 36, 0.20), transparent 55%),
-    radial-gradient(ellipse 50% 50% at 50% 50%, rgba(34, 211, 238, 0.10), transparent 70%),
-    linear-gradient(135deg, #f0f4ff 0%, #fdf2f8 50%, #f0fdf4 100%);
+    radial-gradient(ellipse 60% 50% at 12% 18%, rgba(96, 165, 250, 0.14), transparent 60%),
+    radial-gradient(ellipse 55% 60% at 88% 12%, rgba(244, 114, 182, 0.12), transparent 55%),
+    radial-gradient(ellipse 70% 55% at 82% 88%, rgba(52, 211, 153, 0.11), transparent 60%),
+    radial-gradient(ellipse 55% 60% at 8% 92%, rgba(251, 191, 36, 0.10), transparent 55%),
+    linear-gradient(135deg, #f6f8fd 0%, #faf5f8 50%, #f4faf6 100%);
 }
 
 .theme-dark.community-view-container {
@@ -818,6 +638,136 @@ onUnmounted(() => {
   width: 100%;
   margin-top: 6px;
 }
+
+/* ── 公告条（09-19）：细横条，通知中心 system 重要通知的露出一行 ── */
+.notice-bar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 14px; margin-bottom: 14px; cursor: pointer;
+  border: 1px solid var(--dew-card-border, rgba(0, 0, 0, 0.08));
+  border-radius: var(--radius-md, 10px);
+  background: var(--dew-card-flat-bg, rgba(255, 255, 255, 0.72));
+  transition: border-color 0.15s;
+}
+.theme-dark .notice-bar { background: var(--dew-card-flat-bg, rgba(20, 20, 24, 0.8)); }
+.notice-bar:hover { border-color: var(--dew-accent, #00915d); }
+.notice-bar__tag {
+  flex-shrink: 0; font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+  color: #fff; background: #00915d; padding: 2px 8px; border-radius: 4px;
+}
+.notice-bar__text {
+  flex: 1; min-width: 0; font-size: 13px;
+  color: var(--dew-text-primary, #222);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.notice-bar__arrow { flex-shrink: 0; color: var(--dew-text-faint, #999); font-size: 13px; }
+
+/* ── 推文精选带（09-19）：官方推文大封面卡，feed 之上的独立视觉层 ── */
+.spotlight-band { margin-bottom: 16px; }
+.spotlight-head {
+  display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px;
+}
+.spotlight-title { font-size: 16px; font-weight: 800; color: var(--dew-text-primary, #222); }
+.spotlight-sub {
+  font-size: 11px; letter-spacing: 0.05em; color: #fff; background: #00915d;
+  padding: 2px 8px; border-radius: 4px;
+}
+.spotlight-track {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px;
+}
+.spotlight-card {
+  cursor: pointer; overflow: hidden; border-radius: var(--radius-md, 10px);
+  border: 1px solid var(--dew-card-border, rgba(0, 0, 0, 0.08));
+  background: var(--dew-card-flat-bg, rgba(255, 255, 255, 0.85));
+  transition: transform 0.18s var(--dew-bounce, ease), box-shadow 0.18s;
+}
+.theme-dark .spotlight-card { background: var(--dew-card-flat-bg, rgba(20, 20, 24, 0.9)); }
+.spotlight-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+.spotlight-card__cover { display: block; width: 100%; }
+.spotlight-card__body { padding: 10px 12px 12px; }
+.spotlight-card__title {
+  font-size: 14px; font-weight: 700; line-height: 1.45; color: var(--dew-text-primary, #222);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  min-height: 2.9em;
+}
+.spotlight-card__meta {
+  display: flex; justify-content: space-between; gap: 8px; margin-top: 6px;
+  font-size: 11.5px; color: var(--dew-text-faint, #999);
+}
+
+/* ── 右栏发帖入口（09-19）：一行输入形态 ── */
+.post-entry {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 14px; margin-bottom: 14px; cursor: pointer;
+  border: 1px solid var(--dew-card-border, rgba(0, 0, 0, 0.08));
+  border-radius: var(--radius-lg, 14px);
+  background: var(--dew-card-flat-bg, rgba(255, 255, 255, 0.75));
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.theme-dark .post-entry { background: var(--dew-card-flat-bg, rgba(20, 20, 24, 0.82)); }
+.post-entry:hover { border-color: var(--dew-accent, #00915d); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08); }
+.post-entry__icon { color: var(--dew-text-faint, #999); font-size: 16px; }
+.post-entry__hint {
+  flex: 1; font-size: 13px; color: var(--dew-text-faint, #999);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.post-entry__btn {
+  flex-shrink: 0; font-size: 12px; font-weight: 700; color: #fff;
+  background: var(--dew-accent, #00915d); padding: 5px 14px; border-radius: 999px;
+}
+
+/* ── XLAB 引流卡（09-19）：项目现场 ── */
+.xlab-card__head {
+  display: flex; align-items: center; justify-content: space-between; cursor: pointer;
+}
+.xlab-card__title { font-size: 15px; font-weight: 700; color: var(--dew-text-primary, #222); }
+.xlab-card__more {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 12px; color: var(--dew-text-faint, #999); transition: color 0.15s;
+}
+.xlab-card__head:hover .xlab-card__more { color: var(--dew-accent, #00915d); }
+.xlab-card__list { display: flex; flex-direction: column; gap: 4px; }
+.xlab-item {
+  display: flex; align-items: center; gap: 10px; padding: 6px; margin: 0 -6px;
+  border-radius: var(--radius-sm, 8px); cursor: pointer; transition: background 0.15s;
+}
+.xlab-item:hover { background: rgba(0, 0, 0, 0.05); }
+.theme-dark .xlab-item:hover { background: rgba(255, 255, 255, 0.07); }
+.xlab-item__cover { flex-shrink: 0; border-radius: var(--radius-sm, 8px); overflow: hidden; }
+.xlab-item__cover--ph {
+  width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
+  background: rgba(0, 0, 0, 0.08); color: var(--dew-text-faint, #999); font-weight: 700;
+}
+.theme-dark .xlab-item__cover--ph { background: rgba(255, 255, 255, 0.08); }
+.xlab-item__body { flex: 1; min-width: 0; }
+.xlab-item__name {
+  font-size: 13px; font-weight: 600; color: var(--dew-text-primary, #222);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.xlab-item__meta { font-size: 11px; color: var(--dew-text-faint, #999); margin-top: 2px; }
+
+/* ── 发帖弹层内部 ── */
+.create-dlg__form { display: flex; flex-direction: column; gap: 10px; }
+.create-dlg__images { display: flex; flex-wrap: wrap; gap: 8px; }
+.create-dlg__img-cell {
+  position: relative; width: 72px; height: 72px; border-radius: var(--radius-sm, 8px);
+  overflow: hidden; border: 1px solid rgba(0, 0, 0, 0.08);
+}
+.create-dlg__img-cell img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.create-dlg__img-del {
+  position: absolute; top: 0; right: 0; width: 20px; height: 20px; border: none;
+  cursor: pointer; background: rgba(0, 0, 0, 0.6); color: #fff; font-size: 12px; line-height: 1;
+}
+.create-dlg__img-add {
+  width: 72px; height: 72px; border: 1px dashed rgba(0, 0, 0, 0.2); border-radius: var(--radius-sm, 8px);
+  background: transparent; color: var(--dew-text-faint, #999); font-size: 12px; cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.create-dlg__img-add:hover:not(:disabled) { border-color: var(--dew-accent, #00915d); color: var(--dew-accent, #00915d); }
+.create-dlg__img-add:disabled { opacity: 0.5; cursor: not-allowed; }
+.create-dlg__hint { font-size: 11.5px; color: var(--dew-text-faint, #999); }
 
 /* 筛选栏：DewButtonBar 自带玻璃胶囊，外层只做排版 */
 .filter-bar {
@@ -1642,29 +1592,18 @@ onUnmounted(() => {
     grid-template-columns: 1fr;
   }
 
+  /* 右栏不再隐藏（09-19：移动端发帖可达）——上提为 feed 顶部的横向工具条：
+     发帖入口全宽，写文章与 XLAB 卡并排 */
   .right-sidebar {
-    display: none;
+    order: -1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
   }
+  .right-sidebar .post-entry { grid-column: 1 / -1; margin-bottom: 0; }
+  .right-sidebar .write-entry { margin-bottom: 0; }
 
-  .activity-banner {
-    margin-bottom: 16px;
-  }
-
-  .banner-content-wrapper {
-    padding: 20px;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 16px;
-  }
-
-  .banner-right {
-    margin-left: 0;
-    width: 100%;
-  }
-
-  .banner-action-btn {
-    width: 100%;
-  }
+  .spotlight-track { grid-template-columns: 1fr; }
 
   .filter-bar {
     flex-direction: column;

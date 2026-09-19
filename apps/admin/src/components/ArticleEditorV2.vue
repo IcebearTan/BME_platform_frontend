@@ -9,10 +9,26 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Upload } from '@element-plus/icons-vue'
-import api from '../api'
+import api, { assetUrl } from '../api'
 import { MdEditor, MdCatalog } from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
 import '@bme/editor/md-setup' // 自托管 highlight.js（禁外网 CDN）
+
+// 编辑器图床（09-19 社区重设计）：正文插图上传自家 /v2/article/upload_image，markdown 引用绝对 URL
+const onUploadImage = async (files, callback) => {
+  const urls = []
+  for (const file of files) {
+    try {
+      const fd = new FormData()
+      fd.append('image', file)
+      const res = await api.post('/v2/article/upload_image', fd)
+      if (res.data?.url) urls.push(assetUrl(res.data.url))
+    } catch (e) {
+      ElMessage.error(e?.response?.data?.message || '图片上传失败')
+    }
+  }
+  callback(urls)
+}
 
 const EDITOR_ID = 'admin-article-editor'
 // 工具栏排除：mermaid/katex 走 CDN 且用不到；github/htmlPreview/save/sub/sup/catalog/fullscreen 按需去掉
@@ -163,6 +179,7 @@ onMounted(() => {
           preview-theme="default"
           code-theme="atom"
           show-code-row-number
+          :on-upload-img="onUploadImage"
           :style="{ height: 'calc(100vh - 160px)', minHeight: '480px' }"
         />
       </div>

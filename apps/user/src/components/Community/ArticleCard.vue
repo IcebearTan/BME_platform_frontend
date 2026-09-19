@@ -6,44 +6,53 @@
     class="article-card"
     @click="onOpen"
   >
-    <!-- 顶部：文章标签 + 时间 -->
-    <div class="ac-head">
-      <span class="ac-type">
-        <el-icon class="ac-type__icon"><Document /></el-icon>
-        文章
-      </span>
-      <span class="ac-time">{{ timeLabel }}</span>
-    </div>
-
-    <!-- 标题 -->
-    <h3 class="ac-title">{{ article.title }}</h3>
-
-    <!-- 简介（截断两行） -->
-    <p class="ac-summary">{{ article.summary || article.introduction }}</p>
-
-    <!-- 底部：作者 / 评论数 / 阅读全文 -->
-    <div class="ac-foot">
-      <div class="ac-author" @click.stop="onAuthorClick">
-        <el-avatar :size="24" :src="article.author_avatar">{{ (article.author_name || '?').charAt(0) }}</el-avatar>
-        <span class="ac-name">{{ article.author_name }}</span>
-        <!-- 干事徽章：作者当前主职（无任职后端不下发，不渲染） -->
-        <DewTag v-if="article.author_badge" type="warning" size="sm" round class="ac-badge">
-          {{ article.author_badge }}
-        </DewTag>
+    <!-- 左图右文（09-19 社区重设计）：封面缩略做视觉锚，无封面首字渐变兜底 -->
+    <div class="ac-body">
+      <div class="ac-media">
+        <DewImage v-if="coverSrc" class="ac-cover" :src="coverSrc" ratio="1/1" alt="文章封面" />
+        <div v-else class="ac-cover ac-cover--ph">{{ (article.title || '?').charAt(0) }}</div>
       </div>
-      <!-- 个人主页作者本人传入的编辑/删除操作（社区复用不传则不渲染） -->
-      <div v-if="$slots.actions" class="ac-actions" @click.stop>
-        <slot name="actions" />
-      </div>
-      <div class="ac-meta">
-        <span class="ac-comments">
-          <el-icon><ChatDotRound /></el-icon>
-          {{ article.reply_count || 0 }}
-        </span>
-        <span class="ac-readmore">
-          阅读全文
-          <el-icon class="ac-readmore__arrow"><ArrowRight /></el-icon>
-        </span>
+      <div class="ac-main">
+        <!-- 顶部：文章标签 + 时间 -->
+        <div class="ac-head">
+          <span class="ac-type">
+            <el-icon class="ac-type__icon"><Document /></el-icon>
+            文章
+          </span>
+          <span class="ac-time">{{ timeLabel }}</span>
+        </div>
+
+        <!-- 标题 -->
+        <h3 class="ac-title">{{ article.title }}</h3>
+
+        <!-- 简介（截断两行） -->
+        <p class="ac-summary">{{ article.summary || article.introduction }}</p>
+
+        <!-- 底部：作者 / 评论数 / 阅读全文 -->
+        <div class="ac-foot">
+          <div class="ac-author" @click.stop="onAuthorClick">
+            <el-avatar :size="24" :src="article.author_avatar">{{ (article.author_name || '?').charAt(0) }}</el-avatar>
+            <span class="ac-name">{{ article.author_name }}</span>
+            <!-- 干事徽章：作者当前主职（无任职后端不下发，不渲染） -->
+            <DewTag v-if="article.author_badge" type="warning" size="sm" round class="ac-badge">
+              {{ article.author_badge }}
+            </DewTag>
+          </div>
+          <!-- 个人主页作者本人传入的编辑/删除操作（社区复用不传则不渲染） -->
+          <div v-if="$slots.actions" class="ac-actions" @click.stop>
+            <slot name="actions" />
+          </div>
+          <div class="ac-meta">
+            <span class="ac-comments">
+              <el-icon><ChatDotRound /></el-icon>
+              {{ article.reply_count || 0 }}
+            </span>
+            <span class="ac-readmore">
+              阅读全文
+              <el-icon class="ac-readmore__arrow"><ArrowRight /></el-icon>
+            </span>
+          </div>
+        </div>
       </div>
     </div>
   </DewCard>
@@ -52,7 +61,8 @@
 <script setup>
 import { computed } from 'vue'
 import { Document, ChatDotRound, ArrowRight } from '@element-plus/icons-vue'
-import { DewCard, DewTag } from '@bme/dew-ui'
+import { DewCard, DewTag, DewImage } from '@bme/dew-ui'
+import { assetUrl } from '../../services/campService'
 
 const props = defineProps({
   /** 聚合信息流中的文章项（/community/feed 返回，type==='article'） */
@@ -60,6 +70,12 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['open', 'user-click'])
+
+// 封面缩略（feed 项带 cover/cover_thumb 相对路径，本地拼前缀；v1 老文章无封面走首字兜底）
+const coverSrc = computed(() => {
+  const c = props.article.cover_thumb || props.article.cover
+  return c ? assetUrl(c) : ''
+})
 
 const onOpen = () => emit('open', props.article)
 
@@ -91,6 +107,36 @@ function formatTimeAgo(dateStr) {
 /* DewCard(flat) 负责纯色阅读基底（静态 hover），这里只排版 + 给一个克制的可点提示 */
 .article-card {
   margin-bottom: 16px;
+}
+
+/* 左图右文主体（09-19） */
+.ac-body {
+  display: flex;
+  gap: 14px;
+  align-items: stretch;
+}
+.ac-media {
+  flex-shrink: 0;
+  width: 128px;
+}
+.ac-cover {
+  width: 128px;
+  border-radius: var(--radius-sm, 8px);
+  overflow: hidden;
+}
+.ac-cover--ph {
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 34px;
+  font-weight: 800;
+  color: var(--color-primary, #00915d);
+  background: var(--color-primary-light, rgba(0, 145, 93, 0.1));
+}
+.ac-main {
+  flex: 1;
+  min-width: 0;
 }
 
 /* 顶部标签行 */
@@ -226,5 +272,8 @@ function formatTimeAgo(dateStr) {
   .ac-title {
     font-size: 16px;
   }
+  .ac-media { width: 96px; }
+  .ac-cover { width: 96px; }
+  .ac-cover--ph { font-size: 26px; }
 }
 </style>

@@ -9,7 +9,8 @@
  * 自托管红线（禁外网 CDN）：md-editor-v3 默认从 unpkg 拉 highlight.js / prettier / cropper /
  * screenfull / mermaid / katex。本组件：highlight.js 本地化到 public/md-ext/；prettier 用
  * noPrettier 关闭；mermaid/katex/github/htmlPreview/save/fullscreen 等从工具栏排除；
- * image 上传不接 handler（不触发 cropper）。previewTheme=default（内置，不走 CDN）。
+ * image 上传走自家图床 on-upload-img（09-19 社区重设计，/v2/article/upload_image）。
+ * previewTheme=default（内置，不走 CDN）。
  */
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
@@ -20,6 +21,24 @@ import { DewButton, DewCard, DewInput, DewMessage } from '@bme/dew-ui'
 import { MdEditor, MdCatalog } from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
 import '@bme/editor/md-setup' // 自托管 highlight.js（禁外网 CDN），与阅读页共享
+import { assetUrl } from '../../../services/campService'
+
+// 编辑器图床（09-19 社区重设计）：正文插图上传到自家 /v2/article/upload_image（/media/articles/），
+// markdown 引用绝对 URL。自托管红线不变：不接外链图床；失败时该张不入 callback 并 toast。
+const onUploadImage = async (files, callback) => {
+  const urls = []
+  for (const file of files) {
+    try {
+      const fd = new FormData()
+      fd.append('image', file)
+      const res = await api.post('/v2/article/upload_image', fd)
+      if (res.data?.url) urls.push(assetUrl(res.data.url))
+    } catch (e) {
+      DewMessage.error(e.response?.data?.message || '图片上传失败')
+    }
+  }
+  callback(urls)
+}
 
 const EDITOR_ID = 'article-v2-editor'
 // 工具栏排除：mermaid/katex 走 CDN 且用不到；github/htmlPreview/save/sub/sup/catalog/fullscreen 按需去掉
@@ -224,6 +243,7 @@ onMounted(() => {
           preview-theme="default"
           code-theme="atom"
           show-code-row-number
+          :on-upload-img="onUploadImage"
           :style="{ height: 'calc(100vh - 200px)', minHeight: '480px' }"
         />
       </div>
