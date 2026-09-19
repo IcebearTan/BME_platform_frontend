@@ -83,6 +83,25 @@ async function mockCampSessionDetail(page) {
     }
     return route.fulfill({ json: { code: 200, members: [...mentors, ...students] } })
   })
+  await page.route('**/camp/sessions/1/members?*', (route) => {
+    const url = new URL(route.request().url())
+    const role = url.searchParams.get('role')
+    const keyword = url.searchParams.get('keyword') || ''
+    let rows = [...mentors, ...students]
+    if (role) {
+      const roles = new Set(role.split(','))
+      rows = rows.filter((member) => roles.has(member.role))
+    }
+    if (keyword) rows = rows.filter((member) => member.username.includes(keyword))
+    const pageSize = Number(url.searchParams.get('page_size') || 20)
+    const pageNo = Number(url.searchParams.get('page') || 1)
+    const start = (pageNo - 1) * pageSize
+    return route.fulfill({ json: {
+      code: 200, members: rows.slice(start, start + pageSize), total: rows.length,
+      page: pageNo, page_size: pageSize,
+      counts: { mentor: mentors.length, student: students.length, member: 0 },
+    } })
+  })
   // v1.3 阶段3：事务批量加成员（逐项回报）
   await page.route('http://127.0.0.1:5001/camp/sessions/1/members/batch', (route) =>
     route.fulfill({ json: { code: 200, message: '已加入 1/1 人', added: 1,
@@ -96,16 +115,33 @@ async function mockCampSessionDetail(page) {
       ],
     })
   )
-  await page.route('http://127.0.0.1:5001/camp/ms/1/overview', (route) =>
-    route.fulfill({ json: {
+  await page.route('**/camp/sessions/1/member-candidates*', (route) => {
+    const keyword = new URL(route.request().url()).searchParams.get('keyword') || ''
+    const rows = candidates.filter((user) => !keyword
+      || user.User_Name.includes(keyword) || user.User_Email.includes(keyword))
+    return route.fulfill({ json: { code: 200, users: rows, total: rows.length, page: 1, page_size: 20 } })
+  })
+  await page.route('**/camp/ms/1/overview*', (route) => {
+    const url = new URL(route.request().url())
+    const keyword = url.searchParams.get('student_keyword') || ''
+    const pageSize = Number(url.searchParams.get('student_page_size') || 20)
+    const pageNo = Number(url.searchParams.get('student_page') || 1)
+    const filtered = keyword
+      ? overviewStudents.filter((student) => student.username.includes(keyword))
+      : overviewStudents
+    const start = (pageNo - 1) * pageSize
+    return route.fulfill({ json: {
       code: 200,
       phase: 'collecting',
       deadlines: {},
       mentors: overviewMentors,
-      students: overviewStudents,
+      students: filtered.slice(start, start + pageSize),
+      student_total: filtered.length,
+      student_page: pageNo,
+      student_page_size: pageSize,
       stats: { students: 20, matched: 0, unmatched: 20, r2_enabled: false },
     } })
-  )
+  })
   for (const endpoint of ['courses', 'seats', 'leave']) {
     await page.route(`http://127.0.0.1:5001/camp/sessions/1/${endpoint}`, (route) =>
       route.fulfill({ json: { code: 200, [endpoint]: [] } })
@@ -278,6 +314,10 @@ test('营期详情保留选导生与成员添加能力', async ({ page }) => {
 
   await expect(page.getByRole('tab', { name: '选导生' })).toBeVisible()
   await expect(page.getByRole('cell', { name: '林泽宇', exact: true }).first()).toBeVisible()
+  // 成员表服务端分页：首屏只挂 20 行，第二页再取余下成员
+  await expect(page.locator('.pagination-wrapper').first()).toContainText('28')
+  await expect(page.getByRole('cell', { name: '测试学员20', exact: true })).toHaveCount(0)
+  await page.locator('.pagination-wrapper .btn-next').first().click()
   await expect(page.getByRole('cell', { name: '测试学员20', exact: true })).toBeVisible()
 
   // 营期设置 tab（09-17 集中管理：考勤模式/门槛开关/选导生配置收拢于此；旧数据无 policy 回退默认。
@@ -363,12 +403,12 @@ test('营期详情保留选导生与成员添加能力', async ({ page }) => {
   await page.getByRole('tab', { name: '成员' }).click()
   await page.getByRole('button', { name: '加成员', exact: true }).click()
   const addDialog = page.getByRole('dialog', { name: '加成员' })
-  // 身份解耦后口径：候选=非超管全员（gate 修复），营内角色显式指定（默认学员）
+  // 候选改为后端分页远程搜索：首批只返回未入营普通用户，营内角色仍显式指定（默认学员）
   await addDialog.locator('.el-select').first().click()
   const dropdown = page.locator('.el-select__popper:visible')
-  await expect(dropdown.getByText('方子航（学员）', { exact: true })).toBeVisible()
-  await expect(dropdown.getByText('林泽宇（导生）', { exact: true })).toHaveCount(0)
-  await dropdown.getByText('方子航（学员）', { exact: true }).click()
+  await expect(dropdown.getByText('方子航（candidate1@example.test）', { exact: true })).toBeVisible()
+  await expect(dropdown.getByText(/林泽宇/)).toHaveCount(0)
+  await dropdown.getByText('方子航（candidate1@example.test）', { exact: true }).click()
   await expect(addDialog.getByText('营内角色', { exact: true })).toBeVisible()
 
   // v1.3：事务批量端点逐项回报，营内角色随 items 显式携带

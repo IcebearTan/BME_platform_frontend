@@ -9,10 +9,21 @@
     <el-tabs v-model="activeTab" v-loading="loading">
       <!-- ① 成员 -->
       <el-tab-pane label="成员" name="members">
-        <div style="margin-bottom: 12px;">
+        <div class="member-toolbar">
+          <div class="member-filters">
+            <el-input v-model="memberPage.keyword" clearable placeholder="搜索成员姓名"
+              style="width: 200px;" @keyup.enter="applyMemberFilters" @clear="applyMemberFilters" />
+            <el-select v-model="memberPage.role" clearable placeholder="全部身份"
+              style="width: 130px;" @change="applyMemberFilters">
+              <el-option label="学员" value="student" />
+              <el-option label="导生" value="mentor" />
+              <el-option label="成员" value="member" />
+            </el-select>
+            <el-button @click="applyMemberFilters">查询</el-button>
+          </div>
           <el-button v-if="manageWritable" type="primary" size="small" @click="openAddMember">加成员</el-button>
         </div>
-        <el-table :data="members" border size="small">
+        <el-table :data="members" border size="small" v-loading="memberPage.loading">
           <el-table-column label="用户" prop="username" min-width="120" />
           <el-table-column label="角色" width="80">
             <template #default="{ row }">{{ { mentor: '导生', member: '成员' }[row.role] || '学员' }}</template>
@@ -36,6 +47,11 @@
             </template>
           </el-table-column>
         </el-table>
+        <div class="pagination-wrapper">
+          <el-pagination v-model:current-page="memberPage.page" v-model:page-size="memberPage.pageSize"
+            :total="memberPage.total" :page-sizes="[20, 50, 100]"
+            layout="total, sizes, prev, pager, next" @current-change="fetchMembers" @size-change="changeMemberPageSize" />
+        </div>
       </el-tab-pane>
 
       <!-- ② 课程目录（09-12 方向制砍双源：learning 营课程由分类方向定义，此 tab 仅项目营） -->
@@ -59,7 +75,7 @@
       <el-tab-pane v-if="!isProjectCamp && capOn('attendance')" label="出勤" name="plan">
         <template v-if="attModeSaved === 'daily'">
           <el-alert type="info" :closable="false"
-            :title="`本营 ${studentMembers.length} 名学员；承诺出勤日按营期范围内工作日（${session.weekdays_only ? '仅周一~周五' : '含周末'}）展开`" />
+            :title="`本营 ${memberPage.counts.student} 名学员；承诺出勤日按营期范围内工作日（${session.weekdays_only ? '仅周一~周五' : '含周末'}）展开`" />
           <div style="margin-top: 12px;">
             <el-button v-if="manageWritable" type="primary" @click="regenPlan">重生成承诺出勤日</el-button>
             <span class="hint">加入新学员时自动生成；此处可手动重生成（幂等，自动清理范围外/范围内周末的旧承诺日）</span>
@@ -112,8 +128,10 @@
       <el-tab-pane label="奖励" name="reward">
         <el-form :model="rewardForm" label-width="70px" style="max-width: 480px;">
           <el-form-item label="学员">
-            <el-select v-model="rewardForm.user_id" placeholder="选择学员" style="width: 100%;">
-              <el-option v-for="m in studentMembers" :key="m.user_id" :label="m.username" :value="m.user_id" />
+            <el-select v-model="rewardForm.user_id" filterable remote reserve-keyword
+              :remote-method="searchRewardMembers" :loading="rewardMemberLoading"
+              placeholder="输入姓名搜索学员" style="width: 100%;" @visible-change="openRewardMembers">
+              <el-option v-for="m in rewardMemberOptions" :key="m.user_id" :label="m.username" :value="m.user_id" />
             </el-select>
           </el-form-item>
           <el-form-item label="勋章">
@@ -301,7 +319,12 @@
 
         <!-- 学员配对（含未匹配指派） -->
         <h4 class="ms-sec-title">学员配对（{{ msOverview?.stats?.matched ?? 0 }} / {{ msOverview?.stats?.students ?? 0 }}）</h4>
-        <el-table :data="msOverview?.students || []" border size="small">
+        <div class="ms-student-toolbar">
+          <el-input v-model="msPage.keyword" clearable placeholder="搜索学员姓名" style="width: 200px;"
+            @keyup.enter="applyMsStudentFilter" @clear="applyMsStudentFilter" />
+          <el-button @click="applyMsStudentFilter">查询</el-button>
+        </div>
+        <el-table :data="msOverview?.students || []" border size="small" v-loading="msPage.loading">
           <el-table-column label="学员" prop="username" min-width="110" />
           <el-table-column label="归属导生" width="120">
             <template #default="{ row }">
@@ -327,6 +350,12 @@
             </template>
           </el-table-column>
         </el-table>
+        <div class="pagination-wrapper">
+          <el-pagination v-model:current-page="msPage.page" v-model:page-size="msPage.pageSize"
+            :total="msPage.total" :page-sizes="[20, 50, 100]"
+            layout="total, sizes, prev, pager, next" @current-change="fetchMsOverview"
+            @size-change="changeMsStudentPageSize" />
+        </div>
         </template>
       </el-tab-pane>
 
@@ -551,12 +580,16 @@
     <el-dialog v-model="memberDlg.visible" title="加成员" width="520px">
       <el-form :model="memberDlg.form" label-width="80px">
         <el-form-item label="用户" required>
-          <el-select v-model="memberDlg.form.user_ids" multiple collapse-tags collapse-tags-tooltip filterable
-            placeholder="搜索选择用户（可多选）" style="width: 100%;">
-            <el-option v-for="u in selectableUsers" :key="u.User_Id" :label="`${u.User_Name}（${roleLabel(u.role)}）`" :value="u.User_Id"
-              :disabled="u.role === 'super_admin'" />
+          <el-select v-model="memberDlg.form.user_ids" multiple collapse-tags collapse-tags-tooltip
+            filterable remote reserve-keyword :remote-method="searchMemberCandidates"
+            :loading="memberCandidateLoading" placeholder="输入姓名或邮箱搜索（可多选）"
+            style="width: 100%;" @change="rememberMemberCandidates">
+            <el-option v-for="u in memberCandidateOptions" :key="u.User_Id"
+              :label="`${u.User_Name}（${u.User_Email}）`" :value="u.User_Id" />
           </el-select>
-          <el-checkbox v-model="showAllUsers" style="margin-top: 6px; font-size: 12px;">显示教师/超管（不可加入）</el-checkbox>
+          <div style="width: 100%; color: #909399; font-size: 12px; line-height: 1.5;">
+            每次最多返回 20 个候选，已在本营和管理员账号不会出现在结果中
+          </div>
         </el-form-item>
         <el-form-item label="营内角色" required>
           <el-select v-model="memberDlg.form.role" style="width: 100%;">
@@ -607,8 +640,10 @@
           </el-select>
         </el-form-item>
         <el-form-item label="分配给">
-          <el-select v-model="seatDlg.form.user_id" clearable placeholder="留空 = 解绑" style="width: 100%;">
-            <el-option v-for="m in members" :key="m.user_id" :label="m.username" :value="m.user_id" />
+          <el-select v-model="seatDlg.form.user_id" clearable filterable remote reserve-keyword
+            :remote-method="searchSeatMembers" :loading="seatMemberLoading"
+            placeholder="输入姓名搜索；留空 = 解绑" style="width: 100%;" @visible-change="openSeatMembers">
+            <el-option v-for="m in seatMemberOptions" :key="m.user_id" :label="m.username" :value="m.user_id" />
           </el-select>
         </el-form-item>
       </el-form>
@@ -619,7 +654,7 @@
     </el-dialog>
 
     <!-- 批量指派导生（线下协调结果回填：导入 JSON/CSV 批量预填，或逐行手选） -->
-    <el-dialog v-model="batchDlg.visible" title="批量指派导生" width="680px">
+    <el-dialog v-model="batchDlg.visible" title="批量指派导生" width="680px" v-loading="batchDlg.loading">
       <el-alert type="info" :closable="false" style="margin-bottom: 10px;"
         title="导入线下协调结果批量填充（也可逐行手选）；已分配、冲突、失败的行会就地标注结果" />
       <el-input v-model="batchDlg.raw" type="textarea" :rows="3"
@@ -663,7 +698,7 @@
     </el-dialog>
 
     <!-- 批量回填项目成员（线下协调结果；逐项回报） -->
-    <el-dialog v-model="pBatchDlg.visible" title="批量回填项目成员" width="720px">
+    <el-dialog v-model="pBatchDlg.visible" title="批量回填项目成员" width="720px" v-loading="pBatchDlg.loading">
       <el-alert type="info" :closable="false" style="margin-bottom: 10px;"
         title="为成员逐行选择项目后提交；已在项目内、达 3 上限、失败的行会就地标注结果" />
       <div v-if="!pBatchDlg.rows.length" class="hint" style="padding: 10px 0;">本营暂无可回填成员</div>
@@ -728,15 +763,26 @@ const KNOWN_TABS = new Set(['members', 'courses', 'plan', 'seats', 'leave', 'rew
 const activeTab = ref(KNOWN_TABS.has(route.query.tab) ? route.query.tab : 'members');
 const session = ref({});
 const members = ref([]);
+const memberPage = reactive({
+  page: 1, pageSize: 20, total: 0, keyword: '', role: '', loading: false,
+  counts: { student: 0, mentor: 0, member: 0 },
+});
 const courses = ref([]);
 const seats = ref([]);
 const leaves = ref([]);
 
 // 选项数据（权限不足时为空，不阻断页面）
-const users = ref([]);
 const allCourses = ref([]);
 const medals = ref([]);
 const physicalSeats = ref([]);
+const mentorMembers = ref([]);
+const memberCandidates = ref([]);
+const selectedMemberCandidates = ref([]);
+const memberCandidateLoading = ref(false);
+const rewardMemberOptions = ref([]);
+const rewardMemberLoading = ref(false);
+const seatMemberOptions = ref([]);
+const seatMemberLoading = ref(false);
 
 const memberDlg = reactive({ visible: false, form: { user_ids: [], team_mentor_id: null }, submitting: false });
 const courseDlg = reactive({ visible: false, course_id: null });
@@ -749,11 +795,8 @@ const joinMentors = ref([]);
 const studentJoinRequests = computed(() => joinRequests.value.filter((r) => r.apply_role !== 'mentor'));
 const mentorJoinRequests = computed(() => joinRequests.value.filter((r) => r.apply_role === 'mentor'));
 
-const mentorMembers = computed(() => members.value.filter((m) => m.role === 'mentor'));
 // 加成员：口径对齐后端（camp.py _assign_member）——仅拒 super_admin，营内角色显式指定，
 // 不再从全局 user.role 派生（身份解耦残留 gate 修复，总账 §六.2 首单）
-const showAllUsers = ref(false);
-const roleLabel = (r) => ({ student: '学员', mentor: '导生', user: '用户', teacher: '教师', super_admin: '超管' }[r] || r || '—');
 const isProjectCamp = computed(() => session.value.category === 'project');
 // 能力开关（v1.3）：tab 渲染跟随营期 policy（learning 默认全开；旧 mock 无 policy 时回退开）
 const capOn = (k) => session.value?.policy?.capabilities?.[k] ?? true;
@@ -772,20 +815,19 @@ const visibleTabs = computed(() => {
   t.push('settings');
   return t;
 });
-const selectableUsers = computed(() => {
-  const memberIds = new Set(members.value.map((member) => member.user_id));
-  const candidates = showAllUsers.value
-    ? users.value
-    : users.value.filter((user) => user.role !== 'super_admin');
-  return candidates.filter((user) => !memberIds.has(user.User_Id));
+const memberCandidateOptions = computed(() => {
+  const byId = new Map();
+  for (const user of [...selectedMemberCandidates.value, ...memberCandidates.value]) {
+    byId.set(user.User_Id, user);
+  }
+  return [...byId.values()];
 });
-const studentMembers = computed(() => members.value.filter((m) => m.role === 'student'));
 const availableCourses = computed(() => {
   // /camp/.../courses 返回 int id 而 /course/list 返回字符串 id，统一转 String 再比对
   const added = new Set(courses.value.map((c) => String(c.course_id)));
   return allCourses.value.filter((c) => !added.has(String(c.Course_Id)));
 });
-const mentorName = (id) => (id ? members.value.find((m) => m.user_id === id)?.username || '—' : '—');
+const mentorName = (id) => (id ? mentorMembers.value.find((m) => m.user_id === id)?.username || '—' : '—');
 
 const statusLabel = (s) => ({ draft: '草稿', upcoming: '待开放', selecting: '选择阶段', running: '进行中', archived: '已结营' }[s] || s);
 const statusType = (s) => ({ draft: 'info', upcoming: 'primary', selecting: 'warning', running: 'success', archived: 'info' }[s] || 'info');
@@ -809,19 +851,62 @@ const gateOn = (k) => {
   return session.value?.policy?.capabilities?.[k] ?? true;
 };
 
+async function fetchMembers() {
+  memberPage.loading = true;
+  try {
+    const res = await api.get(`/camp/sessions/${campId}/members`, { params: {
+      page: memberPage.page, page_size: memberPage.pageSize,
+      keyword: memberPage.keyword.trim() || undefined,
+      role: memberPage.role || undefined,
+    } });
+    const data = res.data || {};
+    members.value = data.members || [];
+    memberPage.total = data.total ?? members.value.length;
+    memberPage.counts = { ...memberPage.counts, ...(data.counts || {}) };
+    const lastPage = Math.max(1, Math.ceil(memberPage.total / memberPage.pageSize));
+    if (memberPage.page > lastPage) {
+      memberPage.page = lastPage;
+      return fetchMembers();
+    }
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '加载成员名单失败');
+  } finally {
+    memberPage.loading = false;
+  }
+}
+
+async function fetchMentors() {
+  try {
+    const res = await api.get(`/camp/sessions/${campId}/members`, {
+      params: { page: 1, page_size: 100, role: 'mentor' },
+    });
+    mentorMembers.value = (res.data?.members || []).filter((m) => m.role === 'mentor');
+  } catch { mentorMembers.value = []; }
+}
+
+function applyMemberFilters() {
+  memberPage.page = 1;
+  fetchMembers();
+}
+
+function changeMemberPageSize() {
+  memberPage.page = 1;
+  fetchMembers();
+}
+
 async function fetchAll() {
   loading.value = true;
   try {
     // 逐项容错：项目营的座位/请假被 capability 门禁 400（正常态），不能拖挂整页数据
-    const [s, m, c, st, lv] = await Promise.all([
+    const [s, c, st, lv] = await Promise.all([
       api.get(`/camp/sessions/${campId}`).catch(() => null),
-      api.get(`/camp/sessions/${campId}/members`).catch(() => null),
       api.get(`/camp/sessions/${campId}/courses`).catch(() => null),
       api.get(`/camp/sessions/${campId}/seats`).catch(() => null),
       api.get(`/camp/sessions/${campId}/leave`).catch(() => null),
+      fetchMembers(),
+      fetchMentors(),
     ]);
     session.value = s?.data?.session || {};
-    members.value = m?.data?.members || [];
     courses.value = c?.data?.courses || [];
     seats.value = st?.data?.seats || [];
     leaves.value = lv?.data?.leaves || [];
@@ -833,16 +918,14 @@ async function fetchAll() {
 }
 
 async function fetchOptions() {
-  // 用户/课程/座位接口需对应权限；勋章走 /camp/medals（仅需营期角色，不依赖 medal_management，
-  // 否则无该权限的 teacher 勋章下拉为空、发奖励整个不可用）。失败则选项为空。
+  // 用户候选改为打开弹窗后远程分页搜索，首屏不再拉全站用户。
+  // 课程/座位接口需对应权限；勋章走 /camp/medals（仅需营期角色，不依赖 medal_management）。
   try {
-    const [u, c, md, ps] = await Promise.all([
-      api.get('/user/user_list').catch(() => null),
+    const [c, md, ps] = await Promise.all([
       api.get('/course/list').catch(() => null),
       api.get('/camp/medals').catch(() => null),
       api.get('/seat/rooms/106/seats').catch(() => null),
     ]);
-    users.value = u?.data || [];
     allCourses.value = c?.data || [];
     medals.value = md?.data?.medals || [];
     physicalSeats.value = ps?.data?.seats || [];
@@ -852,7 +935,39 @@ async function fetchOptions() {
 // ── 成员 ──
 function openAddMember() {
   memberDlg.form = { user_ids: [], role: isProjectCamp.value ? 'member' : 'student', team_mentor_id: null };
+  memberCandidates.value = [];
+  selectedMemberCandidates.value = [];
   memberDlg.visible = true;
+  loadMemberCandidates('');
+}
+
+let memberCandidateTimer = null;
+let memberCandidateSeq = 0;
+function searchMemberCandidates(keyword) {
+  clearTimeout(memberCandidateTimer);
+  memberCandidateTimer = setTimeout(() => loadMemberCandidates(keyword), 250);
+}
+async function loadMemberCandidates(keyword) {
+  const seq = ++memberCandidateSeq;
+  memberCandidateLoading.value = true;
+  try {
+    const res = await api.get(`/camp/sessions/${campId}/member-candidates`, {
+      params: { keyword: (keyword || '').trim() || undefined, page: 1, page_size: 20 },
+    });
+    if (seq === memberCandidateSeq) memberCandidates.value = res.data?.users || [];
+  } catch (e) {
+    if (seq === memberCandidateSeq) memberCandidates.value = [];
+    ElMessage.error(e.response?.data?.message || '搜索候选用户失败');
+  } finally {
+    if (seq === memberCandidateSeq) memberCandidateLoading.value = false;
+  }
+}
+function rememberMemberCandidates(ids) {
+  const selected = new Map(selectedMemberCandidates.value.map((u) => [u.User_Id, u]));
+  for (const user of memberCandidates.value) {
+    if (ids.includes(user.User_Id)) selected.set(user.User_Id, user);
+  }
+  selectedMemberCandidates.value = ids.map((id) => selected.get(id)).filter(Boolean);
 }
 // 事务批量端点（v1.3）：单请求逐项回报，部分成功不吞
 async function submitAddMember() {
@@ -868,7 +983,7 @@ async function submitAddMember() {
       })),
     });
     const { added, results } = res.data || {};
-    const nameOf = (uid) => users.value.find((u) => u.User_Id === uid)?.User_Name || `#${uid}`;
+    const nameOf = (uid) => memberCandidateOptions.value.find((u) => u.User_Id === uid)?.User_Name || `#${uid}`;
     const fails = (results || []).filter((r) => r.status === 'failed');
     if (added) {
       ElMessage.success(`已加入 ${added} 人`);
@@ -938,7 +1053,11 @@ async function regenPlan() {
 }
 
 // ── 座位 ──
-function openAssignSeat() { seatDlg.form = { seat_id: null, user_id: null }; seatDlg.visible = true; }
+function openAssignSeat() {
+  seatDlg.form = { seat_id: null, user_id: null };
+  seatDlg.visible = true;
+  if (!seatMemberOptions.value.length) loadSeatMembers('');
+}
 async function submitAssignSeat() {
   if (!seatDlg.form.seat_id) { ElMessage.warning('请选择座位'); return; }
   try {
@@ -949,6 +1068,46 @@ async function submitAssignSeat() {
   } catch (e) {
     ElMessage.error(e.response?.data?.message || '分配失败');
   }
+}
+
+async function fetchMemberOptions(keyword, role) {
+  const res = await api.get(`/camp/sessions/${campId}/members`, { params: {
+    page: 1, page_size: 30, keyword: (keyword || '').trim() || undefined,
+    role: role || undefined,
+  } });
+  return res.data?.members || [];
+}
+
+let rewardMemberTimer = null;
+function searchRewardMembers(keyword) {
+  clearTimeout(rewardMemberTimer);
+  rewardMemberTimer = setTimeout(() => loadRewardMembers(keyword), 250);
+}
+async function loadRewardMembers(keyword) {
+  rewardMemberLoading.value = true;
+  try {
+    rewardMemberOptions.value = await fetchMemberOptions(keyword, 'student');
+  } catch { rewardMemberOptions.value = []; }
+  finally { rewardMemberLoading.value = false; }
+}
+function openRewardMembers(visible) {
+  if (visible && !rewardMemberOptions.value.length) loadRewardMembers('');
+}
+
+let seatMemberTimer = null;
+function searchSeatMembers(keyword) {
+  clearTimeout(seatMemberTimer);
+  seatMemberTimer = setTimeout(() => loadSeatMembers(keyword), 250);
+}
+async function loadSeatMembers(keyword) {
+  seatMemberLoading.value = true;
+  try {
+    seatMemberOptions.value = await fetchMemberOptions(keyword);
+  } catch { seatMemberOptions.value = []; }
+  finally { seatMemberLoading.value = false; }
+}
+function openSeatMembers(visible) {
+  if (visible && !seatMemberOptions.value.length) loadSeatMembers('');
 }
 
 // ── 请假 ──
@@ -1233,6 +1392,7 @@ async function generateByLevel() {
 watch(activeTab, (t) => {
   // URL 同步在前（learning 营也要写回；replace 不进历史栈）
   if (route.query.tab !== t) router.replace({ query: { ...route.query, tab: t } });
+  if (t === 'ms' && canManage.value && !msOverview.value) fetchMsOverview();
   if (!isProjectCamp.value || !canManage.value) return;
   if (t === 'papp') fetchProjectApps();
   if (t === 'pform') fetchProjectOverview();
@@ -1251,6 +1411,7 @@ watch(() => route.query.tab, (t) => {
 
 // ── 选导生（overview / 提前截止 / 志愿导出 / 指派）──
 const msOverview = ref(null);
+const msPage = reactive({ page: 1, pageSize: 20, total: 0, keyword: '', loading: false });
 const MS_PHASE_LABELS = {
   disabled: '未启用', upcoming: '即将开始', collecting: '志愿收集中', done: '志愿已截止',
 };
@@ -1260,10 +1421,32 @@ const msPhaseAlertType = computed(() => ({
 }[msOverview.value?.phase] || 'info'));
 
 async function fetchMsOverview() {
+  msPage.loading = true;
   try {
-    const res = await api.get(`/camp/ms/${campId}/overview`);
+    const res = await api.get(`/camp/ms/${campId}/overview`, { params: {
+      student_page: msPage.page,
+      student_page_size: msPage.pageSize,
+      student_keyword: msPage.keyword.trim() || undefined,
+    } });
     msOverview.value = res.data;
+    msPage.total = res.data.student_total ?? res.data.students?.length ?? 0;
+    const lastPage = Math.max(1, Math.ceil(msPage.total / msPage.pageSize));
+    if (msPage.page > lastPage) {
+      msPage.page = lastPage;
+      return fetchMsOverview();
+    }
   } catch { /* 非管理角色或未启用，忽略 */ }
+  finally { msPage.loading = false; }
+}
+
+function applyMsStudentFilter() {
+  msPage.page = 1;
+  fetchMsOverview();
+}
+
+function changeMsStudentPageSize() {
+  msPage.page = 1;
+  fetchMsOverview();
 }
 
 function nowStr() {
@@ -1314,7 +1497,7 @@ async function exportMsCsv() {
 }
 
 // ── 批量指派（线下协调结果回填，逐行独立结果；支持 JSON/CSV 导入预填）──
-const batchDlg = reactive({ visible: false, submitting: false, rows: [], raw: '', importNote: null });
+const batchDlg = reactive({ visible: false, loading: false, submitting: false, rows: [], raw: '', importNote: null });
 const BATCH_STATUS = {
   assigned: { label: '已指派', tag: 'success' },
   skipped: { label: '跳过', tag: 'info' },
@@ -1324,13 +1507,39 @@ const BATCH_STATUS = {
 const batchStatusMeta = (status) => BATCH_STATUS[status] || { label: status, tag: 'info' };
 const batchFileRef = ref(null);
 
-function openBatchAssign() {
-  batchDlg.rows = (msOverview.value?.students || [])
+async function fetchAllMsStudents() {
+  const students = [];
+  let page = 1;
+  while (true) {
+    const res = await api.get(`/camp/ms/${campId}/overview`, {
+      params: { student_page: page, student_page_size: 100 },
+    });
+    const batch = res.data?.students || [];
+    students.push(...batch);
+    const total = res.data?.student_total ?? students.length;
+    if (!batch.length || students.length >= total) return students;
+    page += 1;
+  }
+}
+
+async function openBatchAssign() {
+  batchDlg.visible = true;
+  batchDlg.loading = true;
+  let students;
+  try {
+    students = await fetchAllMsStudents();
+  } catch (e) {
+    batchDlg.rows = [];
+    ElMessage.error(e.response?.data?.message || '加载待指派学员失败');
+    batchDlg.loading = false;
+    return;
+  }
+  batchDlg.rows = students
     .filter((s) => !s.matched)
     .map((s) => ({ ...s, _mentor: null, _result: null }));
   batchDlg.raw = '';
   batchDlg.importNote = null;
-  batchDlg.visible = true;
+  batchDlg.loading = false;
 }
 
 // 导入文本 → [{student, mentor}]（字符串姓名或用户ID；JSON 数组/对象、CSV 均可）
@@ -1465,7 +1674,14 @@ async function assignStudent(row, mentorId) {
 }
 
 // overview 不依赖 session 先加载：未启用时后端 400 被 catch 吞掉，无副作用
-onMounted(() => { fetchAll(); fetchOptions(); if (canManage.value) { fetchJoinRequests(); fetchMsOverview(); } });
+onMounted(() => {
+  fetchAll();
+  fetchOptions();
+  if (canManage.value) {
+    fetchJoinRequests();
+    if (activeTab.value === 'ms') fetchMsOverview();
+  }
+});
 
 // ── 项目营（v1.3 阶段3）：申报审核 / 组队总览 / 批量回填 / 变更管理员通道 ──
 const pApps = ref([]);
@@ -1473,7 +1689,7 @@ const pAppsLoading = ref(false);
 const pOverview = reactive({ projects: [], events: [] });
 const pOverviewLoading = ref(false);
 const pExporting = ref(false);
-const pBatchDlg = reactive({ visible: false, rows: [], submitting: false });
+const pBatchDlg = reactive({ visible: false, rows: [], loading: false, submitting: false });
 
 const pActiveProjects = computed(() => (pOverview.projects || []).filter((p) => p.status === 'active'));
 const pUnitName = (unitId) => pOverview.projects?.find((p) => p.unit_id === unitId)?.name || `#${unitId}`;
@@ -1548,14 +1764,39 @@ async function exportProjectCsv() {
   } finally { pExporting.value = false; }
 }
 
-function openProjectBatch() {
+async function fetchAllMemberRows(roles) {
+  const rows = [];
+  let page = 1;
+  while (true) {
+    const res = await api.get(`/camp/sessions/${campId}/members`, {
+      params: { page, page_size: 100, role: roles },
+    });
+    const batch = res.data?.members || [];
+    rows.push(...batch);
+    const total = res.data?.total ?? rows.length;
+    if (!batch.length || rows.length >= total) return rows;
+    page += 1;
+  }
+}
+
+async function openProjectBatch() {
   // 行=营期池内成员（member/student），显示已参与项目数；成员表来自成员 tab 的 members
   const countOf = (uid) => (pOverview.projects || []).filter(
     (p) => p.members?.some((m) => m.user_id === uid && m.status === 'active')).length;
-  pBatchDlg.rows = members.value
-    .filter((m) => m.role === 'member' || m.role === 'student')
-    .map((m) => ({ user_id: m.user_id, username: m.username, _unit: null, _result: null, _count: countOf(m.user_id) }));
   pBatchDlg.visible = true;
+  pBatchDlg.loading = true;
+  try {
+    const rows = await fetchAllMemberRows('member,student');
+    pBatchDlg.rows = rows.map((m) => ({
+      user_id: m.user_id, username: m.username,
+      _unit: null, _result: null, _count: countOf(m.user_id),
+    }));
+  } catch (e) {
+    pBatchDlg.rows = [];
+    ElMessage.error(e.response?.data?.message || '加载可回填成员失败');
+  } finally {
+    pBatchDlg.loading = false;
+  }
 }
 
 async function submitProjectBatch() {
@@ -1724,6 +1965,10 @@ async function reviseArchive() {
 .camp-session-detail { padding: 16px; }
 .header { margin-bottom: 12px; display: flex; align-items: center; gap: 12px; }
 .header .title { font-size: 18px; font-weight: 600; }
+.member-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.member-filters { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.member-filters :deep(.el-button + .el-button) { margin-left: 0; }
+.ms-student-toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .hint { margin-left: 12px; color: #909399; font-size: 12px; }
 .ms-sec-title { margin: 16px 0 8px; font-size: 14px; font-weight: 600; }
 .batch-msg { margin-left: 6px; font-size: 12px; color: #909399; }
