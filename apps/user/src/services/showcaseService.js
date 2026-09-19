@@ -23,6 +23,22 @@ export const showcaseService = {
   // 营期项目发布到广场（负责人/admin 显式动作；重复发布 409）
   publishFromCamp: (body) =>
     api.post('/showcase/projects/publish-camp', body).then(r => r.data),
+  // 封面：上传/替换（multipart；转码 16:9 母版+缩略，回包相对路径）+ 删除
+  uploadCover: (id, file) => {
+    const fd = new FormData();
+    fd.append('cover', file);
+    return api.post(`/showcase/projects/${id}/cover`, fd).then(r => r.data);
+  },
+  removeCover: (id) =>
+    api.post(`/showcase/projects/${id}/cover/delete`).then(r => r.data),
+  // 图集：追加多图（单次+存量 ≤9）+ 按 url 删单张
+  uploadImages: (id, files) => {
+    const fd = new FormData();
+    files.forEach((f) => fd.append('images', f));
+    return api.post(`/showcase/projects/${id}/images`, fd).then(r => r.data);
+  },
+  removeImage: (id, url) =>
+    api.post(`/showcase/projects/${id}/images/delete`, { url }).then(r => r.data),
   // 收藏（幂等）
   favorite: (id, favorited) =>
     (favorited ? api.put(`/showcase/projects/${id}/favorite`)

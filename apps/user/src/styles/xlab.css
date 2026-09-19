@@ -126,6 +126,56 @@ textarea.xl-input { resize: vertical; line-height: 1.6; }
 .xlab-dialog .xl-btn.pink { box-shadow: 0 6px 18px rgba(226, 19, 127, 0.28); }
 .xlab-dialog .xl-btn.pink:hover:not(:disabled) { box-shadow: 0 8px 22px rgba(226, 19, 127, 0.36); }
 
+/* ── 图片（09-19 封面/图集）：DewImage 直角覆盖（直角红线，非玻璃语言可复用）── */
+.xlab-root .dew-image--rect { border-radius: 0; }
+
+/* 上传格子：预览缩略 + 添加占位 + 移除角标（页面黑底口径；弹窗内白底反转见下） */
+.xl-up-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.xl-up-cell {
+  position: relative; width: 96px; height: 96px; flex-shrink: 0;
+  border: 1px solid var(--xl-line); overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+.xl-up-cell img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.xl-up-cell.cover { width: 160px; height: 90px; }        /* 封面格 16:9 */
+.xl-up-add {
+  width: 96px; height: 96px; flex-shrink: 0; border: 1px dashed var(--xl-line); background: transparent;
+  color: var(--xl-faint); cursor: pointer;
+  font-family: var(--xl-mono); font-size: 11px; letter-spacing: 0.08em;
+  transition: border-color 0.15s, color 0.15s;
+}
+.xl-up-add.cover-cell { width: 160px; height: 90px; }
+.xl-up-add:hover { border-color: var(--xl-green); color: var(--xl-green); }
+.xl-up-del {
+  position: absolute; top: 0; right: 0; z-index: 2;
+  width: 22px; height: 22px; border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0, 0, 0, 0.72); color: #fff; font-size: 13px; line-height: 1;
+}
+.xl-up-del:hover { background: var(--xl-pink); color: #000; }
+.xlab-dialog .xl-up-cell { border-color: #c9c9c9; }
+.xlab-dialog .xl-up-add { color: rgba(0, 0, 0, 0.36); }
+.xlab-dialog .xl-up-add:hover { border-color: #00915d; color: #00915d; }
+
+/* 画廊网格（详情页展示）：3 列平铺，DewImage ratio 占位防 CLS */
+.xl-gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.xl-gallery .xl-gallery-item {
+  width: 100%; padding: 0; background: none; cursor: zoom-in;
+  border: 1px solid var(--xl-line); transition: border-color 0.15s;
+  font: inherit; line-height: 0;
+}
+.xl-gallery .xl-gallery-item .dew-image { width: 100%; display: block; }
+.xl-gallery .xl-gallery-item:hover { border-color: var(--xl-green); }
+
+/* 灯箱：全屏遮罩点击关闭。大图用裸 img（缩略已加载过 URL 可达，无三态诉求；DewImage 需显式
+   width/height 不适配 max 约束场景） */
+.xl-lightbox {
+  position: fixed; inset: 0; z-index: 2100; cursor: zoom-out;
+  background: rgba(0, 0, 0, 0.92);
+  display: flex; align-items: center; justify-content: center; padding: 32px;
+}
+.xl-lightbox img { max-width: 100%; max-height: 100%; }
+
 /* ── 页脚 ── */
 .xlab-foot { border-top: 1px solid var(--xl-line); }
 .xlab-foot-inner {

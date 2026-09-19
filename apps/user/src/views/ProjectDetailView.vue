@@ -19,6 +19,10 @@
       <template v-else>
         <!-- 头部（09-16v2 档案层语法：黑顶条+白体+黑 hairline 页脚条；徽标独立成行，按钮沉底条） -->
         <header class="d-hero">
+          <!-- 封面带（09-19）：上传时已按 16:9 裁切，此处原比例展示不二次裁 -->
+          <div v-if="p.cover" class="d-hero-cover">
+            <DewImage :src="assetUrl(p.cover)" ratio="16/9" alt="项目封面" />
+          </div>
           <div class="d-hero-body">
             <div class="d-hero-main">
               <div class="d-eyebrow">// PROJECT_FILE</div>
@@ -71,7 +75,18 @@
               <p class="sec-text pre">{{ p.description }}</p>
             </section>
 
-            <!-- 讨论区（discussion scope=project；MVP=平铺帖列表+发帖框） -->
+            <!-- 图集画廊（09-19）：≤9 张平铺，点击灯箱查看 -->
+            <section v-if="p.images?.length" class="sec-card">
+              <div class="xl-sec-label">// GALLERY — 项目图集（{{ p.images.length }}）</div>
+              <div class="xl-gallery">
+                <button v-for="img in p.images" :key="img" type="button" class="xl-gallery-item"
+                        @click="lightboxSrc = assetUrl(img)">
+                  <DewImage :src="assetUrl(img)" ratio="4/3" alt="项目图片" />
+                </button>
+              </div>
+            </section>
+
+            <!-- 讨论区（discussion scope=project；留言式无标题，正文字数下限实时可见） -->
             <section class="sec-card">
               <div class="xl-sec-label">// DISCUSSION — 讨论区（{{ threads.length }}）</div>
               <div v-if="!threads.length" class="sec-empty">// NO_SIGNAL — 还没有讨论，抢沙发</div>
@@ -81,16 +96,15 @@
                     <span class="thread-author">{{ t.author_name || `#${t.author_id}` }}</span>
                     <span class="thread-time">{{ (t.created_at || '').slice(0, 16).replace('T', ' ') }}</span>
                   </div>
-                  <div class="thread-title">{{ t.title }}</div>
                   <p class="thread-content">{{ t.content }}</p>
                 </div>
               </div>
               <div class="thread-form">
-                <input v-model="threadForm.title" class="xl-input" placeholder="标题（至少 4 字）" />
                 <textarea v-model="threadForm.content" class="xl-input" rows="2" placeholder="说点什么（至少 10 字）"></textarea>
                 <div class="xl-actions">
+                  <span :class="['thread-count', { enough: threadForm.content.trim().length >= 10 }]">{{ threadForm.content.trim().length }}/10</span>
                   <button type="button" class="xl-btn sm primary"
-                          :disabled="posting || threadForm.title.trim().length < 4 || threadForm.content.trim().length < 10"
+                          :disabled="posting || threadForm.content.trim().length < 10"
                           @click="postThread">{{ posting ? 'TRANSMITTING…' : '发一条' }}</button>
                 </div>
               </div>
@@ -148,8 +162,28 @@
                 <textarea v-model="editForm.summary" class="xl-input" rows="2"></textarea>
                 <div class="xl-field"><span class="xl-no">03</span>详细介绍</div>
                 <textarea v-model="editForm.description" class="xl-input" rows="4"></textarea>
+                <!-- 封面/图集：项目已有 id，选图即传（即时保存，不随「保存」按钮） -->
+                <div class="xl-field"><span class="xl-no">04</span>封面<em class="xl-opt">16:9 自动裁切，换图即存</em></div>
+                <div class="xl-up-grid">
+                  <div v-if="p.cover" class="xl-up-cell cover">
+                    <img :src="assetUrl(p.cover_thumb || p.cover)" alt="当前封面" />
+                    <button type="button" class="xl-up-del" :disabled="imgBusy" @click="removeCover">×</button>
+                  </div>
+                  <button type="button" class="xl-up-add cover-cell" :disabled="imgBusy" @click="editCoverInput?.click()">
+                    {{ p.cover ? '+ REPLACE' : '+ COVER' }}
+                  </button>
+                </div>
+                <div class="xl-field"><span class="xl-no">05</span>项目图片<em class="xl-opt">最多 9 张，增删即存</em></div>
+                <div class="xl-up-grid">
+                  <div v-for="img in p.images" :key="img" class="xl-up-cell">
+                    <img :src="assetUrl(img)" alt="项目图片" />
+                    <button type="button" class="xl-up-del" :disabled="imgBusy" @click="removeImage(img)">×</button>
+                  </div>
+                  <button v-if="p.images.length < 9" type="button" class="xl-up-add cell" :disabled="imgBusy"
+                          @click="editGalleryInput?.click()">+ ADD</button>
+                </div>
                 <template v-if="p.source === 'community'">
-                  <div class="xl-field"><span class="xl-no">04</span>状态</div>
+                  <div class="xl-field"><span class="xl-no">06</span>状态</div>
                   <div class="xl-chip-row">
                     <button v-for="s in STATUS_OPTS" :key="s.value" type="button"
                             :class="['xl-chip', { on: editForm.project_status === s.value }]"
@@ -164,7 +198,16 @@
                   </button>
                 </div>
               </div>
+              <input ref="editCoverInput" type="file" accept="image/jpeg,image/png,image/webp" hidden @change="onEditCoverPick" />
+              <input ref="editGalleryInput" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden @change="onEditGalleryPick" />
             </div>
+          </div>
+        </Teleport>
+
+        <!-- 灯箱（09-19）：画廊大图查看，点击遮罩关闭 -->
+        <Teleport to="body">
+          <div v-if="lightboxSrc" class="xl-lightbox" @click="lightboxSrc = null">
+            <img :src="lightboxSrc" alt="项目图片大图" />
           </div>
         </Teleport>
 
@@ -206,7 +249,9 @@ import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { ArrowLeft, Close } from '@element-plus/icons-vue';
 import MenuComponent from '../components/MenuComponent.vue';
+import DewImage from '@bme/dew-ui/DewImage.vue';
 import api from '../api';
+import { assetUrl } from '../services/campService';
 import { showcaseService } from '../services/showcaseService';
 import '../styles/xlab.css';
 
@@ -220,7 +265,7 @@ const STATUS_OPTS = [
 const loading = ref(true);
 const p = ref(null);
 const threads = ref([]);
-const threadForm = ref({ title: '', content: '' });
+const threadForm = ref({ content: '' });
 const posting = ref(false);
 
 async function load() {
@@ -252,11 +297,11 @@ async function postThread() {
   posting.value = true;
   try {
     await api.post('/discussions/threads', {
-      title: threadForm.value.title.trim(), content: threadForm.value.content.trim(),
+      content: threadForm.value.content.trim(),
       scope_type: 'project', scope_id: p.value.id,
     });
     ElMessage.success('已发布');
-    threadForm.value = { title: '', content: '' };
+    threadForm.value = { content: '' };
     loadThreads();
   } catch (e) {
     ElMessage.error(e.response?.data?.message || '发布失败');
@@ -333,6 +378,81 @@ async function saveEdit() {
     savingEdit.value = false;
   }
 }
+
+// ── 图片管理（编辑弹窗内，即时上传：项目已有 id，选图即存） ──
+const lightboxSrc = ref(null);
+const imgBusy = ref(false);
+const editCoverInput = ref(null);
+const editGalleryInput = ref(null);
+const IMG_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
+function validateImage(file) {
+  if (!IMG_TYPES.includes(file.type)) { ElMessage.error('图片仅支持 jpg/png/webp'); return false; }
+  if (file.size > 10 * 1024 * 1024) { ElMessage.error('图片不能超过 10MB'); return false; }
+  return true;
+}
+
+async function onEditCoverPick(e) {
+  const file = e.target.files?.[0];
+  e.target.value = '';
+  if (!file || !validateImage(file) || imgBusy.value) return;
+  imgBusy.value = true;
+  try {
+    const r = await showcaseService.uploadCover(p.value.id, file);
+    ElMessage.success(r.message || '封面已更新');
+    p.value = { ...p.value, cover: r.cover, cover_thumb: r.cover_thumb };
+  } catch (err) {
+    ElMessage.error(err.response?.data?.message || '封面上传失败');
+  } finally {
+    imgBusy.value = false;
+  }
+}
+
+async function removeCover() {
+  if (imgBusy.value) return;
+  imgBusy.value = true;
+  try {
+    await showcaseService.removeCover(p.value.id);
+    p.value = { ...p.value, cover: null, cover_thumb: null };
+  } catch (err) {
+    ElMessage.error(err.response?.data?.message || '删除失败');
+  } finally {
+    imgBusy.value = false;
+  }
+}
+
+async function onEditGalleryPick(e) {
+  const files = [...(e.target.files || [])];
+  e.target.value = '';
+  if (!files.length || imgBusy.value) return;
+  const room = 9 - (p.value.images?.length || 0);
+  if (files.length > room) ElMessage.warning(`最多再传 ${room} 张，已忽略多余 ${files.length - room} 张`);
+  const picked = files.slice(0, room);
+  if (!picked.every(validateImage)) return;
+  imgBusy.value = true;
+  try {
+    const r = await showcaseService.uploadImages(p.value.id, picked);
+    ElMessage.success(r.message || '图片已上传');
+    p.value = { ...p.value, images: r.images || [] };
+  } catch (err) {
+    ElMessage.error(err.response?.data?.message || '图片上传失败');
+  } finally {
+    imgBusy.value = false;
+  }
+}
+
+async function removeImage(url) {
+  if (imgBusy.value) return;
+  imgBusy.value = true;
+  try {
+    const r = await showcaseService.removeImage(p.value.id, url);
+    p.value = { ...p.value, images: r.images || [] };
+  } catch (err) {
+    ElMessage.error(err.response?.data?.message || '删除失败');
+  } finally {
+    imgBusy.value = false;
+  }
+}
 </script>
 
 <style scoped>
@@ -351,6 +471,9 @@ async function saveEdit() {
 /* 09-16v2 档案层语法：白=档案层（黑顶条 4px + 白体 + 黑 hairline 页脚条），
    hero 与创建者卡同构；黑卡统一提亮拉层次。绿粉只留语义身份的小面积使用。 */
 .d-hero { margin-bottom: 18px; background: #fff; color: #111; border-top: 4px solid #111; }
+/* 封面带：黑顶条下第一眼，占 hero 全宽（16:9 已是母版原生比例） */
+.d-hero-cover { line-height: 0; }
+.d-hero-cover .dew-image { width: 100%; display: block; }
 .d-hero-body {
   padding: 20px 22px 20px;
   display: flex; justify-content: space-between; align-items: flex-start; gap: 18px;
@@ -426,10 +549,15 @@ async function saveEdit() {
 .thread-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .thread-author { font-size: 12.5px; font-weight: 600; color: #fff; }
 .thread-time { font-family: var(--xl-mono); font-size: 10.5px; color: var(--xl-faint); }
-.thread-title { font-size: 13.5px; font-weight: 600; color: #fff; }
 .thread-content { font-size: 13px; color: var(--xl-dim); line-height: 1.7; margin: 0; white-space: pre-wrap; }
 .thread-form { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--xl-line); padding-top: 12px; margin-top: 2px; }
 .thread-form .xl-input::placeholder { color: rgba(255, 255, 255, 0.5); }
+/* 字数计数：不足=粉（与按钮禁用同因可见），够了=绿 */
+.thread-count {
+  margin-right: auto; font-family: var(--xl-mono); font-size: 11px; letter-spacing: 0.08em;
+  color: var(--xl-pink);
+}
+.thread-count.enough { color: var(--xl-green); }
 
 .edit-form { padding: 16px; display: flex; flex-direction: column; gap: 10px; }
 

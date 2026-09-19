@@ -73,9 +73,11 @@
       </div>
       <div v-else class="project-grid">
         <div v-for="p in projects" :key="p.id" class="p-card" @click="goDetail(p.id)">
-          <!-- 封面兜底色块（MVP 无上传，用标题首字描边） -->
+          <!-- 封面：有图用缩略（DewImage 三态），无图标题首字色块兜底 -->
           <div :class="['p-cover', `cover-${p.source}`]">
-            <span class="cover-char">{{ p.title.charAt(0) }}</span>
+            <DewImage v-if="p.cover_thumb || p.cover" class="cover-img"
+                      :src="assetUrl(p.cover_thumb || p.cover)" alt="" />
+            <span v-else class="cover-char">{{ p.title.charAt(0) }}</span>
             <span :class="['src-badge', `src-${p.source}`]">{{ p.source_text }}</span>
             <span v-if="p.status === 'hidden'" class="hidden-badge">已下架</span>
             <span class="p-id">#{{ String(p.id).padStart(4, '0') }}</span>
@@ -114,21 +116,37 @@
           <div class="create-form">
             <div class="xl-field"><span class="xl-no">01</span>项目名称<em class="xl-req">*REQ</em></div>
             <input v-model="form.title" class="xl-input" placeholder="如：宿舍智能门锁" />
-            <div class="xl-field"><span class="xl-no">02</span>一句话简介</div>
+            <div class="xl-field"><span class="xl-no">02</span>封面<em class="xl-opt">16:9 自动裁切，jpg/png/webp ≤10MB</em></div>
+            <div class="xl-up-grid">
+              <div v-if="pendingCover" class="xl-up-cell cover">
+                <img :src="pendingCover.url" alt="封面预览" />
+                <button type="button" class="xl-up-del" @click="removePendingCover">×</button>
+              </div>
+              <button v-else type="button" class="xl-up-add cover-cell" @click="coverInput?.click()">+ COVER</button>
+            </div>
+            <div class="xl-field"><span class="xl-no">03</span>项目图片<em class="xl-opt">最多 9 张，详情页画廊展示</em></div>
+            <div class="xl-up-grid">
+              <div v-for="(img, i) in pendingImages" :key="img.url" class="xl-up-cell">
+                <img :src="img.url" alt="图片预览" />
+                <button type="button" class="xl-up-del" @click="removePendingImage(i)">×</button>
+              </div>
+              <button v-if="pendingImages.length < 9" type="button" class="xl-up-add cell" @click="galleryInput?.click()">+ ADD</button>
+            </div>
+            <div class="xl-field"><span class="xl-no">04</span>一句话简介</div>
             <input v-model="form.summary" class="xl-input" placeholder="列表页展示（300 字内）" />
-            <div class="xl-field"><span class="xl-no">03</span>详细介绍</div>
+            <div class="xl-field"><span class="xl-no">05</span>详细介绍</div>
             <textarea v-model="form.description" class="xl-input" rows="4" placeholder="做了什么、怎么做的、给谁用"></textarea>
-            <div class="xl-field"><span class="xl-no">04</span>状态</div>
+            <div class="xl-field"><span class="xl-no">06</span>状态</div>
             <div class="xl-chip-row">
               <button v-for="s in statusFilters.filter((x) => x.value)" :key="s.value" type="button"
                       :class="['xl-chip', { on: form.project_status === s.value }]"
                       @click="form.project_status = s.value">{{ s.label }}</button>
             </div>
-            <div class="xl-field"><span class="xl-no">05</span>标签<em class="xl-opt">逗号分隔，最多 6 个</em></div>
+            <div class="xl-field"><span class="xl-no">07</span>标签<em class="xl-opt">逗号分隔，最多 6 个</em></div>
             <input v-model="form.tagsText" class="xl-input" placeholder="硬件, 物联网" />
-            <div class="xl-field"><span class="xl-no">06</span>成员<em class="xl-opt">可选公开，逗号分隔</em></div>
+            <div class="xl-field"><span class="xl-no">08</span>成员<em class="xl-opt">可选公开，逗号分隔</em></div>
             <input v-model="form.membersText" class="xl-input" placeholder="展示项目成员昵称" />
-            <div class="xl-field"><span class="xl-no">07</span>资料链接<em class="xl-opt">每行一条：名称 空格 链接，最多 10 条</em></div>
+            <div class="xl-field"><span class="xl-no">09</span>资料链接<em class="xl-opt">每行一条：名称 空格 链接，最多 10 条</em></div>
             <textarea v-model="form.linksText" class="xl-input" rows="2" placeholder="开源仓库 https://github.com/..."></textarea>
             <div class="xl-note">自由分享免审上架；管理员可下架违规内容。营期项目请由负责人在营期工作台发布。</div>
             <div class="xl-actions">
@@ -138,6 +156,9 @@
               </button>
             </div>
           </div>
+          <!-- 隐藏拾取器（ProjectMilestones 模式）：发布后随项目 id 一起上传（先建后传） -->
+          <input ref="coverInput" type="file" accept="image/jpeg,image/png,image/webp" hidden @change="onCoverPick" />
+          <input ref="galleryInput" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden @change="onGalleryPick" />
         </div>
       </div>
     </Teleport>
@@ -150,6 +171,8 @@ import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { Search, Close } from '@element-plus/icons-vue';
 import MenuComponent from '../components/MenuComponent.vue';
+import DewImage from '@bme/dew-ui/DewImage.vue';
+import { assetUrl } from '../services/campService';
 import { showcaseService } from '../services/showcaseService';
 import '../styles/xlab.css';
 
@@ -223,7 +246,48 @@ const dlg = ref(false);
 const saving = ref(false);
 const form = ref({ title: '', summary: '', description: '', project_status: 'ongoing', tagsText: '', membersText: '', linksText: '' });
 
+// 待传图片（本地 blob 预览；发布时先建项目拿 id 再上传——CourseCreate 先建后传模式）
+const coverInput = ref(null);
+const galleryInput = ref(null);
+const pendingCover = ref(null);            // { file, url }
+const pendingImages = ref([]);             // [{ file, url }] ≤9
+const IMG_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
+function validateImage(file) {
+  if (!IMG_TYPES.includes(file.type)) { ElMessage.error('图片仅支持 jpg/png/webp'); return false; }
+  if (file.size > 10 * 1024 * 1024) { ElMessage.error('图片不能超过 10MB'); return false; }
+  return true;
+}
+function onCoverPick(e) {
+  const file = e.target.files?.[0];
+  e.target.value = '';
+  if (!file || !validateImage(file)) return;
+  if (pendingCover.value) URL.revokeObjectURL(pendingCover.value.url);
+  pendingCover.value = { file, url: URL.createObjectURL(file) };
+}
+function removePendingCover() {
+  if (pendingCover.value) URL.revokeObjectURL(pendingCover.value.url);
+  pendingCover.value = null;
+}
+function onGalleryPick(e) {
+  const files = [...(e.target.files || [])];
+  e.target.value = '';
+  const room = 9 - pendingImages.value.length;
+  if (files.length > room) ElMessage.warning(`最多 9 张，已忽略多余的 ${files.length - room} 张`);
+  for (const file of files.slice(0, room)) {
+    if (!validateImage(file)) continue;
+    pendingImages.value.push({ file, url: URL.createObjectURL(file) });
+  }
+}
+function removePendingImage(i) {
+  URL.revokeObjectURL(pendingImages.value[i].url);
+  pendingImages.value.splice(i, 1);
+}
+
 function openCreate() {
+  removePendingCover();
+  pendingImages.value.forEach((img) => URL.revokeObjectURL(img.url));
+  pendingImages.value = [];
   form.value = { title: '', summary: '', description: '', project_status: 'ongoing', tagsText: '', membersText: '', linksText: '' };
   dlg.value = true;
 }
@@ -248,7 +312,24 @@ async function save() {
       members: parseList(form.value.membersText),
       links: parseLinks(form.value.linksText),
     });
-    ElMessage.success(r.message || '已发布');
+    // 先建后传：项目已建，图片失败不回滚（提示到详情页补传）
+    const pid = r.project?.id;
+    let imgFailed = false;
+    if (pid) {
+      try {
+        if (pendingCover.value) await showcaseService.uploadCover(pid, pendingCover.value.file);
+      } catch { imgFailed = true; }
+      if (pendingImages.value.length) {
+        try {
+          await showcaseService.uploadImages(pid, pendingImages.value.map((x) => x.file));
+        } catch { imgFailed = true; }
+      }
+    }
+    removePendingCover();
+    pendingImages.value.forEach((img) => URL.revokeObjectURL(img.url));
+    pendingImages.value = [];
+    if (imgFailed) ElMessage.warning('已发布，部分图片未上传成功，可到项目详情页补传');
+    else ElMessage.success(r.message || '已发布');
     dlg.value = false;
     load();
   } catch (e) {
@@ -387,6 +468,8 @@ async function save() {
 }
 .cover-camp { background-color: #0c1914; }
 .cover-community { background-color: #190e14; }
+/* 封面图铺满卡片头（徽标浮于其上）；DewImage 根为 span，absolute inset 拉伸 */
+.cover-img { position: absolute; inset: 0; }
 .cover-char {
   font-family: var(--xl-mono); font-size: 46px; font-weight: 800;
   color: transparent; -webkit-text-stroke: 1px rgba(255, 255, 255, 0.3); user-select: none;
