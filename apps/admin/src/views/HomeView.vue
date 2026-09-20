@@ -9,7 +9,7 @@ import {
   Grid, Fold, Bell, ArrowDown, Clock, TrendCharts,
   List, Plus, Cpu, DataLine, Key, Tickets,
   Sunny, Moon, Collection, Folder, School, SetUp, Avatar, Picture,
-  Connection, Suitcase, Location, ChatDotRound
+  Connection, Suitcase, Location, ChatDotRound, FolderOpened
 } from '@element-plus/icons-vue';
 
 export default {
@@ -19,7 +19,7 @@ export default {
     Grid, Fold, Bell, ArrowDown, Clock, TrendCharts,
     List, Plus, Cpu, DataLine, Key, Tickets,
     Sunny, Moon, Collection, Folder, School, SetUp, Avatar, Picture,
-    Connection, Suitcase, Location, ChatDotRound
+    Connection, Suitcase, Location, ChatDotRound, FolderOpened
   },
 
   data() {
@@ -47,6 +47,7 @@ export default {
         '/showcase/manage': 'XLAB 项目治理',
         '/group/manage': '小组管理',
         '/course/manage': '课程管理',
+        '/resource/manage': '平台资料管理',
         '/course/create': '发布课程',
         '/course/edit/:id': '编辑课程',
         '/banner/manage': '首页轮播',
@@ -252,6 +253,9 @@ export default {
             </el-menu-item>
             <el-menu-item index="/course/manage" @click="router.push('/course/manage')" class="submenu-item">
               <el-icon><Collection /></el-icon><span>课程管理</span>
+            </el-menu-item>
+            <el-menu-item index="/resource/manage" @click="router.push('/resource/manage')" class="submenu-item">
+              <el-icon><FolderOpened /></el-icon><span>平台资料</span>
             </el-menu-item>
             <el-menu-item index="/course/create" @click="router.push('/course/create')" class="submenu-item">
               <el-icon><Plus /></el-icon><span>发布课程</span>

@@ -20,6 +20,7 @@ const loadLearningProgress = () => import('./components/LearningProgress.vue')
 const loadMedalManage = () => import('./components/MedalManage.vue')
 const loadMedalGrant = () => import('./components/MedalGrant.vue')
 const loadCourseManage = () => import('./components/CourseManage.vue')
+const loadResourceManage = () => import('./components/ResourceManage.vue')
 const loadBannerManage = () => import('./components/BannerManage.vue')
 const loadCourseCreate = () => import('./components/CourseCreate.vue')
 const loadArticleManage = () => import('./components/ArticleManage.vue')
@@ -119,6 +120,11 @@ const router = createRouter({
                     path: '/course/manage',
                     name: 'course_manage',
                     component: loadCourseManage
+                },
+                {
+                    path: '/resource/manage',
+                    name: 'resource_manage',
+                    component: loadResourceManage
                 },
                 {
                     path: '/course/create',

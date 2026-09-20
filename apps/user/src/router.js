@@ -39,6 +39,7 @@ const loadExercise = () => import('./views/ExerciseSolveView.vue')
 const loadCourseChapter = () => import('./views/CourseChapterView.vue')
 const loadQuestionBank = () => import('./views/QuestionBankView.vue')
 const loadServiceHall = () => import('./views/ServiceHallView.vue')
+const loadResourceCenter = () => import('./views/ResourceCenterView.vue')
 const loadOrganization = () => import('./views/OrganizationView.vue')
 const loadLLMService = () => import('./views/LLMServiceView.vue')
 const loadCommunity = () => import('./views/CommunityView.vue')
@@ -298,6 +299,12 @@ const router = createRouter({
             path: '/service-hall',
             name: 'service-hall',
             component: loadServiceHall,
+            meta: { requiresAuth: true }
+        },
+        {
+            path: '/resources',
+            name: 'resource-center',
+            component: loadResourceCenter,
             meta: { requiresAuth: true }
         },
         {

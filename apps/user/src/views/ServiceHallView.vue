@@ -49,17 +49,25 @@ const deviceServices = [
   { title: '实验室设备', desc: '各类实验器材与设备预约', icon: Monitor, color: '#909399', status: '建设中' },
 ];
 
-// 学习服务：题库/考核/资源尚未上线（09-15 从首页 StudyHub 迁入，口径与设备预约一致）
+// 学习服务：学习资源已上线（09-20 资源中心，平台资料+课程资料聚合）；
+// 题库/考核仍在建设（09-15 从首页 StudyHub 迁入，口径与设备预约一致）
+const goResources = () => {
+  router.push('/resources');
+};
+
+const liveLearningServices = [
+  { title: '学习资源', desc: '丰富的学习材料', icon: Files, color: '#909399', action: goResources },
+];
+
 const learningServices = [
   { title: '题库', desc: '练习巩固知识点', icon: EditPen, color: '#67C23A', status: '建设中' },
   { title: '考核评估', desc: '检验学习效果', icon: Select, color: '#F56C6C', status: '建设中' },
-  { title: '学习资源', desc: '丰富的学习材料', icon: Files, color: '#909399', status: '建设中' },
 ];
 
-// 未上线板块统一渲染（设备预约 / 学习服务），后续再上线板块只需加一项
+// 未上线板块统一渲染（设备预约 / 更多学习服务），后续再上线板块只需加一项
 const pendingSections = [
   { title: '设备预约', services: deviceServices },
-  { title: '学习服务', services: learningServices },
+  { title: '更多学习服务', services: learningServices },
 ];
 
 const selfServices = [
@@ -109,7 +117,39 @@ const clubServices = [
           </div>
 
           <div class="service-grid">
-            <!-- Sections: 未上线板块（设备预约 / 学习服务），同一套「暂未开放」渲染 -->
+            <!-- Section: 学习服务（已上线） -->
+            <section class="service-section">
+              <div class="section-title-row">
+                <span class="title-accent sm"></span>
+                <h2 class="section-title">学习服务</h2>
+              </div>
+
+              <div class="cards-container">
+                <DewCard
+                  v-for="(s, i) in liveLearningServices"
+                  :key="i"
+                  size="md"
+                  interactive
+                  class="entry-card"
+                  @click="s.action && s.action()"
+                >
+                  <div class="card-row">
+                    <div class="icon-box" :style="{ background: s.color + '1a', color: s.color }">
+                      <el-icon><component :is="s.icon" /></el-icon>
+                    </div>
+                    <div class="text-content">
+                      <h3>{{ s.title }}</h3>
+                      <p>{{ s.desc }}</p>
+                    </div>
+                    <div class="card-action">
+                      <el-icon><ArrowRight /></el-icon>
+                    </div>
+                  </div>
+                </DewCard>
+              </div>
+            </section>
+
+            <!-- Sections: 未上线板块（设备预约 / 更多学习服务），同一套「暂未开放」渲染 -->
             <section v-for="section in pendingSections" :key="section.title" class="service-section">
               <div class="section-title-row">
                 <span class="title-accent sm"></span>
