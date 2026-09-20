@@ -2,19 +2,31 @@
 // 这个文件用于统一管理版本号和更新信息
 
 // 当前版本号（会在构建时被 vite.config.js 读取）
-export const APP_VERSION = '3.2.1'
+export const APP_VERSION = '3.2.2'
 
 // 构建日期（会在构建时自动生成）
 export const BUILD_DATE = new Date().toLocaleDateString('zh-CN')
 
 // 更新日期（手动设置）
-export const UPDATE_DATE = '2026/9/16'
+export const UPDATE_DATE = '2026/9/20'
 
 // 更新公告的唯一标识（基于更新日期和版本号）
-export const ANNOUNCEMENT_ID = `20260916-v3.2.1`
+export const ANNOUNCEMENT_ID = `20260920-v3.2.2`
 
 // 版本更新日志
 export const VERSION_CHANGELOG = {
+    '3.2.2': {
+        date: '2026/9/20',
+        features: [
+            '社区广场重设计：公告、精选、话题标签、项目关联与精华内容分层展示',
+            '新增学习资源中心：支持平台资料浏览、管理与短签下载',
+            '营期老师工作台升级：报名审批、成员管理、全营考勤、学习进度与组会总览集中处理',
+            '组会任务支持截止时间、必交设置、迟交策略与审阅通过/退回状态',
+            '官方富文本推文导入：管理端 Jodit 排版、图片转存与安全清洗，用户端保持一致展示',
+            '通知中心与站内导航优化，支持通知分类、深链直达与跨营课程准确归属'
+        ],
+        importantNotice: '本次升级保持账号与历史数据不变；官方富文本导入仅限管理端使用，如遇内容显示或资源下载异常请及时反馈。'
+    },
     '3.2.1': {
         date: '2026/9/16',
         features: [

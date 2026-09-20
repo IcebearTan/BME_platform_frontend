@@ -1,7 +1,7 @@
 {
   "name": "@bme/user",
   "private": true,
-  "version": "3.2.1",
+  "version": "3.2.2",
   "type": "module",
   "scripts": {
     "predev": "node ../../packages/styles/copy-to-public.mjs",
