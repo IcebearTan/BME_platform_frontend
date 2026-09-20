@@ -342,6 +342,10 @@ export const campService = {
   },
   deleteMeetingTaskAttachment: (aid) =>
     api.delete(`/camp/meetings/task-attachments/${aid}`).then(r => r.data),
+  // 组长审阅学员提交（migrate_44 生命周期）：accept=false 退回（学员重交后重新待审）
+  reviewMeetingTask: (tid, studentUserId, accept, comment = '') =>
+    api.post(`/camp/meetings/tasks/${tid}/review`,
+      { student_user_id: studentUserId, accept, comment }).then(r => r.data),
   // 一键打包本次组会全部提交（zip 按学生/任务分文件夹）
   fetchMeetingZipUrl: async (mid) => {
     const r = await api.get(`/camp/meetings/${mid}/submissions/zip/token`)

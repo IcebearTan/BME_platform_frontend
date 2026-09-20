@@ -108,9 +108,13 @@
                 <template v-if="isLeader && m.expected_count > 0">
                   <span class="stat">提交 {{ m.submission_count }}/{{ m.expected_count }}</span>
                   <span class="mtg-prog"><i :style="{ width: `${Math.round(m.submission_count / m.expected_count * 100)}%` }"></i></span>
+                  <span v-if="m.overdue_count > 0" class="stat late">逾期 {{ m.overdue_count }}</span>
                 </template>
-                <span v-else-if="!isLeader && m.my_pending > 0" class="stat warn">我待提交 {{ m.my_pending }}</span>
-                <span v-else-if="!isLeader" class="stat ok">任务已交齐</span>
+                <template v-else-if="!isLeader">
+                  <span v-if="m.my_pending > 0" class="stat warn">我待提交 {{ m.my_pending }}</span>
+                  <span v-else class="stat ok">任务已交齐</span>
+                  <span v-if="m.my_overdue > 0" class="stat late">逾期 {{ m.my_overdue }}</span>
+                </template>
               </span>
               <span v-else></span>
               <span class="mtg-foot-acts">
@@ -572,6 +576,7 @@ const fmtSize = (n) => {
 }
 .stat.warn { color: var(--color-warning); font-weight: 650; }
 .stat.ok { color: var(--color-success); }
+.stat.late { color: var(--color-danger); font-weight: 650; }
 .mtg-stats .dot {
   width: 3px; height: 3px; border-radius: 50%; flex: none;
   background: var(--dew-text-faint); opacity: 0.6;

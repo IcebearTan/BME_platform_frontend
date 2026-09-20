@@ -80,13 +80,24 @@
           <div class="task-line">
             <DewTag size="sm" round>{{ t.submit_type_text }}</DewTag>
             <span class="task-title">{{ t.title }}</span>
-            <DewBadge :type="t.my_submission?.valid ? 'success' : (t.my_submission ? 'danger' : 'warning')">
-              {{ t.my_submission?.valid ? '已提交' : (t.my_submission ? '未达标' : '未提交') }}
-            </DewBadge>
+            <span v-if="t.due_at" class="task-due" :class="{ late: t.my_overdue }">
+              截止 {{ dueText(t.due_at) }}
+            </span>
+            <DewBadge :type="myState(t).type">{{ myState(t).label }}</DewBadge>
             <DewButton v-if="writable" type="ghost" size="sm" class="md-sec-act"
-                       @click="openSubmit(t)">{{ t.my_submission ? '修改' : '提交' }}</DewButton>
+                       @click="openSubmit(t)">{{
+                         t.my_submission?.status === 'returned' ? '重新提交'
+                           : t.my_submission ? '修改' : '提交' }}</DewButton>
           </div>
           <p v-if="t.note" class="task-note-line">{{ t.note }}</p>
+          <div v-if="t.my_submission?.status === 'returned' && t.my_submission.review_comment"
+               class="returned-note">
+            退回原因：{{ t.my_submission.review_comment }}
+          </div>
+          <div v-else-if="t.my_submission?.status === 'accepted' && t.my_submission.review_comment"
+               class="accepted-note">
+            评语：{{ t.my_submission.review_comment }}
+          </div>
           <p v-if="t.my_submission?.content" class="my-content">{{ t.my_submission.content }}</p>
           <div v-if="t.my_submission?.attachments?.length" class="chips">
             <span v-for="a in t.my_submission.attachments" :key="a.id" class="chip">
@@ -136,17 +147,31 @@
               </tbody>
             </table>
           </div>
-          <!-- 成员提交明细（点成员名展开） -->
+          <!-- 成员提交明细（点成员名展开；有效提交可就地审阅：通过/退回带评语） -->
           <div v-if="openStudent != null" class="student-panel">
             <div class="panel-name">{{ openStudentName }} 的提交</div>
             <div v-for="t in detail.tasks" :key="t.id" class="panel-task">
-              <span class="panel-task-name">{{ t.title }}</span>
+              <div class="panel-task-head">
+                <span class="panel-task-name">{{ t.title }}</span>
+                <template v-if="writable && subOf(t, openStudent)?.valid">
+                  <DewBadge :type="reviewBadgeType(subOf(t, openStudent))">
+                    {{ reviewBadgeText(subOf(t, openStudent)) }}
+                  </DewBadge>
+                  <DewButton size="sm" type="ghost" class="panel-review"
+                             @click="reviewTask(t, openStudent, true)">通过</DewButton>
+                  <DewButton size="sm" type="ghost" class="panel-review"
+                             @click="reviewTask(t, openStudent, false)">退回</DewButton>
+                </template>
+              </div>
               <p v-if="subOf(t, openStudent)?.content" class="my-content">{{ subOf(t, openStudent).content }}</p>
               <div v-if="subOf(t, openStudent)?.attachments?.length" class="panel-atts">
                 <a v-for="a in subOf(t, openStudent).attachments" :key="a.id"
                    :href="assetUrl(a.url)" target="_blank" class="att-link">
                   {{ a.filename }}（{{ fmtSize(a.size) }}）
                 </a>
+              </div>
+              <div v-if="subOf(t, openStudent)?.review_comment" class="panel-review-note">
+                {{ subOf(t, openStudent).status === 'returned' ? '退回原因' : '评语' }}：{{ subOf(t, openStudent).review_comment }}
               </div>
               <div v-if="!subOf(t, openStudent)" class="md-none">未提交</div>
             </div>
@@ -220,7 +245,7 @@
 
 <script setup>
 import { ref, computed, watch, nextTick } from 'vue';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import { VideoPlay } from '@element-plus/icons-vue';
 import { DewDialog, DewButton, DewInput, DewTag, DewBadge, DewSkeleton } from '@bme/dew-ui';
 import { campService, assetUrl } from '../../services/campService';
@@ -294,6 +319,16 @@ async function downloadAtt(a) {
 // ── 我的任务（组员）──
 const myPending = computed(() => (detail.value?.tasks || [])
   .filter((t) => !t.my_submission?.valid).length);
+// 审阅态徽标（migrate_44）：未交/逾期 → 已退回（附原因）→ 待审阅 → 已通过（附评语）
+function myState(t) {
+  const s = t.my_submission;
+  if (!s) return t.my_overdue
+    ? { label: '已逾期', type: 'danger' } : { label: '未提交', type: 'warning' };
+  if (s.status === 'accepted') return { label: '已通过', type: 'success' };
+  if (s.status === 'returned') return { label: '已退回', type: 'danger' };
+  return s.valid ? { label: '待审阅', type: 'info' } : { label: '未达标', type: 'danger' };
+}
+const dueText = (iso) => iso.slice(5, 16).replace('T', ' ');
 const submitDlg = ref(false);
 const submitTask = ref(null);
 const submitForm = ref({ content: '', files: [] });
@@ -346,13 +381,37 @@ function subOf(task, uid) {
 function cellText(t, s) {
   const sub = subOf(t, s.user_id);
   if (!sub) return '未交';
+  if (sub.status === 'accepted') return '已通过';
+  if (sub.status === 'returned') return '已退回';
   const n = sub.attachments.length;
   if (!sub.valid) return `未达标（${n} 文件）`;
-  return n ? `${n} 文件` : '文字';
+  return n ? `${n} 文件·待审` : '文字·待审';
 }
 function cellClass(t, s) {
   const sub = subOf(t, s.user_id);
   return ['task-cell', { ok: sub?.valid, miss: !sub, bad: sub && !sub.valid }];
+}
+// 审阅（migrate_44 生命周期）：通过/退回带评语，退回后学员重交重新待审
+const reviewBadgeType = (sub) => (sub.status === 'accepted' ? 'success'
+  : sub.status === 'returned' ? 'danger' : 'info');
+const reviewBadgeText = (sub) => ({ accepted: '已通过', returned: '已退回', submitted: '待审阅' }[sub.status] || sub.status);
+async function reviewTask(t, uid, accept) {
+  let comment = '';
+  try {
+    const { value } = await ElMessageBox.prompt(
+      accept ? `可填写评语（将通知该组员）` : `可填写退回原因（将通知该组员重新提交）`,
+      accept ? `通过 · ${t.title}` : `退回 · ${t.title}`,
+      { confirmButtonText: accept ? '通过' : '退回', cancelButtonText: '取消',
+        type: accept ? 'success' : 'warning', inputPlaceholder: accept ? '评语（可选）' : '退回原因（建议填写）' });
+    comment = value || '';
+  } catch { return; }
+  try {
+    await campService.reviewMeetingTask(t.id, uid, accept, comment);
+    ElMessage.success(accept ? '已通过' : '已退回');
+    load();
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '审阅失败');
+  }
 }
 async function downloadZip() {
   if (zipLoading.value) return;
@@ -414,6 +473,13 @@ a.att-link { align-self: flex-start; }
 .task-title { font-size: 13.5px; font-weight: 600; color: var(--dew-text-heading); }
 .task-note { font-size: 12.5px; color: var(--dew-text-muted); }
 .task-note-line { margin: 2px 0 0; font-size: 12.5px; color: var(--dew-text-muted); }
+.task-due { font-size: 12px; color: var(--dew-text-faint); }
+.task-due.late { color: var(--color-danger); font-weight: 600; }
+.returned-note, .accepted-note {
+  font-size: 12.5px; line-height: 1.6; padding: 6px 10px; border-radius: 8px; margin: 2px 0 0;
+}
+.returned-note { color: var(--color-danger); background: color-mix(in srgb, var(--color-danger) 8%, transparent); }
+.accepted-note { color: var(--color-success); background: color-mix(in srgb, var(--color-success) 8%, transparent); }
 .task-stat { margin-left: auto; font-size: 12px; color: var(--dew-text-faint); }
 .chapter-line { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; font-size: 12.5px; }
 .chapter-label { color: var(--dew-text-faint); }
@@ -481,7 +547,10 @@ a.att-link { align-self: flex-start; }
 }
 .panel-name { font-size: 13px; font-weight: 700; color: var(--dew-text-heading); }
 .panel-task { display: flex; flex-direction: column; gap: 6px; }
+.panel-task-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .panel-task-name { font-size: 12.5px; font-weight: 600; color: var(--dew-text-muted); }
+.panel-review { padding: 2px 10px; }
+.panel-review-note { font-size: 12px; color: var(--dew-text-faint); }
 .panel-atts { display: flex; flex-direction: column; gap: 4px; }
 
 /* 提交弹窗 */

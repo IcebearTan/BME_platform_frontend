@@ -39,6 +39,21 @@
         </div>
         <DewInput v-model="t.note" size="sm" class="task-note-input"
                   placeholder="说明（选填，写给组员看的任务要求）" />
+        <div class="task-life-row">
+          <label class="life-item">
+            <span class="life-label">截止</span>
+            <input v-model="t.due_at" type="datetime-local" class="life-due"
+                   :min="todayLocal" />
+          </label>
+          <label class="life-item life-switch" title="必交任务才计逾期与到期提醒">
+            <span class="life-label">必交</span>
+            <DewSwitch v-model="t.required" size="sm" />
+          </label>
+          <label class="life-item life-switch" title="关闭后过截止不再接收提交">
+            <span class="life-label">允许迟交</span>
+            <DewSwitch v-model="t.allow_late" size="sm" />
+          </label>
+        </div>
       </div>
 
       <div class="assign-actions">
@@ -46,7 +61,7 @@
         <DewButton type="glass" size="sm" :loading="saving" :disabled="!canSave || !writable"
                    @click="save">保存布置</DewButton>
       </div>
-      <div class="assign-hint">已有人提交的任务不会被删除（保护学生数据），只能改标题与说明。</div>
+      <div class="assign-hint">已有人提交的任务不会被删除（保护学生数据），只能改标题与说明。设了截止的必交任务会在截止前 24 小时与逾期时自动提醒。</div>
     </div>
   </DewDialog>
 </template>
@@ -54,7 +69,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
 import { ElMessage } from 'element-plus';
-import { DewDialog, DewButton, DewInput, DewSelect, DewSkeleton } from '@bme/dew-ui';
+import { DewDialog, DewButton, DewInput, DewSelect, DewSkeleton, DewSwitch } from '@bme/dew-ui';
 import { campService } from '../../services/campService';
 
 const props = defineProps({
@@ -70,6 +85,8 @@ const writable = computed(() => props.campStatus !== 'archived');
 const loading = ref(false);
 const detail = ref(null);
 const meeting = computed(() => detail.value?.meeting || null);
+const todayLocal = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
+  .toISOString().slice(0, 16);
 
 const typeOptions = [
   { label: '文字或文件', value: 'any' },
@@ -80,6 +97,9 @@ const form = ref({ chapters: [], tasks: [] });
 const saving = ref(false);
 const canSave = computed(() => form.value.tasks.every((t) => t.title.trim()));
 
+// ISO → datetime-local（'2026-09-25T18:00' 形）；无截止空串
+const toLocalInput = (iso) => (iso ? iso.slice(0, 16) : '');
+
 watch(() => [props.modelValue, props.meetingId], async ([open]) => {
   if (!open || !props.meetingId) return;
   loading.value = true;
@@ -88,7 +108,9 @@ watch(() => [props.modelValue, props.meetingId], async ([open]) => {
     form.value = {
       chapters: (detail.value.chapters || []).map((c) => c.chapter_id),
       tasks: (detail.value.tasks || []).map((t) => ({
-        id: t.id, title: t.title, note: t.note || '', submit_type: t.submit_type })),
+        id: t.id, title: t.title, note: t.note || '', submit_type: t.submit_type,
+        due_at: toLocalInput(t.due_at),
+        required: t.required !== false, allow_late: t.allow_late !== false })),
     };
   } catch (e) {
     detail.value = null;
@@ -102,7 +124,10 @@ function toggleChapter(chapterId) {
   if (i >= 0) arr.splice(i, 1); else arr.push(chapterId);
 }
 function addTask() {
-  form.value.tasks.push({ id: null, title: '', note: '', submit_type: 'any' });
+  form.value.tasks.push({
+    id: null, title: '', note: '', submit_type: 'any',
+    due_at: '', required: true, allow_late: true,
+  });
 }
 async function save() {
   if (saving.value || !canSave.value || !writable.value) return;
@@ -112,7 +137,9 @@ async function save() {
       chapters: form.value.chapters,
       tasks: form.value.tasks.map((t) => ({
         ...(t.id ? { id: t.id } : {}), title: t.title.trim(),
-        note: (t.note || '').trim() || null, submit_type: t.submit_type })),
+        note: (t.note || '').trim() || null, submit_type: t.submit_type,
+        due_at: (t.due_at || '').trim() || null,
+        required: !!t.required, allow_late: !!t.allow_late })),
     });
     ElMessage.success('布置已保存');
     emit('update:modelValue', false);
@@ -155,6 +182,16 @@ async function save() {
 .task-title-input { flex: 1; min-width: 0; }
 .task-type { width: 130px; flex: none; }
 .task-note-input { width: 100%; }
+/* 生命周期行（migrate_44）：截止/必交/允许迟交 */
+.task-life-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.life-item { display: inline-flex; align-items: center; gap: 6px; }
+.life-label { font-size: 12px; color: var(--dew-text-faint); }
+.life-due {
+  border: 1px solid var(--dew-input-border, var(--dew-card-border));
+  border-radius: 8px; padding: 4px 8px; font-size: 12.5px;
+  background: transparent; color: var(--dew-text);
+  font-family: inherit;
+}
 .row-x {
   border: none; background: none; padding: 0 4px; cursor: pointer; line-height: 1;
   font-size: 15px; color: var(--dew-text-faint);
