@@ -89,6 +89,17 @@ export default {
       }
     },
 
+    // 精华标记切换（Phase 3：热度 ×2）
+    async toggleEssence(row) {
+      try {
+        await api.post(`/v2/article/${row.id}/edit`, { is_essence: !row.is_essence });
+        ElMessage.success(row.is_essence ? '已取消精华' : '已标为精华');
+        this.fetchArticles();
+      } catch (e) {
+        ElMessage.error(e?.response?.data?.message || '操作失败');
+      }
+    },
+
     // 官方推文标记切换（Phase 2：推文=精选带展示位，仅文章管理员可设——本页即管理员视角）
     async toggleOfficial(row) {
       try {
@@ -185,11 +196,14 @@ export default {
               <span v-else>—</span>
             </template>
           </el-table-column>
-          <el-table-column fixed="right" label="操作" min-width="300">
+          <el-table-column fixed="right" label="操作" min-width="380">
             <template #default="{ row }">
               <el-button type="primary" size="small" @click="handleEdit(row)">编辑</el-button>
               <el-button :type="row.is_official ? 'info' : 'warning'" size="small" @click="toggleOfficial(row)">
                 {{ row.is_official ? '取消推文' : '设为推文' }}
+              </el-button>
+              <el-button :type="row.is_essence ? 'info' : 'success'" size="small" @click="toggleEssence(row)">
+                {{ row.is_essence ? '取消精华' : '精华' }}
               </el-button>
               <el-button
                 :type="row.status === 'draft' ? 'success' : 'warning'"

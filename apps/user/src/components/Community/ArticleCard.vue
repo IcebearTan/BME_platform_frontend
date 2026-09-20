@@ -19,6 +19,7 @@
             <el-icon class="ac-type__icon"><Document /></el-icon>
             文章
           </span>
+          <span v-if="article.isEssence" class="ac-essence">精华</span>
           <span class="ac-time">{{ timeLabel }}</span>
         </div>
 
@@ -137,6 +138,13 @@ function formatTimeAgo(dateStr) {
 .ac-main {
   flex: 1;
   min-width: 0;
+}
+
+/* 精华标（Phase 3） */
+.ac-essence {
+  display: inline-flex; align-items: center; height: 22px; padding: 0 9px;
+  border-radius: var(--radius-full, 999px); font-size: 12px; font-weight: 600;
+  background: rgba(0, 145, 93, 0.1); color: #00915d;
 }
 
 /* 顶部标签行 */

@@ -110,6 +110,16 @@ export default {
       }
     },
 
+    async toggleEssence(row) {
+      try {
+        await api.post(`/discussions/threads/${row.id}/essence`);
+        ElMessage.success(row.is_essence ? '已取消精华' : '已标为精华');
+        this.fetchThreads();
+      } catch (e) {
+        ElMessage.error(e?.response?.data?.message || '操作失败');
+      }
+    },
+
     async toggleHide(row) {
       try {
         const res = await api.post(`/discussions/threads/${row.id}/hide`);
@@ -185,6 +195,12 @@ export default {
               <span v-else>—</span>
             </template>
           </el-table-column>
+          <el-table-column label="精华" width="70">
+            <template #default="{ row }">
+              <el-tag v-if="row.is_essence" type="success" size="small">精华</el-tag>
+              <span v-else>—</span>
+            </template>
+          </el-table-column>
           <el-table-column label="状态" width="90">
             <template #default="{ row }">
               <el-tag :type="statusTag[row.status] || 'info'" size="small">{{ statusText[row.status] || row.status }}</el-tag>
@@ -197,13 +213,16 @@ export default {
               <span v-else>—</span>
             </template>
           </el-table-column>
-          <el-table-column fixed="right" label="操作" min-width="300">
+          <el-table-column fixed="right" label="操作" min-width="360">
             <template #default="{ row }">
               <el-button :type="row.pinned_effective ? 'warning' : 'primary'" size="small" @click="togglePin(row)">
                 {{ row.pinned_effective ? '取消置顶' : '置顶' }}
               </el-button>
               <el-button :type="row.status === 'locked' ? 'success' : 'warning'" size="small" @click="toggleLock(row)">
                 {{ row.status === 'locked' ? '解锁' : '锁定' }}
+              </el-button>
+              <el-button :type="row.is_essence ? 'info' : 'success'" size="small" @click="toggleEssence(row)">
+                {{ row.is_essence ? '取消精华' : '精华' }}
               </el-button>
               <el-button :type="row.status === 'hidden' ? 'success' : 'info'" size="small" @click="toggleHide(row)">
                 {{ row.status === 'hidden' ? '恢复' : '隐藏' }}

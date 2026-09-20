@@ -8,6 +8,7 @@
     <div class="dc-tags">
       <DewTag type="neutral" size="sm" round>讨论</DewTag>
       <DewTag v-if="discussion.topic" type="info" size="sm" round>{{ discussion.topic }}</DewTag>
+      <DewTag v-if="discussion.isEssence" type="success" size="sm" round>精华</DewTag>
       <span
         v-if="discussion.projectTitle"
         class="dc-project"
