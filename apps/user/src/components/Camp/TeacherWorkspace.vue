@@ -5,14 +5,17 @@
       <DewTag :type="isOwner ? 'primary' : 'info'" size="sm" :round="true">
         {{ isOwner ? '主负责人' : '协同老师' }}
       </DewTag>
-      <span class="ws-hint">报名审批、请假审批与成员运营在本工作台处理；营期配置等平台动作由管理员在管理端完成</span>
+      <span class="ws-hint">报名审批、选导生、成员与请假运营在本工作台处理；营期配置等平台动作由管理员在管理端完成</span>
     </div>
 
     <DewButtonBar v-model="section" :items="sectionItems" style="margin: 14px 0;" />
 
-    <TeacherOverview v-if="section === 'overview'" ref="overviewRef" :sid="sid" @navigate="section = $event" />
+    <TeacherOverview v-if="section === 'overview'" ref="overviewRef" :sid="sid" @navigate="goSection" />
     <TeacherAdmissions v-else-if="section === 'admissions'" ref="admissionsRef" :sid="sid"
       :ms-enabled="!!session?.mentor_selection_enabled" @reviewed="refreshOverview" />
+    <TeacherMsAssign v-else-if="section === 'ms'" :sid="sid" @reviewed="refreshOverview" />
+    <TeacherMembers v-else-if="section === 'members'" :sid="sid" @reviewed="refreshOverview" />
+    <MentorDashboard v-else-if="section === 'attendance'" :sid="sid" scope-label="全营" />
     <MentorLeave v-else-if="section === 'leaves'" :sid="sid" @reviewed="refreshOverview" />
   </div>
 </template>
@@ -22,22 +25,34 @@ import { ref, computed } from 'vue';
 import { DewButtonBar, DewTag } from '@bme/dew-ui';
 import TeacherOverview from './TeacherOverview.vue';
 import TeacherAdmissions from './TeacherAdmissions.vue';
+import TeacherMsAssign from './TeacherMsAssign.vue';
+import TeacherMembers from './TeacherMembers.vue';
+import MentorDashboard from './MentorDashboard.vue';
 import MentorLeave from './MentorLeave.vue';
 
 const props = defineProps({
   sid: { type: [Number, String], required: true },
-  /** 营期行（session_list 契约：my_staff_role / mentor_selection_enabled） */
+  /** 营期行（session_list 契约：my_staff_role / mentor_selection_enabled / policy） */
   session: { type: Object, default: null },
 });
 
 // 外壳只做子页导航（方案 §6.2：不能长成包含所有表格的超大组件）。
-// 阶段 2 接入：成员名单与改派、选导生运营、全营学习进度与考勤；阶段 3 接公告与待办中心。
+// 阶段 3 待接入：营期公告、待办中心、全营学习进度看板、组会总览。
 const section = ref('overview');
-const sectionItems = [
-  { value: 'overview', label: '概览' },
-  { value: 'admissions', label: '报名审批' },
-  { value: 'leaves', label: '请假审批' },
-];
+const caps = computed(() => props.session?.policy?.capabilities || {});
+const sectionItems = computed(() => {
+  const items = [
+    { value: 'overview', label: '概览' },
+    { value: 'admissions', label: '报名审批' },
+  ];
+  if (props.session?.mentor_selection_enabled) {
+    items.push({ value: 'ms', label: '选导生收官' });
+  }
+  items.push({ value: 'members', label: '成员管理' });
+  if (caps.value.attendance) items.push({ value: 'attendance', label: '全营考勤' });
+  items.push({ value: 'leaves', label: '请假审批' });
+  return items;
+});
 
 const isOwner = computed(() => props.session?.my_staff_role === 'owner');
 
@@ -46,6 +61,11 @@ const admissionsRef = ref(null);
 // 子页处理完成后刷新概览的待办计数（实时投影，无需状态同步协议）
 function refreshOverview() {
   overviewRef.value?.reload?.();
+}
+// 概览待办 → 子页（未分配学员/未交志愿 → 选导生收官页）
+function goSection(key) {
+  if (key === 'ms') { section.value = 'ms'; return; }
+  section.value = key;
 }
 </script>
 

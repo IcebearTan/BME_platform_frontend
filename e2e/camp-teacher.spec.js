@@ -126,3 +126,74 @@ test('双身份营：视角切换器可见，可从老师切到导生视图', as
 
   expect(errors).toEqual([])
 })
+
+// 选导生收官（阶段 2）：名册 + 批量指派 + 导出
+const SESSIONS_MS = {
+  code: 200,
+  sessions: [{
+    ...SESSIONS_TEACHER.sessions[0],
+    status: 'selecting',
+    mentor_selection_enabled: true,
+    available_perspectives: ['teacher'],
+  }],
+}
+
+const ROSTER = {
+  code: 200,
+  roster: {
+    students: [
+      { user_id: 31, username: '学生甲', team_mentor_id: null, team_mentor_name: null,
+        preferences: [{ rank: 1, mentor_user_id: 21, mentor_name: '导生A', note: null }] },
+      { user_id: 32, username: '学生乙', team_mentor_id: 21, team_mentor_name: '导生A',
+        preferences: [] },
+    ],
+    mentors: [
+      { user_id: 21, username: '导生A', tag: '硬件组', capacity: 4, matched: 1, has_profile: true },
+    ],
+    stats: { students: 2, assigned: 1, unassigned: 1, submitted: 1 },
+  },
+}
+
+test('选导生收官：名册渲染 + 选中导生后批量指派', async ({ page }) => {
+  const errors = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  await loginAs(page)
+
+  let batchPayload = null
+  await page.route('http://127.0.0.1:5001/**', (route) => {
+    const url = route.request().url()
+    if (url.includes('/camp/sessions') && !url.includes('/camp/ms')
+        && !url.includes('teacher/overview') && !url.includes('join-requests')) {
+      return route.fulfill({ json: SESSIONS_MS })
+    }
+    if (url.includes('/teacher/overview')) {
+      return route.fulfill({ json: OVERVIEW })
+    }
+    if (url.includes('/camp/ms/7/assign/roster')) {
+      return route.fulfill({ json: ROSTER })
+    }
+    if (url.includes('/camp/ms/7/assign/batch')) {
+      batchPayload = route.request().postDataJSON()
+      return route.fulfill({ json: { code: 200, results: [
+        { student_user_id: 31, status: 'assigned', message: '已指派' }] } })
+    }
+    return route.fulfill({ json: { code: 200, message: 'ok', data: {} } })
+  })
+
+  await page.goto(`${BASE}/camp?sid=7`, { waitUntil: 'domcontentloaded' })
+  // 启用选导生的营出现收官 tab；概览的未分配待办直达该页
+  await page.getByText('选导生收官').first().click()
+  await expect(page.getByText('导生名额（1）')).toBeVisible()
+  await expect(page.getByText('学生甲')).toBeVisible()
+  await expect(page.getByText('志愿：导生A', { exact: false })).toBeVisible()
+
+  // 未分配学员选导生 → 批量指派提交契约
+  await page.locator('.stu-pick').click()
+  await page.locator('.dew-select__option', { hasText: '导生A' }).first().click()
+  await expect(page.getByRole('button', { name: '批量指派（1）' })).toBeEnabled()
+  await page.getByRole('button', { name: '批量指派（1）' }).click()
+  await expect(page.getByText('已指派 1 名学员')).toBeVisible()
+  expect(batchPayload.pairs).toEqual([{ student_user_id: 31, mentor_user_id: 21 }])
+
+  expect(errors).toEqual([])
+})

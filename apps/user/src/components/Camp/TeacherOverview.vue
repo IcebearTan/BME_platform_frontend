@@ -92,12 +92,15 @@ const msDeadlineText = computed(() => {
   return dl ? dl.slice(5, 16) : '';
 });
 
-// 待办 → 子页跳转（阶段 1 只接报名/请假两页，其余展示计数待后续阶段接入）
+// 待办 → 子页跳转（阶段 2 起全量接入：报名/请假/选导生收官）
 function goTodo(key) {
   if (key === 'camp.application.pending' || key === 'camp.mentor_application.pending') {
     emit('navigate', 'admissions');
   } else if (key === 'camp.leave.pending') {
     emit('navigate', 'leaves');
+  } else if (['camp.student.unmatched', 'camp.student.no_preference',
+    'camp.mentor.no_profile'].includes(key)) {
+    emit('navigate', 'ms');
   }
 }
 </script>

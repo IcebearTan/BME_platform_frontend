@@ -3,8 +3,8 @@
     <!-- 09-12 模式 C（学期校区·按周累计）：学员 × 周次数/时长，无承诺日矩阵 -->
     <template v-if="mode === 'weekly'">
       <DewCard variant="default" size="lg" :no-hover="true">
-        <template #header><h3>团队出勤周报（{{ weeklyRows.length }} 名学员 · 按周累计）</h3></template>
-        <div v-if="!weeklyRows.length" class="empty">本团队暂无学员</div>
+        <template #header><h3>{{ scopeLabel }}出勤周报（{{ weeklyRows.length }} 名学员 · 按周累计）</h3></template>
+        <div v-if="!weeklyRows.length" class="empty">{{ scopeLabel }}暂无学员</div>
         <el-table v-else :data="weeklyRows" border stripe size="small" v-loading="loading">
           <el-table-column label="学员" prop="username" fixed="left" min-width="100" />
           <el-table-column v-for="w in weekLabels" :key="w.label" min-width="86" align="center">
@@ -24,7 +24,7 @@
     <!-- 模式 A（假期营·每日承诺出勤）：原矩阵视图 -->
     <template v-else>
       <DewCard v-if="summary" variant="default" size="lg" :no-hover="true" style="margin-bottom: 16px;">
-        <template #header><h3>本团队出勤汇总</h3></template>
+        <template #header><h3>{{ scopeLabel }}出勤汇总</h3></template>
         <div class="summary">
           <DewBadge type="success">出勤 {{ (summary.present || 0) + (summary.late || 0) }}<template v-if="summary.late">（迟到 {{ summary.late }}）</template></DewBadge>
           <DewBadge type="warning">未达标 {{ (summary.short_hours || 0) + (summary.late_and_short || 0) }}<template v-if="summary.late_and_short">（迟到 {{ summary.late_and_short }}）</template></DewBadge>
@@ -36,7 +36,7 @@
 
       <DewCard variant="default" size="lg" :no-hover="true">
         <template #header><h3>考勤明细（{{ rows.length }} 名学员）</h3></template>
-        <div v-if="!rows.length" class="empty">本团队暂无承诺出勤数据</div>
+        <div v-if="!rows.length" class="empty">{{ scopeLabel }}暂无承诺出勤数据</div>
         <el-table v-else :data="rows" border stripe size="small" v-loading="loading">
           <el-table-column label="学员" prop="username" fixed="left" min-width="90" />
           <el-table-column v-for="d in dates" :key="d" :label="label(d)" min-width="50" align="center">
@@ -58,7 +58,11 @@ import { DewCard, DewBadge } from '@bme/dew-ui';
 import { ElMessage } from 'element-plus';
 import { campService, campVisualKey, CAMP_STATUS_TEXT, todayLocal } from '../../services/campService';
 
-const props = defineProps({ sid: { type: [Number, String], required: true } });
+const props = defineProps({
+  sid: { type: [Number, String], required: true },
+  /** 范围文案：导生=本团队（默认）；老师工作台复用时传「全营」 */
+  scopeLabel: { type: String, default: '本团队' },
+});
 
 const loading = ref(false);
 const board = ref({});
@@ -100,7 +104,7 @@ const tip = (c) => {
 async function load() {
   loading.value = true;
   try { board.value = await campService.fetchDashboard(props.sid); mode.value = board.value.mode || 'daily'; }
-  catch { ElMessage.error('加载团队考勤失败'); }
+  catch { ElMessage.error(`加载${props.scopeLabel}考勤失败`); }
   finally { loading.value = false; }
 }
 watch(() => props.sid, load, { immediate: true });

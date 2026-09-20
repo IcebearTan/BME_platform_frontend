@@ -139,6 +139,26 @@ export const campService = {
   rejectCampJoin: (rid, reason = '') =>
     api.post(`/camp/join-requests/${rid}/reject`, { reason }).then(r => r.data),
 
+  // 成员管理（老师版，camp_access('member.manage')）
+  fetchMembersPaged: (sid, params) =>
+    api.get(`/camp/sessions/${sid}/members`, { params }).then(r => r.data),
+  updateMemberMentor: (sid, uid, teamMentorId) =>
+    api.put(`/camp/sessions/${sid}/members/${uid}`, { team_mentor_id: teamMentorId }).then(r => r.data),
+  removeMember: (sid, uid) =>
+    api.delete(`/camp/sessions/${sid}/members/${uid}`).then(r => r.data),
+  fetchMemberCandidates: (sid, params) =>
+    api.get(`/camp/sessions/${sid}/member-candidates`, { params }).then(r => r.data),
+  assignMembersBatch: (sid, items) =>
+    api.post(`/camp/sessions/${sid}/members/batch`, { items }).then(r => r.data),
+
+  // 选导生收官（老师版，camp_access('mentor_selection.operate')）
+  fetchAssignRoster: (sid) =>
+    api.get(`/camp/ms/${sid}/assign/roster`).then(r => r.data),
+  batchAssignMentors: (sid, pairs) =>
+    api.post(`/camp/ms/${sid}/assign/batch`, { pairs }).then(r => r.data),
+  exportPreferencesCsv: (sid) =>
+    api.get(`/camp/ms/${sid}/export`, { responseType: 'blob' }).then(r => r),
+
   // ── 选导生（开营前置阶段；后端 blueprints/camp_ms.py）──
   // 阶段总览（含按身份视角数据；读端点顺带触发阶段过渡通知）
   fetchMsPhase: (sid) =>
