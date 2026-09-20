@@ -169,6 +169,12 @@ export const campService = {
   unpublishAnnouncement: (sid, aid) =>
     api.post(`/camp/sessions/${sid}/announcements/${aid}/unpublish`).then(r => r.data),
 
+  // 全营学习进度看板（老师：按导生团队分桶的进度矩阵）+ 全营组会总览（老师只读）
+  fetchProgressBoard: (sid) =>
+    api.get(`/camp/sessions/${sid}/progress/board`).then(r => r.data),
+  fetchCampMeetingsAll: (sid) =>
+    api.get(`/camp/sessions/${sid}/meetings/all`).then(r => r.data),
+
   // ── 选导生（开营前置阶段；后端 blueprints/camp_ms.py）──
   // 阶段总览（含按身份视角数据；读端点顺带触发阶段过渡通知）
   fetchMsPhase: (sid) =>

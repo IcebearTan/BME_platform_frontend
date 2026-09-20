@@ -16,6 +16,8 @@
     <TeacherMsAssign v-else-if="section === 'ms'" :sid="sid" @reviewed="refreshOverview" />
     <TeacherMembers v-else-if="section === 'members'" :sid="sid" @reviewed="refreshOverview" />
     <TeacherAnnouncements v-else-if="section === 'announcements'" :sid="sid" />
+    <TeacherProgress v-else-if="section === 'progress'" :sid="sid" />
+    <TeacherMeetings v-else-if="section === 'meetings'" :sid="sid" />
     <MentorDashboard v-else-if="section === 'attendance'" :sid="sid" scope-label="全营" />
     <MentorLeave v-else-if="section === 'leaves'" :sid="sid" @reviewed="refreshOverview" />
   </div>
@@ -29,6 +31,8 @@ import TeacherAdmissions from './TeacherAdmissions.vue';
 import TeacherMsAssign from './TeacherMsAssign.vue';
 import TeacherMembers from './TeacherMembers.vue';
 import TeacherAnnouncements from './TeacherAnnouncements.vue';
+import TeacherProgress from './TeacherProgress.vue';
+import TeacherMeetings from './TeacherMeetings.vue';
 import MentorDashboard from './MentorDashboard.vue';
 import MentorLeave from './MentorLeave.vue';
 
@@ -39,7 +43,7 @@ const props = defineProps({
 });
 
 // 外壳只做子页导航（方案 §6.2：不能长成包含所有表格的超大组件）。
-// 待接入：全营学习进度看板、组会总览（老师只读）、待办中心。
+// 待接入：待办中心。
 const section = ref('overview');
 const caps = computed(() => props.session?.policy?.capabilities || {});
 const sectionItems = computed(() => {
@@ -52,6 +56,8 @@ const sectionItems = computed(() => {
   }
   items.push({ value: 'members', label: '成员管理' });
   items.push({ value: 'announcements', label: '营期公告' });
+  items.push({ value: 'progress', label: '学习进度' });
+  items.push({ value: 'meetings', label: '组会总览' });
   if (caps.value.attendance) items.push({ value: 'attendance', label: '全营考勤' });
   items.push({ value: 'leaves', label: '请假审批' });
   return items;
