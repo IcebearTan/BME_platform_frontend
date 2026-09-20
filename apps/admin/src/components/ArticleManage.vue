@@ -1,10 +1,11 @@
 <script>
 import api from '../api';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { Search, ArrowDown } from '@element-plus/icons-vue';
 import { DewCard } from '@bme/dew-ui';
 
 export default {
-  components: { DewCard },
+  components: { DewCard, Search, ArrowDown },
 
   data() {
     return {
@@ -68,6 +69,11 @@ export default {
 
     handleAdd() {
       this.$router.push('/public');
+    },
+
+    // 官方富文本新建（方案 §8.1）：先进编辑器由其创建空 HTML 草稿
+    handleAddHtml() {
+      this.$router.push({ path: '/public', query: { type: 'html' } });
     },
 
     async handleDelete(row) {
@@ -134,7 +140,18 @@ export default {
   <div class="selectable" style="width: 100%;">
     <div class="page-header">
       <div class="page-title">文章列表
-        <el-button type="warning" @click="handleAdd" size="large" style="margin-left: 10px;">添加文章</el-button>
+        <el-dropdown style="margin-left: 10px;" @command="(cmd) => (cmd === 'html' ? handleAddHtml() : handleAdd())">
+          <el-button type="warning" size="large">
+            添加文章
+            <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+          </el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="markdown">标准 Markdown（公告/技术文章）</el-dropdown-item>
+              <el-dropdown-item command="html">官方富文本（秀米/公众号排版）</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
       </div>
       <div class="header-actions">
         <el-select v-model="statusFilter" placeholder="状态" style="width: 120px;" @change="handleStatusFilter">
@@ -196,10 +213,19 @@ export default {
               <span v-else>—</span>
             </template>
           </el-table-column>
+          <el-table-column label="格式" width="100">
+            <template #default="{ row }">
+              <el-tag v-if="row.content_type === 'html'" type="danger" size="small" effect="plain">富文本</el-tag>
+              <span v-else>Markdown</span>
+            </template>
+          </el-table-column>
           <el-table-column fixed="right" label="操作" min-width="380">
             <template #default="{ row }">
               <el-button type="primary" size="small" @click="handleEdit(row)">编辑</el-button>
-              <el-button :type="row.is_official ? 'info' : 'warning'" size="small" @click="toggleOfficial(row)">
+              <el-button :type="row.is_official ? 'info' : 'warning'" size="small"
+                         :disabled="row.content_type === 'html' && row.is_official"
+                         :title="row.content_type === 'html' ? '官方富文本推文不能取消官方标记' : ''"
+                         @click="toggleOfficial(row)">
                 {{ row.is_official ? '取消推文' : '设为推文' }}
               </el-button>
               <el-button :type="row.is_essence ? 'info' : 'success'" size="small" @click="toggleEssence(row)">

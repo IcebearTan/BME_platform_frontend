@@ -25,7 +25,6 @@ const loadMyArticles = () => import('./components/User/MyArticlesComponent.vue')
 const loadMyThreads = () => import('./components/User/MyThreadsComponent.vue')
 const loadArticle = () => import('./views/ArticleView.vue')
 const loadArticleV2 = () => import('./views/ArticleViewV2.vue')
-const loadArticleEditor = () => import('./views/ArticleEditorView.vue')
 const loadArticleEditorV2 = () => import('./views/ArticleEditorViewV2.vue')
 const loadStudy = () => import('./views/StudyView.vue')
 const loadExam = () => import('./views/ExamView.vue')
@@ -188,10 +187,11 @@ const router = createRouter({
             meta: { requiresAuth: true }
         },
         {
+            // 旧 V1 TinyMCE 编辑入口收口（官方富文本方案 Phase 4）：
+            // 停止新增 V1 文章，直访跳 V2 Markdown 编辑器；旧 /article 阅读页保留
             path: '/article-editor',
             name: 'article-editor',
-            component: loadArticleEditor,
-            meta: { requiresAuth: true }
+            redirect: '/article-editor-v2',
         },
         {
             path: '/article-editor-v2',

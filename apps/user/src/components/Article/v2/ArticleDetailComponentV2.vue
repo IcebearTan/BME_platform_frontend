@@ -20,6 +20,7 @@ import '@bme/editor/md-setup' // 自托管 highlight.js（与编辑器共享）
 import api from '../../../api'
 import { assetUrl } from '../../../services/campService'
 import ArticleCommentSection from '../ArticleCommentSection.vue'
+import OfficialHtmlContent from './OfficialHtmlContent.vue'
 import { useArticleReactions } from '../../../composables/useArticleReactions'
 
 const PREVIEW_ID = 'article-v2-preview' // MdPreview 与 MdCatalog 共享，锚点一致
@@ -34,6 +35,8 @@ const isDarkMode = computed(() => store.getters.isDarkMode)
 const editorTheme = computed(() => (isDarkMode.value ? 'dark' : 'light'))
 
 const contentMd = ref('')
+const contentType = ref('markdown')   // 正文格式分流（官方富文本推文=html，方案 §13.1）
+const contentHtml = ref('')
 const articleTitle = ref('')
 const articleTime = ref('')
 const articleAuthor = ref('')
@@ -52,6 +55,9 @@ const isLoggedIn = () => !!localStorage.getItem('bme-user-token')
 // 阅读页正文随页面流滚动 → 目录跟随 documentElement
 const scrollEl = typeof document !== 'undefined' ? document.documentElement : undefined
 
+// 官方富文本内 /media 相对地址 -> 绝对地址（dev 跨源可达；绝对地址原样返回）
+const mediaResolver = (src) => assetUrl(src)
+
 const getArticle = async () => {
   if (!articleId.value) return
   try {
@@ -63,6 +69,8 @@ const getArticle = async () => {
     authorId.value = d.author_id ?? null
     authorAvatar.value = assetUrl(d.author_avatar || '') || ''
     contentMd.value = d.content_md || ''
+    contentType.value = d.content_type || 'markdown'
+    contentHtml.value = d.content_html || ''
     coverUrl.value = d.cover ? assetUrl(d.cover) : ''
     // 详情接口附带的计数（匿名也有），回填互动 composable
     initCounts(d.like_count ?? 0, d.reply_count ?? 0, d.view_count ?? 0)
@@ -165,17 +173,18 @@ onMounted(async () => {
             </template>
           </header>
 
-          <!-- 正文（Markdown 渲染） -->
-          <div class="article-content">
+          <!-- 正文（按格式分流：Markdown 用 MdPreview；官方富文本用 Shadow DOM 隔离渲染） -->
+          <div class="article-content" :class="{ 'is-html': contentType === 'html' }">
             <DewSkeleton v-if="loading" variant="text" :lines="8" :gap="14" />
             <MdPreview
-              v-else
+              v-else-if="contentType !== 'html'"
               :model-value="contentMd"
               :id="PREVIEW_ID"
               :theme="editorTheme"
               preview-theme="default"
               code-theme="atom"
             />
+            <OfficialHtmlContent v-else :html="contentHtml" :resolver="mediaResolver" />
           </div>
 
           <!-- 底部交互栏 -->
@@ -210,8 +219,8 @@ onMounted(async () => {
 
       <!-- 侧边栏 -->
       <aside class="article-sidebar">
-        <!-- 目录（MdCatalog 跟随 MdPreview 的标题） -->
-        <DewCard variant="flat" divided class="side-card">
+        <!-- 目录（MdCatalog 跟随 MdPreview 的标题；HTML 文章首版无目录，方案 §13.3） -->
+        <DewCard v-if="contentType !== 'html'" variant="flat" divided class="side-card">
           <template #header>目录</template>
           <MdCatalog :editor-id="PREVIEW_ID" :theme="editorTheme" :scroll-element="scrollEl" />
         </DewCard>
@@ -342,6 +351,15 @@ onMounted(async () => {
 .article-content :deep(.md-editor-preview-wrapper) {
   background: transparent !important;
   border: none;
+}
+
+/* 官方富文本正文：白底画布自带留白，收窄外层内边距；移动端不出现整页横向滚动 */
+.article-content.is-html {
+  padding: 16px 24px;
+  overflow-x: hidden;
+}
+.article-content.is-html .official-html-content {
+  overflow-x: auto;   /* 超宽排版在正文区内滚动，不冒泡破坏侧栏 sticky */
 }
 
 /* ━━━━ 底部交互栏 ━━━━ */

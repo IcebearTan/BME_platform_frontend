@@ -1,18 +1,23 @@
 <script setup>
 /**
- * admin 文章编辑器 V2（md-editor-v3，编辑/新建合一）
+ * admin 文章编辑器 V2（md-editor-v3 Markdown + Jodit 官方富文本，双模式合一）
  * - 无 route.query.id：新建 → POST /v2/article/draft（存草稿）或 /public（发布）
  * - 有 id：编辑 → GET /v2/article/<id> 回填 → /draft 更新草稿 / /<id>/publish 草稿发布 / /<id>/edit 更新已发布
- * 正文存 Markdown（content_md 裸字符串），接口全 v2。
+ * - Markdown 模式（默认）：正文 content_md；官方富文本（?type=html 新建或存量 html 文章）：
+ *   content_type='html' + content_html，必须官方推文（标记锁定），粘贴走服务端导入清洗
+ *   （方案 docs/计划/官方富文本推文-调整方案.md §8）。
+ * 格式一经保存锁定（方案 §3.4）：编辑已有文章时不提供切换，新建时由入口选择。
  */
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Upload } from '@element-plus/icons-vue'
+import { Upload, Monitor, Iphone } from '@element-plus/icons-vue'
 import api, { assetUrl } from '../api'
 import { MdEditor, MdCatalog } from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
 import '@bme/editor/md-setup' // 自托管 highlight.js（禁外网 CDN）
+import OfficialHtmlEditor from './article/OfficialHtmlEditor.vue'
+import HtmlImportReport from './article/HtmlImportReport.vue'
 
 // 编辑器图床（09-19 社区重设计）：正文插图上传自家 /v2/article/upload_image，markdown 引用绝对 URL
 const onUploadImage = async (files, callback) => {
@@ -65,10 +70,17 @@ const router = useRouter()
 
 const currentId = ref(route.query.id || null)
 const articleStatus = ref(null)   // null=新建 | 'draft' | 'published'
-const content = ref('')
+const content = ref('')           // Markdown 正文
+const contentHtml = ref('')       // HTML 正文（官方富文本模式）
+// 正文格式：新建时由入口决定（?type=html），编辑存量按详情 content_type；保存后锁定
+const contentType = ref(route.query.type === 'html' ? 'html' : 'markdown')
+const formatLocked = ref(!!route.query.id)   // 编辑已有文章：格式不可切
 const title = ref('')
 const introduction = ref('')
 const submitting = ref(false)
+const importing = ref(false)
+const importReport = ref(null)
+const previewMode = ref('none')   // none | desktop | mobile（HTML 模式预览）
 // Phase 2（09-20）：官方推文运营字段——封面（需先有 id）、is_official 标记、发布时可选群发通知
 const isOfficial = ref(false)
 const coverUrl = ref('')
@@ -76,8 +88,25 @@ const notifyAll = ref(false)
 const coverUploading = ref(false)
 const coverInput = ref(null)
 
+const isHtmlMode = computed(() => contentType.value === 'html')
 const isPublishedMode = computed(() => articleStatus.value === 'published')
 const publishLabel = computed(() => (isPublishedMode.value ? '保存修改' : '发布文章'))
+const failedImageCount = computed(() => importReport.value?.images_failed || 0)
+
+// 官方富文本新建：先建空草稿拿 id（图片转存要挂归属，方案 §8.1）
+const createEmptyHtmlDraft = async () => {
+  try {
+    const res = await api.post('/v2/article/draft', {
+      content_type: 'html', title: '', introduction: '', content_html: '',
+    })
+    currentId.value = res.data.id
+    articleStatus.value = 'draft'
+    isOfficial.value = true
+  } catch (e) {
+    ElMessage.error(e?.response?.data?.message || '草稿创建失败，无法进入富文本编辑')
+    router.push('/article/manage')
+  }
+}
 
 // 编辑模式：回填（v2 详情返回 {code, data:{...}}）
 const loadArticle = async () => {
@@ -87,9 +116,12 @@ const loadArticle = async () => {
     const d = (res.data && res.data.data) || {}
     title.value = d.title || ''
     introduction.value = d.introduction || ''
+    contentType.value = d.content_type || 'markdown'
+    formatLocked.value = true
     content.value = d.content_md || ''
+    contentHtml.value = d.content_html || ''
     articleStatus.value = d.status || null
-    isOfficial.value = !!d.is_official
+    isOfficial.value = contentType.value === 'html' ? true : !!d.is_official
     coverUrl.value = d.cover || ''
   } catch {
     ElMessage.error('文章加载失败')
@@ -146,16 +178,18 @@ const broadcastArticle = async (articleId) => {
   }
 }
 
-// 保存草稿（宽松校验：标题或正文有一个即可）；新建后持 id，后续按更新走
+// 保存草稿：markdown 宽松校验（标题或正文其一）；html 允许全空（占位草稿）
 const handleSaveDraft = async () => {
-  if (!title.value.trim() && !content.value.trim()) {
+  if (!isHtmlMode.value && !title.value.trim() && !content.value.trim()) {
     ElMessage.warning('写点标题或内容再保存')
     return
   }
   if (submitting.value) return
   submitting.value = true
   try {
-    const payload = { title: title.value, introduction: introduction.value, content_md: content.value }
+    const payload = isHtmlMode.value
+      ? { content_type: 'html', title: title.value, introduction: introduction.value, content_html: contentHtml.value }
+      : { title: title.value, introduction: introduction.value, content_md: content.value }
     if (currentId.value && articleStatus.value === 'draft') {
       await api.post('/v2/article/draft', { id: currentId.value, ...payload })
       ElMessage.success('草稿已更新')
@@ -175,12 +209,21 @@ const handleSaveDraft = async () => {
 // 发布 / 保存修改（按 currentId × articleStatus 分流），完成后回列表
 const handleSubmit = async () => {
   if (!title.value.trim()) { ElMessage.warning('请填写标题'); return }
-  if (!content.value.trim()) { ElMessage.warning('请填写正文'); return }
+  if (!introduction.value.trim() && isHtmlMode.value) { ElMessage.warning('官方富文本推文需要填写简介'); return }
+  if (isHtmlMode.value && !contentHtml.value.trim()) { ElMessage.warning('请填写正文'); return }
+  if (!isHtmlMode.value && !content.value.trim()) { ElMessage.warning('请填写正文'); return }
+  if (isHtmlMode.value && failedImageCount.value > 0) {
+    ElMessage.warning('正文中仍有图片转存失败占位块，请删除或重新上传后再发布')
+    return
+  }
   if (submitting.value) return
   submitting.value = true
   try {
-    const payload = { title: title.value, introduction: introduction.value, content_md: content.value,
-                      is_official: isOfficial.value }
+    const payload = isHtmlMode.value
+      ? { content_type: 'html', title: title.value, introduction: introduction.value,
+          content_html: contentHtml.value, is_official: true }
+      : { title: title.value, introduction: introduction.value, content_md: content.value,
+          is_official: isOfficial.value }
     let publishedId = null
     let wasPublished = false
     if (currentId.value && articleStatus.value === 'draft') {
@@ -208,8 +251,13 @@ const handleSubmit = async () => {
 }
 
 onMounted(() => {
-  if (currentId.value) loadArticle()
-  else content.value = DEFAULT_CONTENT  // 新建模式：注入引导模板
+  if (currentId.value) {
+    loadArticle()
+  } else if (isHtmlMode.value) {
+    createEmptyHtmlDraft()        // 官方富文本：先建空草稿再进编辑器
+  } else {
+    content.value = DEFAULT_CONTENT  // 新建 Markdown：注入引导模板
+  }
 })
 </script>
 
@@ -217,27 +265,54 @@ onMounted(() => {
   <div class="ae2">
     <!-- 顶部工具条 -->
     <div class="ae2-toolbar">
-      <h2 class="ae2-title">{{ currentId ? '编辑文章' : '写文章' }}</h2>
+      <h2 class="ae2-title">
+        {{ currentId ? '编辑文章' : (isHtmlMode ? '写官方推文' : '写文章') }}
+        <el-tag v-if="isHtmlMode" size="small" type="warning" effect="plain">官方富文本</el-tag>
+      </h2>
       <div class="ae2-actions">
-        <el-button v-if="!isPublishedMode" :disabled="submitting" @click="handleSaveDraft">保存草稿</el-button>
-        <el-button type="primary" :disabled="submitting" :icon="Upload" @click="handleSubmit">{{ publishLabel }}</el-button>
+        <template v-if="isHtmlMode">
+          <el-button :type="previewMode === 'desktop' ? 'primary' : ''" plain size="small" :icon="Monitor"
+                     @click="previewMode = previewMode === 'desktop' ? 'none' : 'desktop'">桌面预览</el-button>
+          <el-button :type="previewMode === 'mobile' ? 'primary' : ''" plain size="small" :icon="Iphone"
+                     @click="previewMode = previewMode === 'mobile' ? 'none' : 'mobile'">手机预览</el-button>
+        </template>
+        <el-button v-if="!isPublishedMode" :disabled="submitting || importing" @click="handleSaveDraft">保存草稿</el-button>
+        <el-button type="primary" :disabled="submitting || importing" :icon="Upload" @click="handleSubmit">{{ publishLabel }}</el-button>
       </div>
     </div>
 
-    <div class="ae2-body">
-      <!-- 左：目录 -->
+    <div class="ae2-body" :class="{ 'is-html': isHtmlMode }">
+      <!-- 左：Markdown 目录 / HTML 导入报告 -->
       <aside class="ae2-catalog">
         <div class="ae2-panel">
-          <h3>目录</h3>
-          <div class="ae2-catalog-scroll">
+          <h3>{{ isHtmlMode ? '导入报告' : '目录' }}</h3>
+          <div v-if="!isHtmlMode" class="ae2-catalog-scroll">
             <MdCatalog :editor-id="EDITOR_ID" theme="light" :offset-top="20" />
+          </div>
+          <div v-else class="ae2-catalog-scroll">
+            <HtmlImportReport :report="importReport" />
           </div>
         </div>
       </aside>
 
-      <!-- 中：编辑器 -->
+      <!-- 中：编辑器 / 预览 -->
       <div class="ae2-editor">
+        <template v-if="isHtmlMode">
+          <OfficialHtmlEditor
+            v-show="previewMode === 'none'"
+            v-model="contentHtml"
+            :article-id="currentId ? Number(currentId) : null"
+            @report="importReport = $event"
+            @importing="importing = $event"
+          />
+          <div v-if="previewMode !== 'none'" class="ae2-preview" :class="{ 'is-mobile': previewMode === 'mobile' }">
+            <div class="ae2-preview-frame"><!-- 服务端清洗后的正文，管理端预览 -->
+              <div v-html="contentHtml" />
+            </div>
+          </div>
+        </template>
         <MdEditor
+          v-else
           v-model="content"
           :id="EDITOR_ID"
           theme="light"
@@ -277,11 +352,13 @@ onMounted(() => {
             </el-button>
           </div>
           <div class="ae2-field">
-            <el-checkbox v-model="isOfficial">设为官方推文（社区精选带展示）</el-checkbox>
+            <el-checkbox v-model="isOfficial" :disabled="isHtmlMode">设为官方推文（社区精选带展示）</el-checkbox>
+            <p v-if="isHtmlMode" class="ae2-hint">官方富文本推文必须为官方推文，标记锁定不可取消。</p>
           </div>
           <div v-if="isOfficial && !isPublishedMode" class="ae2-field">
             <el-checkbox v-model="notifyAll">发布时群发社区通知</el-checkbox>
           </div>
+          <p v-if="formatLocked" class="ae2-hint">正文格式已锁定（{{ isHtmlMode ? '官方富文本' : 'Markdown' }}），如需另一种格式请复制为新文章。</p>
         </div>
       </aside>
     </div>
@@ -303,8 +380,8 @@ onMounted(() => {
   align-items: center;
   margin-bottom: 14px;
 }
-.ae2-title { margin: 0; font-size: 20px; font-weight: 700; color: var(--text-primary); }
-.ae2-actions { display: flex; gap: 8px; }
+.ae2-title { margin: 0; font-size: 20px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px; }
+.ae2-actions { display: flex; gap: 8px; align-items: center; }
 
 .ae2-body {
   display: grid;
@@ -312,6 +389,7 @@ onMounted(() => {
   gap: 14px;
   align-items: start;
 }
+.ae2-body.is-html { grid-template-columns: 300px 1fr 280px; }
 .ae2-cover img { width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 8px; display: block; }
 .ae2-cover-ops { display: flex; gap: 8px; margin-top: 8px; }
 .ae2-panel {
@@ -324,13 +402,38 @@ onMounted(() => {
 .ae2-catalog-scroll { max-height: calc(100vh - 240px); overflow: auto; }
 .ae2-field { margin-bottom: 14px; }
 .ae2-field label { display: block; font-size: 13px; color: var(--text-secondary); margin-bottom: 6px; }
+.ae2-hint { margin: 6px 0 0; font-size: 12px; color: var(--text-faint); line-height: 1.6; }
+
+/* HTML 预览（方案 §8.2 桌面/手机切换；正文为服务端清洗结果） */
+.ae2-preview {
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  background: #fff;
+  min-height: 480px;
+  max-height: calc(100vh - 200px);
+  overflow: auto;
+  display: flex;
+  justify-content: center;
+}
+.ae2-preview-frame {
+  width: 100%;
+  max-width: 780px;
+  padding: 24px 20px;
+}
+.ae2-preview.is-mobile .ae2-preview-frame {
+  max-width: 400px;
+  border-left: 1px dashed var(--border-light);
+  border-right: 1px dashed var(--border-light);
+}
+.ae2-preview-frame :deep(img) { max-width: 100%; height: auto; }
+.ae2-preview-frame :deep(table) { max-width: 100%; }
 
 /* 窄屏：隐藏目录列 */
 @media (max-width: 1100px) {
-  .ae2-body { grid-template-columns: 1fr 280px; }
+  .ae2-body, .ae2-body.is-html { grid-template-columns: 1fr 280px; }
   .ae2-catalog { display: none; }
 }
 @media (max-width: 768px) {
-  .ae2-body { grid-template-columns: 1fr; }
+  .ae2-body, .ae2-body.is-html { grid-template-columns: 1fr; }
 }
 </style>

