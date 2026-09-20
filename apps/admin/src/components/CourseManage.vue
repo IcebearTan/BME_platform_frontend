@@ -17,6 +17,8 @@ const currentPage = ref(1);
 const pageSize = ref(10);
 const totalItems = ref(0);
 const loading = ref(false);
+// 搜索过滤激活时禁用上移/下移（换位基于全量序，过滤视图下移动会产生歧义）
+const filterActive = ref(false);
 
 // 导入相关状态
 const importDialogVisible = ref(false);
@@ -67,7 +69,7 @@ onMounted(() => {
 const fetchCourses = async () => {
   loading.value = true;
   try {
-    const response = await api.get('/course/list');
+    const response = await api.get('/course/admin_list');
     allCourses.value = response.data || [];
     filteredCourses.value = allCourses.value;
     totalItems.value = filteredCourses.value.length;
@@ -92,6 +94,7 @@ const updatePagedCourses = () => {
 const handleSearch = () => {
   const keyword = formInline.key.trim();
   currentPage.value = 1;
+  filterActive.value = !!keyword;
   if (!keyword) {
     filteredCourses.value = allCourses.value;
   } else {
@@ -285,6 +288,61 @@ const deleteResource = (row) => {
   }).catch(() => {});
 };
 
+// ── 课程排序与上下架 ──
+// 表格 $index 是页内索引，换算全量序号用于边界判断与换位
+const absCourseIndex = (pageIndex) => (currentPage.value - 1) * pageSize.value + pageIndex;
+
+// 上移/下移：先本地换位再提交完整顺序，失败则回拉。
+// filteredCourses 是按引用跟随 allCourses 赋值的，两者必须同步重赋，否则表格不刷新。
+const moveCourse = async (pageIndex, dir) => {
+  if (filterActive.value) return;
+  const i = absCourseIndex(pageIndex);
+  const j = i + dir;
+  if (j < 0 || j >= allCourses.value.length) return;
+  const list = [...allCourses.value];
+  [list[i], list[j]] = [list[j], list[i]];
+  allCourses.value = list;
+  filteredCourses.value = list;
+  updatePagedCourses();
+  try {
+    await api.post('/course/sort', { Course_Ids: list.map(c => Number(c.Course_Id)) });
+  } catch (error) {
+    console.error('Error sorting courses:', error);
+    ElMessage.error('排序失败');
+    fetchCourses();
+  }
+};
+
+const handleShelf = (course) => {
+  const offShelf = course.Course_Status === 'off_shelf';
+  const doShelf = async () => {
+    try {
+      const res = await api.post('/course/shelf', {
+        Course_Id: course.Course_Id,
+        Status: offShelf ? 'normal' : 'off_shelf'
+      });
+      ElMessage.success(res.data.message || (offShelf ? '已上架' : '已下架'));
+      fetchCourses();
+    } catch (error) {
+      console.error('Error shelving course:', error);
+      ElMessage.error(error.response?.data?.message || '操作失败');
+    }
+  };
+  if (offShelf) {
+    doShelf();
+    return;
+  }
+  ElMessageBox.confirm(
+    '下架后课程将不再出现在学生端课程列表，已选课学员仍可通过详情页访问。',
+    '下架课程',
+    {
+      confirmButtonText: '确定下架',
+      cancelButtonText: '取消',
+      type: 'warning'
+    }
+  ).then(doShelf).catch(() => {});
+};
+
 const handleDelete = (course) => {
   ElMessageBox.confirm('确定要删除该课程吗？', '提示', {
     confirmButtonText: '确定',
@@ -360,6 +418,13 @@ const handleDelete = (course) => {
             :show-overflow-tooltip="item.showOverflowTooltip || false"
             :align="item.align || 'left'"
           />
+          <el-table-column label="状态" min-width="80" align="center">
+            <template #="scoped">
+              <el-tag :type="scoped.row.Course_Status === 'off_shelf' ? 'info' : 'success'" size="small">
+                {{ scoped.row.Course_Status === 'off_shelf' ? '已下架' : '上架' }}
+              </el-tag>
+            </template>
+          </el-table-column>
           <el-table-column label="封面" min-width="70" align="center">
             <template #default="{ row }">
               <div class="cover-cell" :title="row.Course_Cover_Thumb ? '已设封面' : '未设封面（标题色块兜底）'">
@@ -368,11 +433,30 @@ const handleDelete = (course) => {
               </div>
             </template>
           </el-table-column>
-          <el-table-column fixed="right" label="操作" min-width="220">
+          <el-table-column fixed="right" label="操作" min-width="320">
             <template #="scoped">
               <el-button type="success" size="small" @click="handleResources(scoped.row)">资源</el-button>
               <el-button type="primary" size="small" @click="handleEdit(scoped.row)">编辑</el-button>
               <el-button type="danger" size="small" @click="handleDelete(scoped.row)">删除</el-button>
+              <el-button
+                :type="scoped.row.Course_Status === 'off_shelf' ? 'success' : 'warning'"
+                size="small"
+                @click="handleShelf(scoped.row)"
+              >{{ scoped.row.Course_Status === 'off_shelf' ? '上架' : '下架' }}</el-button>
+              <el-button
+                size="small"
+                :icon="Top"
+                aria-label="上移"
+                :disabled="filterActive || absCourseIndex(scoped.$index) === 0"
+                @click="moveCourse(scoped.$index, -1)"
+              />
+              <el-button
+                size="small"
+                :icon="Bottom"
+                aria-label="下移"
+                :disabled="filterActive || absCourseIndex(scoped.$index) === allCourses.length - 1"
+                @click="moveCourse(scoped.$index, 1)"
+              />
             </template>
           </el-table-column>
         </el-table>

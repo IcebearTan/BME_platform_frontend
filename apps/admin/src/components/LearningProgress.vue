@@ -667,10 +667,10 @@
       pendcourseVisible.value = true;
       isloading_pendcourse.value = true;
       try {
-        const res = (await api.get(`/course/list`))['data'];
+        const res = (await api.get(`/course/admin_list`))['data'];
         courses.value = res.map(course => {
           return {
-            course_name: course.Course_title,
+            course_name: course.Course_title + (course.Course_Status === 'off_shelf' ? '（已下架）' : ''),
             total: course.Course_Chapters,
             course_id: course.Course_Id,
           }

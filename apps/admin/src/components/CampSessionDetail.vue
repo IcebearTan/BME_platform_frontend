@@ -739,7 +739,7 @@
     <!-- 加课程 -->
     <el-dialog v-model="courseDlg.visible" title="加课程" width="460px">
       <el-select v-model="courseDlg.course_id" filterable placeholder="选择课程" style="width: 100%;">
-        <el-option v-for="c in availableCourses" :key="c.Course_Id" :label="c.Course_title" :value="c.Course_Id" />
+        <el-option v-for="c in availableCourses" :key="c.Course_Id" :label="c.Course_title + (c.Course_Status === 'off_shelf' ? '（已下架）' : '')" :value="c.Course_Id" />
       </el-select>
       <template #footer>
         <el-button @click="courseDlg.visible = false">取消</el-button>
@@ -940,7 +940,7 @@ const memberCandidateOptions = computed(() => {
   return [...byId.values()];
 });
 const availableCourses = computed(() => {
-  // /camp/.../courses 返回 int id 而 /course/list 返回字符串 id，统一转 String 再比对
+  // /camp/.../courses 返回 int id 而 /course/admin_list 返回字符串 id，统一转 String 再比对
   const added = new Set(courses.value.map((c) => String(c.course_id)));
   return allCourses.value.filter((c) => !added.has(String(c.Course_Id)));
 });
@@ -1155,7 +1155,7 @@ async function fetchOptions() {
   // 课程/座位接口需对应权限；勋章走 /camp/medals（仅需营期角色，不依赖 medal_management）。
   try {
     const [c, md, ps] = await Promise.all([
-      api.get('/course/list').catch(() => null),
+      api.get('/course/admin_list').catch(() => null),
       api.get('/camp/medals').catch(() => null),
       api.get('/seat/rooms/106/seats').catch(() => null),
     ]);

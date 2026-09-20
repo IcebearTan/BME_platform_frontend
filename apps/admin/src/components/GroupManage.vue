@@ -241,13 +241,13 @@ async function getGroupList()
 }
 }
 
-// 获取课程列表的函数
+// 获取课程列表的函数（admin_list 含下架课程，标注防止误选）
 async function getCourseList() {
   try {
-    const res = await api.get('/course/list');
+    const res = await api.get('/course/admin_list');
     courseList.value = res.data.map(course => ({
       value: parseInt(course.Course_Id), // 将ID转为数字
-      label: course.Course_title
+      label: course.Course_title + (course.Course_Status === 'off_shelf' ? '（已下架）' : '')
     }));
   } catch (error) {
     console.error('获取课程列表失败:', error);

@@ -178,7 +178,8 @@ async function mockCampSessionDetail(page) {
     ] } } })
   )
   // 通用拦截的 data:{} 会破坏 availableCourses 的数组契约（pageerror 断言会抓住），按真实形状补齐
-  await page.route('http://127.0.0.1:5001/course/list', (route) =>
+  // （09-20 课程下架改造后 CampSessionDetail 改调 admin_list）
+  await page.route('http://127.0.0.1:5001/course/admin_list', (route) =>
     route.fulfill({ json: [] })
   )
 }
@@ -929,6 +930,55 @@ test('XLAB 项目治理：列表 + 下架确认', async ({ page }) => {
     req.url().includes('/showcase/projects/801/status') && req.method() === 'PUT')
   await page.getByRole('button', { name: '下架', exact: true }).last().click()
   expect((await putStatus).postDataJSON()).toEqual({ status: 'hidden' })
+
+  expect(pageErrors).toEqual([])
+})
+
+// 课程治理（09-20）：下架状态标签 + 手动排序 + 下架确认
+test('课程管理：状态标签 + 上移排序 + 下架确认', async ({ page }) => {
+  await loginAsStaff(page)
+  const pageErrors = []
+  page.on('pageerror', (e) => pageErrors.push(e.message))
+
+  await page.route('http://127.0.0.1:5001/course/admin_list', (route) =>
+    route.fulfill({ json: [
+      { Course_Id: '801', Course_title: 'C语言程序设计（旧版）', Course_Introduction: '2025 版课程',
+        Course_Chapters: 8, Course_Class_Hour: 32, Course_Difficulty: 2, Course_Tags: '软件组',
+        Course_Other_Tags: [], Course_Time: '2026-07-01 10:00:00', Course_Cover_Thumb: null,
+        Course_Status: 'normal' },
+      { Course_Id: '802', Course_title: 'C语言程序设计（新版）', Course_Introduction: '2026 版课程',
+        Course_Chapters: 10, Course_Class_Hour: 40, Course_Difficulty: 2, Course_Tags: '软件组',
+        Course_Other_Tags: [], Course_Time: '2026-09-18 10:00:00', Course_Cover_Thumb: null,
+        Course_Status: 'off_shelf' },
+    ] }))
+  await page.route('http://127.0.0.1:5001/course/sort', (route) =>
+    route.fulfill({ json: { code: 200, message: '排序成功' } }))
+  await page.route('http://127.0.0.1:5001/course/shelf', (route) =>
+    route.fulfill({ json: { code: 200, message: '已下架' } }))
+
+  await page.goto(`${BASE}/course/manage`)
+  await expect(page.locator('.page-title')).toContainText('课程管理')
+  const oldRow = page.getByRole('row', { name: 'C语言程序设计（旧版）' })
+  const newRow = page.getByRole('row', { name: 'C语言程序设计（新版）' })
+  await expect(oldRow).toBeVisible()
+  await expect(newRow).toBeVisible()
+  // 下架课程带「已下架」状态标签
+  await expect(newRow.locator('.el-tag')).toHaveText('已下架')
+  await expect(oldRow.locator('.el-tag')).toHaveText('上架')
+
+  // 上移：乐观换位后提交全量顺序（Course_Ids 为数字数组）
+  const sortReq = page.waitForRequest((req) =>
+    req.url().includes('/course/sort') && req.method() === 'POST')
+  await newRow.getByRole('button', { name: '上移' }).click()
+  expect((await sortReq).postDataJSON()).toEqual({ Course_Ids: [802, 801] })
+
+  // 下架走确认框，Course_Id 保持字符串
+  await oldRow.getByRole('button', { name: '下架', exact: true }).click()
+  const shelfReq = page.waitForRequest((req) =>
+    req.url().includes('/course/shelf') && req.method() === 'POST')
+  await page.getByRole('button', { name: '确定下架' }).click()
+  expect((await shelfReq).postDataJSON()).toEqual({ Course_Id: '801', Status: 'off_shelf' })
+  await expect(page.locator('.el-message__content').filter({ hasText: '已下架' })).toBeVisible()
 
   expect(pageErrors).toEqual([])
 })
