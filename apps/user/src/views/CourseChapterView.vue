@@ -874,7 +874,10 @@ const handleMarkCompleted = async () => {
         data: {
           Lesson_Id: lessonId,
           Course_Id: courseIdVal,
-          Status: 'completed'
+          Status: 'completed',
+          // 营内入口进来显式带 sid：同课跨营多活营时打点落营准确（后端校验分配行，
+          // 无该营分配则回落最新分配推导；非营内路径不带，走全局表）
+          ...(route.query.sid ? { camp_session_id: Number(route.query.sid) } : {})
         }
       });
     } catch (e) {
