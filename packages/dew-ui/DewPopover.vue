@@ -54,7 +54,7 @@ const props = defineProps({
   disabled: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['update:modelValue'])
+const emit = defineEmits(['update:modelValue', 'show', 'hide'])
 
 const wrapperRef = ref(null)
 const triggerRef = ref(null)
@@ -203,10 +203,13 @@ function onScroll() {
   if (visible.value) updatePosition()
 }
 
-// 监听 visible 变化来更新位置
+// 监听 visible 变化来更新位置（show/hide 供懒加载等内容按需拉取）
 watch(visible, (val) => {
   if (val) {
+    emit('show')
     nextTick(updatePosition)
+  } else {
+    emit('hide')
   }
 })
 

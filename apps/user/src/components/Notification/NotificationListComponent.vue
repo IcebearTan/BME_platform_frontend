@@ -170,6 +170,7 @@ import { Bell, ChatDotRound } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { DewButton, DewButtonBar, DewCard, DewTag, DewDialog, DewSkeleton } from '@bme/dew-ui'
 import { useNotifications, formatRelativeTime } from '../../composables/useNotifications'
+import { notificationTarget } from '../../composables/notificationTarget'
 import { useGratitude } from '../../composables/useGratitude'
 import GratitudeLetterDetail from '../Gratitude/GratitudeLetterDetail.vue'
 
@@ -209,10 +210,11 @@ const isMobile = ref(false)
 let mediaQuery = null
 const handleMediaChange = (e) => { isMobile.value = e.matches }
 
-// 共享状态（与 NotificationBell 共用同一份数据）
+// 共享状态（与 NotificationBell 共用同一份数据；未读数为服务端口径）
 const {
   notificationList,
   unreadCount,
+  unreadByCategory,
   totalCount,
   loading,
   fetchNotifications,
@@ -243,16 +245,17 @@ const categoryLabel = (c) => CATEGORY_LABELS[c] || '系统通知'
 // 筛选栏选项（感谢信 tab 仅导生可见）
 // 分类体系：category=业务域（system/camp/community/message），source_type=具体事件。
 // tab = 全部 / 系统 / 营期 / 社区（有内容才浮出） / 私信（导生；感谢信是私信的第一种，
-// 未来用户互信同 tab）。未读是状态不是类别——撤独立 tab，未读徽标挂「全部」。
+// 未来用户互信同 tab）。未读是状态不是类别——撤独立 tab，未读徽标挂「全部」+ 各分类。
 const filterItems = computed(() => {
+  const cat = (c) => unreadByCategory.value[c] || undefined
   const items = [
     { value: 'all', label: '全部', icon: Bell, badge: unreadCount.value || undefined },
-    { value: 'system', label: '系统', icon: Bell },
-    { value: 'camp', label: '营期', icon: Bell },
+    { value: 'system', label: '系统', icon: Bell, badge: cat('system') },
+    { value: 'camp', label: '营期', icon: Bell, badge: cat('camp') },
   ]
   // 社区域预留：社区广场点赞/评论通知落地日（category='community'），tab 自动浮现
-  if (notificationList.value.some(n => n.category === 'community')) {
-    items.push({ value: 'community', label: '社区', icon: Bell })
+  if (notificationList.value.some(n => n.category === 'community') || unreadByCategory.value.community) {
+    items.push({ value: 'community', label: '社区', icon: Bell, badge: cat('community') })
   }
   if (isMentor.value) {
     items.push({ value: 'message', label: '私信', icon: ChatDotRound, badge: letterUnread.value || undefined })
@@ -304,29 +307,9 @@ function handleClick(item) {
     }
     return
   }
-  // 营期通知：按 source_type 跳转到对应处理页
+  // 营期通知：按 source_type 深链直达业务对象（映射与铃铛共用 notificationTarget）
   if (item.category === 'camp') {
-    const sid = item.camp_session_id
-    switch (item.source_type) {
-      case 'leave':
-        router.push({ path: '/camp', query: { tab: 'leave', sid } })
-        break
-      case 'join_request':
-        router.push('/camp')
-        break
-      case 'reward':
-        router.push('/medal/user-medal')
-        break
-      case 'mentor_selection':
-        router.push({ path: '/camp', query: { tab: 'ms', sid } })
-        break
-      case 'camp_meeting':
-        // 组会纪要：培训营直达「组会」tab；项目营无营期层 tab，CampView 自动回落 ProjectHub
-        router.push({ path: '/camp', query: { tab: 'meetings', sid } })
-        break
-      default:
-        router.push('/camp')
-    }
+    router.push(notificationTarget(item))
   }
 }
 

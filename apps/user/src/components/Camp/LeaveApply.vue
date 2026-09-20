@@ -27,6 +27,9 @@
             <DewBadge :type="statusType(lv.status)">{{ statusLabel(lv.status) }}</DewBadge>
           </div>
           <div class="lv-reason">{{ lv.reason || '（未填写事由）' }}</div>
+          <div v-if="lv.decision_note" class="lv-decision">
+            审批意见（{{ lv.approver_name || '审批人' }}）：{{ lv.decision_note }}
+          </div>
         </DewCard>
       </div>
     </DewCard>
@@ -85,5 +88,6 @@ watch(() => props.sid, load, { immediate: true });
 .leave-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .lv-date { font-weight: 600; }
 .lv-reason { color: #909399; font-size: 13px; margin-top: 4px; }
+.lv-decision { color: #909399; font-size: 12px; margin-top: 2px; opacity: 0.85; }
 .empty { color: #909399; padding: 16px 0; }
 </style>

@@ -106,6 +106,12 @@
             <template #default="{ row }">{{ row.start_date }} ~ {{ row.end_date }}</template>
           </el-table-column>
           <el-table-column label="事由" prop="reason" min-width="140" show-overflow-tooltip />
+          <el-table-column label="审批意见" min-width="120" show-overflow-tooltip>
+            <template #default="{ row }">
+              <span v-if="row.decision_note">{{ row.decision_note }}</span>
+              <span v-else style="color: var(--el-text-color-placeholder);">—</span>
+            </template>
+          </el-table-column>
           <el-table-column label="状态" width="90">
             <template #default="{ row }">
               <el-tag :type="leaveStatusType(row.status)" size="small">{{ leaveStatusLabel(row.status) }}</el-tag>
@@ -1121,15 +1127,18 @@ async function guarded(fn) {
 
 function approveLeave(row, approve) {
   guarded(async () => {
+    let note = '';
     if (!approve) {
-      // 拒绝影响较大，先确认
+      // 拒绝影响较大，先确认并收集原因（随审批入库 decision_note，进入学员通知）
       try {
-        await ElMessageBox.confirm(`确定拒绝「${row.username}」${row.start_date}~${row.end_date} 的请假吗？`, '拒绝请假',
-          { confirmButtonText: '拒绝', cancelButtonText: '取消', type: 'warning' });
+        const { value } = await ElMessageBox.prompt(
+          `可填写拒绝原因（将通知「${row.username}」）`, `拒绝 ${row.username} ${row.start_date}~${row.end_date} 的请假`,
+          { confirmButtonText: '拒绝', cancelButtonText: '取消', type: 'warning', inputPlaceholder: '原因（可选）' });
+        note = value || '';
       } catch { return; }
     }
     try {
-      await api.post(`/camp/leave/${row.id}/approve`, { approve });
+      await api.post(`/camp/leave/${row.id}/approve`, { approve, note });
       ElMessage.success(approve ? '已批准' : '已拒绝');
       fetchAll();
     } catch (e) {

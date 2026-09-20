@@ -1,5 +1,5 @@
 <template>
-  <DewPopover trigger="hover" placement="bottom" :width="300" :offset="4" :show-arrow="true">
+  <DewPopover trigger="hover" placement="bottom" :width="300" :offset="4" :show-arrow="true" @show="onPanelShow">
     <template #trigger>
       <div class="notification-trigger" :class="{ 'has-unread': unreadCount > 0 }">
         <el-icon :size="20" class="notification-icon">
@@ -19,13 +19,13 @@
       </div>
 
       <!-- 预览列表 -->
-      <div v-if="recentNotifications.length > 0" class="preview-list">
+      <div v-if="previewList.length > 0" class="preview-list">
         <div
-          v-for="item in recentNotifications"
+          v-for="item in previewList"
           :key="item.id"
           class="preview-item"
           :class="{ 'is-unread': !item.is_read }"
-          @click="goToNotifications(item)"
+          @click="goToNotification(item)"
         >
           <span v-if="!item.is_read" class="preview-dot"></span>
           <div class="preview-body">
@@ -44,7 +44,7 @@
       </div>
 
       <!-- 底部跳转 -->
-      <div class="panel-footer" @click="goToNotifications">
+      <div class="panel-footer" @click="goInbox">
         查看全部通知
         <el-icon :size="13" class="footer-arrow"><ArrowRight /></el-icon>
       </div>
@@ -53,28 +53,28 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onBeforeUnmount } from 'vue'
+import { onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { Bell, ArrowRight } from '@element-plus/icons-vue'
 import DewPopover from '@bme/dew-ui/DewPopover.vue'
 import { useNotifications, formatRelativeTime } from '../../composables/useNotifications'
+import { notificationTarget } from '../../composables/notificationTarget'
 
 const router = useRouter()
 
-// 共享状态（与 NotificationListComponent 共用同一份数据）
-const { notificationList, unreadCount, startPolling, stopPolling } = useNotifications()
+// 未读数走服务端轻量接口轮询；最近摘要展开时懒加载（方案 §8.1）
+const { previewList, unreadCount, fetchPreview, markAsRead, startPolling, stopPolling } = useNotifications()
 
-const recentNotifications = computed(() => notificationList.value.slice(0, 5))
+// 展开铃铛时拉最近摘要（轻量 per_page=8，不再每 30s 全量拉 100 条）
+const onPanelShow = () => { fetchPreview() }
 
-// 私信域提醒（感谢信等）直达私信 tab，其余进默认列表。
-// 兼容存量 category='gratitude' 行——新行已写 message 域
-const goToNotifications = (item) => {
-  if (item?.category === 'message' || item?.category === 'gratitude') {
-    router.push({ path: '/notifications', query: { tab: 'message' } })
-  } else {
-    router.push('/notifications')
-  }
+// 点击一条通知：未读先置已读，再直达业务对象（与收件箱共用同一深链映射）
+const goToNotification = (item) => {
+  if (item && !item.is_read) markAsRead(item.id)
+  router.push(notificationTarget(item))
 }
+
+const goInbox = () => { router.push('/notifications') }
 
 onMounted(() => startPolling(30000))
 onBeforeUnmount(() => stopPolling())

@@ -234,3 +234,142 @@ test('移动端单栏：system 通知回退详情弹窗', async ({ page }) => {
 
   expect(errors).toEqual([])
 })
+
+// ── 2026-09-20 闭环升级：服务端未读数 + 分类全部已读范围 + 营期通知深链 ──
+
+const MIXED_NOTIFICATIONS = {
+  code: 200,
+  data: {
+    notifications: [
+      { id: 301, title: '请假审批结果', content: '「测试营」请假已由 test_mentor 批准。', category: 'camp', source_type: 'leave', source_id: 55, camp_session_id: 1, is_read: false, is_important: false, created_at: NOW },
+      { id: 302, title: '章节学习已认证', content: '「测试营」课程「硬件入门」章节已认证。', category: 'camp', source_type: 'camp_course', source_id: 9, camp_session_id: 1, is_read: false, is_important: false, created_at: NOW },
+      { id: 303, title: '系统维护通知', content: '今晚维护。', category: 'system', source_type: 'admin', camp_session_id: null, is_read: false, is_important: false, created_at: NOW },
+    ],
+  },
+}
+
+const UNREAD = {
+  code: 200,
+  data: { unread_count: 3, total: 3, by_category: { camp: 2, system: 1 } },
+}
+
+async function mockClosureBackend(page, { unreadRequests } = {}) {
+  // 深链目的地是学员视角的请假/学习页：session 需带 policy.capabilities（leave/attendance）
+  const SESSIONS_STUDENT = {
+    ...SESSIONS,
+    sessions: [{
+      ...SESSIONS.sessions[0],
+      policy: { capabilities: { attendance: true, leave: true } },
+    }],
+  }
+  await page.route('http://127.0.0.1:5001/**', (route) => {
+    const url = route.request().url()
+    const method = route.request().method()
+    if (url.includes('/notification/unread_count')) {
+      unreadRequests?.push(method)
+      return route.fulfill({ json: UNREAD })
+    }
+    if (url.includes('/notification/list')) {
+      return route.fulfill({ json: MIXED_NOTIFICATIONS })
+    }
+    if (url.includes('/gratitude/received')) {
+      return route.fulfill({ json: { code: 200, data: { letters: [] } } })
+    }
+    if (url.includes('/camp/sessions') && !url.includes('/camp/ms')) {
+      return route.fulfill({ json: SESSIONS_STUDENT })
+    }
+    if (url.includes('/camp/sessions/1/leave')) {
+      return route.fulfill({ json: { code: 200, leaves: [] } })
+    }
+    return route.fulfill({ json: { code: 200, message: 'ok', data: {} } })
+  })
+}
+
+test('铃铛：服务端未读数轮询 + 展开懒加载预览', async ({ page }) => {
+  const errors = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  await loginAs(page, 'user')
+  const unreadRequests = []
+  await mockClosureBackend(page, { unreadRequests })
+
+  await page.goto(`${BASE}/notifications`, { waitUntil: 'domcontentloaded' })
+
+  // 未读数来自服务端轻量接口（不再由本地列表推算）
+  await expect(page.locator('.notification-badge')).toHaveText('3')
+
+  // 展开铃铛懒加载最近摘要（不依赖全量列表）
+  await page.locator('.notification-trigger').hover()
+  await expect(page.locator('.preview-item').first()).toBeVisible()
+  await expect(unreadRequests.length).toBeGreaterThan(0)
+
+  expect(errors).toEqual([])
+})
+
+test('营期通知深链：leave 直达请假页 / camp_course 直达学习方向', async ({ page }) => {
+  const errors = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  await loginAs(page, 'user')
+  await mockClosureBackend(page)
+
+  await page.goto(`${BASE}/notifications`, { waitUntil: 'domcontentloaded' })
+
+  // leave → /camp?tab=leave&sid=1（学员视角渲染请假页）
+  await page.getByText('请假审批结果').click()
+  await expect(page).toHaveURL(/tab=leave/)
+  await expect(page).toHaveURL(/sid=1/)
+  await expect(page.getByRole('heading', { name: '申请请假' })).toBeVisible()
+
+  // camp_course → /camp?tab=study&sid=1
+  await page.goto(`${BASE}/notifications`, { waitUntil: 'domcontentloaded' })
+  await page.getByText('章节学习已认证').click()
+  await expect(page).toHaveURL(/tab=study/)
+
+  expect(errors).toEqual([])
+})
+
+test('分类全部已读：只标记当前分类，请求带 category', async ({ page }) => {
+  const errors = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  await loginAs(page, 'user')
+
+  let markAllBody = null
+  await page.route('http://127.0.0.1:5001/**', (route) => {
+    const url = route.request().url()
+    if (url.includes('/notification/unread_count')) {
+      return route.fulfill({ json: UNREAD })
+    }
+    if (url.includes('/notification/list')) {
+      return route.fulfill({ json: MIXED_NOTIFICATIONS })
+    }
+    if (url.includes('/gratitude/received')) {
+      return route.fulfill({ json: { code: 200, data: { letters: [] } } })
+    }
+    if (url.includes('/notification/mark_all_read')) {
+      markAllBody = route.request().postDataJSON()
+      return route.fulfill({ json: { code: 200, data: { marked_count: 2 } } })
+    }
+    if (url.includes('/camp/sessions') && !url.includes('/camp/ms')) {
+      return route.fulfill({ json: SESSIONS })
+    }
+    return route.fulfill({ json: { code: 200, message: 'ok', data: {} } })
+  })
+
+  await page.goto(`${BASE}/notifications?tab=camp`, { waitUntil: 'domcontentloaded' })
+  await page.getByRole('button', { name: '全部已读' }).click()
+
+  // 请求只针对 camp 分类
+  expect(markAllBody).toEqual({ category: 'camp' })
+
+  // 乐观更新只动营期行：camp tab 下两条通知的未读点消失
+  const leaveCard = page.locator('.dew-card', { hasText: '请假审批结果' })
+  const certCard = page.locator('.dew-card', { hasText: '章节学习已认证' })
+  await expect(leaveCard.locator('.unread-dot')).toHaveCount(0)
+  await expect(certCard.locator('.unread-dot')).toHaveCount(0)
+
+  // 切到系统 tab：系统通知未被误标（原实现会把全部本地行置已读）
+  await page.getByRole('button', { name: '系统' }).click()
+  const sysCard = page.locator('.dew-card', { hasText: '系统维护通知' })
+  await expect(sysCard.locator('.unread-dot')).toHaveCount(1)
+
+  expect(errors).toEqual([])
+})

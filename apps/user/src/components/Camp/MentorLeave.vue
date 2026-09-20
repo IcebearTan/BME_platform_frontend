@@ -11,6 +11,9 @@
             <DewBadge :type="statusType(lv.status)">{{ statusLabel(lv.status) }}</DewBadge>
           </div>
           <div class="reason">{{ lv.reason || '（未填写事由）' }}</div>
+          <div v-if="lv.decision_note" class="decision">
+            审批意见（{{ lv.approver_name || '审批人' }}）：{{ lv.decision_note }}
+          </div>
           <div v-if="lv.status === 'pending'" class="actions">
             <DewButton size="sm" type="glass" @click="approve(lv, true)">批准</DewButton>
             <DewButton size="sm" type="ghost" @click="approve(lv, false)">拒绝</DewButton>
@@ -44,15 +47,19 @@ async function load() {
 
 async function approve(lv, ok) {
   if (busy.value) return;
+  let note = '';
   if (!ok) {
+    // 拒绝填写原因（可选）：随审批入库（decision_note）并进入学员通知
     try {
-      await ElMessageBox.confirm(`确定拒绝 ${lv.username} ${lv.start_date}~${lv.end_date} 的请假吗？`, '拒绝请假',
-        { confirmButtonText: '拒绝', cancelButtonText: '取消', type: 'warning' });
+      const { value } = await ElMessageBox.prompt(
+        `可填写拒绝原因（将通知 ${lv.username}）`, `拒绝 ${lv.username} ${lv.start_date}~${lv.end_date} 的请假`,
+        { confirmButtonText: '拒绝', cancelButtonText: '取消', type: 'warning', inputPlaceholder: '原因（可选）' });
+      note = value || '';
     } catch { return; }
   }
   busy.value = true;
   try {
-    await campService.approveLeave(lv.id, ok);
+    await campService.approveLeave(lv.id, ok, note);
     ElMessage.success(ok ? '已批准' : '已拒绝');
     load();
   } catch (e) {
@@ -87,6 +94,7 @@ watch(() => props.sid, load, { immediate: true });
 .user { font-weight: 600; min-width: 80px; }
 .date { color: var(--dew-text-muted); font-size: 13px; flex: 1; }
 .reason { color: var(--dew-text-muted); font-size: 13px; margin: 6px 0; }
+.decision { color: var(--dew-text-faint); font-size: 12px; margin: 2px 0 6px; }
 .actions { display: flex; gap: 8px; }
 .empty { color: var(--dew-text-muted); padding: 16px 0; }
 </style>
