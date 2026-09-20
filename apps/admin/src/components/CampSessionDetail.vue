@@ -114,9 +114,22 @@
           <el-table-column label="加入时间" width="120">
             <template #default="{ row }">{{ row.joined_at ? row.joined_at.slice(0, 10) : '' }}</template>
           </el-table-column>
+          <el-table-column v-if="memberPage.includeEnded" label="状态" width="150">
+            <template #default="{ row }">
+              <template v-if="row.status === 'active'">在营</template>
+              <template v-else>
+                <el-tag type="info" size="small">{{ { removed: '已移除', exited: '已退出' }[row.status] || row.status }}</el-tag>
+                <div v-if="row.ended_at" style="font-size: 11px; color: var(--el-text-color-secondary);">
+                  {{ row.ended_at.slice(0, 10) }}<template v-if="row.end_reason"> · {{ row.end_reason }}</template>
+                </div>
+              </template>
+            </template>
+          </el-table-column>
           <el-table-column v-if="manageWritable" label="操作" width="90">
             <template #default="{ row }">
-              <el-button size="small" type="danger" link @click="removeMember(row)">移除</el-button>
+              <el-button v-if="row.status !== 'active'" size="small" type="success" link
+                @click="reactivateMember(row)">重新加入</el-button>
+              <el-button v-else size="small" type="danger" link @click="removeMember(row)">移除</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -869,6 +882,7 @@ const members = ref([]);
 const memberPage = reactive({
   page: 1, pageSize: 20, total: 0, keyword: '', role: '', loading: false,
   counts: { student: 0, mentor: 0, member: 0 },
+  includeEnded: false,   // 历史视图：软删除后的移除留痕（migrate_45）
 });
 const courses = ref([]);
 const seats = ref([]);
@@ -961,6 +975,7 @@ async function fetchMembers() {
       page: memberPage.page, page_size: memberPage.pageSize,
       keyword: memberPage.keyword.trim() || undefined,
       role: memberPage.role || undefined,
+      include_ended: memberPage.includeEnded ? 1 : undefined,
     } });
     const data = res.data || {};
     members.value = data.members || [];
@@ -1220,16 +1235,30 @@ async function submitAddMember() {
   }
 }
 function removeMember(row) {
-  ElMessageBox.confirm(`确定移除「${row.username}」吗？（其承诺出勤日一并删除）`, '提示', {
-    confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning',
-  }).then(async () => {
-    await api.delete(`/camp/sessions/${campId}/members/${row.user_id}`);
-    ElMessage.success('已移除');
+  // 软删除（migrate_45）：移除可填原因，留痕可追溯；承诺出勤日保留（复职后继续可用）
+  ElMessageBox.prompt(`移除后「${row.username}」不再出现在营内名单，记录保留可追溯。`, '移除成员', {
+    confirmButtonText: '移除', cancelButtonText: '取消', type: 'warning',
+    inputPlaceholder: '移除原因（可选，将通知本人）',
+  }).then(async ({ value }) => {
+    await api.delete(`/camp/sessions/${campId}/members/${row.user_id}`, { data: { reason: value || '' } });
+    ElMessage.success('已移除（记录保留）');
     fetchAll();
   }).catch((e) => {
     // 用户取消是 'cancel'/'close' 字符串；其余才是请求失败
     if (e === 'cancel' || e === 'close') return;
     ElMessage.error(e.response?.data?.message || '移除失败');
+  });
+}
+// 复职（历史视图）：走 member_assign，后端对 ended 行自动 reactivate 并记事件
+function reactivateMember(row) {
+  api.post(`/camp/sessions/${campId}/members`, {
+    user_id: row.user_id, role: row.role === 'mentor' ? 'mentor'
+      : (isProjectCamp.value ? 'member' : 'student'),
+  }).then(() => {
+    ElMessage.success('已重新加入');
+    fetchMembers();
+  }).catch((e) => {
+    ElMessage.error(e.response?.data?.message || '操作失败');
   });
 }
 
