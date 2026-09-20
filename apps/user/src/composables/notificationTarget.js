@@ -40,6 +40,8 @@ export function notificationTarget(item) {
       return withSid({})
     case 'camp_staff':         // 负责人委任/解除 → 老师工作台
       return withSid({ perspective: 'teacher' })
+    case 'camp_announcement':   // 公告发布扇出的通知 → 营工作台（公告在看板顶部）
+      return withSid({})
     default:
       return { path: '/camp' }
   }

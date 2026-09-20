@@ -3,6 +3,19 @@
        09-14 修复：远程不考勤营（capabilities.attendance=false / 模式 B）不再渲染每日考勤
        看板——此前无条件按 daily 画仪表盘/日历并对后端 400 弹错。 -->
   <div class="camp-overview" v-loading="loading">
+    <!-- ━━ 营期公告（持续展示的公共内容，置顶在前；发布方可选同步发过通知）━━ -->
+    <div v-if="announcements.length" class="ann-board">
+      <DewCard v-for="a in announcements" :key="a.id" variant="default" size="md"
+        :no-hover="true" :class="['ann-card', { 'ann-pinned': a.is_pinned }]">
+        <div class="ann-head">
+          <span v-if="a.is_pinned" class="ann-pin">置顶</span>
+          <span class="ann-title">{{ a.title }}</span>
+          <span class="ann-time">{{ (a.published_at || '').slice(0, 10) }}</span>
+        </div>
+        <p class="ann-body">{{ a.content }}</p>
+      </DewCard>
+    </div>
+
     <!-- ━━ 远程培训 · 不考勤（模式 B）：一张说明卡，不发任何考勤请求 ━━ -->
     <DewCard v-if="!attEnabled" variant="default" size="lg" :no-hover="true" class="dashboard-card">
       <div class="att-off-note">
@@ -140,6 +153,15 @@ const props = defineProps({
 
 const isMentor = computed(() => props.myRole === 'mentor');
 
+// 营期公告（受众过滤在后端按 my_role 完成；失败静默——公告缺席不拖挂考勤看板）
+const announcements = ref([]);
+async function loadAnnouncements() {
+  try {
+    const d = await campService.fetchAnnouncements(props.sid);
+    announcements.value = d.announcements || [];
+  } catch { /* 静默 */ }
+}
+
 const loading = ref(false);
 const personal = ref(null);
 const daily = ref({});
@@ -241,10 +263,28 @@ async function load() {
   }
 }
 
-watch(() => props.sid, load, { immediate: true });
+// 公告与考勤解耦加载（不考勤营/加载失败都不影响公告展示）
+watch(() => props.sid, () => { loadAnnouncements(); load(); }, { immediate: true });
 </script>
 
 <style scoped>
+/* ── 营期公告 ── */
+.ann-board { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+.ann-card { border-left: 3px solid var(--dew-card-border); }
+.ann-card.ann-pinned { border-left-color: var(--color-warning); }
+.ann-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ann-pin {
+  font-size: 11px; font-weight: 700; color: var(--color-warning);
+  background: color-mix(in srgb, var(--color-warning) 14%, transparent);
+  padding: 1px 8px; border-radius: var(--radius-full);
+}
+.ann-title { font-size: 14px; font-weight: 700; color: var(--dew-text-heading); }
+.ann-time { margin-left: auto; font-size: 12px; color: var(--dew-text-faint); }
+.ann-body {
+  margin: 6px 0 0; font-size: 13px; color: var(--dew-text-muted); line-height: 1.6;
+  white-space: pre-wrap; word-break: break-word;
+}
+
 /* common card title */
 .dashboard-card, .heatmap-card { margin-bottom: 16px; }
 .card-title-row { display: flex; justify-content: space-between; align-items: baseline; }

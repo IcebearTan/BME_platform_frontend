@@ -197,3 +197,96 @@ test('选导生收官：名册渲染 + 选中导生后批量指派', async ({ pa
 
   expect(errors).toEqual([])
 })
+
+// 营期公告（阶段 3 增量）：老师发布（受众+同步通知开关）→ 成员看板可见
+const ANN_LIST = {
+  code: 200,
+  announcements: [
+    { id: 1, title: '开营仪式通知', content: '10月8日 9:00 报告厅举行开营仪式。',
+      audience: 'all', is_pinned: true, status: 'active',
+      published_at: NOW, expires_at: null, author_name: '老师甲' },
+  ],
+}
+
+test('营期公告：老师工作台发布公告，成员看板展示置顶公告', async ({ page }) => {
+  const errors = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  await loginAs(page)
+
+  let createdPayload = null
+  await page.route('http://127.0.0.1:5001/**', (route) => {
+    const url = route.request().url()
+    const method = route.request().method()
+    if (url.includes('/camp/sessions') && !url.includes('/camp/ms')
+        && !url.includes('teacher/overview') && !url.includes('join-requests')
+        && !url.includes('announcements')) {
+      return route.fulfill({ json: SESSIONS_TEACHER })
+    }
+    if (url.includes('/teacher/overview')) {
+      return route.fulfill({ json: OVERVIEW })
+    }
+    if (url.includes('/announcements') && method === 'POST') {
+      createdPayload = route.request().postDataJSON()
+      return route.fulfill({ json: { code: 200, id: 2, message: '已发布' } })
+    }
+    if (url.includes('/announcements')) {
+      return route.fulfill({ json: ANN_LIST })
+    }
+    return route.fulfill({ json: { code: 200, message: 'ok', data: {} } })
+  })
+
+  await page.goto(`${BASE}/camp?sid=7`, { waitUntil: 'domcontentloaded' })
+  await page.getByRole('button', { name: '营期公告' }).click()
+  // 列表渲染（置顶标识 + 受众标签）
+  await expect(page.getByText('开营仪式通知').first()).toBeVisible()
+  await expect(page.getByText('置顶').first()).toBeVisible()
+
+  // 发布弹窗：受众 + 同步通知开关 → 提交契约
+  await page.getByRole('button', { name: '发布公告' }).click()
+  await page.getByPlaceholder('公告标题（≤200 字）').fill('调课通知')
+  await page.getByPlaceholder(/公告正文/).fill('10月10日课程调整至下午。')
+  expect(createdPayload).toBeNull()   // 未提交不发包
+  await page.getByRole('button', { name: '发布', exact: true }).click()
+  await expect(page.getByText('公告已发布')).toBeVisible()
+  expect(createdPayload).toMatchObject({ title: '调课通知', audience: 'all', notify: false })
+
+  expect(errors).toEqual([])
+})
+
+test('成员看板：置顶公告在学员看板顶部展示', async ({ page }) => {
+  const errors = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  await loginAs(page)
+
+  // 学员视角的营（有成员身份，默认学员视角 → 看板 tab）
+  const SESSIONS_STUDENT = {
+    code: 200,
+    sessions: [{
+      ...SESSIONS_TEACHER.sessions[0],
+      is_member: true, my_role: 'student',
+      my_staff_role: null, available_perspectives: ['student'],
+      my_permissions: [],
+    }],
+  }
+  await page.route('http://127.0.0.1:5001/**', (route) => {
+    const url = route.request().url()
+    if (url.includes('/announcements')) {
+      return route.fulfill({ json: ANN_LIST })
+    }
+    if (url.includes('/camp/sessions') && !url.includes('/camp/ms')) {
+      return route.fulfill({ json: SESSIONS_STUDENT })
+    }
+    if (url.includes('/camp/attendance/mine')) {
+      return route.fulfill({ json: { code: 200, mode: 'daily', personal: null, daily: {}, dates: [] } })
+    }
+    return route.fulfill({ json: { code: 200, message: 'ok', data: {} } })
+  })
+
+  await page.goto(`${BASE}/camp?sid=7`, { waitUntil: 'domcontentloaded' })
+  const board = page.locator('.ann-board')
+  await expect(board.getByText('开营仪式通知')).toBeVisible()
+  await expect(board.getByText('置顶')).toBeVisible()
+  await expect(board.getByText('10月8日 9:00 报告厅举行开营仪式。')).toBeVisible()
+
+  expect(errors).toEqual([])
+})

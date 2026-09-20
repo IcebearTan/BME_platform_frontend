@@ -15,6 +15,7 @@
       :ms-enabled="!!session?.mentor_selection_enabled" @reviewed="refreshOverview" />
     <TeacherMsAssign v-else-if="section === 'ms'" :sid="sid" @reviewed="refreshOverview" />
     <TeacherMembers v-else-if="section === 'members'" :sid="sid" @reviewed="refreshOverview" />
+    <TeacherAnnouncements v-else-if="section === 'announcements'" :sid="sid" />
     <MentorDashboard v-else-if="section === 'attendance'" :sid="sid" scope-label="全营" />
     <MentorLeave v-else-if="section === 'leaves'" :sid="sid" @reviewed="refreshOverview" />
   </div>
@@ -27,6 +28,7 @@ import TeacherOverview from './TeacherOverview.vue';
 import TeacherAdmissions from './TeacherAdmissions.vue';
 import TeacherMsAssign from './TeacherMsAssign.vue';
 import TeacherMembers from './TeacherMembers.vue';
+import TeacherAnnouncements from './TeacherAnnouncements.vue';
 import MentorDashboard from './MentorDashboard.vue';
 import MentorLeave from './MentorLeave.vue';
 
@@ -37,7 +39,7 @@ const props = defineProps({
 });
 
 // 外壳只做子页导航（方案 §6.2：不能长成包含所有表格的超大组件）。
-// 阶段 3 待接入：营期公告、待办中心、全营学习进度看板、组会总览。
+// 待接入：全营学习进度看板、组会总览（老师只读）、待办中心。
 const section = ref('overview');
 const caps = computed(() => props.session?.policy?.capabilities || {});
 const sectionItems = computed(() => {
@@ -49,6 +51,7 @@ const sectionItems = computed(() => {
     items.push({ value: 'ms', label: '选导生收官' });
   }
   items.push({ value: 'members', label: '成员管理' });
+  items.push({ value: 'announcements', label: '营期公告' });
   if (caps.value.attendance) items.push({ value: 'attendance', label: '全营考勤' });
   items.push({ value: 'leaves', label: '请假审批' });
   return items;

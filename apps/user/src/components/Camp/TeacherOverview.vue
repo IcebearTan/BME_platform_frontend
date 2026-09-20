@@ -57,6 +57,22 @@
         <span v-if="msDeadlineText">志愿截止 {{ msDeadlineText }}</span>
       </div>
     </DewCard>
+
+    <!-- 开营就绪检查（selecting 阶段，方案 §8.2：开营前逐项确认，不静默带病开营） -->
+    <DewCard v-if="overview?.stage === 'selecting'" variant="default" size="lg" :no-hover="true" style="margin-top: 16px;">
+      <template #header><h3>开营就绪检查</h3></template>
+      <div class="ready-list">
+        <div v-for="c in readiness" :key="c.label" class="ready-item">
+          <span :class="['ready-dot', c.ok ? 'ok' : 'bad']"></span>
+          <span class="ready-label">{{ c.label }}</span>
+          <span :class="['ready-state', c.ok ? 'ok' : 'bad']">{{ c.ok ? '就绪' : c.hint }}</span>
+        </div>
+      </div>
+      <div v-if="readiness.every((c) => c.ok)" class="ready-done">
+        全部就绪——可由管理员在营期管理执行「开营」
+      </div>
+      <div v-else class="ready-note">未就绪项不阻断开营（管理员可显式越过），但会直接影响开营体验</div>
+    </DewCard>
   </div>
 </template>
 
@@ -103,6 +119,26 @@ function goTodo(key) {
     emit('navigate', 'ms');
   }
 }
+
+// 开营就绪检查（selecting 阶段）：由概览已有投影派生，可解释规则（方案 §10.3）
+const readiness = computed(() => {
+  const ov = overview.value;
+  if (!ov) return [];
+  const items = [
+    { label: '待审报名已清零', ok: !countOf('camp.application.pending') && !countOf('camp.mentor_application.pending'),
+      hint: `剩 ${countOf('camp.application.pending') + countOf('camp.mentor_application.pending')} 条待审` },
+    { label: '学员均已分配导生', ok: !(ov.counts?.unassigned > 0),
+      hint: `${ov.counts?.unassigned || 0} 名未分配` },
+    { label: '导生均已发布名片', ok: !(ov.ms_stats?.mentors_without_profile > 0),
+      hint: `${ov.ms_stats?.mentors_without_profile || 0} 人未发布` },
+  ];
+  if (ov.ms_stats) {
+    items.push({ label: '学员志愿均已提交', ok: !(ov.ms_stats.students_without_preference > 0),
+      hint: `${ov.ms_stats.students_without_preference} 人未提交` });
+  }
+  return items;
+});
+const countOf = (key) => (workItems.value.find((i) => i.key === key)?.count) || 0;
 </script>
 
 <style scoped>
@@ -141,4 +177,17 @@ function goTodo(key) {
 .ms-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--dew-text-muted); flex-wrap: wrap; }
 .ms-row b { color: var(--dew-text-heading); }
 .ms-sep { color: var(--dew-text-faint); }
+
+/* 开营就绪检查 */
+.ready-list { display: flex; flex-direction: column; gap: 4px; }
+.ready-item { display: flex; align-items: center; gap: 10px; padding: 6px 4px; }
+.ready-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.ready-dot.ok { background: var(--color-success); }
+.ready-dot.bad { background: var(--color-warning); }
+.ready-label { font-size: 13.5px; color: var(--dew-text); }
+.ready-state { margin-left: auto; font-size: 12.5px; }
+.ready-state.ok { color: var(--color-success); }
+.ready-state.bad { color: var(--color-warning); }
+.ready-done { margin-top: 10px; font-size: 13px; color: var(--color-success); }
+.ready-note { margin-top: 10px; font-size: 12px; color: var(--dew-text-faint); }
 </style>

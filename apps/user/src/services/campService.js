@@ -159,6 +159,16 @@ export const campService = {
   exportPreferencesCsv: (sid) =>
     api.get(`/camp/ms/${sid}/export`, { responseType: 'blob' }).then(r => r),
 
+  // 营期公告（方案 §7.3：持续展示的公共内容；发布方可选同步扇出通知）
+  fetchAnnouncements: (sid) =>
+    api.get(`/camp/sessions/${sid}/announcements`).then(r => r.data),
+  createAnnouncement: (sid, payload) =>
+    api.post(`/camp/sessions/${sid}/announcements`, payload).then(r => r.data),
+  updateAnnouncement: (sid, aid, payload) =>
+    api.put(`/camp/sessions/${sid}/announcements/${aid}`, payload).then(r => r.data),
+  unpublishAnnouncement: (sid, aid) =>
+    api.post(`/camp/sessions/${sid}/announcements/${aid}/unpublish`).then(r => r.data),
+
   // ── 选导生（开营前置阶段；后端 blueprints/camp_ms.py）──
   // 阶段总览（含按身份视角数据；读端点顺带触发阶段过渡通知）
   fetchMsPhase: (sid) =>
