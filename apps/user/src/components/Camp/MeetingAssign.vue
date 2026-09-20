@@ -15,7 +15,7 @@
       </div>
 
       <template v-if="detail.chapter_catalog">
-        <div class="field-label">课内章节（到下次组会前完成认证，可多选）</div>
+        <div class="field-label">课内章节（可多选，设统一认证截止）</div>
         <div v-for="course in detail.chapter_catalog" :key="course.course_id" class="course-group">
           <div class="course-name">{{ course.course_title }}</div>
           <div class="chapter-chips">
@@ -26,6 +26,15 @@
         </div>
         <div v-if="!detail.chapter_catalog.some((c) => c.chapters.length)" class="ma-none">
           方向课程暂无章节，先在营期设置的分类方向中绑定课程。
+        </div>
+        <!-- 认证截止（migrate_49）：整组课内布置统一一个截止；无布置章时后端自动忽略 -->
+        <div class="task-life-row ch-life-row">
+          <label class="life-item">
+            <span class="life-label">认证截止</span>
+            <input v-model="form.chapter_due_at" type="datetime-local" class="life-due"
+                   :min="todayLocal" />
+          </label>
+          <span class="picker-hint">所选章节需在此之前完成认证（选填；到期前 24 小时与逾期自动提醒）</span>
         </div>
       </template>
 
@@ -61,7 +70,7 @@
         <DewButton type="glass" size="sm" :loading="saving" :disabled="!canSave || !writable"
                    @click="save">保存布置</DewButton>
       </div>
-      <div class="assign-hint">已有人提交的任务不会被删除（保护学生数据），只能改标题与说明。设了截止的必交任务会在截止前 24 小时与逾期时自动提醒。</div>
+      <div class="assign-hint">已有人提交的任务不会被删除（保护学生数据），只能改标题与说明。设了截止的必交任务会在截止前 24 小时与逾期时自动提醒；课内认证截止同理（提醒未认证的组员，逾期另通知组长）。</div>
     </div>
   </DewDialog>
 </template>
@@ -93,7 +102,7 @@ const typeOptions = [
   { label: '需交文件', value: 'file' },
   { label: '需交文字', value: 'text' },
 ];
-const form = ref({ chapters: [], tasks: [] });
+const form = ref({ chapters: [], chapter_due_at: '', tasks: [] });
 const saving = ref(false);
 const canSave = computed(() => form.value.tasks.every((t) => t.title.trim()));
 
@@ -107,6 +116,7 @@ watch(() => [props.modelValue, props.meetingId], async ([open]) => {
     detail.value = await campService.fetchMeetingDetail(props.meetingId);
     form.value = {
       chapters: (detail.value.chapters || []).map((c) => c.chapter_id),
+      chapter_due_at: toLocalInput(detail.value.meeting?.chapter_due_at),
       tasks: (detail.value.tasks || []).map((t) => ({
         id: t.id, title: t.title, note: t.note || '', submit_type: t.submit_type,
         due_at: toLocalInput(t.due_at),
@@ -135,6 +145,7 @@ async function save() {
   try {
     await campService.saveMeetingAssignments(props.meetingId, {
       chapters: form.value.chapters,
+      chapter_due_at: (form.value.chapter_due_at || '').trim() || null,
       tasks: form.value.tasks.map((t) => ({
         ...(t.id ? { id: t.id } : {}), title: t.title.trim(),
         note: (t.note || '').trim() || null, submit_type: t.submit_type,
@@ -182,8 +193,9 @@ async function save() {
 .task-title-input { flex: 1; min-width: 0; }
 .task-type { width: 130px; flex: none; }
 .task-note-input { width: 100%; }
-/* 生命周期行（migrate_44）：截止/必交/允许迟交 */
+/* 生命周期行（migrate_44）：截止/必交/允许迟交；课内认证截止（migrate_49）同款 */
 .task-life-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.ch-life-row { margin: 2px 0 8px; align-items: center; }
 .life-item { display: inline-flex; align-items: center; gap: 6px; }
 .life-label { font-size: 12px; color: var(--dew-text-faint); }
 .life-due {

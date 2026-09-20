@@ -23,6 +23,7 @@
             <span class="mtg-title">{{ m.title }}</span>
             <span class="mtg-date">{{ m.meeting_date }}</span>
             <span class="mtg-count">任务 {{ m.task_count }}</span>
+            <span v-if="m.chapter_count" class="mtg-count">课内 {{ m.chapter_count }} 章</span>
             <el-icon class="mtg-arrow"><ArrowRight /></el-icon>
           </div>
         </DewCard>

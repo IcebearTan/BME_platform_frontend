@@ -229,6 +229,27 @@ const DETAIL_MEMBER = {
   chapters: [
     { chapter_id: 7, course_id: 4, course_title: '生物医学工程导论', chapter_title: '第一章：概述',
       my_cert: { score: 88 } },
+    { chapter_id: 8, course_id: 4, course_title: '生物医学工程导论', chapter_title: '第二章：材料',
+      my_cert: null },
+  ],
+}
+
+// 纯课内布置（09-20 完成口径修正的核心场景）：0 任务 + 2 章未认证 + 认证截止
+const CH_ONLY_MEETING = {
+  ...MEETING, id: 13, title: '第二周组会 · 课内推进', meeting_date: '2026-09-22',
+  content: '', attachments: [],
+  task_count: 0, chapter_count: 2, chapter_due_at: '2026-09-25T18:00:00',
+  my_pending: 0, my_chapter_pending: 2, my_overdue: 0, my_chapter_overdue: 0,
+}
+const DETAIL_MEMBER_CH = {
+  code: 200, is_leader: false, viewer_role: 'member',
+  meeting: CH_ONLY_MEETING,
+  tasks: [],
+  chapters: [
+    { chapter_id: 7, course_id: 4, course_title: '生物医学工程导论', chapter_title: '第一章：概述',
+      my_cert: null },
+    { chapter_id: 8, course_id: 4, course_title: '生物医学工程导论', chapter_title: '第二章：材料',
+      my_cert: null },
   ],
 }
 
@@ -275,11 +296,12 @@ test('导生·组会详情：布置编辑与审阅矩阵', async ({ page }) => {
   // 点成员名展开提交明细（内嵌短签直链 <a>）——限定任务矩阵（章节矩阵也有同名表头）
   await dlg.locator('.matrix').first().locator('.m-name', { hasText: '学员小一' }).click()
   await expect(dlg.locator('.student-panel')).toContainText('env.png')
-  // 编辑布置：详情关闭 → 独立布置弹窗（不叠窗）；勾新章节 + 加任务 → 保存后自动关闭
+  // 编辑布置：详情关闭 → 独立布置弹窗（不叠窗）；勾新章节 + 设课内认证截止 + 加任务 → 保存后自动关闭
   await dlg.getByRole('button', { name: '编辑布置' }).click()
   await expect(page.locator('.dew-dialog')).toHaveCount(1)
   await expect(page.locator('.dew-dialog')).toContainText('布置 ·')
   await page.locator('.ch-chip', { hasText: '第二章：材料' }).click()
+  await page.locator('.ch-life-row .life-due').fill('2026-09-25T18:00')
   await page.locator('.dew-dialog').getByRole('button', { name: '添加任务' }).click()
   await page.getByPlaceholder('任务标题（如：读一篇方向综述并写笔记）').last().fill('翻译练习')
   await page.locator('.dew-dialog').getByRole('button', { name: '保存布置' }).click()
@@ -288,6 +310,7 @@ test('导生·组会详情：布置编辑与审阅矩阵', async ({ page }) => {
   expect(assignBody).toContain('翻译练习')
   const parsed = JSON.parse(assignBody || '{}')
   expect(parsed.chapters).toEqual(expect.arrayContaining([7, 8]))
+  expect(parsed.chapter_due_at).toBe('2026-09-25T18:00')
   expect(parsed.tasks.length).toBe(3)
   expect(errors).toEqual([])
 })
@@ -310,15 +333,16 @@ test('组员·组会详情：任务提交与我的认证态', async ({ page }) =
   ])
 
   await page.goto(`${BASE}/camp?sid=1&tab=meetings`, { waitUntil: 'domcontentloaded' })
-  // 待办聚合条置顶直达（作业不藏卡片里），点击直开详情
-  await expect(page.locator('.pending-strip')).toContainText('项任务待提交')
-  await page.locator('.pending-strip').getByRole('button', { name: '去提交' }).click()
+  // 待办聚合条置顶直达（作业不藏卡片里），点击直开详情（口径=任务+课内合并）
+  await expect(page.locator('.pending-strip')).toContainText('项待完成')
+  await page.locator('.pending-strip').getByRole('button', { name: '去完成' }).click()
   const dlg = page.locator('.dew-dialog')
   await expect(dlg).toBeVisible()
-  // 我的任务：一已交一未交；课内章节认证态
+  // 我的任务：一已交一未交；课内章节认证态（分组区块）
   await expect(dlg.locator('.my-task').first()).toContainText('待审阅')
   await expect(dlg.locator('.my-task').nth(1)).toContainText('未提交')
-  await expect(dlg.locator('.chapter-line')).toContainText('已认证 88 分')
+  await expect(dlg.locator('.chapter-group')).toContainText('已认证 88 分')
+  await expect(dlg.locator('.cg-cert', { hasText: '未认证' })).toHaveCount(1)
   // 提交弹窗：空态禁用 → 填文字 → 提交 → 徽标翻绿
   await dlg.getByRole('button', { name: '提交', exact: true }).click()
   const nested = page.locator('.dew-dialog').last()
@@ -331,6 +355,51 @@ test('组员·组会详情：任务提交与我的认证态', async ({ page }) =
   await expect(page.locator('.dew-dialog')).toHaveCount(1)   // 嵌套弹窗关闭，只剩外层
   await expect(dlg.locator('.my-task').nth(1).getByText('待审阅')).toBeVisible()
   expect(submitCount).toBe(1)
+  expect(errors).toEqual([])
+})
+
+// ── 09-20 完成口径修正：纯课内布置（0 任务）不再误判「任务已交齐」；
+//    课内进度提交入口进组会域（材料面板）+ 认证截止展示 + 去学习直达 ──
+test('组员·纯课内布置：待办计数与组会域内提交材料', async ({ page }) => {
+  const errors = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  let materialBody = null
+  await loginAsUser(page, [
+    { url: '/team-meetings', json: TEAM_MEETINGS(false, [CH_ONLY_MEETING]) },
+    { url: '/camp/meetings/13/detail', json: DETAIL_MEMBER_CH },
+    { url: '/sessions/1/materials', resp: (route) => {
+        if (route.request().method() === 'POST') {
+          materialBody = route.request().postData()?.toString() || ''
+          return route.fulfill({ json: { code: 200, message: '材料已提交' } })
+        }
+        return route.fulfill({ json: { code: 200, materials: [] } })
+      } },
+  ])
+
+  await page.goto(`${BASE}/camp?sid=1&tab=meetings`, { waitUntil: 'domcontentloaded' })
+  // 聚合条：2 项待完成（纯课内也计数）；列表卡不再「已全部完成」
+  await expect(page.locator('.pending-strip')).toContainText('2')
+  await expect(page.locator('.pending-strip')).toContainText('项待完成')
+  await expect(page.locator('.mtg-stats')).toContainText('课内 2 章')
+  await expect(page.locator('.mtg-stats')).toContainText('待完成 2')
+  await expect(page.locator('.mtg-stats')).not.toContainText('已全部完成')
+
+  // 详情：课内分组（课程头 + 去学习）+ 认证截止横幅 + 未认证态
+  await page.locator('.mtg-card').first().click()
+  const dlg = page.locator('.dew-dialog')
+  await expect(dlg).toBeVisible()
+  await expect(dlg.locator('.md-sec-meta', { hasText: '待完成 2' })).toBeVisible()
+  await expect(dlg.locator('.cg-course')).toContainText('生物医学工程导论')
+  await expect(dlg.locator('.cg-due')).toContainText('需在 09-25 18:00 前完成认证')
+  await expect(dlg.locator('.cg-cert', { hasText: '未认证' })).toHaveCount(2)
+  await expect(dlg.getByRole('button', { name: '去学习' })).toBeVisible()
+
+  // 材料面板就地提交（组会域闭环，不跳学习方向 tab）
+  await dlg.locator('.mat-chip').first().click()
+  await dlg.getByPlaceholder('章节材料说明（实验记录 / 学习心得，选填）').fill('看完了第一章，笔记见附件')
+  await dlg.getByRole('button', { name: '提交材料' }).click()
+  await expect(page.locator('.el-message', { hasText: '材料已提交' })).toBeVisible()
+  expect(materialBody).toContain('chapter_id')
   expect(errors).toEqual([])
 })
 

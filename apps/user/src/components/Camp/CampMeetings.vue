@@ -21,13 +21,14 @@
     </DewCard>
 
     <template v-else>
-      <!-- 组员待办聚合条（09-17 用户引导：作业是组会域的高频动作，置顶直达，不再翻卡片找） -->
+      <!-- 组员待办聚合条（09-17 用户引导：作业是组会域的高频动作，置顶直达，不再翻卡片找；
+           09-20 口径合并：待提交任务 + 待认证课内章节数，纯课内布置不再误判已完成） -->
       <div v-if="!isLeader && pendingTotal > 0" class="pending-strip" role="status">
         <span class="pending-num">{{ pendingTotal }}</span>
-        <span class="pending-text">项任务待提交</span>
-        <DewButton type="glass" size="sm" class="pending-go" @click="goPending">去提交</DewButton>
+        <span class="pending-text">项待完成</span>
+        <DewButton type="glass" size="sm" class="pending-go" @click="goPending">去完成</DewButton>
       </div>
-      <div v-else-if="!isLeader && hasAnyTask" class="pending-done">本期组会任务已全部提交</div>
+      <div v-else-if="!isLeader && hasAnyAssign" class="pending-done">本期组会任务与课内进度已全部完成</div>
 
       <div class="cm-head">
         <span class="cm-head-meta">
@@ -97,7 +98,7 @@
             </div>
           </div>
 
-          <!-- footer：左=布置与提交进度，右=下一步动作（同型 glass，主推进 :active 点亮） -->
+          <!-- footer：左=布置与提交进度（任务+课内合并口径），右=下一步动作 -->
           <template #footer>
             <div class="mtg-foot">
               <span v-if="m.task_count || m.chapter_count" class="mtg-stats">
@@ -110,10 +111,15 @@
                   <span class="mtg-prog"><i :style="{ width: `${Math.round(m.submission_count / m.expected_count * 100)}%` }"></i></span>
                   <span v-if="m.overdue_count > 0" class="stat late">逾期 {{ m.overdue_count }}</span>
                 </template>
-                <template v-else-if="!isLeader">
-                  <span v-if="m.my_pending > 0" class="stat warn">我待提交 {{ m.my_pending }}</span>
-                  <span v-else class="stat ok">任务已交齐</span>
-                  <span v-if="m.my_overdue > 0" class="stat late">逾期 {{ m.my_overdue }}</span>
+                <template v-if="isLeader && m.chapter_expected > 0">
+                  <span class="stat">认证 {{ m.chapter_certified }}/{{ m.chapter_expected }}</span>
+                  <span v-if="m.chapter_overdue_count > 0" class="stat late">逾期 {{ m.chapter_overdue_count }}</span>
+                </template>
+                <template v-if="!isLeader">
+                  <span v-if="myTodoOf(m) > 0" class="stat warn">待完成 {{ myTodoOf(m) }}</span>
+                  <span v-else class="stat ok">已全部完成</span>
+                  <span v-if="(m.my_overdue || 0) + (m.my_chapter_overdue || 0) > 0"
+                        class="stat late">逾期 {{ (m.my_overdue || 0) + (m.my_chapter_overdue || 0) }}</span>
                 </template>
               </span>
               <span v-else></span>
@@ -124,8 +130,8 @@
                 <DewButton v-if="isLeader && writable && statusOf(m).key !== 'held'"
                            :type="statusOf(m).key === 'minutes' ? 'glass' : 'ghost'" size="sm"
                            :active="statusOf(m).key === 'minutes'" @click.stop="openEdit(m)">提交纪要</DewButton>
-                <DewButton v-if="!isLeader && writable && m.my_pending > 0" type="glass" size="sm"
-                           @click.stop="goSubmit(m)">去提交</DewButton>
+                <DewButton v-if="!isLeader && writable && myTodoOf(m) > 0" type="glass" size="sm"
+                           @click.stop="goSubmit(m)">去完成</DewButton>
                 <span class="mtg-open">详情</span>
               </span>
             </div>
@@ -313,11 +319,12 @@ const detailDlg = computed({
 });
 function openDetail(m) { detailId.value = m.id; }
 
-// 组员待办聚合：跨组会待提交总数 + 最近一期有待办的组会（列表已按日期倒序）
-const pendingTotal = computed(() => meetings.value.reduce((n, m) => n + (m.my_pending || 0), 0));
-const hasAnyTask = computed(() => meetings.value.some((m) => m.task_count));
+// 组员待办聚合（09-20 口径合并：待提交任务 + 待认证课内章节）+ 最近一期有待办的组会（列表已按日期倒序）
+const myTodoOf = (m) => (m.my_pending || 0) + (m.my_chapter_pending || 0);
+const pendingTotal = computed(() => meetings.value.reduce((n, m) => n + myTodoOf(m), 0));
+const hasAnyAssign = computed(() => meetings.value.some((m) => m.task_count || m.chapter_count));
 function goPending() {
-  const target = meetings.value.find((m) => (m.my_pending || 0) > 0);
+  const target = meetings.value.find((m) => myTodoOf(m) > 0);
   if (!target) return;
   detailFocusTasks.value = true;
   openDetail(target);

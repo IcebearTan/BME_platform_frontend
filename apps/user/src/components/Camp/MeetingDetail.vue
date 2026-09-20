@@ -1,7 +1,9 @@
 <template>
-  <!-- 组会详情（2026-09-17 教学单元；09-18 生命周期化）：一次组会 = 发起 → 布置（课内章节+课外任务）
-       → 会后提交纪要。视角分流：导生 = 纪要（提交/编辑）+ 布置编辑 + 审阅矩阵（提交明细 /
-       章节认证 / 一键打包）；组员 = 纪要 + 我的任务（提交/修改）+ 我的章节认证态。公共外壳，角色子区。 -->
+  <!-- 组会详情（2026-09-17 教学单元；09-18 生命周期化；09-20 视角三分+课内提交入口）：
+       一次组会 = 发起 → 布置（课内章节+课外任务，chapter_due_at 统一认证截止）→ 会后提交纪要。
+       视角分流：导生 = 纪要（提交/编辑）+ 布置编辑 + 审阅矩阵（提交明细 / 章节认证 / 一键打包）；
+       组员 = 纪要 + 我的任务（提交/修改 + 课内进度：材料就地提交 + 去学习直达，完成口径含章节认证）；
+       老师 staff = 纪要 + 布置只读概览（计数，无私有态）。公共外壳，角色子区。 -->
   <DewDialog :model-value="modelValue" @update:model-value="$emit('update:modelValue', $event)"
              :title="`组会 · ${detail?.meeting?.title || ''}`" width="min(920px, 96vw)"
              :close-on-click-modal="!submitDlg" :close-on-press-escape="!submitDlg">
@@ -63,19 +65,22 @@
         </div>
         <div v-if="detail.chapters.length" class="chapter-line">
           <span class="chapter-label">课内</span>
+          <span v-if="detail.meeting.chapter_due_at" class="chapter-due"
+                :class="{ late: chapterDuePassed }">认证截止 {{ dueText(detail.meeting.chapter_due_at) }}</span>
           <span v-for="c in detail.chapters" :key="c.chapter_id" class="chapter-item">
             {{ c.chapter_title }}<i class="sep">·</i>{{ c.certified_count }}/{{ detail.students.length }} 认证
           </span>
         </div>
       </section>
 
-      <!-- ③ 我的任务（组员；待办条直达锚点） -->
-      <section v-if="!isLeader" ref="tasksSection" class="md-sec">
+      <!-- ③ 我的任务（组员；待办条直达锚点。完成口径=课外任务提交+课内章节认证，
+           2026-09-20 修正：纯课内布置不再显示「全部完成」） -->
+      <section v-if="!isLeader && !isStaff" ref="tasksSection" class="md-sec">
         <div class="md-sec-head">
           <span class="md-sec-title">我的任务</span>
-          <span class="md-sec-meta">{{ myPending ? `待提交 ${myPending}` : '全部完成' }}</span>
+          <span class="md-sec-meta">{{ myTodoTotal ? `待完成 ${myTodoTotal}` : '全部完成' }}</span>
         </div>
-        <div v-if="!detail.tasks.length" class="md-none">本次组会没有布置任务。</div>
+        <div v-if="!detail.tasks.length && !detail.chapters.length" class="md-none">本次组会没有布置任务。</div>
         <div v-for="t in detail.tasks" :key="t.id" class="my-task">
           <div class="task-line">
             <DewTag size="sm" round>{{ t.submit_type_text }}</DewTag>
@@ -107,13 +112,33 @@
             </span>
           </div>
         </div>
-        <div v-if="detail.chapters.length" class="chapter-line">
-          <span class="chapter-label">课内</span>
-          <span v-for="c in detail.chapters" :key="c.chapter_id" class="chapter-item">
-            {{ c.chapter_title }}
-            <i class="cert" :class="{ ok: c.my_cert }">{{ c.my_cert
-              ? `已认证${c.my_cert.score != null ? ` ${c.my_cert.score} 分` : ''}` : '未认证' }}</i>
-          </span>
+        <!-- 课内进度（按课程分组）：布置在组会、提交也在这里——材料面板 + 去学习直达，
+             不再只藏在学习方向 tab（2026-09-20） -->
+        <div v-if="detail.chapters.length" class="chapter-groups">
+          <div v-for="g in chapterGroups" :key="g.course_id" class="chapter-group">
+            <div class="cg-head">
+              <span class="cg-course">{{ g.course_title }}</span>
+              <DewButton type="ghost" size="sm" @click="goStudy(g.course_id)">去学习</DewButton>
+            </div>
+            <div v-for="c in g.chapters" :key="c.chapter_id" class="cg-chapter">
+              <div class="cg-row">
+                <span class="cg-name" :title="c.chapter_title">{{ c.chapter_title }}</span>
+                <span :class="['cg-cert', { ok: c.my_cert }]">{{ c.my_cert
+                  ? `已认证${c.my_cert.score != null ? ` ${c.my_cert.score} 分` : ''}` : '未认证' }}</span>
+                <button type="button" :class="['mat-chip', { open: openChapterId === c.chapter_id }]"
+                        @click="toggleChapter(c)">
+                  材料
+                  <el-icon class="mat-caret" :class="{ open: openChapterId === c.chapter_id }"><ArrowDown /></el-icon>
+                </button>
+              </div>
+              <ChapterMaterialPanel v-if="openChapterId === c.chapter_id"
+                                    :sid="sid" :chapter-id="c.chapter_id" :writable="writable" />
+            </div>
+          </div>
+          <div v-if="chapterDue" :class="['cg-due', { late: chapterOverdue }]">
+            {{ chapterOverdue
+              ? `已逾期（截止 ${dueText(chapterDue)}）` : `需在 ${dueText(chapterDue)} 前完成认证` }}
+          </div>
         </div>
       </section>
 
@@ -206,6 +231,32 @@
           </div>
         </template>
       </section>
+
+      <!-- ⑤ 布置概览（老师 staff，2026-09-20：只读计数无私有态——修此前老师误入组员
+           分支看到自己「未提交/未认证」的错位；管理与审阅仍是组长职责） -->
+      <section v-if="isStaff" class="md-sec">
+        <div class="md-sec-head">
+          <span class="md-sec-title">布置</span>
+          <span class="md-sec-meta">{{ detail.student_total }} 名组员</span>
+        </div>
+        <div v-if="!detail.tasks.length && !detail.chapters.length" class="md-none">本期未布置任务。</div>
+        <div v-for="t in detail.tasks" :key="t.id" class="task-line">
+          <DewTag size="sm" round>{{ t.submit_type_text }}</DewTag>
+          <span class="task-title">{{ t.title }}</span>
+          <span v-if="t.due_at" class="task-due" :class="{ late: new Date(t.due_at) < new Date() }">
+            截止 {{ dueText(t.due_at) }}
+          </span>
+          <span class="task-stat">已交 {{ t.submission_count }}/{{ detail.student_total }}</span>
+        </div>
+        <div v-if="detail.chapters.length" class="chapter-line">
+          <span class="chapter-label">课内</span>
+          <span v-if="detail.meeting.chapter_due_at" class="chapter-due"
+                :class="{ late: chapterDuePassed }">认证截止 {{ dueText(detail.meeting.chapter_due_at) }}</span>
+          <span v-for="c in detail.chapters" :key="c.chapter_id" class="chapter-item">
+            {{ c.chapter_title }}<i class="sep">·</i>{{ c.certified_count }}/{{ detail.student_total }} 认证
+          </span>
+        </div>
+      </section>
     </div>
 
     <!-- 组员提交/修改任务（嵌套弹窗：打开时外层弹窗暂闭遮罩点击与 Esc） -->
@@ -245,11 +296,13 @@
 
 <script setup>
 import { ref, computed, watch, nextTick } from 'vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
-import { VideoPlay } from '@element-plus/icons-vue';
+import { useRouter } from 'vue-router';
+import { ElMessage, ElMessageBox, ElIcon } from 'element-plus';
+import { VideoPlay, ArrowDown } from '@element-plus/icons-vue';
 import { DewDialog, DewButton, DewInput, DewTag, DewBadge, DewSkeleton } from '@bme/dew-ui';
 import { campService, assetUrl } from '../../services/campService';
 import ChapterCertDialog from './ChapterCertDialog.vue';
+import ChapterMaterialPanel from './ChapterMaterialPanel.vue';
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -261,9 +314,12 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'changed', 'edit', 'assign']);
 
 const writable = computed(() => props.campStatus !== 'archived');
+const router = useRouter();
 const loading = ref(false);
 const detail = ref(null);
 const isLeader = computed(() => !!detail.value?.is_leader);
+// 老师视角（2026-09-20 三分）：只读概览，不进组员私有态（我的任务/认证）
+const isStaff = computed(() => detail.value?.viewer_role === 'staff');
 const hasMinutes = computed(() =>          // 已完结=有纪要（文字或附件），与列表 statusOf 同口径
   !!(detail.value?.meeting?.content || '').trim() || !!(detail.value?.meeting?.attachments || []).length);
 const tasksSection = ref(null);
@@ -281,6 +337,7 @@ async function load() {
 watch(() => [props.modelValue, props.meetingId], async ([open]) => {
   if (open) {
     openStudent.value = null;
+    openChapterId.value = null;
     await load();
     // 待办条进来滚动到我的任务区
     if (props.focusTasks && tasksSection.value) {
@@ -316,9 +373,37 @@ async function downloadAtt(a) {
 
 // ── 布置编辑：已独立为 MeetingAssign 弹窗（09-18），详情只读概览 + emit assign ──
 
-// ── 我的任务（组员）──
+// ── 我的任务（组员；完成口径=课外任务提交+课内章节认证，2026-09-20 修正）──
 const myPending = computed(() => (detail.value?.tasks || [])
   .filter((t) => !t.my_submission?.valid).length);
+const myChapterPending = computed(() => (detail.value?.chapters || [])
+  .filter((c) => !c.my_cert).length);
+const myTodoTotal = computed(() => myPending.value + myChapterPending.value);
+
+// ── 课内进度（组员；按课程分组展示，布置在组会、提交也在这里）──
+const openChapterId = ref(null);   // 当前展开材料面板的章（单开）
+function toggleChapter(c) {
+  openChapterId.value = openChapterId.value === c.chapter_id ? null : c.chapter_id;
+}
+const chapterGroups = computed(() => {
+  const out = [], byKey = {};
+  for (const c of detail.value?.chapters || []) {
+    if (!byKey[c.course_id]) {
+      byKey[c.course_id] = { course_id: c.course_id, course_title: c.course_title, chapters: [] };
+      out.push(byKey[c.course_id]);
+    }
+    byKey[c.course_id].chapters.push(c);
+  }
+  return out;
+});
+const chapterDue = computed(() => detail.value?.meeting?.chapter_due_at || null);
+const chapterDuePassed = computed(() =>
+  !!chapterDue.value && new Date(chapterDue.value) < new Date());
+const chapterOverdue = computed(() => chapterDuePassed.value && myChapterPending.value > 0);
+// 去学习：直达课程详情页（与学习方向卡同路由；sid 透传保营期快照口径）
+function goStudy(courseId) {
+  router.push(`/study/details?id=${courseId}&from=camp&sid=${props.sid}`);
+}
 // 审阅态徽标（migrate_44）：未交/逾期 → 已退回（附原因）→ 待审阅 → 已通过（附评语）
 function myState(t) {
   const s = t.my_submission;
@@ -488,6 +573,34 @@ a.att-link { align-self: flex-start; }
 .chapter-item .cert { font-style: normal; font-size: 12px; }
 .chapter-item .cert.ok { color: var(--color-success); }
 .chapter-item .cert:not(.ok) { color: var(--dew-text-faint); }
+.chapter-due { font-size: 12px; color: var(--dew-text-faint); }
+.chapter-due.late { color: var(--color-danger); font-weight: 600; }
+
+/* 课内进度分组（组员，09-20）：课程组头 + 章节行（认证态+材料入口）+ 共享材料面板 */
+.chapter-groups { display: flex; flex-direction: column; gap: 10px; padding: 4px 0 2px; }
+.chapter-group { border: 1px solid var(--dew-card-border); border-radius: 10px; padding: 8px 12px; }
+.cg-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.cg-course { font-size: 13px; font-weight: 650; color: var(--dew-text-heading); }
+.cg-chapter + .cg-chapter { border-top: 1px dashed var(--dew-card-border); }
+.cg-row { display: flex; align-items: center; gap: 10px; font-size: 12.5px; padding: 6px 0; }
+.cg-name {
+  flex: 1; min-width: 0; color: var(--dew-text-heading);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.cg-cert { flex: none; color: var(--dew-text-faint); }
+.cg-cert.ok { color: var(--color-success); font-weight: 600; }
+.cg-due { font-size: 12px; color: var(--dew-text-faint); }
+.cg-due.late { color: var(--color-danger); font-weight: 600; }
+.mat-chip {
+  flex: none; display: inline-flex; align-items: center; gap: 4px;
+  font-size: 12px; color: var(--dew-text-muted); cursor: pointer;
+  border: 1px solid var(--dew-card-border); border-radius: 999px; padding: 2px 10px;
+  background: transparent; transition: color 0.15s ease, border-color 0.15s ease;
+}
+.mat-chip:hover { color: var(--color-primary); border-color: color-mix(in srgb, var(--color-primary) 40%, transparent); }
+.mat-chip.open { color: var(--color-primary); border-color: color-mix(in srgb, var(--color-primary) 45%, transparent); }
+.mat-caret { font-size: 11px; transition: transform 0.15s ease; }
+.mat-caret.open { transform: rotate(180deg); }
 
 /* 纪要未归档（进行中）：占位提示，会后由组长提交 */
 .minutes-pending {

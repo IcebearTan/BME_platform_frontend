@@ -47,38 +47,10 @@
               </button>
             </div>
 
-            <!-- 章节材料面板：本人材料列表 + 提交盒 -->
-            <div v-if="openChapterId === ch.chapter_id" class="mat-panel" v-loading="matLoading">
-              <div v-if="!materials.length && !matLoading" class="mat-empty">尚无材料——提交学习记录或成果文件，供导生认证时参考</div>
-              <div v-for="m in materials" :key="m.id" class="mat-row">
-                <div class="mat-main">
-                  <div v-if="m.content" class="mat-content">{{ m.content }}</div>
-                  <div v-if="m.attachments?.length" class="mat-atts">
-                    <button v-for="a in m.attachments" :key="a.id" type="button"
-                            class="att-link" @click="downloadAtt(a)">
-                      {{ a.filename }}{{ a.size ? `（${Math.round(a.size / 1024)}KB）` : '' }}
-                    </button>
-                  </div>
-                  <span class="mat-time">{{ (m.created_at || '').slice(0, 16).replace('T', ' ') }}</span>
-                </div>
-                <DewButton type="ghost" size="sm" @click="removeMaterial(m)">删除</DewButton>
-              </div>
-
-              <div class="mat-submit">
-                <DewInput v-model="draft.content" type="textarea" :rows="2"
-                          placeholder="章节材料说明（实验记录 / 学习心得，选填）" />
-                <input :ref="(el) => (fileEls[ch.chapter_id] = el)" type="file" multiple
-                       class="file-input-hidden" @change="(e) => onFiles(ch.chapter_id, e)" />
-                <div class="mat-submit-row">
-                  <DewButton type="ghost" size="sm" @click="pickFiles(ch.chapter_id)">
-                    {{ draft.files.length ? `附件 ×${draft.files.length}` : '选择附件' }}
-                  </DewButton>
-                  <DewButton type="glass" size="sm" :loading="submitting"
-                             :disabled="!draft.content.trim() && !draft.files.length"
-                             @click="submitMaterial(ch)">提交材料</DewButton>
-                </div>
-              </div>
-            </div>
+            <!-- 章节材料面板（09-20 抽共享 ChapterMaterialPanel，与组会详情共用） -->
+            <ChapterMaterialPanel v-if="openChapterId === ch.chapter_id"
+                                  :sid="sid" :chapter-id="ch.chapter_id"
+                                  @saved="loadDirection" @removed="loadDirection" />
           </div>
         </div>
       </div>
@@ -89,10 +61,11 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { ElMessage, ElMessageBox, ElIcon } from 'element-plus';
+import { ElIcon } from 'element-plus';
 import { ArrowDown } from '@element-plus/icons-vue';
-import { DewCard, DewButton, DewInput } from '@bme/dew-ui';
+import { DewCard, DewButton } from '@bme/dew-ui';
 import { campService } from '../../services/campService';
+import ChapterMaterialPanel from './ChapterMaterialPanel.vue';
 
 const props = defineProps({ sid: { type: [Number, String], required: true } });
 
@@ -105,13 +78,8 @@ const courses = computed(() => data.value.courses || []);
 const mentorName = computed(() => data.value.mentor_name);
 const hint = computed(() => data.value.hint);
 
-// ── 章节材料（09-14）──
+// ── 章节材料（09-14；09-20 面板抽共享 ChapterMaterialPanel，组会详情共用）──
 const openChapterId = ref(null);   // 当前展开材料面板的章（单开）
-const materials = ref([]);
-const matLoading = ref(false);
-const submitting = ref(false);
-const draft = ref({ content: '', files: [] });
-const fileEls = {};                // 隐藏原生 file input，按 chapter_id 索引（DewButton 触发选择）
 
 function goStudy(course) {
   // sid 透传：详情页/学习页按营期快照口径显示进度（09-14 从零快照）
@@ -123,73 +91,8 @@ async function loadDirection() {
   data.value = r.data || r;   // 后端顶层字段（direction/courses/hint）
 }
 
-async function toggleChapter(ch) {
-  if (openChapterId.value === ch.chapter_id) {
-    openChapterId.value = null;
-    return;
-  }
-  openChapterId.value = ch.chapter_id;
-  draft.value = { content: '', files: [] };
-  await loadMaterials(ch.chapter_id);
-}
-
-async function loadMaterials(chapterId) {
-  matLoading.value = true;
-  try {
-    const d = await campService.fetchChapterMaterials(props.sid, { chapter_id: chapterId });
-    materials.value = d.materials || [];
-  } catch (e) {
-    materials.value = [];
-    ElMessage.error(e.response?.data?.message || '加载材料失败');
-  } finally {
-    matLoading.value = false;
-  }
-}
-
-function pickFiles(chapterId) { fileEls[chapterId]?.click(); }
-function onFiles(chapterId, e) {
-  draft.value.files = [...e.target.files];
-  e.target.value = '';
-}
-
-async function submitMaterial(ch) {
-  if (submitting.value || (!draft.value.content.trim() && !draft.value.files.length)) return;
-  submitting.value = true;
-  try {
-    const r = await campService.submitChapterMaterial(
-      props.sid, ch.chapter_id, draft.value.content.trim(), draft.value.files);
-    ElMessage.success(r.message || '材料已提交');
-    draft.value = { content: '', files: [] };
-    await Promise.all([loadMaterials(ch.chapter_id), loadDirection()]);   // 列表 + material_count 同步刷
-  } catch (e) {
-    ElMessage.error(e.response?.data?.message || '提交失败');
-  } finally {
-    submitting.value = false;
-  }
-}
-
-// 附件下载：先换短签直连再开新窗（裸链带不了 Authorization 头，2026-09-17 修旧链 401）
-async function downloadAtt(a) {
-  try {
-    const url = await campService.fetchMaterialAttachmentUrl(a.id);
-    window.open(url, '_blank');
-  } catch (e) {
-    ElMessage.error(e.response?.data?.message || '下载失败');
-  }
-}
-
-async function removeMaterial(m) {
-  try {
-    await ElMessageBox.confirm('删除后导生将不再可见，确定删除这条材料？', '删除材料',
-      { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' });
-  } catch { return; }
-  try {
-    await campService.deleteChapterMaterial(m.id);
-    ElMessage.success('已删除');
-    await Promise.all([loadMaterials(m.chapter_id), loadDirection()]);
-  } catch (e) {
-    ElMessage.error(e.response?.data?.message || '删除失败');
-  }
+function toggleChapter(ch) {
+  openChapterId.value = openChapterId.value === ch.chapter_id ? null : ch.chapter_id;
 }
 
 onMounted(async () => {
@@ -242,31 +145,6 @@ onMounted(async () => {
 .mat-chip.open { color: var(--color-primary); border-color: color-mix(in srgb, var(--color-primary) 45%, transparent); }
 .mat-caret { font-size: 11px; transition: transform 0.15s ease; }
 .mat-caret.open { transform: rotate(180deg); }
-
-/* 章节材料面板 */
-.mat-panel {
-  display: flex; flex-direction: column; gap: 10px; margin: 2px 0 8px;
-  border: 1px dashed var(--dew-card-border); border-radius: 8px; padding: 10px 12px;
-}
-.mat-empty { font-size: 12.5px; color: var(--dew-text-faint); line-height: 1.7; }
-.mat-row {
-  display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
-  padding: 6px 0; border-bottom: 1px dashed var(--dew-card-border);
-}
-.mat-row:last-of-type { border-bottom: none; }
-.mat-main { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.mat-content { font-size: 13px; color: var(--dew-text-heading); line-height: 1.6; word-break: break-word; }
-.mat-atts { display: flex; flex-wrap: wrap; gap: 6px 12px; }
-.att-link {
-  border: none; background: none; padding: 0; cursor: pointer; text-align: left;
-  font-size: 12.5px; color: var(--color-primary); text-decoration: none;
-  border-bottom: 1px dashed color-mix(in srgb, var(--color-primary) 45%, transparent);
-}
-.att-link:hover { opacity: 0.8; }
-.mat-time { font-size: 11.5px; color: var(--dew-text-faint); }
-.mat-submit { display: flex; flex-direction: column; gap: 8px; margin-top: 2px; padding-top: 8px; border-top: 1px dashed var(--dew-card-border); }
-.mat-submit-row { display: flex; justify-content: flex-end; gap: 8px; }
-.file-input-hidden { display: none; }
 
 @media (max-width: 760px) {
   .chapter-row { flex-wrap: wrap; }
