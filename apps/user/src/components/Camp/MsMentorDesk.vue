@@ -122,11 +122,17 @@
               v-model="rosterQuery" class="roster-search" clearable
               placeholder="搜索学员姓名" :prefix-icon="Search"
             />
+            <DewButton
+              v-if="takenCount" type="ghost" size="sm" class="roster-toggle"
+              @click="showTaken = !showTaken"
+            >{{ showTaken ? '收起已分配' : `展开已分配 ${takenCount} 人` }}</DewButton>
             <span class="roster-count">{{ rosterFiltered.length }} 位学员</span>
           </div>
 
           <div v-if="!rosterLoading && !rosterFiltered.length" class="ms-empty">
-            {{ rosterQuery ? '没有匹配的学员' : '本营暂无学员' }}
+            {{ rosterQuery ? '没有匹配的学员'
+               : takenCount ? '可确认的学员都已处理，其余已分配给其他导生'
+               : '本营暂无学员' }}
           </div>
           <TransitionGroup v-else name="suitor" tag="div" class="suitor-list">
             <div
@@ -240,10 +246,18 @@ function detectLongNotes() {
 onMounted(() => window.addEventListener('resize', detectLongNotes));
 onBeforeUnmount(() => window.removeEventListener('resize', detectLongNotes));
 
+// 已属其他导生的默认隐藏（09-20 修「全营 188 张卡片全量渲染卡死 + 无关学员噪音」）：
+// 名单只留可操作的（我的/可选/志愿信号），taken 收进开关；搜索时仍全量检索
+const showTaken = ref(false);
+const takenCount = computed(() =>
+  rosterStudents.value.filter((s) => s.status === 'taken').length);
 const rosterFiltered = computed(() => {
   const q = rosterQuery.value.trim();
-  if (!q) return rosterStudents.value;
-  return rosterStudents.value.filter((s) => (s.username || '').includes(q));
+  const base = (q || showTaken.value)
+    ? rosterStudents.value
+    : rosterStudents.value.filter((s) => s.status !== 'taken');
+  if (!q) return base;
+  return base.filter((s) => (s.username || '').includes(q));
 });
 
 const profile = computed(() => phaseInfo.value?.me?.profile || null);
