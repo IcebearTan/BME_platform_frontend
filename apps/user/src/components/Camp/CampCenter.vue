@@ -103,6 +103,8 @@ const groups = computed(() => {
   // 仅 learning 营（项目营无导生身份，申报入口在 ProjectApplyCard）
   const mentorTodo = (s) => s.status === 'upcoming' && !s.is_member
     && s.category === 'learning' && !props.isStaff;
+  // 负责人的营不进报名/旁观组（已入「我管理的营期」；身份行也以负责人优先）
+  const notStaff = (s) => !s.my_staff_role;
   // taken 记账：已入组的营不再重复，剩余进兜底组（如超管视角的 selecting 营、draft 草稿）
   const taken = new Set();
   const pick = (arr) => { arr.forEach((s) => taken.add(s.id)); return arr; };
@@ -111,19 +113,22 @@ const groups = computed(() => {
   const mentorGateOn = (s) => s?.policy?.capabilities?.mentor_level_gate ?? true;
   const anyGateOff = ss.filter(mentorTodo).some((s) => !mentorGateOn(s));
   return [
+    // 我管理的营期（阶段 1，CampStaff）：负责人工作台入口置顶；结营营归历史组
+    define('staff', '我管理的营期', '你是这些营期的负责人（老师）',
+      pick(ss.filter((s) => s.my_staff_role && s.status !== 'archived'))),
     define('todo', '导生可报名',
       (props.myLevel >= 2 || anyGateOff) ? '导生报名窗口开放中，报名后待管理员审核'
         : '报名导生需 LV2——达到后即可在本组营期自助报名',
-      pick(ss.filter(mentorTodo))),
+      pick(ss.filter((s) => mentorTodo(s) && notStaff(s)))),
     define('joinable', '可报名', '选择阶段的营，提交申请待审批',
       // 超管不显示可报名组（后端 camp.py 管理员报名一律 400，预判入口而非事后报错）
-      pick(ss.filter((s) => s.status === 'selecting' && !s.is_member && !props.isStaff))),
+      pick(ss.filter((s) => s.status === 'selecting' && !s.is_member && !props.isStaff && notStaff(s)))),
     define('mine', '我的营期', null,
       pick(ss.filter((s) => s.is_member && s.status !== 'archived'))),
     define('upcoming', '即将开始', '尚未开放报名的营',
-      pick(ss.filter((s) => s.status === 'upcoming' && !s.is_member && (!mentorTodo(s))))),
+      pick(ss.filter((s) => s.status === 'upcoming' && !s.is_member && (!mentorTodo(s)) && notStaff(s)))),
     define('live', '进行中', '已开营——未参与的营',
-      pick(ss.filter((s) => s.status === 'running' && !s.is_member))),
+      pick(ss.filter((s) => s.status === 'running' && !s.is_member && notStaff(s)))),
     define('history', '历史营期', null,
       pick(ss.filter((s) => s.status === 'archived'))),
     // 兜底组须内联求值：数组按序执行到此处时 pick 记账已完成，剩余组合（超管视角的
@@ -133,8 +138,9 @@ const groups = computed(() => {
   ].filter(Boolean);
 });
 
-// 卡片身份行
+// 卡片身份行（阶段 1 起：负责人身份优先于成员身份——职责更高，方案 §6.1）
 function roleText(s) {
+  if (s.my_staff_role) return s.my_staff_role === 'owner' ? '主负责人' : '老师';
   if (s.is_member) return s.my_role === 'mentor' ? '导生' : '学员';
   if (isMentorPending(s)) return '导生报名待审核';
   if (isStudentPending(s)) return '入营申请待审核';
@@ -143,6 +149,7 @@ function roleText(s) {
   return '未参与';
 }
 function roleClass(s) {
+  if (s.my_staff_role) return 'role-staff';
   if (s.is_member) return s.my_role === 'mentor' ? 'role-mentor' : 'role-member';
   if (isMentorPending(s) || isStudentPending(s)) return 'role-pending';
   return 'role-none';
@@ -246,6 +253,7 @@ onMounted(async () => {
 .card-role { font-size: 12px; font-weight: 600; letter-spacing: 0.3px; }
 .role-member { color: var(--color-success); }
 .role-mentor { color: var(--color-primary); }
+.role-staff { color: var(--color-success); }
 .role-pending { color: var(--color-warning); }
 .role-none { color: var(--dew-text-faint); font-weight: 400; }
 

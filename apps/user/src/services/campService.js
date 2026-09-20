@@ -129,6 +129,16 @@ export const campService = {
   fetchMyJoinRequests: () =>
     api.get('/camp/join-requests/mine').then(r => r.data),
 
+  // ── 老师工作台（阶段 1，CampStaff 责任模型）──
+  fetchTeacherOverview: (sid) =>
+    api.get(`/camp/sessions/${sid}/teacher/overview`).then(r => r.data),
+  fetchCampJoinRequests: (sid, status = 'pending') =>
+    api.get(`/camp/sessions/${sid}/join-requests`, { params: { status } }).then(r => r.data),
+  approveCampJoin: (rid, teamMentorId = null) =>
+    api.post(`/camp/join-requests/${rid}/approve`, { team_mentor_id: teamMentorId }).then(r => r.data),
+  rejectCampJoin: (rid, reason = '') =>
+    api.post(`/camp/join-requests/${rid}/reject`, { reason }).then(r => r.data),
+
   // ── 选导生（开营前置阶段；后端 blueprints/camp_ms.py）──
   // 阶段总览（含按身份视角数据；读端点顺带触发阶段过渡通知）
   fetchMsPhase: (sid) =>

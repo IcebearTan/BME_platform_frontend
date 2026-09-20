@@ -38,6 +38,8 @@ export function notificationTarget(item) {
     case 'camp_session':       // 开营/结营/成员变更/改派 → 营期概览
     case 'camp_admin':         // 管理侧待办（报名/导生报名）→ 营期（审批动作在管理端，文案已注明）
       return withSid({})
+    case 'camp_staff':         // 负责人委任/解除 → 老师工作台
+      return withSid({ perspective: 'teacher' })
     default:
       return { path: '/camp' }
   }

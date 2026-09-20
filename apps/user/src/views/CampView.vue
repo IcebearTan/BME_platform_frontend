@@ -38,10 +38,20 @@
                 <span class="sep">·</span>
                 <span>{{ current.weekdays_only ? '仅工作日' : '含周末' }}</span>
               </div>
-              <div v-if="msPhase" :class="['hero-ms', { live: msActive }]" @click="tab = 'ms'">
+              <div v-if="msPhase" :class="['hero-ms', { live: msActive }]" @click="goMsFromHero">
                 <span v-if="msActive" class="ms-dot"></span>
                 <span>选导生 · {{ MS_PHASE_LABEL[msPhase.phase] }}</span>
                 <span v-if="msActive" class="ms-go">去处理</span>
+              </div>
+            </div>
+            <!-- 双身份视角切换（方案 §6.5：仅多视角时显示；切换只改界面不改后端授权；
+                 记住「用户+营期」的最后选择） -->
+            <div v-if="multiPerspective" class="hero-persp">
+              <span class="persp-label">当前视角</span>
+              <div class="persp-switch">
+                <button v-for="p in current.available_perspectives" :key="p"
+                  :class="['persp-btn', { active: perspective === p }]"
+                  @click="switchPerspective(p)">{{ PERSPECTIVE_LABEL[p] || p }}</button>
               </div>
             </div>
             <!-- 营期进度：通栏 -->
@@ -54,8 +64,14 @@
             </div>
           </header>
 
+          <!-- ── 老师视角（阶段 1，CampStaff）：负责人工作台——先于成员判定，
+               staff 非成员也能进自己的营 ── -->
+          <template v-if="current && perspective === 'teacher'">
+            <TeacherWorkspace :sid="sid" :session="current" />
+          </template>
+
           <!-- ── 非成员视图（按状态/类型分发；报名在营期工作台内进行）── -->
-          <template v-if="current && !current.is_member">
+          <template v-else-if="current && !current.is_member">
             <!-- 超管预判：管理员无需报名（后端一律 400），直接给出说明而非表单（挂起小修 09-11） -->
             <DewCard v-if="isStaff" variant="inset" size="lg" :no-hover="true" class="register-card">
               <div class="register-title">管理员无需申请加入营期</div>
@@ -151,6 +167,7 @@ import LeaveApply from '../components/Camp/LeaveApply.vue';
 import MentorDashboard from '../components/Camp/MentorDashboard.vue';
 import MentorLeave from '../components/Camp/MentorLeave.vue';
 import MentorMembers from '../components/Camp/MentorMembers.vue';
+import TeacherWorkspace from '../components/Camp/TeacherWorkspace.vue';
 import MsStudentPick from '../components/Camp/MsStudentPick.vue';
 import MsMentorDesk from '../components/Camp/MsMentorDesk.vue';
 import CampCenter from '../components/Camp/CampCenter.vue';
@@ -208,6 +225,40 @@ const tabItems = computed(() => (isProject.value ? []
 // 项目营营期层无 tab（工作台=ProjectHub 自带 buttonbar）；tab 仅供 learning 分支
 const tab = ref((tabItems.value.find((t) => t.value === route.query.tab)
   || tabItems.value[0] || { value: 'overview' }).value);
+
+// ── 视角分流（阶段 1，方案 §6.5）：老师（CampStaff）/ 导生 / 学员 ──
+// 解析顺序：深链 perspective 参数 → 本营记住的最后视角 → 首个可用视角（teacher 职责最高）。
+// 切换只改变界面组织，后端授权每次独立校验；非多视角营不显示切换器。
+const PERSPECTIVE_LABEL = { teacher: '老师', mentor: '导生', student: '学员' };
+const perspective = ref(null);
+const multiPerspective = computed(
+  () => (current.value?.available_perspectives?.length || 0) > 1);
+function resolvePerspective() {
+  const list = current.value?.available_perspectives || [];
+  if (!list.length) { perspective.value = null; return; }
+  const fromQuery = route.query.perspective;
+  if (fromQuery && list.includes(fromQuery)) { perspective.value = fromQuery; return; }
+  let remembered = null;
+  try { remembered = localStorage.getItem(`camp:persp:${sid.value}`); } catch { /* 私隐模式兜底 */ }
+  perspective.value = list.includes(remembered) ? remembered : list[0];
+}
+function switchPerspective(p) {
+  perspective.value = p;
+  try { localStorage.setItem(`camp:persp:${sid.value}`, p); } catch { /* 同上 */ }
+  // 深链/刷新保视角：member 视角保留 tab 参数，teacher 视角不带 tab
+  const query = { sid: String(sid.value) };
+  if (p !== 'teacher' && route.query.tab) query.tab = route.query.tab;
+  if (p !== 'teacher') query.perspective = p;
+  router.replace({ path: '/camp', query });
+}
+// 选导生胶囊：老师视角下点击 = 切回成员视角再进 ms tab（阶段胶囊属学员/导生域）
+function goMsFromHero() {
+  if (perspective.value === 'teacher' && current.value?.is_member) {
+    switchPerspective(isMentor.value ? 'mentor' : 'student');
+  }
+  tab.value = 'ms';
+}
+watch([sid, current], () => { if (sid.value) resolvePerspective(); }, { immediate: true });
 
 const statusLabel = (s) => ({
   draft: '草稿', upcoming: '待开放', selecting: '选择阶段', running: '进行中', archived: '已结营',
@@ -404,6 +455,32 @@ async function loadPendingRequests() {
 .hero-meta-row { display: flex; align-items: center; justify-content: space-between; gap: 12px 16px; margin-top: 4px; flex-wrap: wrap; }
 .hero-sub { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--dew-text-muted); flex-wrap: wrap; min-width: 0; }
 .hero-sub .sep { color: var(--dew-text-faint); }
+/* 双身份视角切换（方案 §6.5）：分段按钮，仅多视角营显示 */
+.hero-persp { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+.persp-label { font-size: 12px; color: var(--dew-text-faint); }
+.persp-switch {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: 999px;
+  border: 1px solid var(--dew-card-border);
+  background: var(--dew-ghost-hover-bg);
+}
+.persp-btn {
+  border: none;
+  background: transparent;
+  padding: 4px 14px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--dew-text-muted);
+  cursor: pointer;
+  transition: color 0.2s ease, background 0.2s ease;
+}
+.persp-btn.active {
+  color: var(--color-primary);
+  background: var(--dew-card-bg, #fff);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
 /* 选导生阶段胶囊：启用即常驻（点击进 ms tab），进行中主色高亮 */
 .hero-ms {
   display: inline-flex;

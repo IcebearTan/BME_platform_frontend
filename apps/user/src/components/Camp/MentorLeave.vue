@@ -34,6 +34,7 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { campService } from '../../services/campService';
 
 const props = defineProps({ sid: { type: [Number, String], required: true } });
+const emit = defineEmits(['reviewed']);   // 审批/撤回后通知父级（老师工作台刷新概览计数）
 
 const leaves = ref([]);
 const busy = ref(false);   // 审批/撤回防连击（后端另有 pending 校验兜底）
@@ -61,6 +62,7 @@ async function approve(lv, ok) {
   try {
     await campService.approveLeave(lv.id, ok, note);
     ElMessage.success(ok ? '已批准' : '已拒绝');
+    emit('reviewed');
     load();
   } catch (e) {
     ElMessage.error(e.response?.data?.message || '审批失败');
@@ -79,6 +81,7 @@ async function revoke(lv) {
   try {
     await campService.revokeLeave(lv.id);
     ElMessage.success('已撤回，该请假重新进入待审批');
+    emit('reviewed');
     load();
   } catch (e) {
     ElMessage.error(e.response?.data?.message || '撤回失败');
