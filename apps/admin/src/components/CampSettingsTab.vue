@@ -126,7 +126,7 @@
             </div>
           </el-popover>
         </span>
-        <span v-if="!msCfgEditable" class="hint">选导生已开跑（{{ statusLabel(session.status) }}），配置锁定只读</span>
+        <span v-if="!msCfgEditable" class="hint">选导生已开跑（{{ statusLabel(session.status) }}），时间窗锁定；方向课程绑定仍可改（换新课自动为该方向学员加选）</span>
       </header>
 
       <template v-if="msCfgEditable">
@@ -168,14 +168,22 @@
         </div>
       </template>
 
-      <!-- 只读态：方向 + 课程一览（含未启用时也不显示方向） -->
+      <!-- 开跑后只读态：时间窗锁死；方向名锁定（导生名片按名挂方向，改名会脱钩），
+           仅课程绑定可改——新增/换绑课程会自动为该方向学员加选（旧课保留学习历史） -->
       <template v-else-if="session.mentor_selection_enabled">
         <div class="ms-cfg-readonly">
-          <div v-for="d in sessionDirections" :key="d.name" class="ms-cfg-dir-view">
-            <span class="dir-name">{{ d.name }}</span>
-            <span class="dir-course">{{ (d.course_ids || []).map(courseTitle).filter(Boolean).join(' / ') || '未绑定课程' }}</span>
+          <div v-for="d in msCfg.directions" :key="d.name" class="ms-cfg-dir-row">
+            <el-input :model-value="d.name" disabled style="flex:1" />
+            <el-select v-model="d.course_ids" multiple filterable collapse-tags collapse-tags-tooltip
+                       :disabled="!manageWritable" placeholder="关联课程（至少一门）" style="flex:1.6">
+              <el-option v-for="c in allCourses" :key="c.Course_Id" :label="c.Course_title" :value="Number(c.Course_Id)" />
+            </el-select>
           </div>
-          <div v-if="!sessionDirections.length" class="hint">尚未配置方向</div>
+          <div v-if="!msCfg.directions.length" class="hint">尚未配置方向</div>
+          <div v-if="manageWritable" style="margin-top:6px;">
+            <el-button type="primary" size="small" :loading="msCfg.saving" @click="saveMsTags">保存课程绑定</el-button>
+            <span class="hint" style="margin-left:8px;">换绑新课将自动为该方向全部学员加选新课程并通知</span>
+          </div>
           <div class="hint" style="margin-top:6px;">
             志愿窗口：{{ session.ms_preference_start || '—' }} ~ {{ session.ms_preference_deadline || '—' }}（开始前学员仅可浏览收藏）
           </div>
@@ -345,6 +353,27 @@ async function saveMsConfig() {
     ElMessage.success('配置已保存');
     emit('saved');
     msCfg.loaded = false;   // 让 watch 重新回填最新 session
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '保存失败');
+  } finally {
+    msCfg.saving = false;
+  }
+}
+
+// 开跑后单独保存方向课程绑定（时间窗/开关不动）：后端 _propagate_direction_courses
+// 按新增差集自动为该方向学员加选新课程；方向名在此态不可改（名片按名挂方向）
+async function saveMsTags() {
+  const tags = msCfg.directions.map((d) => ({ name: (d.name || '').trim(), course_ids: d.course_ids || [] }));
+  if (!tags.length || tags.some((d) => !d.name || !d.course_ids.length)) {
+    ElMessage.warning('每个分类方向需至少绑定一门课程');
+    return;
+  }
+  msCfg.saving = true;
+  try {
+    await api.put(`/camp/sessions/${props.campId}`, { ms_tags: tags });
+    ElMessage.success('课程绑定已保存（新增课程已为学员加选）');
+    emit('saved');
+    msCfg.loaded = false;   // 触发 watch 回填最新 session
   } catch (e) {
     ElMessage.error(e.response?.data?.message || '保存失败');
   } finally {
