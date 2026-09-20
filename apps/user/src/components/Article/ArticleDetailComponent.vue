@@ -3,6 +3,10 @@
     <div class="article-layout">
       <!-- 主列：正文 + 评论 -->
       <div class="article-primary">
+        <!-- 返回引导（09-20）：社区新开页进来时提供明确回路 -->
+        <button type="button" class="back-link" @click="goBack">
+          <el-icon><ArrowLeft /></el-icon>返回社区
+        </button>
         <!-- 正文卡（纯色扁平） -->
         <DewCard variant="flat" size="lg" class="article-main">
           <!-- 头部 -->
@@ -106,13 +110,19 @@
 import { ref, onMounted, nextTick, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { View, Star, StarFilled, ChatDotRound, Share, Collection } from '@element-plus/icons-vue'
+import { View, Star, StarFilled, ChatDotRound, Share, Collection, ArrowLeft } from '@element-plus/icons-vue'
 import { DewCard } from '@bme/dew-ui'
 import api from '../../api'
 import { assetUrl } from '../../services/campService'
 import ArticleCommentSection from './ArticleCommentSection.vue'
 
 const route = useRoute()
+
+// 返回引导：有历史回退，无历史（新标签页直达）回社区
+const goBack = () => {
+  if (window.history.length > 1) router.back()
+  else router.push('/community')
+}
 const router = useRouter()
 const articleId = route.query.Article_Id
 
@@ -325,6 +335,13 @@ onBeforeUnmount(() => {
   gap: 28px;
   align-items: flex-start;
 }
+
+.back-link {
+  display: inline-flex; align-items: center; gap: 5px; margin-bottom: 14px;
+  background: transparent; border: none; cursor: pointer; padding: 4px 8px;
+  font-size: 13px; color: var(--dew-text-muted, #666); transition: color 0.15s;
+}
+.back-link:hover { color: var(--dew-text-heading, #222); }
 
 .article-primary {
   flex: 1;

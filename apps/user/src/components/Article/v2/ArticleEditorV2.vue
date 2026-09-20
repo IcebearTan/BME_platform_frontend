@@ -17,7 +17,7 @@ import { useRouter } from 'vue-router'
 import { useStore } from 'vuex'
 import { Upload } from '@element-plus/icons-vue'
 import api from '../../../api'
-import { DewButton, DewCard, DewInput, DewMessage } from '@bme/dew-ui'
+import { DewButton, DewCard, DewInput, DewMessage, DewImage } from '@bme/dew-ui'
 import { MdEditor, MdCatalog } from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
 import '@bme/editor/md-setup' // 自托管 highlight.js（禁外网 CDN），与阅读页共享
@@ -98,6 +98,40 @@ const submitting = ref(false)
 // articleStatus：null=新建 | 'draft' | 'published'，决定按钮组（草稿可发布，已发布只保存）
 const currentId = ref(props.articleId)
 const articleStatus = ref(null)
+// 封面（09-20）：挂文章 id——新建未保存时提示先存草稿（与 admin 编辑器同款）
+const coverUrl = ref('')
+const coverUploading = ref(false)
+const coverInput = ref(null)
+const onCoverPick = async (e) => {
+  const file = e.target.files?.[0]
+  e.target.value = ''
+  if (!file || coverUploading.value) return
+  if (!currentId.value) { DewMessage.warning('请先保存草稿或发布，再上传封面'); return }
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) { DewMessage.warning('仅支持 jpg/png/webp'); return }
+  if (file.size > 10 * 1024 * 1024) { DewMessage.warning('封面不能超过 10MB'); return }
+  coverUploading.value = true
+  try {
+    const fd = new FormData()
+    fd.append('cover', file)
+    const res = await api.post(`/v2/article/${currentId.value}/cover`, fd)
+    coverUrl.value = res.data.cover
+    DewMessage.success('封面已上传')
+  } catch (err) {
+    DewMessage.error(err?.response?.data?.message || '封面上传失败')
+  } finally {
+    coverUploading.value = false
+  }
+}
+const removeCover = async () => {
+  if (!currentId.value) { coverUrl.value = ''; return }
+  try {
+    await api.post(`/v2/article/${currentId.value}/cover/delete`)
+    coverUrl.value = ''
+    DewMessage.success('封面已删除')
+  } catch (err) {
+    DewMessage.error(err?.response?.data?.message || '删除失败')
+  }
+}
 const isPublishedMode = computed(() => articleStatus.value === 'published')
 const publishLabel = computed(() => (isPublishedMode.value ? '保存修改' : '发布文章'))
 
@@ -111,6 +145,7 @@ const loadArticle = async () => {
     introduction.value = d.introduction || ''
     content.value = d.content_md || ''
     articleStatus.value = d.status || null
+    coverUrl.value = d.cover || ''
   } catch {
     DewMessage.error('文章加载失败')
   }
@@ -267,12 +302,26 @@ onMounted(() => {
             />
           </div>
           <div class="form-field">
+            <label class="form-label">封面（16:9 自动裁切，社区卡片展示）</label>
+            <div v-if="coverUrl" class="cover-box">
+              <DewImage class="cover-img" :src="assetUrl(coverUrl)" ratio="16/9" alt="封面预览" />
+              <div class="cover-ops">
+                <DewButton size="sm" type="ghost" :disabled="coverUploading" @click="coverInput?.click()">换图</DewButton>
+                <DewButton size="sm" type="ghost" @click="removeCover">删除</DewButton>
+              </div>
+            </div>
+            <DewButton v-else size="sm" type="ghost" :disabled="coverUploading" @click="coverInput?.click()">
+              {{ currentId ? '上传封面' : '上传封面（保存后可用）' }}
+            </DewButton>
+          </div>
+          <div class="form-field">
             <label class="form-label">标签</label>
             <div class="tags-hint">（预留：标签选择后续接入）</div>
           </div>
         </DewCard>
       </aside>
     </div>
+    <input ref="coverInput" type="file" accept="image/jpeg,image/png,image/webp" hidden @change="onCoverPick" />
   </div>
 </template>
 
@@ -391,6 +440,11 @@ onMounted(() => {
   border: 1px dashed var(--dew-card-divider, rgba(0, 0, 0, 0.12));
   border-radius: 10px;
 }
+
+/* 封面预览与操作（09-20） */
+.cover-box { display: flex; flex-direction: column; gap: 8px; }
+.cover-img { width: 100%; border-radius: 10px; overflow: hidden; }
+.cover-ops { display: flex; gap: 8px; }
 
 /* 编辑器圆角收边 */
 .col-editor :deep(.md-editor) {

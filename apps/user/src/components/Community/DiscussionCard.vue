@@ -1,8 +1,10 @@
 <template>
   <DewCard
     size="lg"
+    interactive
     class="discussion-card"
     :data-discussion-id="discussion.id"
+    @click="goDetail"
   >
     <!-- 分类标签 -->
     <div class="dc-tags">
@@ -69,7 +71,7 @@
         <span>{{ discussion.liked ? '已赞' : '点赞' }}</span>
         <span v-if="discussion.like_count" class="dc-count">{{ discussion.like_count }}</span>
       </button>
-      <button class="dc-action" @click.stop="handleReply">
+      <button class="dc-action" @click.stop="goDetail">
         <el-icon><ChatDotRound /></el-icon>
         <span>回复</span>
         <span v-if="discussion.reply_count" class="dc-count">{{ discussion.reply_count }}</span>
@@ -78,60 +80,6 @@
         <el-icon><View /></el-icon>
         <span>{{ formatNumber(discussion.views) }} 浏览</span>
       </button>
-    </div>
-
-    <!-- 回复区（09-19 紧凑化）：默认折叠为一行摘要，展开才显示回复串与输入框 -->
-    <div v-if="discussion.reply_count > 0 || showReplyInput" class="dc-replies">
-      <button v-if="!repliesExpanded && discussion.reply_count > 0" class="dc-replies-toggle" @click.stop="repliesExpanded = true">
-        <el-icon><ChatDotRound /></el-icon>
-        查看 {{ discussion.reply_count }} 条回复
-        <span v-if="discussion.replies && discussion.replies.length" class="dc-replies-peek">
-          {{ discussion.replies[0].author }}：{{ discussion.replies[0].content.slice(0, 30) }}
-        </span>
-      </button>
-      <template v-if="repliesExpanded">
-        <div class="dc-replies-header">{{ discussion.reply_count }} 条回复</div>
-        <div
-          v-for="reply in discussion.replies"
-          :key="reply.id"
-          class="dc-reply"
-        >
-          <el-avatar :size="28" :src="reply.author_avatar">{{ (reply.author || '?').charAt(0) }}</el-avatar>
-          <div class="dc-reply-body">
-            <div class="dc-reply-head">
-              <span class="dc-reply-name">{{ reply.author }}</span>
-              <span class="dc-reply-time">{{ reply.time }}</span>
-            </div>
-            <div class="dc-reply-text">{{ reply.content }}</div>
-            <button
-              class="dc-action dc-action--sm"
-              :class="{ 'is-liked': reply.liked }"
-              @click.stop="handleReplyLike(reply)"
-            >
-              <el-icon><StarFilled v-if="reply.liked" /><Star v-else /></el-icon>
-              <span>{{ reply.like_count || 0 }}</span>
-            </button>
-          </div>
-        </div>
-        <button
-          v-if="discussion.reply_count > discussion.replies.length && !allLoaded"
-          class="dc-more-replies"
-          @click.stop="loadMoreReplies"
-        >
-          查看更多回复
-        </button>
-      </template>
-
-      <!-- 回复输入框（展开后或点回复按钮时显示） -->
-      <div v-if="showReplyInput" class="dc-reply-input">
-        <DewInput
-          v-model="replyContent"
-          type="textarea"
-          :rows="2"
-          placeholder="写下你的回复..."
-        />
-        <DewButton size="sm" :active="true" @click="submitReply">回复</DewButton>
-      </div>
     </div>
 
     <!-- 图集大图查看器 -->
@@ -151,9 +99,8 @@ import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
 import { ChatDotRound, View, Star, StarFilled, Delete, Grid } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { DewCard, DewTag, DewInput, DewButton, DewMessageBox } from '@bme/dew-ui'
+import { DewCard, DewTag, DewMessageBox } from '@bme/dew-ui'
 import api from '../../api'
-import { assetUrl } from '../../services/campService'
 
 const props = defineProps({
   discussion: {
@@ -166,16 +113,17 @@ const emit = defineEmits(['like', 'reply', 'delete', 'user-click'])
 
 const store = useStore()
 const router = useRouter()
-const showReplyInput = ref(false)
-const replyContent = ref('')
 
-// 关联项目 chip：点击直达 XLAB 项目详情（Phase 2 招人帖导流）
+// 新开标签页打开（09-20 用户定调）：社区流原地保留，点开的内容在新页承载
+const openTab = (path) => window.open(router.resolve(path).href, '_blank', 'noopener')
+
+// 关联项目 chip：新页直达 XLAB 项目详情（Phase 2 招人帖导流）
 const goProject = () => {
-  if (props.discussion.projectId != null) router.push(`/projects/${props.discussion.projectId}`)
+  if (props.discussion.projectId != null) openTab(`/projects/${props.discussion.projectId}`)
 }
 
-// 回复区紧凑化（09-19）：默认折叠为摘要行，点开才显示回复串
-const repliesExpanded = ref(false)
+// 整卡进帖子详情页（新标签页；feed 卡只做浏览层，互动都在详情页）
+const goDetail = () => openTab(`/community/thread/${props.discussion.id}`)
 
 // 帖子图集（09-19）：feed 映射后已是完整 URL
 const images = computed(() => props.discussion.images || [])
@@ -217,47 +165,6 @@ const formatNumber = (num) => {
   return num
 }
 
-// 相对时间格式化（与 CommunityView 一致，供懒加载的回复映射用）
-const formatTimeAgo = (dateStr) => {
-  if (!dateStr) return ''
-  const date = new Date(dateStr)
-  const now = new Date()
-  const diff = now - date
-  const minutes = Math.floor(diff / 60000)
-  const hours = Math.floor(diff / 3600000)
-  const days = Math.floor(diff / 86400000)
-  if (minutes < 1) return '刚刚'
-  if (minutes < 60) return `${minutes}分钟前`
-  if (hours < 24) return `${hours}小时前`
-  if (days < 30) return `${days}天前`
-  return date.toLocaleDateString('zh-CN')
-}
-
-// 是否已懒加载过全部回复（避免重复拉取）
-const allLoaded = ref(false)
-const loadMoreReplies = async () => {
-  try {
-    const res = await api.get(`/discussions/threads/${props.discussion.id}/replies`, {
-      params: { per_page: 50 }
-    })
-    if (res.data && res.data.data) {
-      props.discussion.replies = res.data.data.map(reply => ({
-        id: reply.id,
-        author: reply.author_name,
-        authorId: reply.author_id,
-        author_avatar: assetUrl(reply.author_avatar || ''),
-        content: reply.content,
-        time: formatTimeAgo(reply.created_at),
-        like_count: reply.like_count || 0,
-        liked: reply.liked || false
-      }))
-      allLoaded.value = true
-    }
-  } catch (err) {
-    console.error('加载更多回复失败:', err)
-  }
-}
-
 const handleLike = async () => {
   try {
     const res = await api({
@@ -276,54 +183,6 @@ const handleLike = async () => {
     }
   } catch (err) {
     console.error('点赞失败:', err)
-  }
-}
-
-const handleReply = () => {
-  showReplyInput.value = !showReplyInput.value
-}
-
-const handleReplyLike = async (reply) => {
-  try {
-    const res = await api({
-      url: `/discussions/reactions`,
-      method: 'POST',
-      data: {
-        target_type: 'reply',
-        target_id: reply.id,
-        reaction_type: 'like'
-      }
-    })
-    if (res.data.code === 200) {
-      reply.liked = !reply.liked
-      reply.like_count = (reply.like_count || 0) + (reply.liked ? 1 : -1)
-    }
-  } catch (err) {
-    console.error('点赞回复失败:', err)
-  }
-}
-
-const submitReply = async () => {
-  if (!replyContent.value.trim()) {
-    ElMessage.warning('请输入回复内容')
-    return
-  }
-
-  try {
-    const res = await api({
-      url: `/discussions/threads/${props.discussion.id}/replies`,
-      method: 'POST',
-      data: { content: replyContent.value }
-    })
-    if (res.data.code === 200 || res.data.code === 201) {
-      ElMessage.success('回复成功')
-      replyContent.value = ''
-      showReplyInput.value = false
-      emit('reply', props.discussion)
-    }
-  } catch (err) {
-    console.error('回复失败:', err)
-    ElMessage.error('回复失败，请稍后重试')
   }
 }
 
@@ -447,27 +306,6 @@ const handleDelete = async () => {
   opacity: 0.75;
 }
 
-/* 回复列表底部「查看更多回复」（懒加载，避免初始 N+1） */
-.dc-more-replies {
-  display: block;
-  width: 100%;
-  margin-top: 8px;
-  padding: 6px 0;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-primary);
-  cursor: pointer;
-  transition: background 0.25s ease;
-}
-
-.dc-more-replies:hover {
-  background: var(--dew-card-divider);
-}
-
 /* 删除按钮（仅本人 / 管理员可见） */
 .dc-delete {
   margin-left: auto;
@@ -572,119 +410,6 @@ const handleDelete = async () => {
 .dc-images--2, .dc-images--4 { grid-template-columns: repeat(2, 1fr); }
 .dc-images--3 { grid-template-columns: repeat(3, 1fr); }
 .dc-images__item { width: 100%; cursor: zoom-in; border-radius: var(--radius-sm, 8px); overflow: hidden; }
-
-/* 回复折叠摘要行（09-19 紧凑化） */
-.dc-replies-toggle {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-  padding: 8px 10px;
-  border: none;
-  border-radius: var(--radius-sm, 8px);
-  background: rgba(0, 0, 0, 0.04);
-  color: var(--dew-text-muted);
-  font-size: 12.5px;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-}
-.dc-replies-toggle:hover { background: rgba(0, 0, 0, 0.07); color: var(--dew-text-heading); }
-.dc-replies-peek {
-  flex: 1;
-  min-width: 0;
-  text-align: left;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: var(--dew-text-faint);
-}
-
-/* 关联项目 chip（Phase 2）：话题标签旁的项目导流入口 */
-.dc-project {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 11.5px;
-  font-weight: 600;
-  padding: 2px 10px;
-  border-radius: 999px;
-  cursor: pointer;
-  color: #00915d;
-  border: 1px solid rgba(0, 145, 93, 0.35);
-  background: rgba(0, 145, 93, 0.06);
-  transition: background 0.15s, border-color 0.15s;
-}
-.dc-project:hover { background: rgba(0, 145, 93, 0.14); border-color: #00915d; }
-.dc-project .el-icon { font-size: 11px; }
-
-.dc-replies {
-  margin-bottom: 4px;
-}
-
-.dc-replies-header {
-  font-size: 13px;
-  font-weight: 600;
-  margin-bottom: 12px;
-  color: var(--dew-text-heading);
-}
-
-.dc-reply {
-  display: flex;
-  gap: 10px;
-  padding: 12px;
-  border-radius: var(--radius-md);
-  margin-bottom: 8px;
-  background: var(--dew-card-inset-bg);
-  border: 1px solid var(--dew-card-inset-border);
-  transition: background 0.3s var(--dew-bounce);
-}
-
-.dc-reply:hover {
-  background: var(--dew-card-inset-bg-hover);
-}
-
-.dc-reply-body {
-  flex: 1;
-  min-width: 0;
-}
-
-.dc-reply-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 4px;
-}
-
-.dc-reply-name {
-  font-weight: 600;
-  font-size: 13px;
-  color: var(--dew-text-heading);
-}
-
-.dc-reply-time {
-  font-size: 12px;
-  color: var(--dew-text-faint);
-}
-
-.dc-reply-text {
-  font-size: 13px;
-  line-height: 1.5;
-  margin-bottom: 6px;
-  color: var(--dew-text);
-}
-
-/* 回复输入框 */
-.dc-reply-input {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 16px;
-  align-items: flex-end;
-}
-
-.dc-reply-input :deep(.dew-input) {
-  width: 100%;
-}
 
 /* 响应式 */
 @media (max-width: 768px) {

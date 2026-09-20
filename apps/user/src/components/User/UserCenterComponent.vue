@@ -6,7 +6,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRouter, useRoute } from 'vue-router'
 import { useStore } from 'vuex';
-import { Message, User, Setting, Calendar, Collection, EditPen, Document } from '@element-plus/icons-vue';
+import { Message, User, Setting, Calendar, Collection, EditPen, Document, ChatDotRound } from '@element-plus/icons-vue';
 import { DewCard, DewSidebar } from '@bme/dew-ui'
 
 const User_Info = ref({})
@@ -30,6 +30,7 @@ const navItems = [
   },
   {
     label: '我的内容', children: [
+      { value: '/user-center/my-threads', label: '我的帖子', icon: ChatDotRound },
       { value: '/user-center/my-articles', label: '我的文章', icon: Document },
       { value: '/user-center/my-favorites', label: '我的收藏', icon: Collection },
     ],
@@ -120,6 +121,9 @@ const getActiveMenuIndex = (currentPath) => {
     return '/user-center/my-favorites'
   }
 
+  if (currentPath.startsWith('/user-center/my-threads')) {
+    return '/user-center/my-threads'
+  }
   if (currentPath.startsWith('/user-center/my-articles')) {
     return '/user-center/my-articles'
   }

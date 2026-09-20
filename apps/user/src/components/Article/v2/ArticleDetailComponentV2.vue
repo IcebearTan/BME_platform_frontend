@@ -12,7 +12,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useStore } from 'vuex'
 import { ElMessage } from 'element-plus'
-import { Share, Star, StarFilled, ChatDotRound, Collection, View } from '@element-plus/icons-vue'
+import { Share, Star, StarFilled, ChatDotRound, Collection, View, ArrowLeft } from '@element-plus/icons-vue'
 import { DewCard, DewSkeleton, DewImage } from '@bme/dew-ui'
 import { MdPreview, MdCatalog } from 'md-editor-v3'
 import 'md-editor-v3/lib/preview.css'
@@ -74,6 +74,12 @@ const getArticle = async () => {
   }
 }
 
+// 返回引导：有历史回退，无历史（新标签页直达）回社区
+const goBack = () => {
+  if (window.history.length > 1) router.back()
+  else router.push('/community')
+}
+
 const goAuthor = () => {
   if (authorId.value == null) return
   router.push({ name: 'user-profile', params: { id: authorId.value } })
@@ -120,6 +126,10 @@ onMounted(async () => {
     <div class="article-layout">
       <!-- 主列：正文 -->
       <div class="article-primary">
+        <!-- 返回引导（09-20）：社区新开页进来时提供明确回路 -->
+        <button type="button" class="back-link" @click="goBack">
+          <el-icon><ArrowLeft /></el-icon>返回社区
+        </button>
         <!-- 封面 hero（09-19）：官方推文/带封面文章的头图，跨主列全宽 -->
         <DewImage v-if="coverUrl" class="article-hero" :src="coverUrl" ratio="16/9" alt="文章封面" />
         <DewCard variant="flat" size="lg" class="article-main">
@@ -244,6 +254,14 @@ onMounted(async () => {
 }
 
 /* flat 正文卡：清掉 DewCard 默认内边距，由内部三段自定义 */
+/* 返回引导（09-20） */
+.back-link {
+  display: inline-flex; align-items: center; gap: 5px; margin-bottom: 14px;
+  background: transparent; border: none; cursor: pointer; padding: 4px 8px;
+  font-size: 13px; color: var(--dew-text-muted, #666); transition: color 0.15s;
+}
+.back-link:hover { color: var(--dew-text-heading, #222); }
+
 /* 封面 hero（09-19）：正文卡之上的全宽头图 */
 .article-hero {
   width: 100%;

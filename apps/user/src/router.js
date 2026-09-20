@@ -22,6 +22,7 @@ const loadUserSettings = () => import('./components/User/UserSettingsComponent.v
 const loadMyFeedbacks = () => import('./components/User/MyFeedbacksComponent.vue')
 const loadMyFavorites = () => import('./components/User/MyFavoritesComponent.vue')
 const loadMyArticles = () => import('./components/User/MyArticlesComponent.vue')
+const loadMyThreads = () => import('./components/User/MyThreadsComponent.vue')
 const loadArticle = () => import('./views/ArticleView.vue')
 const loadArticleV2 = () => import('./views/ArticleViewV2.vue')
 const loadArticleEditor = () => import('./views/ArticleEditorView.vue')
@@ -41,6 +42,7 @@ const loadServiceHall = () => import('./views/ServiceHallView.vue')
 const loadOrganization = () => import('./views/OrganizationView.vue')
 const loadLLMService = () => import('./views/LLMServiceView.vue')
 const loadCommunity = () => import('./views/CommunityView.vue')
+const loadCommunityThread = () => import('./views/CommunityThreadView.vue')
 const loadProjectSquare = () => import('./views/ProjectSquareView.vue')
 const loadProjectDetail = () => import('./views/ProjectDetailView.vue')
 const loadUiShowcase = () => import('./views/UiShowcaseView.vue')
@@ -170,6 +172,11 @@ const router = createRouter({
                     path: '/user-center/my-articles',
                     name: 'my-articles',
                     component: loadMyArticles,
+                },
+                {
+                    path: '/user-center/my-threads',
+                    name: 'my-threads',
+                    component: loadMyThreads,
                 }
             ]
         },
@@ -303,6 +310,13 @@ const router = createRouter({
             path: '/community',
             name: 'community',
             component: loadCommunity,
+            meta: { requiresAuth: true }
+        },
+        {
+            // 帖子详情页（09-20 社区迭代）：feed 卡紧凑化，完整互动落独立页
+            path: '/community/thread/:id',
+            name: 'community-thread',
+            component: loadCommunityThread,
             meta: { requiresAuth: true }
         },
         {

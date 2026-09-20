@@ -52,11 +52,13 @@
               </div>
             </div>
 
-            <!-- 筛选栏：类型分类(全部/文章/讨论) × 排序(热度/最新) × 话题 正交控件 -->
+            <!-- 筛选栏：左=类型+话题 / 右=排序（同尺寸，09-20 布局调整） -->
             <div class="filter-bar">
-              <DewButtonBar :items="typeOptions" v-model="contentType" size="md" />
-              <DewButtonBar :items="sortOptions" v-model="sortType" size="sm" />
-              <DewButtonBar v-if="topicOptions.length" :items="topicOptions" v-model="topicFilter" size="sm" />
+              <div class="filter-bar__left">
+                <DewButtonBar :items="typeOptions" v-model="contentType" size="md" />
+                <DewButtonBar v-if="topicOptions.length" :items="topicOptions" v-model="topicFilter" size="md" />
+              </div>
+              <DewButtonBar :items="sortOptions" v-model="sortType" size="md" />
             </div>
 
             <!-- 信息流（讨论帖 + 文章帖混合） -->
@@ -118,12 +120,11 @@
 
           <!-- 右侧栏 - 发帖入口 + 写文章 + XLAB 引流（09-19 重构：发帖改弹层，加项目现场） -->
           <aside class="right-sidebar">
-            <!-- 发帖入口：一行输入形态，点击弹层发帖（支持图片） -->
-            <div class="post-entry" @click="openCreateDlg">
+            <!-- 发帖入口：单一按钮（点击打开发帖弹层；不再伪装输入框） -->
+            <DewButton class="post-entry" type="glass" @click="openCreateDlg">
               <el-icon class="post-entry__icon"><EditPen /></el-icon>
-              <span class="post-entry__hint">分享点什么…</span>
-              <span class="post-entry__btn">发帖</span>
-            </div>
+              <span>发帖</span>
+            </DewButton>
 
             <!-- 写文章入口（长文创作） -->
             <DewCard size="lg" interactive class="write-entry" @click="router.push('/article-editor-v2')">
@@ -142,13 +143,13 @@
             <!-- XLAB 引流：正在做的项目（09-19，社区为项目广场导流） -->
             <DewCard v-if="xlabProjects.length" size="lg" class="xlab-card">
               <template #header>
-                <div class="xlab-card__head" @click="router.push('/projects')">
+                <div class="xlab-card__head" @click="openTab('/projects')">
                   <span class="xlab-card__title">项目现场</span>
                   <span class="xlab-card__more">进入 XLAB<el-icon><ArrowRight /></el-icon></span>
                 </div>
               </template>
               <div class="xlab-card__list">
-                <div v-for="prj in xlabProjects" :key="prj.id" class="xlab-item" @click="router.push(`/projects/${prj.id}`)">
+                <div v-for="prj in xlabProjects" :key="prj.id" class="xlab-item" @click="openTab(`/projects/${prj.id}`)">
                   <DewImage v-if="prj.cover_thumb || prj.cover" class="xlab-item__cover"
                             :src="assetUrl(prj.cover_thumb || prj.cover)" ratio="1/1" width="44px" alt="项目封面" />
                   <div v-else class="xlab-item__cover xlab-item__cover--ph">{{ (prj.title || '?')[0] }}</div>
@@ -203,8 +204,8 @@
         <div class="create-dlg__hint">图片最多 4 张，jpg/png/webp ≤10MB</div>
       </div>
       <template #footer>
-        <DewButton :disabled="createLoading" @click="createDlg = false">取消</DewButton>
-        <DewButton :active="true" :disabled="createLoading || !canSubmitThread" @click="submitNewThread">
+        <DewButton type="ghost" :disabled="createLoading" @click="createDlg = false">取消</DewButton>
+        <DewButton type="glass" :disabled="createLoading || !canSubmitThread" @click="submitNewThread">
           {{ createLoading ? '发布中…' : '发布' }}
         </DewButton>
       </template>
@@ -436,7 +437,9 @@ async function fetchXlabProjects() {
     xlabProjects.value = rows.slice(0, 4)
   } catch { /* 引流卡静默隐藏 */ }
 }
-const goSpotlight = (id) => router.push({ path: '/article-v2', query: { id } })
+// 新开标签页打开（09-20 用户定调）：社区流原地保留，内容在新页承载
+const openTab = (path) => window.open(router.resolve(path).href, '_blank', 'noopener')
+const goSpotlight = (id) => openTab(`/article-v2?id=${id}`)
 
 // 发帖关联项目候选（全量可见项目；右栏 xlabProjects 仅前 4）
 const allProjects = ref([])
@@ -528,11 +531,12 @@ const loadMore = () => {
 }
 
 // 文章帖：点击进文章详情页（V2 Markdown 文章跳 V2 阅读页，旧文章跳旧阅读页）
+// 文章卡点击：新开标签页（阅读长文不该带离社区流）
 const goArticle = (article) => {
   if (article.article_version === 2) {
-    router.push({ path: '/article-v2', query: { id: article.article_id } })
+    openTab(`/article-v2?id=${article.article_id}`)
   } else {
-    router.push({ path: '/article', query: { Article_Id: article.article_id } })
+    openTab(`/article?Article_Id=${article.article_id}`)
   }
 }
 
@@ -704,10 +708,10 @@ onUnmounted(() => {
   transition: border-color 0.15s;
 }
 .theme-dark .notice-bar { background: var(--dew-card-flat-bg, rgba(20, 20, 24, 0.8)); }
-.notice-bar:hover { border-color: var(--dew-accent, #00915d); }
+.notice-bar:hover { border-color: #1a1a1a; }
 .notice-bar__tag {
   flex-shrink: 0; font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
-  color: #fff; background: #00915d; padding: 2px 8px; border-radius: 4px;
+  color: #fff; background: #1a1a1a; padding: 2px 8px; border-radius: 4px;
 }
 .notice-bar__text {
   flex: 1; min-width: 0; font-size: 13px;
@@ -723,7 +727,7 @@ onUnmounted(() => {
 }
 .spotlight-title { font-size: 16px; font-weight: 800; color: var(--dew-text-primary, #222); }
 .spotlight-sub {
-  font-size: 11px; letter-spacing: 0.05em; color: #fff; background: #00915d;
+  font-size: 11px; letter-spacing: 0.05em; color: #fff; background: #1a1a1a;
   padding: 2px 8px; border-radius: 4px;
 }
 .spotlight-track {
@@ -752,26 +756,9 @@ onUnmounted(() => {
   font-size: 11.5px; color: var(--dew-text-faint, #999);
 }
 
-/* ── 右栏发帖入口（09-19）：一行输入形态 ── */
-.post-entry {
-  display: flex; align-items: center; gap: 10px;
-  padding: 12px 14px; margin-bottom: 14px; cursor: pointer;
-  border: 1px solid var(--dew-card-border, rgba(0, 0, 0, 0.08));
-  border-radius: var(--radius-lg, 14px);
-  background: var(--dew-card-flat-bg, rgba(255, 255, 255, 0.75));
-  transition: border-color 0.15s, box-shadow 0.15s;
-}
-.theme-dark .post-entry { background: var(--dew-card-flat-bg, rgba(20, 20, 24, 0.82)); }
-.post-entry:hover { border-color: var(--dew-accent, #00915d); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08); }
-.post-entry__icon { color: var(--dew-text-faint, #999); font-size: 16px; }
-.post-entry__hint {
-  flex: 1; font-size: 13px; color: var(--dew-text-faint, #999);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.post-entry__btn {
-  flex-shrink: 0; font-size: 12px; font-weight: 700; color: #fff;
-  background: var(--dew-accent, #00915d); padding: 5px 14px; border-radius: 999px;
-}
+/* ── 右栏发帖按钮（09-20 简化：单按钮开弹层）── */
+.post-entry { width: 100%; margin-bottom: 14px; justify-content: center; }
+.post-entry__icon { margin-right: 6px; }
 
 /* ── XLAB 引流卡（09-19）：项目现场 ── */
 .xlab-card__head {
@@ -805,6 +792,10 @@ onUnmounted(() => {
 
 /* ── 发帖弹层内部 ── */
 .create-dlg__form { display: flex; flex-direction: column; gap: 10px; }
+/* 弹层内输入框聚焦：蓝色线框（加粗+微光，用户定调 09-20） */
+.create-dlg__form :deep(.dew-input--focused) {
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.55), 0 0 10px rgba(59, 130, 246, 0.3) !important;
+}
 .create-dlg__row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .create-dlg__label { font-size: 12px; font-weight: 600; color: var(--dew-text-muted); flex-shrink: 0; }
 .create-dlg__chips { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -814,11 +805,20 @@ onUnmounted(() => {
   background: transparent; color: var(--dew-text-muted, #666);
   transition: border-color 0.15s, background 0.15s, color 0.15s;
 }
-.create-dlg__chip.on { background: #00915d; border-color: #00915d; color: #fff; font-weight: 600; }
+.create-dlg__chip.on {
+  border-color: #3b82f6; border-width: 2px; color: #2563eb; font-weight: 600;
+  background: rgba(59, 130, 246, 0.06);
+  box-shadow: 0 0 6px rgba(59, 130, 246, 0.35);
+}
 .create-dlg__select {
   padding: 5px 10px; border-radius: 8px; font-size: 12.5px; max-width: 220px;
   border: 1px solid var(--dew-card-border, rgba(0, 0, 0, 0.12));
   background: var(--dew-card-flat-bg, #fff); color: var(--dew-text-primary, #222);
+  outline: none;
+}
+.create-dlg__select:focus {
+  border-color: #3b82f6; border-width: 2px;
+  box-shadow: 0 0 6px rgba(59, 130, 246, 0.35);
 }
 .create-dlg__hint-inline { font-size: 11px; color: var(--dew-text-faint, #999); }
 .create-dlg__images { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -836,18 +836,20 @@ onUnmounted(() => {
   background: transparent; color: var(--dew-text-faint, #999); font-size: 12px; cursor: pointer;
   transition: border-color 0.15s, color 0.15s;
 }
-.create-dlg__img-add:hover:not(:disabled) { border-color: var(--dew-accent, #00915d); color: var(--dew-accent, #00915d); }
+.create-dlg__img-add:hover:not(:disabled) { border-color: #3b82f6; color: #2563eb; box-shadow: 0 0 6px rgba(59, 130, 246, 0.3); }
 .create-dlg__img-add:disabled { opacity: 0.5; cursor: not-allowed; }
 .create-dlg__hint { font-size: 11.5px; color: var(--dew-text-faint, #999); }
 
 /* 筛选栏：DewButtonBar 自带玻璃胶囊，外层只做排版 */
 .filter-bar {
   display: flex;
-  justify-content: flex-start;
+  justify-content: space-between;
+  align-items: center;
   align-items: center;
   gap: 12px;
   margin-bottom: 20px;
 }
+.filter-bar__left { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 
 /* 写文章入口（右侧栏大入口卡，hover 形态反馈） */
 .write-entry {
