@@ -364,7 +364,7 @@ onUnmounted(() => window.removeEventListener('resize', checkScreenSize));
 .t-author { display: flex; align-items: center; gap: 10px; cursor: pointer; margin-bottom: 16px; }
 .t-author-name { font-size: 14px; font-weight: 600; color: var(--dew-text-heading, #222); }
 .t-time { font-size: 12px; color: var(--dew-text-faint, #999); margin-top: 2px; }
-.t-content { font-size: 15px; line-height: 1.85; color: var(--dew-text-primary, #333); white-space: pre-wrap; }
+.t-content { font-size: 15px; line-height: 1.85; color: var(--dew-text-heading, #1f2937); white-space: pre-wrap; }
 
 .t-images { display: grid; gap: 8px; margin-top: 14px; }
 .t-images--1 { grid-template-columns: minmax(0, 480px); }
@@ -395,7 +395,7 @@ onUnmounted(() => window.removeEventListener('resize', checkScreenSize));
 .reply-head { display: flex; align-items: baseline; gap: 10px; }
 .reply-name { font-size: 13px; font-weight: 600; color: var(--dew-text-heading, #222); cursor: pointer; }
 .reply-time { font-size: 11.5px; color: var(--dew-text-faint, #999); }
-.reply-text { font-size: 14px; line-height: 1.7; color: var(--dew-text-primary, #333); white-space: pre-wrap; }
+.reply-text { font-size: 14px; line-height: 1.7; color: var(--dew-text-heading, #1f2937); white-space: pre-wrap; }
 .load-more-replies { display: flex; justify-content: center; padding-top: 14px; }
 
 @media (max-width: 768px) {

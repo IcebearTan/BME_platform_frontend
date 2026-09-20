@@ -715,7 +715,7 @@ onUnmounted(() => {
 }
 .notice-bar__text {
   flex: 1; min-width: 0; font-size: 13px;
-  color: var(--dew-text-primary, #222);
+  color: var(--dew-text-heading, #1f2937);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .notice-bar__arrow { flex-shrink: 0; color: var(--dew-text-faint, #999); font-size: 13px; }
@@ -725,7 +725,7 @@ onUnmounted(() => {
 .spotlight-head {
   display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px;
 }
-.spotlight-title { font-size: 16px; font-weight: 800; color: var(--dew-text-primary, #222); }
+.spotlight-title { font-size: 16px; font-weight: 800; color: var(--dew-text-heading, #1f2937); }
 .spotlight-sub {
   font-size: 11px; letter-spacing: 0.05em; color: #fff; background: #1a1a1a;
   padding: 2px 8px; border-radius: 4px;
@@ -747,7 +747,7 @@ onUnmounted(() => {
 .spotlight-card__cover { display: block; width: 100%; }
 .spotlight-card__body { padding: 10px 12px 12px; }
 .spotlight-card__title {
-  font-size: 14px; font-weight: 700; line-height: 1.45; color: var(--dew-text-primary, #222);
+  font-size: 14px; font-weight: 700; line-height: 1.45; color: var(--dew-text-heading, #1f2937);
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
   min-height: 2.9em;
 }
@@ -764,7 +764,7 @@ onUnmounted(() => {
 .xlab-card__head {
   display: flex; align-items: center; justify-content: space-between; cursor: pointer;
 }
-.xlab-card__title { font-size: 15px; font-weight: 700; color: var(--dew-text-primary, #222); }
+.xlab-card__title { font-size: 15px; font-weight: 700; color: var(--dew-text-heading, #1f2937); }
 .xlab-card__more {
   display: inline-flex; align-items: center; gap: 3px;
   font-size: 12px; color: var(--dew-text-faint, #999); transition: color 0.15s;
@@ -785,7 +785,7 @@ onUnmounted(() => {
 .theme-dark .xlab-item__cover--ph { background: rgba(255, 255, 255, 0.08); }
 .xlab-item__body { flex: 1; min-width: 0; }
 .xlab-item__name {
-  font-size: 13px; font-weight: 600; color: var(--dew-text-primary, #222);
+  font-size: 13px; font-weight: 600; color: var(--dew-text-heading, #1f2937);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .xlab-item__meta { font-size: 11px; color: var(--dew-text-faint, #999); margin-top: 2px; }
@@ -813,7 +813,7 @@ onUnmounted(() => {
 .create-dlg__select {
   padding: 5px 10px; border-radius: 8px; font-size: 12.5px; max-width: 220px;
   border: 1px solid var(--dew-card-border, rgba(0, 0, 0, 0.12));
-  background: var(--dew-card-flat-bg, #fff); color: var(--dew-text-primary, #222);
+  background: var(--dew-card-flat-bg, #fff); color: var(--dew-text-heading, #1f2937);
   outline: none;
 }
 .create-dlg__select:focus {
