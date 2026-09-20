@@ -40,6 +40,8 @@
             <span v-else class="m-dash">—</span>
           </div>
           <span class="m-joined">{{ (row.joined_at || '').slice(0, 10) }}</span>
+          <DewButton v-if="row.role === 'student' && attEnabled" size="sm" type="ghost"
+                     @click="openPlanDlg(row)">出勤日</DewButton>
           <DewButton size="sm" type="ghost" @click="remove(row)">移除</DewButton>
         </div>
       </div>
@@ -51,6 +53,39 @@
         <DewButton size="sm" :disabled="query.page >= totalPages" @click="query.page++; load()">下一页</DewButton>
       </div>
     </DewCard>
+
+    <!-- 调整承诺出勤日弹窗（migrate_46：全量替换 + 账本 + 通知学员） -->
+    <DewDialog v-model="planDlg.visible" :title="`承诺出勤日 · ${planDlg.username}`" :width="560">
+      <div v-if="planDlg.loading" style="padding: 8px 0;">
+        <DewSkeleton variant="rect" width="100%" height="140" rounded="8px" />
+      </div>
+      <template v-else>
+        <div class="plan-hint">
+          点选该学员的承诺到岗日（{{ planDlg.rangeText }}{{ planDlg.weekdaysOnly ? '，仅工作日' : '' }}）；
+          保存后学员会收到通知，调整记录留痕可追溯。重生成/同步不会改动这里的个人承诺日。
+        </div>
+        <div class="date-grid">
+          <button v-for="d in planDlg.candidates" :key="d.iso" type="button"
+                  :class="['date-chip', { on: planDlg.picked.has(d.iso), past: d.past }]"
+                  :disabled="d.past" @click="toggleDate(d.iso)">{{ d.label }}</button>
+        </div>
+        <div class="plan-meta">已选 {{ planDlg.picked.size }} 天</div>
+        <DewInput v-model="planDlg.reason" size="sm" style="width: 100%; margin-top: 8px;"
+                  placeholder="调整原因（可选，将通知学员）" />
+        <template v-if="planDlg.changes.length">
+          <div class="plan-changes-title">最近调整记录</div>
+          <div v-for="(c, i) in planDlg.changes.slice(0, 3)" :key="i" class="plan-change-row">
+            {{ (c.created_at || '').slice(0, 16).replace('T', ' ') }} · {{ c.operator_name || '操作人' }}：
+            {{ c.before.length }} 天 → {{ c.after.length }} 天<template v-if="c.reason">（{{ c.reason }}）</template>
+          </div>
+        </template>
+      </template>
+      <template #footer>
+        <DewButton size="sm" type="ghost" @click="planDlg.visible = false">取消</DewButton>
+        <DewButton size="sm" type="glass" :loading="planDlg.submitting"
+                   :disabled="!planDlg.picked.size" @click="submitPlan">保存（{{ planDlg.picked.size }} 天）</DewButton>
+      </template>
+    </DewDialog>
 
     <!-- 加成员弹窗 -->
     <DewDialog v-model="addDlg.visible" title="加成员" :width="520">
@@ -94,6 +129,8 @@ import { campService } from '../../services/campService';
 const props = defineProps({
   sid: { type: [Number, String], required: true },
   writable: { type: Boolean, default: true },
+  /** 启用每日考勤的营才显示「出勤日」入口（policy.capabilities.attendance） */
+  attEnabled: { type: Boolean, default: false },
 });
 const emit = defineEmits(['reviewed']);
 
@@ -217,6 +254,71 @@ async function submitAdd() {
     ElMessage.error(e.response?.data?.message || '加入失败');
   } finally { addDlg.submitting = false; }
 }
+
+// ── 承诺出勤日调整（migrate_46：日期 chip 网格 + 变更记录）──
+const planDlg = reactive({
+  visible: false, loading: true, submitting: false,
+  uid: null, username: '', reason: '',
+  candidates: [], picked: new Set(), changes: [],
+  rangeText: '', weekdaysOnly: false,
+});
+
+async function openPlanDlg(row) {
+  planDlg.uid = row.user_id;
+  planDlg.username = row.username;
+  planDlg.reason = '';
+  planDlg.visible = true;
+  planDlg.loading = true;
+  try {
+    const d = await campService.fetchStudentPlan(props.sid, row.user_id);
+    const range = d.range || {};
+    planDlg.weekdaysOnly = !!range.weekdays_only;
+    planDlg.rangeText = `${(range.start || '').slice(5)} ~ ${(range.end || '').slice(5)}`;
+    planDlg.changes = d.changes || [];
+    planDlg.picked = new Set(d.dates || []);
+    // 候选日期：营期范围内（工作日营剔除周末）；过去的日期禁选（保留展示）
+    const out = [];
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    if (range.start && range.end) {
+      const cur = new Date(range.start + 'T00:00:00');
+      const end = new Date(range.end + 'T00:00:00');
+      while (cur <= end) {
+        const day = cur.getDay();
+        if (!planDlg.weekdaysOnly || (day !== 0 && day !== 6)) {
+          out.push({
+            iso: `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`,
+            label: `${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`,
+            past: cur < today,
+          });
+        }
+        cur.setDate(cur.getDate() + 1);
+      }
+    }
+    planDlg.candidates = out;
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '加载承诺日失败');
+  } finally { planDlg.loading = false; }
+}
+
+function toggleDate(iso) {
+  const next = new Set(planDlg.picked);
+  if (next.has(iso)) next.delete(iso);
+  else next.add(iso);
+  planDlg.picked = next;
+}
+
+async function submitPlan() {
+  if (!planDlg.picked.size || planDlg.submitting) return;
+  planDlg.submitting = true;
+  try {
+    const r = await campService.adjustStudentPlan(
+      props.sid, planDlg.uid, [...planDlg.picked], planDlg.reason.trim());
+    ElMessage.success(r.message || '已调整');
+    planDlg.visible = false;
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '调整失败');
+  } finally { planDlg.submitting = false; }
+}
 </script>
 
 <style scoped>
@@ -241,6 +343,26 @@ async function submitAdd() {
 .pager-text { font-size: 12.5px; color: var(--dew-text-faint); }
 
 .add-hint { font-size: 12px; color: var(--dew-text-faint); line-height: 1.6; }
+
+/* 承诺出勤日调整弹窗 */
+.plan-hint { font-size: 12px; color: var(--dew-text-faint); line-height: 1.6; }
+.date-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; max-height: 220px; overflow-y: auto; }
+.date-chip {
+  padding: 4px 10px; border-radius: 8px; font-size: 12.5px; cursor: pointer;
+  border: 1px solid var(--dew-card-border); background: transparent;
+  color: var(--dew-text-muted); font-family: inherit;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.date-chip:hover:not(:disabled) { transform: translateY(-1px); }
+.date-chip.on {
+  color: var(--color-primary);
+  border-color: color-mix(in srgb, var(--color-primary) 40%, transparent);
+  background: color-mix(in srgb, var(--color-primary) 9%, transparent);
+}
+.date-chip.past { opacity: 0.4; cursor: not-allowed; }
+.plan-meta { margin-top: 8px; font-size: 12.5px; color: var(--dew-text-muted); }
+.plan-changes-title { margin-top: 14px; font-size: 12.5px; font-weight: 600; color: var(--dew-text-muted); }
+.plan-change-row { font-size: 12px; color: var(--dew-text-faint); line-height: 1.8; }
 .cand-list { margin-top: 12px; max-height: 260px; overflow-y: auto; display: flex; flex-direction: column; }
 .cand-row {
   display: flex; align-items: center; gap: 10px;

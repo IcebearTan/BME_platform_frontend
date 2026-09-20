@@ -180,7 +180,8 @@ async function fetchSessions() {
     const res = await api.get('/camp/sessions');
     sessions.value = res.data.sessions || [];
     if (sessions.value.length && !sid.value) {
-      const active = sessions.value.find((s) => s.status === 'active') || sessions.value[0];
+      // 营期状态机是 running 不是 active（字汇漂移修正，方案 §3.9）
+      const active = sessions.value.find((s) => s.status === 'running') || sessions.value[0];
       sid.value = active.id;
       onSessionChange();
     }

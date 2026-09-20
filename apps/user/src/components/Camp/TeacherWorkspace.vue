@@ -14,7 +14,8 @@
     <TeacherAdmissions v-else-if="section === 'admissions'" ref="admissionsRef" :sid="sid"
       :ms-enabled="!!session?.mentor_selection_enabled" @reviewed="refreshOverview" />
     <TeacherMsAssign v-else-if="section === 'ms'" :sid="sid" @reviewed="refreshOverview" />
-    <TeacherMembers v-else-if="section === 'members'" :sid="sid" @reviewed="refreshOverview" />
+    <TeacherMembers v-else-if="section === 'members'" :sid="sid"
+      :att-enabled="caps.attendance" @reviewed="refreshOverview" />
     <TeacherAnnouncements v-else-if="section === 'announcements'" :sid="sid" />
     <TeacherProgress v-else-if="section === 'progress'" :sid="sid" />
     <TeacherMeetings v-else-if="section === 'meetings'" :sid="sid" />

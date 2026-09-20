@@ -175,6 +175,12 @@ export const campService = {
   fetchCampMeetingsAll: (sid) =>
     api.get(`/camp/sessions/${sid}/meetings/all`).then(r => r.data),
 
+  // 承诺出勤日显式调整（migrate_46：全量替换 + 账本留痕 + 通知学员）
+  fetchStudentPlan: (sid, uid) =>
+    api.get(`/camp/attendance/plan/${sid}/${uid}`).then(r => r.data),
+  adjustStudentPlan: (sid, uid, dates, reason = '') =>
+    api.put(`/camp/attendance/plan/${sid}/${uid}`, { dates, reason }).then(r => r.data),
+
   // ── 选导生（开营前置阶段；后端 blueprints/camp_ms.py）──
   // 阶段总览（含按身份视角数据；读端点顺带触发阶段过渡通知）
   fetchMsPhase: (sid) =>
