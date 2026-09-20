@@ -207,8 +207,9 @@ const handleUserInfo = () => {
                 <el-menu-item index="/study">
                     课程
                 </el-menu-item>
-                <el-menu-item index="/community">
-                    社区广场
+                <!-- 09-20 调序：秋季训练营与社区广场对换（营期提前，社区收尾） -->
+                <el-menu-item index="/camp-home" class="camp-nav-item">
+                    <img :src="campLogo" alt="秋季学期营" class="camp-nav-logo" />
                 </el-menu-item>
                 <el-menu-item index="/projects" class="xlab-nav-item">
                     <img src="../assets/XLAB.png" alt="XLab" class="xlab-nav-logo" />
@@ -216,8 +217,8 @@ const handleUserInfo = () => {
                 <el-menu-item index="/service-hall">
                     服务台
                 </el-menu-item>
-                <el-menu-item index="/camp-home" class="camp-nav-item">
-                    <img :src="campLogo" alt="秋季学期营" class="camp-nav-logo" />
+                <el-menu-item index="/community">
+                    社区广场
                 </el-menu-item>
             </div>
             
