@@ -146,8 +146,8 @@
       <section v-if="isLeader && (detail.tasks.length || detail.chapters.length)" class="md-sec">
         <div class="md-sec-head">
           <span class="md-sec-title">审阅</span>
-          <DewButton v-if="detail.tasks.length" type="ghost" size="sm" class="md-sec-act"
-                     :loading="zipLoading" @click="downloadZip">打包下载全部提交</DewButton>
+          <DewButton v-if="detail.tasks.length || detail.chapters.length" type="ghost" size="sm"
+                     class="md-sec-act" :loading="zipLoading" @click="downloadZip">打包下载全部提交</DewButton>
         </div>
 
         <template v-if="detail.tasks.length">
@@ -204,7 +204,13 @@
         </template>
 
         <template v-if="detail.chapters.length">
-          <div class="field-label">章节认证（点格子认证 / 改分 / 撤销；角标=学员材料数，点击查看）</div>
+          <div class="field-label">
+            章节认证
+            <el-tooltip placement="top"
+                        content="点格子：认证 / 改分 / 撤销。角标数字：学员提交的材料份数，点击查看下载">
+              <el-icon class="label-hint"><QuestionFilled /></el-icon>
+            </el-tooltip>
+          </div>
           <div class="matrix-wrap">
             <table class="matrix">
               <thead>
@@ -322,7 +328,7 @@
 import { ref, computed, watch, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox, ElIcon } from 'element-plus';
-import { VideoPlay, ArrowDown } from '@element-plus/icons-vue';
+import { VideoPlay, ArrowDown, QuestionFilled } from '@element-plus/icons-vue';
 import { DewDialog, DewButton, DewInput, DewTag, DewBadge, DewSkeleton } from '@bme/dew-ui';
 import { campService, assetUrl } from '../../services/campService';
 import ChapterCertDialog from './ChapterCertDialog.vue';
@@ -658,6 +664,11 @@ a.att-link { align-self: flex-start; }
   padding: 2px 0;
 }
 .field-label { font-size: 12.5px; font-weight: 600; color: var(--dew-text-muted); margin-top: 4px; }
+.label-hint {
+  margin-left: 4px; font-size: 13px; color: var(--dew-text-faint);
+  cursor: help; vertical-align: -2px;
+}
+.label-hint:hover { color: var(--color-primary); }
 
 /* 我的任务（无分割线，靠间距分组） */
 .my-task { display: flex; flex-direction: column; gap: 6px; padding: 8px 0; }

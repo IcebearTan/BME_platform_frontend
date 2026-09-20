@@ -172,7 +172,8 @@
                   >释放</DewButton>
                 </template>
                 <DewButton
-                  v-else-if="s.status === 'free' && rosterInfo?.writable && (rosterInfo?.remaining ?? 0) > 0"
+                  v-else-if="s.status === 'free' && rosterInfo?.writable
+                             && (rosterInfo?.remaining === null || (rosterInfo?.remaining ?? 0) > 0)"
                   type="glass" size="sm" :loading="actingId === s.user_id"
                   @click="pickStudent(s)"
                 >锁定</DewButton>
