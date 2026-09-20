@@ -204,7 +204,7 @@
         </template>
 
         <template v-if="detail.chapters.length">
-          <div class="field-label">章节认证（点格子认证 / 改分 / 撤销）</div>
+          <div class="field-label">章节认证（点格子认证 / 改分 / 撤销；角标=学员材料数，点击查看）</div>
           <div class="matrix-wrap">
             <table class="matrix">
               <thead>
@@ -224,6 +224,9 @@
                        ? (c.certs[String(s.user_id)].score != null
                            ? `${c.certs[String(s.user_id)].score} 分` : '已认证')
                        : '未认证' }}
+                    <button v-if="matCount(c, s)" type="button" class="mat-dot"
+                            :title="`材料 ${matCount(c, s)}，点击查看`"
+                            @click.stop="openMaterials(s, c)">{{ matCount(c, s) }}</button>
                   </td>
                 </tr>
               </tbody>
@@ -289,6 +292,27 @@
     <ChapterCertDialog v-model="certDlg" :sid="sid"
                        :student="certTarget?.student" :chapter="certTarget?.chapter"
                        :cert="certTarget?.cur" :readonly="!writable" @done="load" />
+
+    <!-- 章节材料弹层（导生·审阅矩阵角标入口，09-20 修「导生看不到学员课内作业」）：
+         学员 × 章 的材料查看下载；删除仍在学员进度页，此处只读 -->
+    <DewDialog v-model="matDlg.open"
+               :title="`章节材料 · ${matDlg.studentName} · ${matDlg.chapterName}`" width="560px">
+      <div class="mat-list" v-loading="matDlg.loading">
+        <div v-if="!matDlg.materials.length && !matDlg.loading" class="mat-empty">该学员本章暂无材料</div>
+        <div v-for="m in matDlg.materials" :key="m.id" class="mat-row">
+          <div class="mat-main">
+            <div v-if="m.content" class="mat-content">{{ m.content }}</div>
+            <div v-if="m.attachments?.length" class="mat-atts">
+              <button v-for="a in m.attachments" :key="a.id" type="button"
+                      class="att-link" @click="downloadMatAtt(a)">
+                {{ a.filename }}{{ a.size ? `（${fmtSize(a.size)}）` : '' }}
+              </button>
+            </div>
+            <span class="mat-time">{{ (m.created_at || '').slice(0, 16).replace('T', ' ') }}</span>
+          </div>
+        </div>
+      </div>
+    </DewDialog>
 
     <input ref="fileInput" type="file" multiple class="file-hidden" @change="onFilesPicked" />
   </DewDialog>
@@ -518,6 +542,32 @@ function certCell(c, s) {
   certTarget.value = { chapter: c, student: s, cur: c.certs[String(s.user_id)] || null };
   certDlg.value = true;
 }
+
+// ── 章节材料（导生·审阅矩阵角标入口，09-20）：与学员进度页同款弹层，此处只读+下载 ──
+const matDlg = ref({ open: false, loading: false, materials: [],
+                     studentName: '', chapterName: '' });
+const matCount = (c, s) => c.material_counts?.[String(s.user_id)] || 0;
+async function openMaterials(s, c) {
+  matDlg.value = { open: true, loading: true, materials: [],
+                   studentName: s.username, chapterName: c.chapter_title };
+  try {
+    const d = await campService.fetchChapterMaterials(props.sid, {
+      student_user_id: s.user_id, chapter_id: c.chapter_id });
+    matDlg.value.materials = d.materials || [];
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '加载材料失败');
+  } finally {
+    matDlg.value.loading = false;
+  }
+}
+// 材料附件下载：先换短签直连再开新窗（与详情纪要附件同款，勿与任务附件内嵌直链混淆）
+async function downloadMatAtt(a) {
+  try {
+    window.open(await campService.fetchMaterialAttachmentUrl(a.id), '_blank');
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '下载失败');
+  }
+}
 </script>
 
 <style scoped>
@@ -649,10 +699,32 @@ a.att-link { align-self: flex-start; }
 .task-cell.ok { color: var(--color-success); font-weight: 600; }
 .task-cell.miss { color: var(--dew-text-faint); }
 .task-cell.bad { color: var(--color-warning); }
-.cert-cell { cursor: pointer; color: var(--dew-text-faint); }
+.cert-cell { position: relative; cursor: pointer; color: var(--dew-text-faint); }
 .cert-cell.ok { color: var(--color-success); font-weight: 600; }
 .cert-cell:not(.ok):hover { color: var(--color-primary); }
 .cert-cell.ok:hover { color: var(--color-warning); }
+
+/* 材料数角标（与学员进度看板 .mat-dot 同款） */
+.mat-dot {
+  position: absolute; top: 2px; right: 3px; line-height: 1;
+  font-size: 10px; color: var(--dew-text-faint);
+  border: none; background: none; padding: 1px 3px; border-radius: 999px; cursor: pointer;
+  background: color-mix(in srgb, var(--dew-text-muted) 10%, transparent);
+}
+.mat-dot:hover { color: var(--color-primary); }
+
+/* 章节材料弹层（与学员进度页弹层同款） */
+.mat-list { display: flex; flex-direction: column; gap: 4px; max-height: 50vh; overflow-y: auto; }
+.mat-empty { font-size: 12.5px; color: var(--dew-text-faint); padding: 8px 0; }
+.mat-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 8px 0; border-bottom: 1px solid var(--dew-card-border);
+}
+.mat-row:last-child { border-bottom: none; }
+.mat-main { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.mat-content { font-size: 13px; color: var(--dew-text-heading); line-height: 1.6; word-break: break-word; }
+.mat-atts { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.mat-time { font-size: 11.5px; color: var(--dew-text-faint); }
 
 .student-panel {
   display: flex; flex-direction: column; gap: 10px; padding: 12px;
