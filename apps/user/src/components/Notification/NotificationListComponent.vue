@@ -1,10 +1,7 @@
 <template>
   <div>
-    <!-- 筛选栏（stretch 占满左列 340px 宽，选项均分） -->
-    <DewButtonBar :items="filterItems" v-model="activeFilter" stretch />
-
-    <!-- 统计 + 全部已读 -->
-    <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 16px;">
+    <!-- 统计 + 全部已读（分类 tab 条已上移至 NotificationInbox 顶部，横贯列表与详情两栏） -->
+    <div style="display: flex; align-items: center; justify-content: space-between;">
       <div style="display: flex; gap: 16px;">
         <div style="font-size: 13px; color: var(--dew-text-muted);">
           共 <span style="font-weight: 600; color: var(--dew-text-heading);">{{ total }}</span> {{ totalLabel }}
@@ -165,17 +162,17 @@
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
-import { campService } from '../../services/campService'
 import { Bell, ChatDotRound } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { DewButton, DewButtonBar, DewCard, DewTag, DewDialog, DewSkeleton } from '@bme/dew-ui'
+import { DewButton, DewCard, DewTag, DewDialog, DewSkeleton } from '@bme/dew-ui'
 import { useNotifications, formatRelativeTime } from '../../composables/useNotifications'
+import { useNotificationTabs } from '../../composables/useNotificationTabs'
 import { notificationTarget } from '../../composables/notificationTarget'
 import { useGratitude } from '../../composables/useGratitude'
 import GratitudeLetterDetail from '../Gratitude/GratitudeLetterDetail.vue'
 
 const props = defineProps({
-  /** 当前筛选 tab（受控：由 NotificationInbox 持有并同步到 URL） */
+  /** 当前筛选 tab（受控：由 NotificationInbox 持有并同步到 URL；tab 条在容器顶部） */
   tab: { type: String, default: 'all' },
   /** 右栏当前选中的通知/信件 id（用于左栏选中高亮） */
   selectedId: { type: [Number, String], default: null },
@@ -185,17 +182,8 @@ const emit = defineEmits(['update:tab', 'select', 'select-letter'])
 
 const router = useRouter()
 
-// 感谢信 tab 仅对导生展示（信件只有导生会收到）。身份解耦后无全局导生角色，
-// 以「任一营期 my_role=mentor」判定（/camp/sessions 对成员含已结营营，历史导生保留入口）；
-// 判定失败静默——仅失去感谢信 tab，不影响通知主流程
-const isMentor = ref(false)
-async function detectMentor() {
-  try {
-    const data = await campService.fetchSessions()
-    isMentor.value = (data.sessions || []).some((s) => s.my_role === 'mentor')
-  } catch { /* 静默 */ }
-  if (isMentor.value) fetchLetters()
-}
+// 导生身份（私信 tab 可见性 + 信件预载）：与容器共享单例探测，不重复请求
+const { isMentor, detectMentor } = useNotificationTabs()
 
 // 系统通知详情弹窗（仅移动端 <900px 使用；桌面端走右栏详情）
 const detailVisible = ref(false)
@@ -214,7 +202,6 @@ const handleMediaChange = (e) => { isMobile.value = e.matches }
 const {
   notificationList,
   unreadCount,
-  unreadByCategory,
   totalCount,
   loading,
   fetchNotifications,
@@ -241,27 +228,6 @@ const emptyText = computed(() => (activeFilter.value === 'message' ? '暂无私�
 // 详情弹窗分类文案（查表，新业务域只加一行）
 const CATEGORY_LABELS = { system: '系统通知', camp: '营期通知', community: '社区通知', message: '私信' }
 const categoryLabel = (c) => CATEGORY_LABELS[c] || '系统通知'
-
-// 筛选栏选项（感谢信 tab 仅导生可见）
-// 分类体系：category=业务域（system/camp/community/message），source_type=具体事件。
-// tab = 全部 / 系统 / 营期 / 社区（有内容才浮出） / 私信（导生；感谢信是私信的第一种，
-// 未来用户互信同 tab）。未读是状态不是类别——撤独立 tab，未读徽标挂「全部」+ 各分类。
-const filterItems = computed(() => {
-  const cat = (c) => unreadByCategory.value[c] || undefined
-  const items = [
-    { value: 'all', label: '全部', icon: Bell, badge: unreadCount.value || undefined },
-    { value: 'system', label: '系统', icon: Bell, badge: cat('system') },
-    { value: 'camp', label: '营期', icon: Bell, badge: cat('camp') },
-  ]
-  // 社区域预留：社区广场点赞/评论通知落地日（category='community'），tab 自动浮现
-  if (notificationList.value.some(n => n.category === 'community') || unreadByCategory.value.community) {
-    items.push({ value: 'community', label: '社区', icon: Bell, badge: cat('community') })
-  }
-  if (isMentor.value) {
-    items.push({ value: 'message', label: '私信', icon: ChatDotRound, badge: letterUnread.value || undefined })
-  }
-  return items
-})
 
 // 筛选 + 分页（message tab 数据源切换为信件表——私信是富内容+独立已读态，不走通知过滤）
 const filteredList = computed(() => {
