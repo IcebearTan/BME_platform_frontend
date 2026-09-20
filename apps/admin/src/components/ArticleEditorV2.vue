@@ -69,6 +69,12 @@ const content = ref('')
 const title = ref('')
 const introduction = ref('')
 const submitting = ref(false)
+// Phase 2（09-20）：官方推文运营字段——封面（需先有 id）、is_official 标记、发布时可选群发通知
+const isOfficial = ref(false)
+const coverUrl = ref('')
+const notifyAll = ref(false)
+const coverUploading = ref(false)
+const coverInput = ref(null)
 
 const isPublishedMode = computed(() => articleStatus.value === 'published')
 const publishLabel = computed(() => (isPublishedMode.value ? '保存修改' : '发布文章'))
@@ -83,8 +89,60 @@ const loadArticle = async () => {
     introduction.value = d.introduction || ''
     content.value = d.content_md || ''
     articleStatus.value = d.status || null
+    isOfficial.value = !!d.is_official
+    coverUrl.value = d.cover || ''
   } catch {
     ElMessage.error('文章加载失败')
+  }
+}
+
+// 封面上传/删除（挂文章 id：新建未保存时提示先存草稿）
+const onCoverPick = async (e) => {
+  const file = e.target.files?.[0]
+  e.target.value = ''
+  if (!file || coverUploading.value) return
+  if (!currentId.value) { ElMessage.warning('请先保存草稿或发布，再上传封面'); return }
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) { ElMessage.warning('仅支持 jpg/png/webp'); return }
+  if (file.size > 10 * 1024 * 1024) { ElMessage.warning('封面不能超过 10MB'); return }
+  coverUploading.value = true
+  try {
+    const fd = new FormData()
+    fd.append('cover', file)
+    const res = await api.post(`/v2/article/${currentId.value}/cover`, fd)
+    coverUrl.value = res.data.cover
+    ElMessage.success('封面已上传')
+  } catch (err) {
+    ElMessage.error(err?.response?.data?.message || '封面上传失败')
+  } finally {
+    coverUploading.value = false
+  }
+}
+const removeCover = async () => {
+  if (!currentId.value) { coverUrl.value = ''; return }
+  try {
+    await api.post(`/v2/article/${currentId.value}/cover/delete`)
+    coverUrl.value = ''
+    ElMessage.success('封面已删除')
+  } catch (err) {
+    ElMessage.error(err?.response?.data?.message || '删除失败')
+  }
+}
+
+// 推文发布后可选群发（community 通知，source 挂文章）
+const broadcastArticle = async (articleId) => {
+  try {
+    await api.post('/notification/batch_create', {
+      user_ids: [],
+      title: `新推文：${title.value.trim().slice(0, 50)}`,
+      content: (introduction.value || title.value || '').slice(0, 200),
+      category: 'community',
+      is_important: false,
+      source_type: 'article_v2',
+      source_id: articleId,
+    })
+    ElMessage.success('已群发社区通知')
+  } catch (e) {
+    ElMessage.warning(e?.response?.data?.message || '群发通知失败（推文已发布）')
   }
 }
 
@@ -121,16 +179,25 @@ const handleSubmit = async () => {
   if (submitting.value) return
   submitting.value = true
   try {
-    const payload = { title: title.value, introduction: introduction.value, content_md: content.value }
+    const payload = { title: title.value, introduction: introduction.value, content_md: content.value,
+                      is_official: isOfficial.value }
+    let publishedId = null
+    let wasPublished = false
     if (currentId.value && articleStatus.value === 'draft') {
       await api.post(`/v2/article/${currentId.value}/publish`, payload)
+      publishedId = currentId.value; wasPublished = true
       ElMessage.success('发布成功')
     } else if (currentId.value && articleStatus.value === 'published') {
       await api.post(`/v2/article/${currentId.value}/edit`, payload)
       ElMessage.success('已更新')
     } else {
-      await api.post('/v2/article/public', payload)
+      const res = await api.post('/v2/article/public', payload)
+      publishedId = res.data.id; wasPublished = true
       ElMessage.success('发布成功')
+    }
+    // 首次发布 + 官方推文 + 勾选群发 → 社区通知全体
+    if (wasPublished && isOfficial.value && notifyAll.value && publishedId) {
+      await broadcastArticle(publishedId)
     }
     router.push('/article/manage')
   } catch (e) {
@@ -196,9 +263,29 @@ onMounted(() => {
             <label>简介</label>
             <el-input v-model="introduction" type="textarea" :rows="3" placeholder="一句话简介" />
           </div>
+          <div class="ae2-field">
+            <label>封面（16:9 自动裁切）</label>
+            <div v-if="coverUrl" class="ae2-cover">
+              <img :src="coverUrl" alt="封面预览" />
+              <div class="ae2-cover-ops">
+                <el-button size="small" :disabled="coverUploading" @click="coverInput?.click()">换图</el-button>
+                <el-button size="small" type="danger" plain @click="removeCover">删除</el-button>
+              </div>
+            </div>
+            <el-button v-else size="small" :disabled="coverUploading" @click="coverInput?.click()">
+              {{ currentId ? '上传封面' : '上传封面（先保存后可用）' }}
+            </el-button>
+          </div>
+          <div class="ae2-field">
+            <el-checkbox v-model="isOfficial">设为官方推文（社区精选带展示）</el-checkbox>
+          </div>
+          <div v-if="isOfficial && !isPublishedMode" class="ae2-field">
+            <el-checkbox v-model="notifyAll">发布时群发社区通知</el-checkbox>
+          </div>
         </div>
       </aside>
     </div>
+    <input ref="coverInput" type="file" accept="image/jpeg,image/png,image/webp" hidden @change="onCoverPick" />
   </div>
 </template>
 
@@ -225,6 +312,8 @@ onMounted(() => {
   gap: 14px;
   align-items: start;
 }
+.ae2-cover img { width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 8px; display: block; }
+.ae2-cover-ops { display: flex; gap: 8px; margin-top: 8px; }
 .ae2-panel {
   background: var(--surface-solid);
   border: 1px solid var(--border-light);

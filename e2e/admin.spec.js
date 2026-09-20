@@ -865,3 +865,70 @@ test('用户管理：批量调级为指定等级', async ({ page }) => {
 
   expect(pageErrors).toEqual([])
 })
+
+// 社区治理（Phase 2 09-20）：global 帖列表 + 置顶/隐藏操作（mock /discussions/threads）
+test('社区治理：帖子列表 + 置顶/隐藏操作', async ({ page }) => {
+  await loginAsStaff(page)
+  const pageErrors = []
+  page.on('pageerror', (e) => pageErrors.push(e.message))
+
+  await page.route('http://127.0.0.1:5001/discussions/threads**', (route) => {
+    if (route.request().method() === 'POST') {
+      return route.fulfill({ json: { code: 200, data: { is_pinned: true, pinned_until: '2026-09-27 00:00:00' } } })
+    }
+    return route.fulfill({ json: { code: 200, data: [
+      { id: 61, title: '招人联调帖', content: '内容', images: [], category: 'recruit', category_text: '招人',
+        project_id: 801, project_title: '智能输液监护', scope_type: 'global', scope_id: null,
+        author_id: 6, author_name: '张三', author_avatar: '', status: 'normal', is_pinned: false,
+        pinned_effective: false, reply_count: 2, like_count: 1, view_count: 9, created_at: '2026-09-20 09:00:00' },
+    ], total: 1, page: 1, per_page: 50, pages: 1 } })
+  })
+  await page.route('http://127.0.0.1:5001/discussions/threads/61/hide', (route) =>
+    route.fulfill({ json: { code: 200, data: { status: 'hidden' } } }))
+
+  await page.goto(`${BASE}/discussion/manage`)
+  await expect(page.locator('.page-title')).toContainText('社区治理')
+  const row = page.getByRole('row', { name: '招人联调帖' })
+  await expect(row).toBeVisible()
+  await expect(row).toContainText('招人')
+  await expect(row).toContainText('智能输液监护')
+
+  // 隐藏：POST hide → 刷新后状态标签变化（mock 数据不重放变化，断言请求即可）
+  const hideReq = page.waitForRequest((req) => req.url().includes('/threads/61/hide') && req.method() === 'POST')
+  await row.getByRole('button', { name: '隐藏' }).click()
+  expect((await hideReq).method()).toBe('POST')
+  await expect(page.locator('.el-message__content').filter({ hasText: '已隐藏' })).toBeVisible()
+
+  expect(pageErrors).toEqual([])
+})
+
+// XLAB 项目治理（Phase 2 09-20）：广场条目集中上下架
+test('XLAB 项目治理：列表 + 下架确认', async ({ page }) => {
+  await loginAsStaff(page)
+  const pageErrors = []
+  page.on('pageerror', (e) => pageErrors.push(e.message))
+
+  await page.route('http://127.0.0.1:5001/showcase/projects', (route) =>
+    route.fulfill({ json: { code: 200, total: 1, all_tags: [], projects: [
+      { id: 801, source: 'community', source_text: '自由分享', title: '智能输液监护', summary: '病房样机',
+        cover: null, cover_thumb: null, images: [], tags: [], project_status: 'ongoing',
+        project_status_text: '进行中', status: 'visible', view_count: 9, favorite_count: 0,
+        members: [], links: [], owner_name: 'proj_s1', created_at: '2026-09-01T10:00:00' },
+    ] } }))
+  await page.route('http://127.0.0.1:5001/showcase/projects/801/status', (route) =>
+    route.fulfill({ json: { code: 200, message: '已下架' } }))
+
+  await page.goto(`${BASE}/showcase/manage`)
+  await expect(page.locator('.page-title')).toContainText('XLAB 项目治理')
+  const row = page.getByRole('row', { name: '智能输液监护' })
+  await expect(row).toBeVisible()
+
+  // 下架走确认框
+  await row.getByRole('button', { name: '下架' }).click()
+  const putStatus = page.waitForRequest((req) =>
+    req.url().includes('/showcase/projects/801/status') && req.method() === 'PUT')
+  await page.getByRole('button', { name: '下架', exact: true }).last().click()
+  expect((await putStatus).postDataJSON()).toEqual({ status: 'hidden' })
+
+  expect(pageErrors).toEqual([])
+})

@@ -7,6 +7,15 @@
     <!-- 分类标签 -->
     <div class="dc-tags">
       <DewTag type="neutral" size="sm" round>讨论</DewTag>
+      <DewTag v-if="discussion.topic" type="info" size="sm" round>{{ discussion.topic }}</DewTag>
+      <span
+        v-if="discussion.projectTitle"
+        class="dc-project"
+        title="关联的 XLAB 项目"
+        @click.stop="goProject"
+      >
+        <el-icon><Grid /></el-icon>{{ discussion.projectTitle }}
+      </span>
       <DewTag v-if="discussion.isHot" type="warning" size="sm" round>置顶</DewTag>
       <button
         v-if="canDelete"
@@ -138,7 +147,8 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useStore } from 'vuex'
-import { ChatDotRound, View, Star, StarFilled, Delete } from '@element-plus/icons-vue'
+import { useRouter } from 'vue-router'
+import { ChatDotRound, View, Star, StarFilled, Delete, Grid } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { DewCard, DewTag, DewInput, DewButton, DewMessageBox } from '@bme/dew-ui'
 import api from '../../api'
@@ -154,8 +164,14 @@ const props = defineProps({
 const emit = defineEmits(['like', 'reply', 'delete', 'user-click'])
 
 const store = useStore()
+const router = useRouter()
 const showReplyInput = ref(false)
 const replyContent = ref('')
+
+// 关联项目 chip：点击直达 XLAB 项目详情（Phase 2 招人帖导流）
+const goProject = () => {
+  if (props.discussion.projectId != null) router.push(`/projects/${props.discussion.projectId}`)
+}
 
 // 回复区紧凑化（09-19）：默认折叠为摘要行，点开才显示回复串
 const repliesExpanded = ref(false)
@@ -581,6 +597,24 @@ const handleDelete = async () => {
   text-overflow: ellipsis;
   color: var(--dew-text-faint);
 }
+
+/* 关联项目 chip（Phase 2）：话题标签旁的项目导流入口 */
+.dc-project {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  color: #00915d;
+  border: 1px solid rgba(0, 145, 93, 0.35);
+  background: rgba(0, 145, 93, 0.06);
+  transition: background 0.15s, border-color 0.15s;
+}
+.dc-project:hover { background: rgba(0, 145, 93, 0.14); border-color: #00915d; }
+.dc-project .el-icon { font-size: 11px; }
 
 .dc-replies {
   margin-bottom: 4px;

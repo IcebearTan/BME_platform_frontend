@@ -23,6 +23,8 @@ const loadCourseManage = () => import('./components/CourseManage.vue')
 const loadBannerManage = () => import('./components/BannerManage.vue')
 const loadCourseCreate = () => import('./components/CourseCreate.vue')
 const loadArticleManage = () => import('./components/ArticleManage.vue')
+const loadDiscussionManage = () => import('./components/DiscussionManage.vue')
+const loadShowcaseManage = () => import('./components/ShowcaseManage.vue')
 const loadLLMProjectManage = () => import('./components/LLMProjectManage.vue')
 const loadLLMUserMonitor = () => import('./components/LLMUserMonitor.vue')
 const loadLLMQuotaRequests = () => import('./components/LLMQuotaRequests.vue')
@@ -82,6 +84,16 @@ const router = createRouter({
                     path: '/article/manage',
                     name: 'article_manage',
                     component: loadArticleManage
+                },
+                {
+                    path: '/discussion/manage',
+                    name: 'discussion_manage',
+                    component: loadDiscussionManage
+                },
+                {
+                    path: '/showcase/manage',
+                    name: 'showcase_manage',
+                    component: loadShowcaseManage
                 },
                 {
                     path: '/group/manage', // 修复路径，确保以 '/' 开头

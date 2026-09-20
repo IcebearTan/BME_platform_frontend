@@ -52,10 +52,11 @@
               </div>
             </div>
 
-            <!-- 筛选栏：类型分类(全部/文章/讨论) × 排序(热度/最新) 正交双控件 -->
+            <!-- 筛选栏：类型分类(全部/文章/讨论) × 排序(热度/最新) × 话题 正交控件 -->
             <div class="filter-bar">
               <DewButtonBar :items="typeOptions" v-model="contentType" size="md" />
               <DewButtonBar :items="sortOptions" v-model="sortType" size="sm" />
+              <DewButtonBar v-if="topicOptions.length" :items="topicOptions" v-model="topicFilter" size="sm" />
             </div>
 
             <!-- 信息流（讨论帖 + 文章帖混合） -->
@@ -173,6 +174,22 @@
         <DewInput v-model="newThread.title" placeholder="标题（至少 4 字）" />
         <DewInput v-model="newThread.content" type="textarea" :rows="5"
                   placeholder="分享你的想法（至少 10 字）…" />
+        <div class="create-dlg__row">
+          <span class="create-dlg__label">话题</span>
+          <div class="create-dlg__chips">
+            <button v-for="c in CATEGORIES" :key="c.value" type="button"
+                    :class="['create-dlg__chip', { on: newThread.category === c.value }]"
+                    @click="newThread.category = newThread.category === c.value ? '' : c.value">{{ c.label }}</button>
+          </div>
+        </div>
+        <div v-if="newThread.category === 'recruit'" class="create-dlg__row">
+          <span class="create-dlg__label">关联项目</span>
+          <select v-model="newThread.project_id" class="create-dlg__select">
+            <option :value="null">不关联</option>
+            <option v-for="prj in xlabProjects" :key="prj.id" :value="prj.id">{{ prj.title }}</option>
+          </select>
+          <span class="create-dlg__hint-inline">招人帖关联 XLAB 项目，读者直达项目页</span>
+        </div>
         <div class="create-dlg__images">
           <div v-for="(img, i) in pendingImages" :key="img.url" class="create-dlg__img-cell">
             <img :src="img.url" alt="待传图片" />
@@ -248,6 +265,9 @@ const sortOptions = [
 ]
 const currentPage = ref(1)
 const totalPages = ref(1)
+// 话题筛选（Phase 2 09-20）：''=全部；服务端有带话题的帖子才显示这组 chip
+const topicFilter = ref('')
+const topicOptions = ref([])
 
 // 加载社区信息流（讨论帖 + 文章帖混合，来自聚合接口 /community/feed）
 // reset=true：切类型/排序或发帖后重置到第 1 页；reset=false：加载更多追加下一页
@@ -265,7 +285,8 @@ const fetchThreads = async (reset = false) => {
         page: currentPage.value,
         per_page: 20,
         sort: sortType.value,
-        type: contentType.value
+        type: contentType.value,
+        ...(topicFilter.value ? { category: topicFilter.value } : {})
       }
     })
     const raw = (res.data && res.data.data) || []
@@ -303,6 +324,9 @@ const fetchThreads = async (reset = false) => {
         content: item.summary,
         summary: item.summary,
         images: (item.images || []).map(u => assetUrl(u)),
+        topic: item.category_text || '',
+        projectId: item.project_id,
+        projectTitle: item.project_title || '',
         category: '全局',
         author: item.author_name,
         authorId: item.author_id,
@@ -330,6 +354,17 @@ const fetchThreads = async (reset = false) => {
     })
 
     feedItems.value = reset ? items : feedItems.value.concat(items)
+
+    // 话题筛选 chips：从 feed 聚合出现过的 topic（reset 时重建，翻页追加）
+    const seen = new Set(topicOptions.value.map(o => o.value))
+    if (reset) { topicOptions.value = []; seen.clear() }
+    items.forEach((i) => {
+      if (i.type === 'discussion' && i.topic && !seen.has(i.topic)) {
+        seen.add(i.topic)
+        const def = CATEGORIES.find(c => c.label === i.topic)
+        if (def) topicOptions.value.push({ label: i.topic, value: def.value })
+      }
+    })
 
     // 当前页讨论帖批量上报浏览（幂等去重），对实际计数的帖乐观 +1，让浏览数即时反馈
     const discussionIds = items.filter(i => i.type === 'discussion').map(i => i.id)
@@ -401,6 +436,15 @@ async function fetchXlabProjects() {
 }
 const goSpotlight = (id) => router.push({ path: '/article-v2', query: { id } })
 
+// 发帖关联项目候选（全量可见项目；右栏 xlabProjects 仅前 4）
+const allProjects = ref([])
+async function fetchAllProjects() {
+  try {
+    const res = await showcaseService.fetchProjects({})
+    allProjects.value = res.projects || []
+  } catch { /* 静默：关联项目下拉为空可接受 */ }
+}
+
 // ── 混合信息流 ──
 const feedItems = ref([])
 const loading = ref(true)
@@ -409,7 +453,11 @@ const hasMore = ref(true)
 // ── 发帖弹层（09-19，替代右栏整卡表单；图片先传图床拿 URL 再随帖提交） ──
 const createDlg = ref(false)
 const createLoading = ref(false)
-const newThread = ref({ title: '', content: '', scope_type: 'global', scope_id: null })
+const CATEGORIES = [
+  { value: 'chat', label: '闲聊' }, { value: 'ask', label: '提问' },
+  { value: 'share', label: '分享' }, { value: 'recruit', label: '招人' },
+]
+const newThread = ref({ title: '', content: '', scope_type: 'global', scope_id: null, category: '', project_id: null })
 const pendingImages = ref([])         // [{ url }]（已传图床的相对 URL）
 const imgUploading = ref(false)
 const postImgInput = ref(null)
@@ -418,9 +466,11 @@ const canSubmitThread = computed(() =>
   newThread.value.title.trim().length >= 4 && newThread.value.content.trim().length >= 10)
 
 function openCreateDlg() {
-  newThread.value = { title: '', content: '', scope_type: 'global', scope_id: null }
+  newThread.value = { title: '', content: '', scope_type: 'global', scope_id: null, category: '', project_id: null }
   pendingImages.value = []
   createDlg.value = true
+  // 项目下拉数据：右栏 xlabProjects 只取 4 个，选「招人」时需要更多候选——拉全量（社团级数据量）
+  if (!allProjects.length) fetchAllProjects()
 }
 function removePendingImage(i) {
   pendingImages.value.splice(i, 1)
@@ -451,8 +501,11 @@ const submitNewThread = async () => {
   if (!canSubmitThread.value || createLoading.value) return
   createLoading.value = true
   try {
+    const { category, project_id, ...threadBody } = newThread.value
     const res = await api.post('/discussions/threads', {
-      ...newThread.value,
+      ...threadBody,
+      category: category || null,
+      project_id: category === 'recruit' ? (project_id || null) : null,
       images: pendingImages.value.map(x => x.url),
     })
     if (res.data && res.data.code === 201) {
@@ -502,8 +555,8 @@ onMounted(() => {
   fetchXlabProjects()
 })
 
-// 监听类型/排序变化：重置到第 1 页并重拉
-watch([contentType, sortType], () => {
+// 监听类型/排序/话题变化：重置到第 1 页并重拉
+watch([contentType, sortType, topicFilter], () => {
   fetchThreads(true)
 })
 
@@ -750,6 +803,22 @@ onUnmounted(() => {
 
 /* ── 发帖弹层内部 ── */
 .create-dlg__form { display: flex; flex-direction: column; gap: 10px; }
+.create-dlg__row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.create-dlg__label { font-size: 12px; font-weight: 600; color: var(--dew-text-muted); flex-shrink: 0; }
+.create-dlg__chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.create-dlg__chip {
+  font-size: 12px; padding: 4px 12px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--dew-card-border, rgba(0, 0, 0, 0.12));
+  background: transparent; color: var(--dew-text-muted, #666);
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.create-dlg__chip.on { background: #00915d; border-color: #00915d; color: #fff; font-weight: 600; }
+.create-dlg__select {
+  padding: 5px 10px; border-radius: 8px; font-size: 12.5px; max-width: 220px;
+  border: 1px solid var(--dew-card-border, rgba(0, 0, 0, 0.12));
+  background: var(--dew-card-flat-bg, #fff); color: var(--dew-text-primary, #222);
+}
+.create-dlg__hint-inline { font-size: 11px; color: var(--dew-text-faint, #999); }
 .create-dlg__images { display: flex; flex-wrap: wrap; gap: 8px; }
 .create-dlg__img-cell {
   position: relative; width: 72px; height: 72px; border-radius: var(--radius-sm, 8px);

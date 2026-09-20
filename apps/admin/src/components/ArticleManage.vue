@@ -11,6 +11,7 @@ export default {
       articles: [],          // 当前页
       allArticles: [],       // 全部（经筛选/搜索后）
       statusFilter: 'all',   // all | draft | published
+      officialFilter: '',    // '' | true | false（官方推文筛选，Phase 2）
       searchKey: '',
       currentPage: 1,
       pageSize: 10,
@@ -32,6 +33,7 @@ export default {
       try {
         const params = {};
         if (this.statusFilter !== 'all') params.status = this.statusFilter;
+        if (this.officialFilter !== '') params.official = this.officialFilter;
         if (this.searchKey.trim()) params.q = this.searchKey.trim();
         const res = await api.get('/v2/article/admin/list', { params });
         this.allArticles = (res.data && res.data.data) || [];
@@ -87,6 +89,17 @@ export default {
       }
     },
 
+    // 官方推文标记切换（Phase 2：推文=精选带展示位，仅文章管理员可设——本页即管理员视角）
+    async toggleOfficial(row) {
+      try {
+        await api.post(`/v2/article/${row.id}/edit`, { is_official: !row.is_official });
+        ElMessage.success(row.is_official ? '已取消推文标记' : '已设为官方推文');
+        this.fetchArticles();
+      } catch (e) {
+        ElMessage.error(e?.response?.data?.message || '操作失败');
+      }
+    },
+
     // 状态切换：草稿→发布 / 已发布→下架（admin 可操作任何人的文章）
     async togglePublish(row) {
       try {
@@ -117,6 +130,11 @@ export default {
           <el-option label="全部" value="all" />
           <el-option label="已发布" value="published" />
           <el-option label="草稿" value="draft" />
+        </el-select>
+        <el-select v-model="officialFilter" placeholder="推文" style="width: 120px; margin-left: 12px;" @change="fetchArticles">
+          <el-option label="全部内容" value="" />
+          <el-option label="官方推文" value="true" />
+          <el-option label="普通文章" value="false" />
         </el-select>
         <el-form :inline="true" class="form-inline" @submit.prevent>
           <el-form-item style="margin: 0 0 0 12px;">
@@ -161,9 +179,18 @@ export default {
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column fixed="right" label="操作" min-width="230">
+          <el-table-column label="推文" width="90">
+            <template #default="{ row }">
+              <el-tag v-if="row.is_official" type="warning" size="small">官方</el-tag>
+              <span v-else>—</span>
+            </template>
+          </el-table-column>
+          <el-table-column fixed="right" label="操作" min-width="300">
             <template #default="{ row }">
               <el-button type="primary" size="small" @click="handleEdit(row)">编辑</el-button>
+              <el-button :type="row.is_official ? 'info' : 'warning'" size="small" @click="toggleOfficial(row)">
+                {{ row.is_official ? '取消推文' : '设为推文' }}
+              </el-button>
               <el-button
                 :type="row.status === 'draft' ? 'success' : 'warning'"
                 size="small"

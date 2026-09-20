@@ -14,6 +14,7 @@ const FEED = {
   data: [
     { type: 'discussion', id: 51, title: '带图帖子', summary: '一张现场图分享',
       images: ['/media/discussions/t/a.webp', '/media/discussions/t/b.webp'],
+      category: 'recruit', category_text: '招人', project_id: 801, project_title: '智能输液监护',
       author_id: 11, author_name: '陈嘉树', author_avatar: '', author_badge: '社长',
       created_at: '2026-09-18 09:00:00', reply_count: 2, like_count: 1, view_count: 9,
       is_pinned: false,
@@ -168,7 +169,50 @@ test('社区重设计：XLAB 引流卡 + 发帖弹层', async ({ page }) => {
   await publish.click()
   const body = (await post).postDataJSON()
   expect(body).toEqual({ title: '联调发帖标题', content: '这条帖子内容满足十个字的门槛',
-    scope_type: 'global', scope_id: null, images: [] })
+    scope_type: 'global', scope_id: null, category: null, project_id: null, images: [] })
+  await expect(page.getByText('发布成功')).toBeVisible()
+
+  expect(errors).toEqual([])
+})
+
+
+// Phase 2（09-20）：话题标签 + 关联 XLAB 项目（招人帖导流）
+test('社区 Phase 2：帖子话题/项目 chip + 发帖选话题关联项目', async ({ page }) => {
+  const errors = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  await mockCommunity(page)
+
+  await page.goto(`${BASE}/community`, { waitUntil: 'domcontentloaded' })
+  // 帖子卡：话题 tag + 关联项目 chip，点 chip 进 XLAB 详情
+  const dc = page.locator('.discussion-card').first()
+  await expect(dc.locator('.dc-tags')).toContainText('招人')
+  await expect(dc.locator('.dc-project')).toContainText('智能输液监护')
+  await dc.locator('.dc-project').click()
+  await expect(page).toHaveURL(/\/projects\/801$/)
+
+  // 话题筛选 chips 从 feed 聚合出现
+  await page.goto(`${BASE}/community`, { waitUntil: 'domcontentloaded' })
+  const topicBar = page.locator('.filter-bar .dew-bar').filter({ hasText: '招人' })
+  await expect(topicBar).toBeVisible()
+
+  // 发帖弹层：选「招人」话题 → 出现关联项目下拉 → POST body 带 category/project_id
+  await page.locator('.post-entry').click()
+  const dlg = page.locator('.dew-dialog').filter({ hasText: '发布新帖' })
+  await expect(dlg).toBeVisible()
+  await dlg.getByPlaceholder('标题（至少 4 字）').fill('招前端搭档联调帖')
+  await dlg.getByPlaceholder(/分享你的想法/).fill('这篇帖子内容满足十个字的门槛')
+  dlg.getByRole('button', { name: '招人' }).click()
+  const projSelect = dlg.locator('.create-dlg__select')
+  await expect(projSelect).toBeVisible()
+  await projSelect.selectOption('801')
+  const publish = dlg.getByRole('button', { name: '发布', exact: true })
+  await expect(publish).toBeEnabled()
+  const post = page.waitForRequest((req) =>
+    req.url().includes('/discussions/threads') && req.method() === 'POST')
+  await publish.click()
+  const body = (await post).postDataJSON()
+  expect(body.category).toBe('recruit')
+  expect(body.project_id).toBe(801)
   await expect(page.getByText('发布成功')).toBeVisible()
 
   expect(errors).toEqual([])

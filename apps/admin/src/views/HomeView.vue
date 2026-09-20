@@ -9,7 +9,7 @@ import {
   Grid, Fold, Bell, ArrowDown, Clock, TrendCharts,
   List, Plus, Cpu, DataLine, Key, Tickets,
   Sunny, Moon, Collection, Folder, School, SetUp, Avatar, Picture,
-  Connection, Suitcase, Location
+  Connection, Suitcase, Location, ChatDotRound
 } from '@element-plus/icons-vue';
 
 export default {
@@ -19,7 +19,7 @@ export default {
     Grid, Fold, Bell, ArrowDown, Clock, TrendCharts,
     List, Plus, Cpu, DataLine, Key, Tickets,
     Sunny, Moon, Collection, Folder, School, SetUp, Avatar, Picture,
-    Connection, Suitcase, Location
+    Connection, Suitcase, Location, ChatDotRound
   },
 
   data() {
@@ -43,6 +43,8 @@ export default {
         '/club/positions': '社团职位',
         '/club/membership': '成员归属',
         '/article/manage': '文章管理',
+        '/discussion/manage': '社区治理',
+        '/showcase/manage': 'XLAB 项目治理',
         '/group/manage': '小组管理',
         '/course/manage': '课程管理',
         '/course/create': '发布课程',
@@ -256,6 +258,12 @@ export default {
             </el-menu-item>
             <el-menu-item index="/banner/manage" @click="router.push('/banner/manage')" class="submenu-item">
               <el-icon><Picture /></el-icon><span>首页轮播</span>
+            </el-menu-item>
+            <el-menu-item index="/discussion/manage" @click="router.push('/discussion/manage')" class="submenu-item">
+              <el-icon><ChatDotRound /></el-icon><span>社区治理</span>
+            </el-menu-item>
+            <el-menu-item index="/showcase/manage" @click="router.push('/showcase/manage')" class="submenu-item">
+              <el-icon><Grid /></el-icon><span>XLAB 项目治理</span>
             </el-menu-item>
           </el-sub-menu>
 
