@@ -132,7 +132,6 @@
                            :active="statusOf(m).key === 'minutes'" @click.stop="openEdit(m)">提交纪要</DewButton>
                 <DewButton v-if="!isLeader && writable && myTodoOf(m) > 0" type="glass" size="sm"
                            @click.stop="goSubmit(m)">去完成</DewButton>
-                <span class="mtg-open">详情</span>
               </span>
             </div>
           </template>
@@ -602,9 +601,6 @@ const fmtSize = (n) => {
   margin-left: auto; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   justify-content: flex-end;
 }
-.mtg-open { font-size: 12px; color: var(--color-primary); opacity: 0.85; }
-.mtg-card:hover .mtg-open { opacity: 1; }
-
 /* 创建弹窗·三步流程条（把开会的顺序摆在眼前） */
 .flow-steps {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;

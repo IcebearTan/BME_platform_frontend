@@ -123,8 +123,11 @@
             <div v-for="c in g.chapters" :key="c.chapter_id" class="cg-chapter">
               <div class="cg-row">
                 <span class="cg-name" :title="c.chapter_title">{{ c.chapter_title }}</span>
-                <span :class="['cg-cert', { ok: c.my_cert }]">{{ c.my_cert
-                  ? `已认证${c.my_cert.score != null ? ` ${c.my_cert.score} 分` : ''}` : '未认证' }}</span>
+                <span v-if="c.my_cert" class="cg-cert ok">已认证{{
+                  c.my_cert.score != null ? ` ${c.my_cert.score} 分` : '' }}</span>
+                <span v-else-if="c.my_material_count" class="cg-cert submitted"
+                      :title="'已提交材料 ' + c.my_material_count + ' 份，待导生认证'">已提交</span>
+                <span v-else class="cg-cert">未认证</span>
                 <button type="button" :class="['mat-chip', { open: openChapterId === c.chapter_id }]"
                         @click="toggleChapter(c)">
                   材料
@@ -645,6 +648,7 @@ a.att-link { align-self: flex-start; }
 }
 .cg-cert { flex: none; color: var(--dew-text-faint); }
 .cg-cert.ok { color: var(--color-success); font-weight: 600; }
+.cg-cert.submitted { color: var(--color-primary); }
 .cg-due { font-size: 12px; color: var(--dew-text-faint); }
 .cg-due.late { color: var(--color-danger); font-weight: 600; }
 .mat-chip {
