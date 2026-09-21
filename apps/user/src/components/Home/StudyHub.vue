@@ -1,15 +1,18 @@
 <template>
-  <div :class="['study-hub-container', { 'theme-dark': isDarkMode, 'theme-light': !isDarkMode }]">
+  <div
+    ref="bannerSectionRef"
+    :class="['study-hub-container', { 'theme-dark': isDarkMode, 'theme-light': !isDarkMode }]"
+  >
     <!-- 轮播Banner区域（DB 驱动：GET /banner/list）。
          加载期骨架占位（对齐 card 轮播主卡形制，防数据到达后布局下推）；失败/空数据整区隐藏 -->
     <div v-if="bannersLoading" class="banner-section banner-section--loading">
-      <DewSkeleton variant="rect" width="62%" height="160" rounded="12px" />
+      <DewSkeleton variant="rect" width="50%" :height="carouselHeight" rounded="12px" />
     </div>
     <div v-else-if="banners.length" class="banner-section">
       <el-carousel
         :interval="4000"
         type="card"
-        height="160px"
+        :height="carouselHeight"
         indicator-position="outside"
         arrow="hover"
         @change="handleBannerChange"
@@ -36,7 +39,9 @@
               </template>
             </div>
             <DewImage :src="banner.image" :alt="banner.title" class="banner-image"
-                      :position="banner.focusY != null ? `50% ${banner.focusY}%` : null" :lazy="false" />
+                      fit="cover"
+                      :position="`50% ${banner.focusY ?? 50}%`"
+                      :lazy="false" />
           </div>
         </el-carousel-item>
       </el-carousel>
@@ -95,7 +100,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, h } from 'vue'
+import { ref, reactive, computed, onBeforeUnmount, onMounted, h } from 'vue'
 import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
 // el-carousel / el-icon 由 unplugin-vue-components 按需解析（含样式），不再显式 import
@@ -163,6 +168,26 @@ const entryIcons = {
 // seed 置 0，恢复动态帧改 DB 标志即可零代码）。底图规范见 docs/首页banner-运营规范.md。
 const banners = ref([])
 const bannersLoading = ref(true)   // 加载期骨架占位（防数据到达后整区下推 CLS）
+const bannerSectionRef = ref(null)
+const carouselHeight = ref('160px')
+let bannerResizeObserver = null
+
+function getBannerRatio(width) {
+  if (width <= 768) return 16 / 9
+  if (width <= 1200) return 16 / 7
+  return 2 / 1
+}
+
+function updateCarouselHeight() {
+  const width = bannerSectionRef.value?.clientWidth
+  if (!width) return
+
+  // Element Plus card 模式主卡约为容器 50%；按设备档位取主卡展示比例。
+  const activeCardWidth = width * 0.5
+  const ratio = getBannerRatio(width)
+  const height = Math.round(activeCardWidth / ratio)
+  carouselHeight.value = `${Math.max(120, Math.min(height, 300))}px`
+}
 
 async function fetchBanners() {
   try {
@@ -334,8 +359,18 @@ const handleEntryClick = (entry) => {
 
 
 onMounted(() => {
+  updateCarouselHeight()
+  if (typeof ResizeObserver !== 'undefined') {
+    bannerResizeObserver = new ResizeObserver(updateCarouselHeight)
+    bannerResizeObserver.observe(bannerSectionRef.value)
+  }
   fetchBanners()
   fetchCommunityPosts()
+})
+
+onBeforeUnmount(() => {
+  bannerResizeObserver?.disconnect()
+  bannerResizeObserver = null
 })
 </script>
 
@@ -370,7 +405,7 @@ onMounted(() => {
   cursor: pointer;
   border-radius: 12px;
   transition: all 0.3s ease;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .banner-item:hover {
@@ -419,7 +454,7 @@ onMounted(() => {
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
-/* 学期营帧 corner 模式：不整幅压暗底图，只落左下角玻璃状态条（banner 高 160px，chip 需紧凑） */
+/* 学期营帧 corner 模式：不整幅压暗底图，只落左下角玻璃状态条 */
 .banner-overlay.overlay-corner {
   justify-content: flex-end;
   align-items: flex-start;
@@ -617,10 +652,6 @@ onMounted(() => {
     gap: 20px;
   }
 
-  .banner-section :deep(.el-carousel) {
-    height: 160px;
-  }
-
   .banner-title {
     font-size: 18px;
   }
@@ -638,10 +669,6 @@ onMounted(() => {
 @media (max-width: 768px) {
   .study-hub-container {
     gap: 16px;
-  }
-
-  .banner-section :deep(.el-carousel) {
-    height: 140px;
   }
 
   .banner-overlay {

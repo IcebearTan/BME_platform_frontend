@@ -62,7 +62,7 @@ async function mockBanners(page, frames) {
 }
 
 const MOCK_BANNER_FRAMES = [
-  { Banner_Id: 1, title: '营期中心', description: '查看营期与报名', image: '/media/banners/seed/a.webp', link_type: 'route', link_value: '/camp', is_camp_frame: false, visible: true },
+  { Banner_Id: 1, title: '营期中心', description: '查看营期与报名', image: '/media/banners/seed/a.webp', image_focus_y: 30, link_type: 'route', link_value: '/camp', is_camp_frame: false, visible: true },
   { Banner_Id: 2, title: '大模型服务中心', description: '大模型 API 接口平台', image: '/media/banners/seed/b.webp', link_type: 'route', link_value: '/ai-service', is_camp_frame: false, visible: true },
   { Banner_Id: 3, title: '3D打印农场', description: '在线预约，一站式 3D 打印服务', image: '/media/banners/seed/c.webp', link_type: 'external', link_value: '/3dfarm/', is_camp_frame: false, visible: true },
 ]
@@ -98,6 +98,27 @@ test('首页轮播 DB 驱动渲染 + 空态隐藏', async ({ page }) => {
   // DB 帧渲染：标题帧文案出现在角标/alt
   await page.goto(`${BASE}/home`)
   await expect(page.locator('.banner-image img[alt="营期中心"]')).toBeVisible()
+  await expect(page.locator('.banner-image img[alt="营期中心"]')).toHaveCSS('object-position', '50% 30%')
+
+  // 首页轮播高度跟随内容区宽度：桌面 2:1，平板 16:7，手机保底 120px
+  const activeBanner = page.locator('.el-carousel__item--card.is-active .banner-item')
+  await expect(activeBanner).toBeVisible()
+  const bannerRatio = async () => {
+    const box = await activeBanner.boundingBox()
+    return box.width / box.height
+  }
+
+  await page.setViewportSize({ width: 1564, height: 900 })
+  await expect.poll(bannerRatio).toBeCloseTo(2, 1)
+  await page.setViewportSize({ width: 1200, height: 800 })
+  await expect.poll(bannerRatio).toBeCloseTo(16 / 7, 1)
+  await page.setViewportSize({ width: 375, height: 812 })
+  await expect
+    .poll(async () => {
+      const box = await activeBanner.boundingBox()
+      return Math.round(box.height)
+    })
+    .toBe(120)
 
   // 空态：/banner/list 回空数组 → 整区隐藏不阻塞首页
   await mockBanners(page, [])
