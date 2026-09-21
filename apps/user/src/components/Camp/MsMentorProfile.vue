@@ -28,7 +28,7 @@
             </div>
             <transition name="fade">
               <div v-if="uploading || dragOver" class="photo-mask">
-                {{ uploading ? '上传中…' : '松开即可上传' }}
+                {{ uploading ? '压缩上传中…' : '松开即可上传' }}
               </div>
             </transition>
           </div>
@@ -156,6 +156,7 @@ import { Link, Plus } from '@element-plus/icons-vue';
 import { DewCard, DewButton, DewDialog, DewInput } from '@bme/dew-ui';
 import MsMentorCard from './MsMentorCard.vue';
 import { campService, assetUrl } from '../../services/campService';
+import { compressImage } from '../../utils/compressImage';
 
 const props = defineProps({
   sid: { type: [Number, String], required: true },
@@ -282,12 +283,13 @@ async function doUpload(options) {
   if (file.size / 1024 / 1024 > 5) { ElMessage.error('图片超过 5MB，请选择更小的图片'); return; }
   uploading.value = true;
   try {
-    const r = await campService.uploadMsPhoto(props.sid, file);
+    const compressedFile = await compressImage(file, { maxSide: 800, maxBytes: 600 * 1024 });
+    const r = await campService.uploadMsPhoto(props.sid, compressedFile);
     photoFilename.value = r.photo_url || '';
     ElMessage.success('照片已上传，记得保存名片');
     emit('saved');
   } catch (e) {
-    ElMessage.error(e.response?.data?.message || '照片上传失败');
+    ElMessage.error(e.response?.data?.message || e.message || '照片处理失败');
   } finally {
     uploading.value = false;
   }
