@@ -188,7 +188,7 @@ onMounted(() => {
                 :stagger="360"
                 :pointer-repel="40"
                 :idle-drift="0.7"
-                trigger="hover"
+                trigger="mount"
                 font-size="clamp(2.5rem, 6vw, 5rem)"
                 :font-weight="800"
                 glow
