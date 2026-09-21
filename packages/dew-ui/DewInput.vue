@@ -40,7 +40,7 @@
       v-if="type === 'textarea'"
       ref="inputRef"
       class="dew-input__inner dew-input__textarea"
-      :value="modelValue"
+      v-model="inputModel"
       :placeholder="placeholder"
       :disabled="disabled"
       :rows="rows"
@@ -56,7 +56,7 @@
       ref="inputRef"
       class="dew-input__inner"
       :type="showPassword ? 'text' : nativeType"
-      :value="modelValue"
+      v-model="inputModel"
       :placeholder="placeholder"
       :disabled="disabled"
       @input="onInput"
@@ -114,6 +114,11 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'focus', 'blur', 'input', 'clear', 'enter'])
 
+const inputModel = computed({
+  get: () => props.modelValue,
+  set: value => emit('update:modelValue', value),
+})
+
 const wrapRef = ref(null)
 const inputRef = ref(null)
 const focused = ref(false)
@@ -162,7 +167,6 @@ function onInput(e) {
   // 中文输入法组合期间不更新 modelValue，避免打断拼音输入
   // composing ref 与原生 e.isComposing 双保险（ref 不再进模板，避免 compositionstart 触发重渲染清空输入框）
   if (composing.value || e.isComposing) return
-  emit('update:modelValue', e.target.value)
   emit('input', e.target.value)
   // 转发事件到根元素，让 el-form-item 能监听到
   wrapRef.value?.dispatchEvent(new Event('input', { bubbles: true }))
@@ -170,8 +174,7 @@ function onInput(e) {
 
 function onCompositionEnd(e) {
   composing.value = false
-  // 组合结束后同步最终值
-  emit('update:modelValue', e.target.value)
+  // v-model 负责同步最终值，这里只广播组件级 input 事件
   emit('input', e.target.value)
   wrapRef.value?.dispatchEvent(new Event('input', { bubbles: true }))
 }
