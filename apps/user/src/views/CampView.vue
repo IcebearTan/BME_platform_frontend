@@ -197,6 +197,16 @@ const isProject = computed(() => current.value?.category === 'project');
 const caps = computed(() => current.value?.policy?.capabilities || {});
 // 看板为默认 tab（营期概要+仪表盘，自 CampHome 成员视图迁入）；
 // 选导生为开营前置阶段，启用时紧随看板（session 数据来自 _session_dict 的 mentor_selection_enabled）
+// 开营后（running/archived 且志愿截止已过）选导生已收口，tab 文案切结果视角——
+// 学员「我的导生」（结果卡+感谢信）、导生「我的学员」（名单锁定）。阶段与后端 _ms_phase
+// 同口径，用 session 自带的 ms_preference_deadline 同步推得，不等异步 phase 接口（无闪烁）。
+const msOver = computed(() => {
+  const s = current.value;
+  if (!s?.mentor_selection_enabled) return false;
+  if (s.status !== 'running' && s.status !== 'archived') return false;
+  const dl = s.ms_preference_deadline;   // "YYYY-MM-DD HH:MM"；斜杠化兼容 Safari 的 Date 解析
+  return !!dl && new Date(dl.replace(/-/g, '/')) <= new Date();
+});
 const studentTabs = computed(() => {
   const t = [
     { value: 'overview', label: '看板' },
@@ -205,7 +215,7 @@ const studentTabs = computed(() => {
   ];
   if (caps.value.attendance) t.push({ value: 'attendance', label: '我的考勤' });
   if (caps.value.leave) t.push({ value: 'leave', label: '请假' });
-  if (current.value?.mentor_selection_enabled) t.splice(1, 0, { value: 'ms', label: '选导生' });
+  if (current.value?.mentor_selection_enabled) t.splice(1, 0, { value: 'ms', label: msOver.value ? '我的导生' : '选导生' });
   return t;
 });
 const mentorTabs = computed(() => {
@@ -217,7 +227,7 @@ const mentorTabs = computed(() => {
   ];
   if (caps.value.attendance) t.push({ value: 'dashboard', label: '团队考勤' });
   if (caps.value.leave) t.push({ value: 'leave', label: '请假审批' });
-  if (current.value?.mentor_selection_enabled) t.splice(1, 0, { value: 'ms', label: '选导生' });
+  if (current.value?.mentor_selection_enabled) t.splice(1, 0, { value: 'ms', label: msOver.value ? '我的学员' : '选导生' });
   return t;
 });
 const tabItems = computed(() => (isProject.value ? []
