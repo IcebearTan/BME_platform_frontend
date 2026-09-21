@@ -49,7 +49,20 @@
         <div class="form-col">
           <div class="form-item">
             <label class="form-label">自我介绍 <span class="label-sub">最多 1000 字</span></label>
+            <div class="bio-toolbar">
+              <DewButton
+                type="ghost"
+                size="sm"
+                :disabled="locked"
+                @mousedown.prevent
+                @click="openLinkDialog"
+              >
+                <el-icon aria-hidden="true"><Link /></el-icon>
+                <span>插入链接</span>
+              </DewButton>
+            </div>
             <DewInput
+              ref="bioInputRef"
               :model-value="form.bio"
               type="textarea"
               :rows="10"
@@ -110,14 +123,37 @@
       </div>
     </div>
   </DewCard>
+
+  <DewDialog v-model="linkDialogVisible" title="插入链接" width="min(520px, 94vw)">
+    <div class="link-form">
+      <div class="link-field">
+        <span class="form-label">链接文字</span>
+        <DewInput
+          ref="linkLabelInputRef"
+          v-model="linkForm.label"
+          placeholder="例如：项目资料"
+        />
+      </div>
+      <div class="link-field">
+        <span class="form-label">链接地址</span>
+        <DewInput v-model="linkForm.url" placeholder="https://example.com" />
+      </div>
+    </div>
+    <template #footer>
+      <div class="link-actions">
+        <DewButton type="ghost" size="sm" @click="closeLinkDialog">取消</DewButton>
+        <DewButton type="glass" size="sm" @click="insertBioLink">插入</DewButton>
+      </div>
+    </template>
+  </DewDialog>
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, nextTick, watch } from 'vue';
 import { useStore } from 'vuex';
 import { ElMessage } from 'element-plus';
-import { Plus } from '@element-plus/icons-vue';
-import { DewCard, DewButton, DewInput } from '@bme/dew-ui';
+import { Link, Plus } from '@element-plus/icons-vue';
+import { DewCard, DewButton, DewDialog, DewInput } from '@bme/dew-ui';
 import MsMentorCard from './MsMentorCard.vue';
 import { campService, assetUrl } from '../../services/campService';
 
@@ -131,6 +167,8 @@ const emit = defineEmits(['saved']);
 
 const store = useStore();
 const uploadRef = ref(null);
+const bioInputRef = ref(null);
+const linkLabelInputRef = ref(null);
 const saving = ref(false);
 const uploading = ref(false);
 const dragOver = ref(false);
@@ -139,6 +177,8 @@ const hasProfile = ref(false);
 
 const form = ref({ bio: '', tags: [], capacity: null });   // capacity null=不限（09-11 起默认）
 const lastCap = ref(8);                                     // 「不限」↔数字 来回切时记住上次数字
+const linkDialogVisible = ref(false);
+const linkForm = ref({ label: '', url: '' });
 
 function toggleUnlimited() {
   if (form.value.capacity === null) {
@@ -175,6 +215,50 @@ function toggleTag(t) {
 
 function updateBio(value) {
   form.value.bio = String(value || '');
+}
+
+function openLinkDialog() {
+  if (props.locked) return;
+  linkDialogVisible.value = true;
+  nextTick(() => linkLabelInputRef.value?.focus());
+}
+
+function closeLinkDialog() {
+  linkDialogVisible.value = false;
+  linkForm.value = { label: '', url: '' };
+}
+
+function insertBioLink() {
+  const url = linkForm.value.url.trim();
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    ElMessage.warning('请输入完整的 http/https 链接');
+    return;
+  }
+  if (!['http:', 'https:'].includes(parsed.protocol)) {
+    ElMessage.warning('链接仅支持 http/https 协议');
+    return;
+  }
+  if (/[\s)]/.test(url)) {
+    ElMessage.warning('链接地址不能包含空格或右括号');
+    return;
+  }
+
+  const label = linkForm.value.label.trim() || url;
+  if (/[[\]]/.test(label)) {
+    ElMessage.warning('链接文字不能包含 [ 或 ]');
+    return;
+  }
+
+  const markdown = `[${label}](${url})`;
+  if (Array.from(form.value.bio).length + Array.from(markdown).length > 1000) {
+    ElMessage.warning('插入链接后会超过 1000 字');
+    return;
+  }
+  if (!bioInputRef.value?.insertText(markdown)) return;
+  closeLinkDialog();
 }
 
 function pickPhoto() {
@@ -256,6 +340,11 @@ watch(() => props.sid, load, { immediate: true });
 .head-hint { font-size: 12px; color: var(--dew-text-muted); }
 .bio-meta { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .bio-counter { flex: none; font-size: 11px; color: var(--dew-text-faint); }
+.bio-toolbar { display: flex; align-items: center; gap: 8px; }
+.bio-toolbar :deep(.el-icon) { font-size: 14px; }
+.link-form { display: flex; flex-direction: column; gap: 14px; }
+.link-field { display: flex; flex-direction: column; gap: 6px; }
+.link-actions { display: flex; justify-content: flex-end; gap: 10px; width: 100%; }
 
 .profile-body { display: flex; gap: 32px; align-items: flex-start; }
 @media (max-width: 860px) { .profile-body { flex-direction: column; } }

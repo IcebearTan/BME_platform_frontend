@@ -32,7 +32,7 @@ const DEADLINES = {
 const MENTORS = {
   mentors: [
     { user_id: 13, username: 'test_mentor', photo_url: '/camp/ms/photo/test.svg', avatar: null,
-      capacity: 8, matched: 7, remaining: 1, full: false, tags: ['硬件组'], bio: '搞硬件的，项目资料：https://example.com/mentor-kit。' },
+      capacity: 8, matched: 7, remaining: 1, full: false, tags: ['硬件组'], bio: '搞硬件的，项目资料：[项目资料](https://example.com/mentor-kit)。' },
     { user_id: 20, username: '满员导生', photo_url: null, avatar: null,
       capacity: 3, matched: 3, remaining: 0, full: true, tags: ['软件组'], bio: '' },
     { user_id: 21, username: '软件导生', photo_url: null, avatar: null,
@@ -120,7 +120,7 @@ test('市集营业：collecting 可逛可收志愿', async ({ page }) => {
   await expect(page.getByRole('dialog')).toContainText('修改时整组替换志愿，以最后一次提交为准。')
   await page.keyboard.press('Escape')
   await expect(page.getByText('可带 8 人', { exact: true })).toBeVisible()
-  const cardBioLink = page.locator('.market-grid .bio').getByRole('link', { name: 'https://example.com/mentor-kit' })
+  const cardBioLink = page.locator('.market-grid .bio').getByRole('link', { name: '项目资料' })
   await expect(cardBioLink).toHaveAttribute('href', 'https://example.com/mentor-kit')
   await expect(cardBioLink).toHaveAttribute('target', '_blank')
   await expect(cardBioLink).toHaveAttribute('rel', 'noopener noreferrer')
@@ -155,8 +155,8 @@ test('市集营业：collecting 可逛可收志愿', async ({ page }) => {
   // 加入志愿 → 托盘计数变化
   await page.getByRole('button', { name: '查看 test_mentor 的完整介绍' }).click()
   const detail = page.getByRole('dialog')
-  await expect(detail.locator('.detail-bio')).toHaveText('搞硬件的，项目资料：https://example.com/mentor-kit。')
-  await expect(detail.getByRole('link', { name: 'https://example.com/mentor-kit' })).toHaveAttribute('href', 'https://example.com/mentor-kit')
+  await expect(detail.locator('.detail-bio')).toHaveText('搞硬件的，项目资料：项目资料。')
+  await expect(detail.getByRole('link', { name: '项目资料' })).toHaveAttribute('href', 'https://example.com/mentor-kit')
   await detail.getByRole('button', { name: '加入心仪导生 test_mentor' }).click()
   await expect(detail.getByText('已选为第 1 志愿')).toBeVisible()
   await page.keyboard.press('Escape')
@@ -340,6 +340,20 @@ test('导生工作台：谁报了我只读名单，无收人按钮', async ({ pa
   await expect(page.getByText('最多 1000 字')).toBeVisible()
   await expect(page.getByText('这位导生有点神秘，先看看标签吧~~')).toBeVisible()
   const bioInput = page.getByPlaceholder('介绍你的经历、擅长的方向、能带学员做什么，以及你期待怎样的伙伴。')
+  const linkedBio = 'A[项目主页](https://example.com/mentor-profile)B'
+  await bioInput.fill('AB')
+  await bioInput.press('Home')
+  await bioInput.press('ArrowRight')
+  await page.getByRole('button', { name: '插入链接', exact: true }).click()
+  await page.getByPlaceholder('例如：项目资料').fill('项目主页')
+  await page.getByPlaceholder('https://example.com').fill('https://example.com/mentor-profile')
+  await page.getByRole('button', { name: '插入', exact: true }).click()
+  await expect(bioInput).toHaveValue(linkedBio)
+  await page.locator('.detail-link').click()
+  const linkedDetail = page.getByRole('dialog')
+  await expect(linkedDetail.locator('.detail-bio')).toHaveText('A项目主页B')
+  await expect(linkedDetail.getByRole('link', { name: '项目主页' })).toHaveAttribute('href', 'https://example.com/mentor-profile')
+  await page.keyboard.press('Escape')
   const longBio = '介绍'.repeat(500)
   await bioInput.fill(longBio)
   await expect(bioInput).toHaveValue(longBio)
@@ -418,6 +432,7 @@ test('导生人员确认：志愿截止后可锁定/释放学员', async ({ page
   await expect(page.getByText('人员确认')).toBeVisible()
   await expect(page.getByText('已选 2 / 3')).toBeVisible()
   await expect(page.locator('.pick-item', { hasText: '学员小张' }).getByText('志愿 1')).toBeVisible()
+  await page.getByRole('button', { name: '展开已分配 1 人' }).click()
   await expect(page.locator('.pick-item', { hasText: '学员小王' }).getByText('已属 别的导生')).toBeVisible()
   await expect(page.locator('.pick-item', { hasText: '学员小赵' }).getByText('未交志愿')).toBeVisible()
   await expect(page.locator('.pick-item', { hasText: '学员小李' }).getByText('老师指派')).toBeVisible()

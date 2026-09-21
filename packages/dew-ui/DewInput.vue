@@ -94,7 +94,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, reactive, computed, nextTick, onMounted, onBeforeUnmount } from 'vue'
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
@@ -237,7 +237,26 @@ const glowStyle = computed(() => ({
 }))
 
 function focus() { inputRef.value?.focus() }
-defineExpose({ focus })
+
+function insertText(text) {
+  const element = inputRef.value
+  if (!element || props.disabled) return false
+
+  const value = String(props.modelValue ?? '')
+  const insertion = String(text ?? '')
+  const end = element.selectionEnd ?? value.length
+  const start = element.selectionStart ?? end
+  const nextValue = value.slice(0, start) + insertion + value.slice(end)
+  const caret = start + insertion.length
+
+  inputModel.value = nextValue
+  nextTick(() => {
+    element.focus()
+    element.setSelectionRange(caret, caret)
+  })
+  return true
+}
+defineExpose({ focus, insertText })
 </script>
 
 <style scoped>
