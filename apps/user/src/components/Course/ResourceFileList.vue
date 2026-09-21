@@ -138,7 +138,8 @@ const onRowClick = (item) => {
             <el-icon class="btn-icon"><Download /></el-icon>
             下载所选（{{ selectedIds.length }}）
           </DewButton>
-          <DewButton v-if="downloadAll" size="sm" type="primary" :loading="batchDownloading" @click="downloadAll">
+          <!-- 一键下载：ghost 变体（默认无实体底，hover/focus 出现 DewUI 自带反馈） -->
+          <DewButton v-if="downloadAll" size="sm" type="ghost" :loading="batchDownloading" @click="downloadAll">
             <el-icon class="btn-icon"><Download /></el-icon>
             一键下载
           </DewButton>

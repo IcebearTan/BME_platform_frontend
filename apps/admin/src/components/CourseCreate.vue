@@ -1,9 +1,9 @@
 <script setup>
 import api, { assetUrl } from '../api';
-import { ref, reactive, onMounted, computed } from 'vue';
+import { ref, reactive, onMounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { Plus, Delete, Edit } from '@element-plus/icons-vue';
+import { Plus, Delete, Edit, Top, Bottom, Upload } from '@element-plus/icons-vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -20,6 +20,7 @@ const courseForm = reactive({
   Course_Introduction: '',
   Course_Class_Hour: 0,
   Course_Difficulty: 1,
+  Course_Learning_Mode: 'camp',
   Course_Tags: '',
   Course_Other_Tags: ''
 });
@@ -184,6 +185,12 @@ const difficultyOptions = [
   { value: 5, label: '5 - 专家' }
 ];
 
+// 学习方式（migrate_52）：营期学=仅营期选课可学（默认）；自主学=登录即学，全课时完成自动课成
+const learningModeOptions = [
+  { value: 'camp', label: '营期学（仅营期选课学员可学习）' },
+  { value: 'open', label: '自主学（登录即可自由学习）' }
+];
+
 onMounted(async () => {
   if (isEdit.value) {
     await fetchCourseDetail();
@@ -201,6 +208,7 @@ const fetchCourseDetail = async () => {
       courseForm.Course_Introduction = course.Introduction || '';
       courseForm.Course_Class_Hour = (course.Course_Class_Hour === null || course.Course_Class_Hour === undefined) ? 0 : Number(course.Course_Class_Hour);
       courseForm.Course_Difficulty = course.Course_Difficulty || 1;
+      courseForm.Course_Learning_Mode = course.Learning_Mode === 'open' ? 'open' : 'camp';
       courseForm.Course_Tags = course.Course_Tags || '';
       courseForm.Course_Other_Tags = course.Course_Other_Tags ? course.Course_Other_Tags.join(',') : '';
       courseCover.value = course.Cover || null;
@@ -319,6 +327,7 @@ const saveCourse = async () => {
       Course_title: courseForm.Course_title,
       Course_Introduction: courseForm.Course_Introduction,
       Course_Difficulty: courseForm.Course_Difficulty || 1,
+      Course_Learning_Mode: courseForm.Course_Learning_Mode || 'camp',
       Course_Tags: courseForm.Course_Tags || ''
     };
 
@@ -368,6 +377,103 @@ const saveCourse = async () => {
   } finally {
     loading.value = false;
   }
+};
+
+// ── 课程资源管理（09-21 自 CourseManage 表格行迁入：资源属于课程编辑语境）──
+const resourceList = ref([]);
+const resourceLoading = ref(false);
+const resourceUploading = ref(false);
+const pendingFiles = ref([]);       // 待上传文件
+
+const formatSize = (bytes) => {
+  if (bytes == null) return '';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  if (bytes < 1024 * 1024 * 1024) return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+  return (bytes / 1024 / 1024 / 1024).toFixed(2) + ' GB';
+};
+
+const fetchResources = async () => {
+  if (!courseId.value) return;
+  resourceLoading.value = true;
+  try {
+    const res = await api.get('/course/resources', {
+      params: { Course_Id: courseId.value }
+    });
+    resourceList.value = res.data.data || [];
+  } catch (error) {
+    console.error('Error fetching resources:', error);
+    ElMessage.error('获取资源列表失败');
+  } finally {
+    resourceLoading.value = false;
+  }
+};
+
+// 切到资源页签才拉取（编辑课直接进该页签时 onMounted 的 activeTab watch 兜住）
+watch(activeTab, (tab) => {
+  if (tab === 'resources') fetchResources();
+});
+
+const submitResources = async () => {
+  if (!pendingFiles.value.length) {
+    ElMessage.warning('请先选择要上传的文件');
+    return;
+  }
+  resourceUploading.value = true;
+  try {
+    const fd = new FormData();
+    fd.append('Course_Id', courseId.value);
+    pendingFiles.value.forEach(f => fd.append('Files', f.raw));
+    const res = await api.post('/course/resource_add', fd);
+    if (res.data.code === 200) {
+      ElMessage.success(`成功上传 ${res.data.data.length} 个文件`);
+      pendingFiles.value = [];
+      fetchResources();
+    } else {
+      ElMessage.error(res.data.message || '上传失败');
+    }
+  } catch (error) {
+    console.error('Error uploading resources:', error);
+    ElMessage.error('上传失败');
+  } finally {
+    resourceUploading.value = false;
+  }
+};
+
+// 上移/下移：先本地换位再提交完整顺序，失败则回拉
+const moveResource = async (index, dir) => {
+  const j = index + dir;
+  if (j < 0 || j >= resourceList.value.length) return;
+  const list = [...resourceList.value];
+  [list[index], list[j]] = [list[j], list[index]];
+  resourceList.value = list;
+  try {
+    await api.post('/course/resource_sort', {
+      Course_Id: courseId.value,
+      Resource_Ids: list.map(r => r.id)
+    });
+  } catch (error) {
+    console.error('Error sorting resources:', error);
+    ElMessage.error('排序失败');
+    fetchResources();
+  }
+};
+
+const deleteResource = (row) => {
+  ElMessageBox.confirm(`确定要删除资源「${row.name}」吗？`, '提示', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning'
+  }).then(async () => {
+    try {
+      await api.post('/course/resource_del', { Resource_Id: row.id });
+      ElMessage.success('删除成功');
+      fetchResources();
+    } catch (error) {
+      console.error('Error deleting resource:', error);
+      ElMessage.error('删除失败');
+    }
+  }).catch(() => {});
 };
 
 // 添加章节
@@ -743,6 +849,11 @@ const goBack = () => {
                 <el-option v-for="item in difficultyOptions" :key="item.value" :label="item.label" :value="item.value" />
               </el-select>
             </el-form-item>
+            <el-form-item label="学习方式">
+              <el-select v-model="courseForm.Course_Learning_Mode" style="width: 280px;">
+                <el-option v-for="item in learningModeOptions" :key="item.value" :label="item.label" :value="item.value" />
+              </el-select>
+            </el-form-item>
             <el-form-item label="标签">
               <el-input v-model="courseForm.Course_Tags" placeholder="多个标签用逗号分隔" />
             </el-form-item>
@@ -931,6 +1042,56 @@ const goBack = () => {
             </el-table>
             <el-empty v-else description="暂无课时" :image-size="60" />
           </div>
+        </el-card>
+      </el-tab-pane>
+
+      <!-- 课程资源（09-21 自课程管理表格行迁入：资源是课程的编辑语境的一部分） -->
+      <el-tab-pane label="课程资源" name="resources" :disabled="!courseId">
+        <el-card class="form-card">
+          <el-upload
+            drag
+            multiple
+            :auto-upload="false"
+            v-model:file-list="pendingFiles"
+          >
+            <el-icon style="font-size: 40px; color: #909399;"><Upload /></el-icon>
+            <div style="margin-top: 6px;">将文件拖拽到此处，或 <em>点击选择</em>（可多选）</div>
+            <template #tip>
+              <div class="el-upload__tip">资源将上传到对象存储，学生在课程详情页「相关资源」中下载</div>
+            </template>
+          </el-upload>
+          <div style="margin-bottom: 16px;">
+            <el-button type="primary" @click="submitResources" :loading="resourceUploading" :disabled="!pendingFiles.length">
+              上传所选文件
+            </el-button>
+          </div>
+
+          <el-table :data="resourceList" v-loading="resourceLoading" style="width: 100%;" max-height="420">
+            <el-table-column prop="name" label="文件名" min-width="220" show-overflow-tooltip />
+            <el-table-column label="大小" width="100">
+              <template #="scoped">{{ formatSize(scoped.row.size) }}</template>
+            </el-table-column>
+            <el-table-column prop="created_at" label="上传时间" width="150" />
+            <el-table-column label="操作" width="170" fixed="right">
+              <template #="scoped">
+                <el-button
+                  size="small"
+                  :icon="Top"
+                  :aria-label="`上移 ${scoped.row.name}`"
+                  :disabled="scoped.$index === 0"
+                  @click="moveResource(scoped.$index, -1)"
+                />
+                <el-button
+                  size="small"
+                  :icon="Bottom"
+                  :aria-label="`下移 ${scoped.row.name}`"
+                  :disabled="scoped.$index === resourceList.length - 1"
+                  @click="moveResource(scoped.$index, 1)"
+                />
+                <el-button type="danger" size="small" @click="deleteResource(scoped.row)">删除</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
         </el-card>
       </el-tab-pane>
     </el-tabs>

@@ -244,7 +244,10 @@ onMounted(() => {
                             </div>
                             <div class="book-info">
                                 <div class="course-content">
-                                    <div class="course-title">{{ course.Course_title }}</div>
+                                    <div class="course-title">
+                                        {{ course.Course_title }}
+                                        <span v-if="course.Course_Learning_Mode === 'open'" class="mode-chip">自主学</span>
+                                    </div>
                                     <div class="course-description">{{ course.Course_Introduction }}</div>
                                 </div>
                                 <div class="course-stats">共 {{ course.Course_Chapters }} 章 · {{ formatClassHour(course.Course_Class_Hour) }}</div>
@@ -708,6 +711,20 @@ onMounted(() => {
     white-space: nowrap;
     text-overflow: ellipsis;
     margin-bottom: 2px;
+}
+
+/* 自主学标记（migrate_52）：仅 open 课显示，营期学为默认形态不标 */
+.mode-chip {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 0 6px;
+    border-radius: var(--radius-full);
+    font-size: 10px;
+    font-weight: 500;
+    line-height: 16px;
+    vertical-align: 2px;
+    color: var(--color-success);
+    background: var(--color-success-light);
 }
 
 .course-description {

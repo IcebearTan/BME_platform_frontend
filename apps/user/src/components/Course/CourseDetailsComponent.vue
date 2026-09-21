@@ -2,15 +2,16 @@
 import { onMounted, ref, computed } from 'vue'
 import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
 import api from '../../api'
 import { assetUrl } from '../../services/campService'
+import { courseShelfService } from '../../services/courseShelfService'
 import DewImage from '@bme/dew-ui/DewImage.vue'
-import { Star, StarFilled } from '@element-plus/icons-vue'
+import { DewMessage } from '@bme/dew-ui'
+import { Star, StarFilled, Collection, CollectionTag } from '@element-plus/icons-vue'
 
 import ChapterTree from './ChapterTree.vue'
 import CourseResources from './CourseResources.vue'
-import { DewButtonBar } from '@bme/dew-ui'
+import { DewButton, DewButtonBar, DewTag } from '@bme/dew-ui'
 
 const store = useStore()  // 获取 Vuex store
 const router = useRouter()  // 获取 Vue Router 实例
@@ -26,16 +27,21 @@ const formatedCourseDetails = ref([])
 
 const difficulty = 3 // 课程难度，这里暂时写死，实际应该从后端获取
 
-const items = [
-    { label: '医学', type: 'success' },
-    { label: '计算机', type: 'info' },
-    { label: '人工智能', type: 'warning' },
-    { label: '医疗器械', type: 'danger' },
-    { label: '医学', type: 'success' },
-    { label: '计算机', type: 'info' },
-    { label: '人工智能', type: 'warning' },
-    { label: '医疗器械', type: 'danger' }
-];
+// 课程标签（右栏只读展示）：Other_Tags（后端已切分成数组）为主，
+// 兼容 Course_Tags 逗号串老数据，合并去重；无标签时整个标签区不渲染
+const TAG_TYPES = ['success', 'info', 'warning', 'danger']
+const courseTags = computed(() => {
+  const tags = []
+  const push = (t) => {
+    const v = String(t || '').trim()
+    if (v && !tags.includes(v)) tags.push(v)
+  }
+  const other = courseInfo.value?.Course_Other_Tags
+  if (Array.isArray(other)) other.forEach(push)
+  const raw = courseInfo.value?.Course_Tags
+  if (typeof raw === 'string') raw.replace(/，/g, ',').split(',').forEach(push)
+  return tags
+})
 
 const colorPalette = [
     "#b391ff", // 蓝紫色: 和谐邻近色
@@ -46,8 +52,7 @@ const colorPalette = [
 ];
 
 const randomColor = (courseName) => {
-    console.log(courseName)
-    // 简单哈希：将字符串转成数字和 
+    // 简单哈希：将字符串转成数字和
     let hash = 0;
     for (let i = 0; i < courseName.length; i++) {
         hash = courseName.charCodeAt(i) + (hash << 6) + (hash << 16) - hash;
@@ -74,7 +79,6 @@ const fetchCourseInfo = async () => {
     if (res.data.code === 200) {
       courseInfo.value = res.data
       userProgress.value.chapters = res.data.Chapters || 0; // 设置章节数量
-      console.log(courseInfo.value)
     }
   } catch (error) {
     console.error(error)
@@ -240,15 +244,21 @@ const wrapperBg = computed(() => {
     : 'radial-gradient(ellipse 60% 50% at 12% 18%, rgba(96,165,250,0.26), transparent 60%), radial-gradient(ellipse 55% 60% at 88% 12%, rgba(244,114,182,0.24), transparent 55%), radial-gradient(ellipse 70% 55% at 82% 88%, rgba(52,211,153,0.22), transparent 60%), radial-gradient(ellipse 55% 60% at 8% 92%, rgba(251,191,36,0.20), transparent 55%), radial-gradient(ellipse 50% 50% at 50% 50%, rgba(34,211,238,0.10), transparent 70%), linear-gradient(135deg, #f0f4ff 0%, #fdf2f8 50%, #f0fdf4 100%)';
 });
 
-// 查询当前用户是否已经加入课程
+// 选课关系（只读展示用：右栏「学习进度」仅在已选课时显示）
 const isEnrolled = ref(false)
+// 可学性（migrate_52 can_learn 口径）：open 恒真；camp 需营期选课行/营内分配。
+// A14 前的全局自助行 isEnrolled=true 但 canLearn=false——入口与目录点按都认 canLearn
+const canLearn = ref(false)
+
+// 学习方式（migrate_52）：open=自主学（登录即学，无需加入）；camp=营期学
+const learningMode = computed(() => (courseInfo.value?.Learning_Mode === 'open' ? 'open' : 'camp'))
 
 // 营期戳（09-14 快照口径）：check 透出选课行的 camp_session_id（仅非 archived 营）；
 // effectiveSid = URL sid || 营戳——从任意路径进详情页进度口径都一致（营内看快照从零）
 const campStamp = ref(null)
 const effectiveSid = computed(() => router.currentRoute.value.query.sid || campStamp.value)
 
-// 检查用户是否已选课
+// 检查选课与学习权限（can_learn/camp_session_id 由 check 一并透出）
 const checkEnrollment = async () => {
   try {
     const res = await api({
@@ -261,6 +271,9 @@ const checkEnrollment = async () => {
     if (res.data.code === 200 && res.data.data?.enrolled) {
       isEnrolled.value = true
     }
+    if (res.data.code === 200 && res.data.data?.can_learn != null) {
+      canLearn.value = res.data.data.can_learn
+    }
     if (res.data.code === 200 && res.data.data?.camp_session_id) {
       campStamp.value = res.data.data.camp_session_id
     }
@@ -269,7 +282,9 @@ const checkEnrollment = async () => {
   }
 }
 
-// 进入学习（09-14 接通打点入口）：跳课程学习页（逐课时标记完成）；
+// 进入学习（09-14 接通打点入口）：跳课程学习页（逐课时标记完成）。
+// 不带 lessonId——「继续学习」定位（URL lessonId → 最近未完成 → 首个未完成 → 第一课）
+// 由章节学习页统一处理，详情页不复制一套算法。
 // sid 透传保证学习页与详情页同一营期口径，from=camp 仅在营期语境透传（保返回）
 const goStudyPage = () => {
   const query = {}
@@ -278,8 +293,64 @@ const goStudyPage = () => {
   router.push({ path: `/course/chapter/${courseId.value}`, query })
 }
 
-// 「加入学习/退课」自助入口已移除（阶段 1，A14）：入课唯一途径 = 营期选课；
-// isEnrolled 仅作只读展示（历史选课与营期选课状态照常显示）。
+// 目录课时点击：直跳学习页对应课时（lessonId 精确定位由学习页统一处理）。
+// 自主学课所有课时可点；营期学课仅 can_learn 时可点，无权限时行呈不可用态。
+const canEnterLessons = computed(() => learningMode.value === 'open' || canLearn.value)
+const goLessonPage = (lesson) => {
+  if (!canEnterLessons.value || !lesson) return
+  const query = { lessonId: String(lesson.id) }
+  if (router.currentRoute.value.query.from === 'camp') query.from = 'camp'
+  if (effectiveSid.value) query.sid = effectiveSid.value
+  router.push({ path: `/course/chapter/${courseId.value}`, query })
+}
+
+// 课程是否有任何课时（「开始学习」的可用性依据之一；无课时禁用不报错）
+const hasLessons = computed(() => {
+  const walk = (nodes) => nodes.some((n) =>
+    (n.lessons && n.lessons.length > 0) || (n.children && walk(n.children)))
+  return walk(formatedCourseDetails.value || [])
+})
+
+// 「开始学习」禁用原因（title / aria 说明）；空串 = 可用
+const startDisabledReason = computed(() => {
+  if (!hasLessons.value) return '课程暂无课时，内容准备中'
+  if (learningMode.value === 'camp' && !canLearn.value) {
+    return '本课程通过营期学习，加入对应学习方向后开放'
+  }
+  return ''
+})
+
+// ── 课程书架（2026-09-21）：收藏关系独立于选课/学习权限，可随时加入/移出 ──
+const inShelf = ref(false)
+const shelfLoading = ref(false)
+
+const checkShelf = async () => {
+  try {
+    inShelf.value = await courseShelfService.check(courseId.value)
+  } catch (error) {
+    console.error('查询书架状态失败:', error)
+  }
+}
+
+const toggleShelf = async () => {
+  if (shelfLoading.value) return
+  shelfLoading.value = true
+  const target = !inShelf.value
+  try {
+    if (target) {
+      await courseShelfService.add(courseId.value)
+    } else {
+      await courseShelfService.remove(courseId.value)
+    }
+    inShelf.value = target
+    DewMessage.success(target ? '已加入书架' : '已移出书架')
+  } catch (error) {
+    console.error('书架操作失败:', error)
+    DewMessage.error(error?.message || '操作失败，请重试')
+  } finally {
+    shelfLoading.value = false
+  }
+}
 
 // 已完成课时列表，用于显示勾选标记
 const completedLessons = ref([])
@@ -293,12 +364,13 @@ const userProgress = ref({
   progress: 0,
 }) //个人进度
 
-// 在组件挂载后执行
-onMounted(() => {
-  fetchCourseDetails()
+// 挂载时序：checkEnrollment 先落定 effectiveSid（URL sid || 营戳），再取章节与
+// 进度——并行会在营戳未到时把营期进度请求发成全局口径，详情页读到错误进度
+onMounted(async () => {
   fetchCourseInfo()
-
-  checkEnrollment()
+  await checkEnrollment()
+  fetchCourseDetails()
+  checkShelf()
 })
 
 const difficultyMap = {
@@ -390,29 +462,56 @@ const goBack = () => {
             <div class="course-info-right">
               <h2 class="course-title" :class="themeClass">
                 {{ courseInfo.Course_Title }}
+                <DewTag type="neutral" size="sm" class="mode-tag">
+                  {{ learningMode === 'open' ? '自主学' : '营期学' }}
+                </DewTag>
               </h2>
               <div class="course-description" :class="themeClass">
                 {{ courseInfo.Introduction }}
               </div>
+              <!-- 营期学且无学习权限：信息列内部的弱化说明（克制文案，无实体色底） -->
+              <div v-if="learningMode === 'camp' && !canLearn" class="camp-note" :class="themeClass">
+                本课程通过营期学习，加入对应学习方向后开放。
+              </div>
+              <!-- 操作区：信息列底部（桌面端与封面底边对齐；移动端自然换行） -->
+              <div class="course-actions">
+                <DewButton
+                  size="md"
+                  :disabled="!!startDisabledReason"
+                  :title="startDisabledReason || '进入课程学习页'"
+                  :aria-label="startDisabledReason ? `开始学习（${startDisabledReason}）` : '开始学习'"
+                  @click="goStudyPage"
+                >开始学习</DewButton>
+                <DewButton
+                  type="ghost"
+                  size="md"
+                  class="shelf-btn"
+                  :loading="shelfLoading"
+                  :title="inShelf ? '从书架移出' : '收藏到我的书架'"
+                  @click="toggleShelf"
+                >
+                  <el-icon class="shelf-btn__icon">
+                    <component :is="inShelf ? CollectionTag : Collection" />
+                  </el-icon>
+                  {{ inShelf ? '已加入书架' : '加入书架' }}
+                </DewButton>
+              </div>
             </div>
-          </div>
-
-          <!-- 未选课：入课途径提示放简介区下方（原加入按钮位）；右侧不再挂空壳入口卡 -->
-          <div v-if="!isEnrolled" class="join-hint" :class="themeClass">
-            本课程通过营期学习方向加入后开启学习
           </div>
 
           <div class="course-contents">
             <div class="course-contents-header" :class="themeClass">
               <DewButtonBar v-model="activeTab" :items="contentTabs" />
             </div>
-            <!-- 目录：暂时只读展示（章节/课时不可点击进入） -->
+            <!-- 目录：章节只读；课时可点（自主学直接可点，营期学需 can_learn） -->
             <div class="course-content-card" v-show="activeTab === 'toc'">
               <ChapterTree
                 :chapters="formatedCourseDetails"
-                :is-enrolled="isEnrolled"
+                :is-enrolled="canLearn"
+                :lessons-clickable="canEnterLessons"
                 :completed-lessons="completedLessons"
                 :theme-class="themeClass"
+                @lesson-click="goLessonPage"
               />
               <div class="no-more-content" :class="themeClass">
                 没有更多内容啦~
@@ -428,15 +527,8 @@ const goBack = () => {
           </div>
         </div>
 
-        <!-- 右侧边栏 -->
+        <!-- 右侧边栏：只读信息区（难度/章节/时长/进度/标签），不放任何按钮 -->
         <div class="right-sidebar">
-          <!-- 学习入口（09-14 接通课时打点页）：已选课显示进入按钮；未选课提示移至左列简介区下 -->
-          <div v-if="isEnrolled" class="course-difficulty study-entry" :class="themeClass">
-            <el-button type="primary" size="large" class="study-btn" @click="goStudyPage">进入学习</el-button>
-            <div class="study-entry-hint" :class="themeClass">进入课程学习页，逐课时标记完成</div>
-          </div>
-
-          <!-- 课程信息：始终显示 -->
           <div class="course-difficulty" :class="themeClass">
             <span class="difficulty-label" :class="themeClass">课程难度</span>
             <div class="difficulty-stars-container">
@@ -464,15 +556,15 @@ const goBack = () => {
               <div class="period-label" :class="themeClass">学习进度</div>
             </span>
           </div>
-          <div class="course-tags">
+          <div class="course-tags" v-if="courseTags.length">
             <el-tag
-              v-for="item in items"
-              :key="item.label"
-              :type="item.type"
+              v-for="(tag, index) in courseTags"
+              :key="tag"
+              :type="TAG_TYPES[index % TAG_TYPES.length]"
               effect="light"
               round
             >
-              {{ item.label }}
+              {{ tag }}
             </el-tag>
           </div>
 
@@ -581,6 +673,13 @@ const goBack = () => {
   font-size: 24px;
   font-weight: bold;
   margin-bottom: 12px;
+}
+
+/* 学习方式标签：标题行内跟排（migrate_52 自主学/营期学） */
+.course-title .mode-tag {
+  margin-left: 10px;
+  vertical-align: 3px;
+  font-weight: 500;
 }
 
 .theme-light .course-title {
@@ -713,38 +812,6 @@ const goBack = () => {
   color: #ccc !important;
 }
 
-/* Element Plus 按钮主题适配 */
-.theme-dark .el-button {
-  background-color: #404040 !important;
-  border-color: #555 !important;
-  color: #fff !important;
-}
-
-.theme-dark .el-button:hover {
-  background-color: #505050 !important;
-  border-color: #666 !important;
-}
-
-.theme-dark .el-button--primary {
-  background-color: #409eff !important;
-  border-color: #409eff !important;
-}
-
-.theme-dark .el-button--primary:hover {
-  background-color: #66b1ff !important;
-  border-color: #66b1ff !important;
-}
-
-.theme-dark .el-button.is-plain {
-  background-color: transparent !important;
-  color: #409eff !important;
-  border-color: #409eff !important;
-}
-
-.theme-dark .el-button.is-plain:hover {
-  background-color: #409eff !important;
-  color: #fff !important;
-}
 .course-period {
   display: flex;
   align-items: center;
@@ -758,28 +825,6 @@ const goBack = () => {
   justify-content: space-between;
   margin-top: 20px;
   margin-bottom: 20px;
-}
-/* 学习入口卡（09-14）：右栏首卡——已选课给「进入学习」，未选课提示入课途径 */
-.study-entry { flex-direction: column; align-items: stretch; gap: 8px; }
-.study-btn { width: 100%; }
-.study-entry-hint { font-size: 12px; line-height: 1.6; text-align: center; }
-
-/* 未选课入课途径提示：左列简介区下方的按钮位（整宽轻提示条，视觉上是"此处应有加入按钮"的占位语义） */
-.join-hint {
-  margin-top: 12px;
-  padding: 10px 16px;
-  border-radius: 10px;
-  font-size: 13px;
-  line-height: 1.6;
-  text-align: center;
-}
-.theme-light .join-hint {
-  background: rgba(59, 130, 246, 0.08);
-  color: #64748b;
-}
-.theme-dark .join-hint {
-  background: rgba(148, 163, 184, 0.10);
-  color: #94a3b8;
 }
 .star-icon {
   color: #FFcf00;
@@ -1145,7 +1190,33 @@ const goBack = () => {
   display: flex;
   flex-direction: column;
   flex: 1;
-  height: 200px;
+  /* 与封面（180px）等高：操作区 margin-top:auto 推到底部，按钮底边与封面底边对齐 */
+  height: 180px;
+  min-width: 0;
+}
+
+/* 操作区（2026-09-21）：信息列内部、简介之下。桌面端贴信息列底部；
+   移动端信息列高度 auto，自然排在简介后方 */
+.course-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: auto;
+  padding-top: 12px;
+  flex-wrap: wrap;
+}
+
+.shelf-btn__icon {
+  margin-right: 4px;
+}
+
+/* 营期学无权限说明：信息列内部的弱化文案（无实体色底，仅文字弱化）。
+   --dew-text-muted 随 .theme-dark 自动切换，无需双写 */
+.camp-note {
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--dew-text-muted);
 }
 
 .course-contents {
@@ -1364,27 +1435,6 @@ const goBack = () => {
 
 .no-cursor {
   cursor: auto !important;
-}
-
-/* 已加入学习按钮样式 */
-.is-enrolled-btn {
-  background-color: #67c23a !important;
-  border-color: #67c23a !important;
-  color: #fff !important;
-}
-
-/* 正在学习按钮 - 淡蓝样式 */
-.enrolled-btn.is-enrolled {
-  background-color: #a0cfff !important;
-  border-color: #a0cfff !important;
-  color: #fff !important;
-  cursor: default !important;
-  opacity: 0.8;
-}
-
-.enrolled-btn.is-enrolled:hover {
-  background-color: #a0cfff !important;
-  border-color: #a0cfff !important;
 }
 
 /* 没有更多内容提示 */

@@ -945,11 +945,11 @@ test('课程管理：状态标签 + 上移排序 + 下架确认', async ({ page 
       { Course_Id: '801', Course_title: 'C语言程序设计（旧版）', Course_Introduction: '2025 版课程',
         Course_Chapters: 8, Course_Class_Hour: 32, Course_Difficulty: 2, Course_Tags: '软件组',
         Course_Other_Tags: [], Course_Time: '2026-07-01 10:00:00', Course_Cover_Thumb: null,
-        Course_Status: 'normal' },
+        Course_Status: 'normal', Course_Learning_Mode: 'open' },
       { Course_Id: '802', Course_title: 'C语言程序设计（新版）', Course_Introduction: '2026 版课程',
         Course_Chapters: 10, Course_Class_Hour: 40, Course_Difficulty: 2, Course_Tags: '软件组',
         Course_Other_Tags: [], Course_Time: '2026-09-18 10:00:00', Course_Cover_Thumb: null,
-        Course_Status: 'off_shelf' },
+        Course_Status: 'off_shelf', Course_Learning_Mode: 'camp' },
     ] }))
   await page.route('http://127.0.0.1:5001/course/sort', (route) =>
     route.fulfill({ json: { code: 200, message: '排序成功' } }))
@@ -962,9 +962,11 @@ test('课程管理：状态标签 + 上移排序 + 下架确认', async ({ page 
   const newRow = page.getByRole('row', { name: 'C语言程序设计（新版）' })
   await expect(oldRow).toBeVisible()
   await expect(newRow).toBeVisible()
-  // 下架课程带「已下架」状态标签
-  await expect(newRow.locator('.el-tag')).toHaveText('已下架')
-  await expect(oldRow.locator('.el-tag')).toHaveText('上架')
+  // 下架课程带「已下架」状态标签；学习方式列各自渲染（migrate_52）
+  await expect(newRow.locator('.el-tag').first()).toHaveText('已下架')
+  await expect(oldRow.locator('.el-tag').first()).toHaveText('上架')
+  await expect(oldRow.locator('.el-tag').nth(1)).toHaveText('自主学')
+  await expect(newRow.locator('.el-tag').nth(1)).toHaveText('营期学')
 
   // 上移：乐观换位后提交全量顺序（Course_Ids 为数字数组）
   const sortReq = page.waitForRequest((req) =>
@@ -980,6 +982,43 @@ test('课程管理：状态标签 + 上移排序 + 下架确认', async ({ page 
   expect((await shelfReq).postDataJSON()).toEqual({ Course_Id: '801', Status: 'off_shelf' })
   await expect(page.locator('.el-message__content').filter({ hasText: '已下架' })).toBeVisible()
 
+  expect(pageErrors).toEqual([])
+})
+
+test('课程编辑页：资源页签管理（09-21 自列表行迁入）', async ({ page }) => {
+  await loginAsStaff(page)
+  const pageErrors = []
+  page.on('pageerror', (e) => pageErrors.push(e.message))
+
+  // 编辑页加载链：search / chapter_list（裸数组）/ lesson_list
+  await page.route('http://127.0.0.1:5001/course/search**', (route) =>
+    route.fulfill({ json: { code: 200, Course_Id: '801', Course_Title: 'C语言程序设计',
+      Introduction: '2025 版课程', Chapters: 8, Course_Class_Hour: 32, Course_Difficulty: 2,
+      Course_Tags: '软件组', Course_Other_Tags: [], Cover: null, Cover_Thumb: null,
+      Learning_Mode: 'camp' } }))
+  await page.route('http://127.0.0.1:5001/course/chapter_list**', (route) =>
+    route.fulfill({ json: [] }))
+  await page.route('http://127.0.0.1:5001/course/lesson/list**', (route) =>
+    route.fulfill({ json: { code: 200, data: [] } }))
+  await page.route('http://127.0.0.1:5001/course/resources**', (route) =>
+    route.fulfill({ json: { code: 200, data: [
+      { id: 1, name: '课程讲义.pdf', size: 20480, created_at: '2026-09-21 10:00' },
+      { id: 2, name: '示例代码.zip', size: 40960, created_at: '2026-09-21 10:01' }] } }))
+  await page.route('http://127.0.0.1:5001/course/resource_sort', (route) =>
+    route.fulfill({ json: { code: 200, message: '排序成功' } }))
+  await page.route('http://127.0.0.1:5001/course/resource_del', (route) =>
+    route.fulfill({ json: { code: 200, message: '删除成功' } }))
+
+  await page.goto(`${BASE}/content/courses/801/edit`)
+  // 资源页签在编辑页内，不在列表行（入口迁移验收）
+  await page.getByRole('tab', { name: '课程资源' }).click()
+  await expect(page.locator('.el-table').first()).toContainText('课程讲义.pdf')
+
+  // 上移第二行 → 提交全量顺序（乐观换位）
+  const sortReq = page.waitForRequest((req) =>
+    req.url().includes('/course/resource_sort') && req.method() === 'POST')
+  await page.getByRole('button', { name: '上移 示例代码.zip' }).click()
+  expect((await sortReq).postDataJSON()).toEqual({ Course_Id: '801', Resource_Ids: [2, 1] })
   expect(pageErrors).toEqual([])
 })
 
