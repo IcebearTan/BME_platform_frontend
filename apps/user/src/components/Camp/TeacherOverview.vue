@@ -11,7 +11,7 @@
         <div class="stat-label">学员 / 导生</div>
         <div class="stat-value">{{ overview?.counts?.students ?? '—' }} <span class="stat-unit">/ {{ overview?.counts?.mentors ?? '—' }}</span></div>
         <div class="stat-sub" :class="{ 'stat-warn': overview?.counts?.unmatched > 0 }">
-          {{ overview?.counts?.unmatched > 0 ? `${overview.counts.unmatched} 名学员未分配导生` : '学员均已分配导生' }}
+          {{ unmatchedText }}
         </div>
       </DewCard>
       <DewCard variant="default" size="md" :no-hover="true">
@@ -30,7 +30,7 @@
       <template #header><h3>今日待办</h3></template>
       <div v-if="!workItems.length" class="todo-empty">暂无待办事项</div>
       <div v-else class="todo-list">
-        <div v-for="item in workItems" :key="item.key" class="todo-item" @click="goTodo(item.key)">
+        <div v-for="item in workItems" :key="item.key" class="todo-item" @click="goTodo(item)">
           <span class="todo-count">{{ item.count }}</span>
           <div class="todo-body">
             <span class="todo-label">{{ item.label }}</span>
@@ -107,17 +107,31 @@ const msDeadlineText = computed(() => {
   const dl = overview.value?.ms_stats?.preference_deadline;
   return dl ? dl.slice(5, 16) : '';
 });
+// 未分组学员文案随阶段：selecting=选导生语境「未分配导生」；running 起=运营风险「未分组」
+const unmatchedText = computed(() => {
+  const ov = overview.value;
+  if (!ov) return '—';
+  const n = ov.counts?.unmatched || 0;
+  if (!n) return '学员均已分配导生';
+  const word = ov.stage === 'running' || ov.stage === 'archived' ? '未分组' : '未分配导生';
+  return `${n} 名学员${word}`;
+});
 
-// 待办 → 子页跳转（阶段 2 起全量接入：报名/请假/选导生收官）
-function goTodo(key) {
-  if (key === 'camp.application.pending' || key === 'camp.mentor_application.pending') {
-    emit('navigate', 'admissions');
-  } else if (key === 'camp.leave.pending') {
-    emit('navigate', 'leaves');
-  } else if (['camp.student.unmatched', 'camp.student.no_preference',
-    'camp.mentor.no_profile'].includes(key)) {
-    emit('navigate', 'ms');
-  }
+// 待办 → 子页跳转：优先走后端 work_items 下发的 section（阶段化契约——running 的
+// 未分组学员跳「成员管理」，selecting 的未分配学员跳「选导生收官」），key 兜底旧契约
+const SECTION_BY_KEY = {
+  'camp.application.pending': 'admissions',
+  'camp.mentor_application.pending': 'admissions',
+  'camp.leave.pending': 'leaves',
+  'camp.student.unmatched': 'ms',
+  'camp.student.ungrouped': 'members',
+  'camp.student.no_preference': 'ms',
+  'camp.mentor.no_profile': 'ms',
+};
+function goTodo(item) {
+  const key = item?.key || item;
+  const target = item?.section || SECTION_BY_KEY[key];
+  if (target) emit('navigate', target);
 }
 
 // 开营就绪检查（selecting 阶段）：由概览已有投影派生，可解释规则（方案 §10.3）

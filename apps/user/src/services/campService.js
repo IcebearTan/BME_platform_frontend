@@ -169,11 +169,13 @@ export const campService = {
   unpublishAnnouncement: (sid, aid) =>
     api.post(`/camp/sessions/${sid}/announcements/${aid}/unpublish`).then(r => r.data),
 
-  // 全营学习进度看板（老师：按导生团队分桶的进度矩阵）+ 全营组会总览（老师只读）
-  fetchProgressBoard: (sid) =>
-    api.get(`/camp/sessions/${sid}/progress/board`).then(r => r.data),
-  fetchCampMeetingsAll: (sid) =>
-    api.get(`/camp/sessions/${sid}/meetings/all`).then(r => r.data),
+  // 全营学习进度看板（老师：按导生团队分桶的进度矩阵）——服务端分页（单位=团队桶，
+  // page/page_size/mentor_id 走 query params；mentor_id 可为导生 id 或 'unassigned'）
+  fetchProgressBoard: (sid, params = {}) =>
+    api.get(`/camp/sessions/${sid}/progress/board`, { params }).then(r => r.data),
+  // 全营组会总览（老师只读）——服务端分页 + 导生筛选（page/page_size/mentor_id/status）
+  fetchCampMeetingsAll: (sid, params = {}) =>
+    api.get(`/camp/sessions/${sid}/meetings/all`, { params }).then(r => r.data),
 
   // 承诺出勤日显式调整（migrate_46：全量替换 + 账本留痕 + 通知学员）
   fetchStudentPlan: (sid, uid) =>

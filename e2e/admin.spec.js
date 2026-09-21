@@ -459,7 +459,7 @@ test('营期详情学习进度看板：分组子矩阵 + 汇总条 + 未分组',
   page.on('pageerror', (e) => pageErrors.push(e.message))
 
   // 看板数据：1 个有方向组（已完结/认证中/未开始三种格子态）+ 未分组桶
-  await page.route('http://127.0.0.1:5001/camp/sessions/1/progress/board', (route) =>
+  await page.route('http://127.0.0.1:5001/camp/sessions/1/progress/board**', (route) =>
     route.fulfill({ json: { code: 200,
       summary: { group_count: 1, student_count: 3, certified_chapters: 4,
         total_chapters: 9, completed_courses: 1, certified_rate: 44 },
@@ -496,13 +496,13 @@ test('营期详情学习进度看板：分组子矩阵 + 汇总条 + 未分组',
         { mentor_user_id: null, mentor_name: null, direction: null,
           hint: '尚未归属导生（开放报名后随导生继承方向）', certified_rate: null, courses: [],
           students: [{ student_user_id: 203, username: '测试学员22', certified_rate: null, courses: [] }] },
-      ] } }))
+      ], total: 2, page: 1, page_size: 20 } }))
 
   await page.goto(`${BASE}/camps/1/learning/progress`)
 
   // 培训营（learning）专属叶子：上山即拉看板数据
   const boardRequest = page.waitForRequest(
-    (request) => request.url() === 'http://127.0.0.1:5001/camp/sessions/1/progress/board')
+    (request) => request.url().startsWith('http://127.0.0.1:5001/camp/sessions/1/progress/board'))
   await boardRequest
 
   // 汇总条 + 组头（导生/方向/人数/组认证率）+ 未分组桶
