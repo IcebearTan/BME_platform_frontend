@@ -23,6 +23,14 @@ export function createApiClient({ baseURL, tokenKey, onUnauthorized, onRefreshed
   })
 
   api.interceptors.request.use((config) => {
+    // FormData 上传必须摘掉实例默认的 application/json：axios 1.x 的 transformRequest
+    // 见 JSON 头会把 FormData 整体序列化成 JSON（字段变字符串、File 变空对象），
+    // 后端 request.form/files 全空——课程资料 402「没有发送课程 ID」、图床 400「缺少
+    // 图片文件」皆此因。摘头后交给浏览器带 boundary 自动设置 multipart。
+    if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+      if (typeof config.headers?.delete === 'function') config.headers.delete('Content-Type')
+      else if (config.headers) delete config.headers['Content-Type']
+    }
     const token = localStorage.getItem(tokenKey)
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`
