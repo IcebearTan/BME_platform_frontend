@@ -6,7 +6,7 @@ import { ArrowDown } from '@element-plus/icons-vue'
 import api from '../../api';
 import { assetUrl } from '../../services/campService';
 import DewImage from '@bme/dew-ui/DewImage.vue';
-import LearningPathComponent from './LearningPathComponent.vue'
+import ParticleText from './ParticleText.vue'
 import { DewButtonBar } from '@bme/dew-ui'
 
 const router = useRouter()
@@ -175,7 +175,26 @@ onMounted(() => {
 
 <template>
     <div class="headContainer" :class="themeClass">
-            <LearningPathComponent />
+        <div class="hero-frame">
+            <div class="hero-eyebrow">LEARNING JOURNEY</div>
+            <ParticleText
+                text="开始探索我的成长路线"
+                :particle-size="2.1"
+                :density="3"
+                :color="store.state.isDarkMode ? '#f4f1e8' : '#173f3d'"
+                :highlight-color="store.state.isDarkMode ? '#e9b979' : '#c35f2f'"
+                :scatter="150"
+                :gather-duration="1450"
+                :stagger="360"
+                :pointer-repel="40"
+                :idle-drift="0.7"
+                trigger="hover"
+                font-size="clamp(2.5rem, 6vw, 5rem)"
+                :font-weight="800"
+                glow
+            />
+            <div class="hero-caption">移动光标，让路径从每一个微小选择中聚合</div>
+        </div>
     </div>
     <div class="mainContainer" :class="themeClass">
         <div class="category-nav-row">
@@ -360,6 +379,143 @@ onMounted(() => {
 
     height: 100%;
 
+}
+
+.headContainer {
+    height: 340px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.theme-light.headContainer {
+    background:
+        linear-gradient(118deg, #f3e7d5 0%, #f8f5ed 46%, #e4f0eb 100%);
+    border-bottom-color: rgba(38, 75, 70, 0.14);
+}
+
+.theme-dark.headContainer {
+    background: var(--dew-card-flat-bg);
+    border-bottom-color: var(--dew-card-flat-border);
+}
+
+.theme-light.headContainer::before,
+.theme-dark.headContainer::before {
+    background:
+        radial-gradient(circle at 18% 30%, var(--dew-tint-warning-from), transparent 28%),
+        radial-gradient(circle at 82% 72%, var(--dew-tint-success-from), transparent 30%);
+    background-size: auto;
+    animation: none;
+    opacity: 0.3;
+}
+
+.theme-light.headContainer::before {
+    background:
+        radial-gradient(circle at 13% 22%, rgba(210, 117, 57, 0.36), transparent 32%),
+        radial-gradient(circle at 84% 68%, rgba(53, 132, 113, 0.3), transparent 34%),
+        radial-gradient(circle at 52% 112%, rgba(226, 173, 105, 0.24), transparent 42%);
+    opacity: 0.72;
+}
+
+.theme-light.headContainer::after,
+.theme-dark.headContainer::after {
+    background-image:
+        linear-gradient(var(--color-border) 1px, transparent 1px),
+        linear-gradient(90deg, var(--color-border) 1px, transparent 1px);
+    background-size: 44px 44px;
+    background-position: 0 0;
+    mask-image: linear-gradient(to bottom, transparent, black 35%, black 65%, transparent);
+    animation: none;
+    opacity: 0.48;
+}
+
+.theme-light.headContainer::after {
+    background-image:
+        linear-gradient(rgba(38, 75, 70, 0.095) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(38, 75, 70, 0.095) 1px, transparent 1px);
+    opacity: 0.8;
+}
+
+.hero-frame {
+    width: min(1180px, calc(100% - 48px));
+    height: 100%;
+    position: relative;
+}
+
+.hero-frame :deep(.particle-text) {
+    min-height: 100%;
+}
+
+.hero-eyebrow,
+.hero-caption {
+    position: absolute;
+    left: 50%;
+    z-index: 2;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.hero-eyebrow {
+    top: 54px;
+    font-family: var(--dew-font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.28em;
+    color: var(--color-text-muted);
+}
+
+.hero-caption {
+    bottom: 48px;
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    color: var(--color-text-secondary);
+}
+
+.theme-light .hero-eyebrow {
+    color: #687975;
+}
+
+.theme-light .hero-caption {
+    color: #526b67;
+}
+
+.theme-dark .hero-eyebrow {
+    color: var(--dew-text-faint);
+}
+
+.theme-dark .hero-caption {
+    color: var(--dew-text-muted);
+}
+
+.mainContainer.theme-light {
+    min-height: 620px;
+    margin-top: 0;
+    padding-top: 20px;
+    box-sizing: border-box;
+    background:
+        radial-gradient(circle at 50% 0, rgba(210, 117, 57, 0.08), transparent 34%),
+        linear-gradient(180deg, #f7f3eb 0%, var(--color-bg-soft) 38%, var(--color-bg-soft) 100%);
+}
+
+@media (max-width: 768px) {
+    .headContainer {
+        height: 280px;
+    }
+
+    .hero-frame {
+        width: calc(100% - 24px);
+    }
+
+    .hero-eyebrow {
+        top: 38px;
+    }
+
+    .hero-caption {
+        bottom: 34px;
+        width: 100%;
+        text-align: center;
+        white-space: normal;
+        line-height: 1.6;
+    }
 }
 
 .mainContainer {
