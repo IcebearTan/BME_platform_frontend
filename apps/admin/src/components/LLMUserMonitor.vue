@@ -5,11 +5,11 @@
     <div class="page-hero">
       <div class="hero-eyebrow">
         <span class="eyebrow-dot"></span>
-        <span>大模型服务 · 管理后台</span>
+        <span>API 平台 · 管理后台</span>
       </div>
       <div class="hero-body">
         <div class="hero-left">
-          <h2 class="hero-title">用户用量看板</h2>
+          <h2 class="hero-title">API 用户用量</h2>
           <p class="hero-sub">查看所有用户的 API Key 数量、消耗情况，并调整配额</p>
         </div>
         <el-button class="hero-btn" @click="openConfig">

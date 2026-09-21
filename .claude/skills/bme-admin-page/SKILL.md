@@ -86,11 +86,24 @@ catch (e) {
 }
 ```
 
-## 挂载三步(页面能被访问到)
+## 挂载(2026-09-21 IA 重构后:路由 meta 单源,一步到位)
 
-1. `router.js`:HomeView children 里加路由;涉权限加 `meta: { staffOnly: true }`;
-2. `HomeView.vue` 侧栏 el-menu 对应分组加 el-menu-item(`v-if="isStaff"` 与 meta 同步);
-3. `HomeView.vue` 的 `currentPageTitle` routeMap 补面包屑标题。
+在对应域的路由模块(`router/routes/misc.js` 或 `domains/<域>/routes.js`)加一条带完整 meta 的路由——侧栏/标题/面包屑/排序/激活态全部自动派生,不再改 HomeView:
+
+```js
+{
+  path: '/operations/xxx',
+  name: 'operations_xxx',
+  component: loadXxx,
+  meta: { title: '页面标题', domain: 'operations', navGroup: 'operations',
+          navOrder: 70, showInMenu: true, icon: 'Tickets', staffOnly: true },
+}
+```
+
+- 分区与 icon 注册表在 `app/navigation/navGroups.js`(新 icon 先进 ICONS 表);
+- 不进菜单的详情页给 `showInMenu: false` + `meta.activeMenu: '<父菜单路径>'`;
+- 换路径必须同步加旧路径函数式 redirect(保 query)——兼容期至少一个发布周期;
+- 权威说明见 `docs/ARCHITECTURE.md` §7.3。
 
 ## 禁止事项(历史返训)
 

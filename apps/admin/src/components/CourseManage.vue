@@ -114,7 +114,7 @@ const handlePageChange = (page) => {
 };
 
 const handleAdd = () => {
-  router.push({ path: '/course/create' });
+  router.push({ path: '/content/courses/new' });
 };
 
 const handleImport = () => {
@@ -184,7 +184,7 @@ const confirmImport = async () => {
 };
 
 const handleEdit = (course) => {
-  router.push({ path: `/course/edit/${course.Course_Id}` });
+  router.push({ path: `/content/courses/${course.Course_Id}/edit` });
 };
 
 // ── 课程资源管理 ──

@@ -207,9 +207,19 @@ const api = createApiClient({
 
 - 两级角色(2026-09「1a 身份解耦」后):登录响应 `role` 只有 `super_admin`/`user`,管理端实际仅 super_admin 登录;历史 teacher/mentor 角色串已清扫,**不要再写 role==='teacher' 类比较**;
 - store getters:`role` / `can(perm)`(super_admin 直通)/ `isStaff`(=super_admin,store.js:46-50);
-- 路由 `meta: { staffOnly: true }` + `router.beforeEach` 守卫防手输 URL 绕过菜单;菜单项用 `v-if="isStaff"` 同步显隐。
+- 路由 `meta: { staffOnly: true }` + `router.beforeEach` 守卫防手输 URL 绕过菜单;菜单显隐由 `app/navigation/useMenu.js` 按 staffOnly 统一过滤(不再是模板里逐项 v-if)。
 
-### 7.3 已知的"只读页"
+### 7.3 路由清单 = 导航单一真相源(2026-09-21 IA 重构)
+
+旧「router.js + HomeView 硬编码菜单 + routeMap 标题表」三真相源已废除。现在:
+
+- 路由集中在 `router/manifest.js` 组装(域路由模块:`router/routes/*` + `domains/<域>/routes.js`),每条路由的 `meta` 携带 `title / domain / navGroup / navOrder / showInMenu / icon / staffOnly / activeMenu`;
+- **挂载新页面 = 加一条带 meta 的路由**(侧栏/标题/面包屑/菜单排序/激活态全部自动派生),跨域深链给 `meta.activeMenu`(菜单 index 路径);对象详情子路由加 `meta.campCrumb` 类标记可让面包屑插对象名(营期工作区见 `domains/camps/context/campLabel.js`);
+- 分区定义在 `app/navigation/navGroups.js`(`NAV_SECTIONS`,type=item 直达项/type=group 分组;icon 用 ICONS 注册表键名);
+- 旧路径兼容用**函数式 redirect 记录**保 query/params(集中在各域 routes.js 的 `*Redirects` 导出);
+- 营期工作区:`/camps/:campId/*` 嵌套叶子 + provide/inject 上下文(`domains/camps/context/campContext.js`)+ `workspaceNav.js` 谓词单源(导航可见性/路由守卫/blocked 原因共用)。
+
+### 7.4 已知的"只读页"
 
 `UserManage` 是只读列表——后端暂无 admin 用户管理接口(`admin.py` 仅 /overview),**不要在前端恢复编辑/删除按钮**,除非后端先补接口(见 §11 债务表)。
 

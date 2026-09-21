@@ -254,7 +254,7 @@ test('用户管理页：角色/状态列 + 搜索 + 编辑 + 封禁', async ({ p
   const pageErrors = []
   page.on('pageerror', (e) => pageErrors.push(e.message))
 
-  await page.goto(`${BASE}/user-manage/users`)
+  await page.goto(`${BASE}/system/accounts`)
   await expect(page.getByRole('cell', { name: 'alice' })).toBeVisible()
   await expect(page.getByRole('cell', { name: 'bob' })).toBeVisible()
 
@@ -306,14 +306,16 @@ test('md-editor-v3 编辑器挂载', async ({ page }) => {
   await expect(page.getByRole('button', { name: '保存草稿' })).toBeVisible()
 })
 
-test('营期详情保留选导生与成员添加能力', async ({ page }) => {
+test('营期工作区保留选导生与成员添加能力', async ({ page }) => {
   await loginAsStaff(page)
   await mockCampSessionDetail(page)
   const pageErrors = []
   page.on('pageerror', (e) => pageErrors.push(e.message))
-  await page.goto(`${BASE}/camp/sessions/1`)
+  await page.goto(`${BASE}/camps/1/people/members`)
 
-  await expect(page.getByRole('tab', { name: '选导生' })).toBeVisible()
+  // 工作区左侧局部导航（稳定分组）+ 聚合根头部
+  await expect(page.locator('.ws-name')).toHaveText('本地导师双选测试营')
+  await expect(page.getByRole('menuitem', { name: '导生招募与匹配' })).toBeVisible()
   await expect(page.getByRole('cell', { name: '林泽宇', exact: true }).first()).toBeVisible()
   // 成员表服务端分页：首屏只挂 20 行，第二页再取余下成员
   await expect(page.locator('.pagination-wrapper').first()).toContainText('28')
@@ -321,9 +323,9 @@ test('营期详情保留选导生与成员添加能力', async ({ page }) => {
   await page.locator('.pagination-wrapper .btn-next').first().click()
   await expect(page.getByRole('cell', { name: '测试学员20', exact: true })).toBeVisible()
 
-  // 营期设置 tab（09-17 集中管理：考勤模式/门槛开关/选导生配置收拢于此；旧数据无 policy 回退默认。
+  // 营期设置叶（09-17 集中管理：考勤模式/门槛开关/选导生配置收拢于此；旧数据无 policy 回退默认。
   // 09-18 并自 jiayuanpush：考勤模式选项卡式布局 + 帮助弹窗）
-  await page.getByRole('tab', { name: '营期设置' }).click()
+  await page.getByRole('menuitem', { name: '营期设置' }).click()
   await expect(page.getByText('假期营', { exact: true })).toBeVisible()
   await expect(page.locator('.att-daily-panel')).toBeVisible()
   await expect(page.getByRole('button', { name: '查看出勤说明' })).toBeVisible()
@@ -338,17 +340,17 @@ test('营期详情保留选导生与成员添加能力', async ({ page }) => {
   await page.locator('.gate-row .el-switch').click()
   expect((await gateRequest).postDataJSON()).toEqual({ policy: { mentor_level_gate: false } })
 
-  // 出勤 tab：设置迁走后只留数据运营（daily 回退 → 重生成按钮锁定剩余内容）
-  await page.getByRole('tab', { name: '出勤' }).click()
+  // 考勤叶：设置迁走后只留数据运营（daily 回退 → 重生成按钮锁定剩余内容）
+  await page.getByRole('menuitem', { name: '考勤', exact: true }).click()
   await expect(page.getByRole('button', { name: '重生成承诺出勤日' })).toBeVisible()
 
-  // 学员申请：纯学员列表（09-12 重组——导生报名挪「选导生」tab 招募区）
-  await page.getByRole('tab', { name: '学员申请' }).click()
+  // 加入申请：纯学员列表（09-12 重组——导生报名挪「导生招募与匹配」招募区）
+  await page.getByRole('menuitem', { name: '加入申请' }).click()
   await expect(page.getByRole('row', { name: /申请学员/ })).toBeVisible()
   await expect(page.getByRole('row', { name: /报名导生/ })).toHaveCount(0)
 
-  // 选导生 tab：纯运营一页——招募（待审导生报名 + 导入即导生）→ 流程运营（配置已迁「营期设置」）
-  await page.getByRole('tab', { name: '选导生' }).click()
+  // 导生招募与匹配：纯运营一页——招募（待审导生报名 + 导入即导生）→ 流程运营（配置已迁「营期设置」）
+  await page.getByRole('menuitem', { name: '导生招募与匹配' }).click()
   await expect(page.getByText('导生招募', { exact: true })).toBeVisible()
   await expect(page.getByRole('row', { name: /mentor@example.test/ })).toBeVisible()
 
@@ -401,7 +403,7 @@ test('营期详情保留选导生与成员添加能力', async ({ page }) => {
   await expect(batchDialog.getByRole('cell', { name: '测试学员09', exact: true })).toBeVisible()
   await batchDialog.getByRole('button', { name: '关闭' }).click()
 
-  await page.getByRole('tab', { name: '成员' }).click()
+  await page.getByRole('menuitem', { name: '成员名单' }).click()
   await page.getByRole('button', { name: '加成员', exact: true }).click()
   const addDialog = page.getByRole('dialog', { name: '加成员' })
   // 候选改为后端分页远程搜索：首批只返回未入营普通用户，营内角色仍显式指定（默认学员）
@@ -422,16 +424,16 @@ test('营期详情保留选导生与成员添加能力', async ({ page }) => {
   expect(pageErrors).toEqual([])
 })
 
-// 营期设置（09-17 集中管理）：三区块分区渲染 + ?tab= 深链直达/切换跟随
-test('营期设置：三区块分区渲染 + ?tab= 深链', async ({ page }) => {
+// 营期设置（09-17 集中管理）：三区块分区渲染 + 叶子路由直达/切换跟随
+test('营期设置：三区块分区渲染 + 叶子路由直达', async ({ page }) => {
   await loginAsStaff(page)
   await mockCampSessionDetail(page)
   const pageErrors = []
   page.on('pageerror', (e) => pageErrors.push(e.message))
-  // 深链直达：初始化读 query（mock 营 running/learning → 三区块齐备）
-  await page.goto(`${BASE}/camp/sessions/1?tab=settings`)
+  // 叶子路由直达（mock 营 running/learning → 三区块齐备）
+  await page.goto(`${BASE}/camps/1/settings`)
 
-  await expect(page.getByRole('tab', { name: '营期设置' })).toHaveAttribute('aria-selected', 'true')
+  await expect(page.locator('.page-title', { hasText: '营期设置' })).toBeVisible()
   // 三区块标题齐备（learning 营：准入门槛/考勤模式/选导生流程）
   for (const title of ['准入门槛', '考勤模式', '选导生流程']) {
     await expect(page.locator('.set-card__title', { hasText: title })).toBeVisible()
@@ -441,12 +443,12 @@ test('营期设置：三区块分区渲染 + ?tab= 深链', async ({ page }) => 
   // 考勤模式：三模式选项卡回退 daily（09-18 并自 jiayuanpush 布局改版，参数内联 daily 卡）
   await expect(page.getByText('假期营', { exact: true })).toBeVisible()
   await expect(page.locator('.att-daily-panel')).toBeVisible()
-  // 选导生流程：mock status=running → 配置锁定只读
-  await expect(page.getByText(/配置锁定只读/)).toBeVisible()
+  // 选导生流程：mock status=running → 时间窗锁定（方向课程绑定仍可改，1750de5 起语义放宽）
+  await expect(page.getByText(/时间窗锁定/)).toBeVisible()
 
-  // URL 同步：切走 tab 后 query 跟随（replace 不进历史栈）
-  await page.getByRole('tab', { name: '成员' }).click()
-  await expect(page).toHaveURL(/tab=members/)
+  // 路由切换跟随：切到成员名单叶子 URL 同步
+  await page.getByRole('menuitem', { name: '成员名单' }).click()
+  await expect(page).toHaveURL(/people\/members/)
   expect(pageErrors).toEqual([])
 })
 
@@ -496,12 +498,11 @@ test('营期详情学习进度看板：分组子矩阵 + 汇总条 + 未分组',
           students: [{ student_user_id: 203, username: '测试学员22', certified_rate: null, courses: [] }] },
       ] } }))
 
-  await page.goto(`${BASE}/camp/sessions/1`)
+  await page.goto(`${BASE}/camps/1/learning/progress`)
 
-  // 培训营（learning）恒显学习进度 tab；lazy=点击后才拉看板数据
+  // 培训营（learning）专属叶子：上山即拉看板数据
   const boardRequest = page.waitForRequest(
     (request) => request.url() === 'http://127.0.0.1:5001/camp/sessions/1/progress/board')
-  await page.getByRole('tab', { name: '学习进度' }).click()
   await boardRequest
 
   // 汇总条 + 组头（导生/方向/人数/组认证率）+ 未分组桶
@@ -542,11 +543,10 @@ test('营期申请批量通过：学员多选 + 导生一键通过（逐项回�
       approved: ok, results } })
   })
 
-  await page.goto(`${BASE}/camp/sessions/1`)
+  await page.goto(`${BASE}/camps/1/people/applications`)
 
   // 学员申请：勾选「申请学员」→ 通过选中（1）→ items 带 id 与行内 _mentor（null）
   // （EP 选择列的原生 input 视觉隐藏，可见壳是 .el-checkbox label——无 role 可用，按 class 点）
-  await page.getByRole('tab', { name: '学员申请' }).click()
   await page.getByRole('row', { name: '申请学员' }).locator('.el-checkbox').click()
   const visBtn = (name) => page.getByRole('button', { name }).filter({ visible: true })
   await visBtn('通过选中（1）').click()
@@ -554,8 +554,8 @@ test('营期申请批量通过：学员多选 + 导生一键通过（逐项回�
   await expect(page.getByText(/未通过 1 项——申请学员：该用户已在营期中/)).toBeVisible()
   expect(batchBody).toEqual({ items: [{ id: 11, team_mentor_id: null }] })
 
-  // 选导生·导生招募：一键通过（确认弹窗）→ 导生申请 id 入 items
-  await page.getByRole('tab', { name: '选导生' }).click()
+  // 导生招募与匹配：一键通过（确认弹窗）→ 导生申请 id 入 items
+  await page.goto(`${BASE}/camps/1/learning/mentor-matching`)
   await visBtn('一键通过').click()
   await page.getByRole('button', { name: '全部通过' }).click()
   await expect(page.getByText('已通过 1/1 项', { exact: true })).toBeVisible()
@@ -603,8 +603,8 @@ test('社团干事管理页：列表渲染 + 任命提交 + 卸任弹窗', async
     route.fulfill({ json: [{ User_Id: 21, User_Name: '苏晚晴' }, { User_Id: 22, User_Name: '顾亦深' }] }))
   await mockClubMeta(page)
 
-  await page.goto(`${BASE}/officer/manage`)
-  await expect(page.locator('.page-title', { hasText: '社团干事' })).toBeVisible()
+  await page.goto(`${BASE}/organization/officers`)
+  await expect(page.locator('.page-title', { hasText: '任职管理' })).toBeVisible()
   await expect(page.getByRole('cell', { name: '陈嘉树' })).toBeVisible()
   await expect(page.getByRole('cell', { name: '在任', exact: true })).toBeVisible()
 
@@ -653,7 +653,7 @@ test('社团干事管理页：挂组职位任命走三级级联选组（id 轨�
     route.fulfill({ json: [{ User_Id: 22, User_Name: '顾亦深' }] }))
   await mockClubMeta(page)
 
-  await page.goto(`${BASE}/officer/manage`)
+  await page.goto(`${BASE}/organization/officers`)
   await page.getByRole('button', { name: '任命' }).click()
   const dialog = page.locator('.el-dialog').filter({ hasText: '任命干事' })
   await dialog.locator('.el-select').first().click()
@@ -694,8 +694,8 @@ test('首页轮播管理：列表渲染 + 新建帧弹窗校验', async ({ page 
     },
   }))
 
-  await page.goto(`${BASE}/banner/manage`)
-  await expect(page.locator('.page-title', { hasText: '首页轮播' })).toBeVisible()
+  await page.goto(`${BASE}/operations/home-content`)
+  await expect(page.locator('.page-title', { hasText: '首页内容' })).toBeVisible()
   await expect(page.getByRole('cell', { name: '营期中心' }).first()).toBeVisible()
   // 隐藏帧的底图有置灰样式（is-hidden）
   await expect(page.locator('.banner-thumb.is-hidden')).toHaveCount(1)
@@ -748,7 +748,7 @@ test('退出登录：确认弹窗 → 清 token → 跳登录页', async ({ page
       json: { code: 200, role: 'super_admin', permissions: [], data: { username: 'e2e' } },
     })
   })
-  await fresh.goto(`${BASE}/user-manage/users`)
+  await fresh.goto(`${BASE}/system/accounts`)
   // 401 处理器有 1s 延迟跳转（等 toast 显示完），等 URL 而非固定 sleep
   await expect(fresh).toHaveURL(/\/admin\/login$/, { timeout: 6000 })
   await fresh.close()
@@ -779,7 +779,7 @@ test('营期列表：逻辑删除（running 营无删除入口）', async ({ pag
     return route.fulfill({ json: { code: 200, message: '已删除（逻辑删除，数据保留，可由管理员恢复）' } })
   })
 
-  await page.goto(`${BASE}/camp/sessions`)
+  await page.goto(`${BASE}/camps`)
   // 进行中营无删除按钮（先结营再删）；草稿/归档营有
   await expect(page.getByRole('row', { name: /进行中的营/ }).getByRole('button', { name: '删除' })).toHaveCount(0)
   await page.getByRole('row', { name: /草稿测试营/ }).getByRole('button', { name: '删除' }).click()
@@ -813,7 +813,7 @@ test('用户管理：批量升级 + 等级徽标色阶', async ({ page }) => {
     ] } })
   })
 
-  await page.goto(`${BASE}/user-manage/users`)
+  await page.goto(`${BASE}/system/accounts`)
   // LV 徽标色阶（.lv-badge.lv-N 全局体系）
   await expect(page.locator('.lv-badge.lv-1').filter({ hasText: 'LV1' })).toBeVisible()
   await expect(page.locator('.lv-badge.lv-4').filter({ hasText: 'LV4' })).toBeVisible()
@@ -849,7 +849,7 @@ test('用户管理：批量调级为指定等级', async ({ page }) => {
     ] } })
   })
 
-  await page.goto(`${BASE}/user-manage/users`)
+  await page.goto(`${BASE}/system/accounts`)
   // 勾选 bob(LV3) + carol(LV4) → 批量调级 → 弹窗选 LV4 → 确认
   await page.getByRole('row', { name: 'bob' }).locator('.el-checkbox').click()
   await page.getByRole('row', { name: 'carol' }).locator('.el-checkbox').click()
@@ -887,7 +887,7 @@ test('社区治理：帖子列表 + 置顶/隐藏操作', async ({ page }) => {
   await page.route('http://127.0.0.1:5001/discussions/threads/61/hide', (route) =>
     route.fulfill({ json: { code: 200, data: { status: 'hidden' } } }))
 
-  await page.goto(`${BASE}/discussion/manage`)
+  await page.goto(`${BASE}/operations/community`)
   await expect(page.locator('.page-title')).toContainText('社区治理')
   const row = page.getByRole('row', { name: '招人联调帖' })
   await expect(row).toBeVisible()
@@ -919,8 +919,8 @@ test('XLAB 项目治理：列表 + 下架确认', async ({ page }) => {
   await page.route('http://127.0.0.1:5001/showcase/projects/801/status', (route) =>
     route.fulfill({ json: { code: 200, message: '已下架' } }))
 
-  await page.goto(`${BASE}/showcase/manage`)
-  await expect(page.locator('.page-title')).toContainText('XLAB 项目治理')
+  await page.goto(`${BASE}/operations/showcase`)
+  await expect(page.locator('.page-title')).toContainText('项目广场治理')
   const row = page.getByRole('row', { name: '智能输液监护' })
   await expect(row).toBeVisible()
 
@@ -956,7 +956,7 @@ test('课程管理：状态标签 + 上移排序 + 下架确认', async ({ page 
   await page.route('http://127.0.0.1:5001/course/shelf', (route) =>
     route.fulfill({ json: { code: 200, message: '已下架' } }))
 
-  await page.goto(`${BASE}/course/manage`)
+  await page.goto(`${BASE}/content/courses`)
   await expect(page.locator('.page-title')).toContainText('课程管理')
   const oldRow = page.getByRole('row', { name: 'C语言程序设计（旧版）' })
   const newRow = page.getByRole('row', { name: 'C语言程序设计（新版）' })
@@ -980,5 +980,348 @@ test('课程管理：状态标签 + 上移排序 + 下架确认', async ({ page 
   expect((await shelfReq).postDataJSON()).toEqual({ Course_Id: '801', Status: 'off_shelf' })
   await expect(page.locator('.el-message__content').filter({ hasText: '已下架' })).toBeVisible()
 
+  expect(pageErrors).toEqual([])
+})
+
+test('旧路由重定向到新信息架构路径（兼容层）', async ({ page }) => {
+  await loginAsStaff(page)
+
+  // [旧路径, 期望落地 URL]——重定向须保留语义：路径换轨、query 透传（工单 view 等）
+  const cases = [
+    ['/dashboard', '/'],
+    ['/user-manage/users', '/system/accounts'],
+    ['/officer/manage', '/organization/officers'],
+    ['/club/groups', '/organization/groups'],
+    ['/club/positions', '/organization/positions'],
+    ['/club/membership', '/organization/memberships'],
+    ['/article/manage', '/content/articles'],
+    ['/course/manage', '/content/courses'],
+    ['/course/create', '/content/courses/new'],
+    ['/course/edit/12', '/content/courses/12/edit'],
+    ['/resource/manage', '/content/resources'],
+    ['/discussion/manage', '/operations/community'],
+    ['/showcase/manage', '/operations/showcase'],
+    ['/banner/manage', '/operations/home-content'],
+    ['/medal/manage', '/operations/medals'],
+    ['/medal/grant', '/operations/medals?view=grants'],
+    ['/notification/manage', '/operations/notifications'],
+    ['/llm/projects', '/api-platform/projects'],
+    ['/llm/users', '/api-platform/users'],
+    ['/llm/quota-requests', '/api-platform/quota-requests'],
+    ['/seat/manage', '/system/facilities/seats'],
+    ['/attendance-report/manage', '/system/attendance-report'],
+    ['/audit/logs', '/system/audit-logs'],
+    ['/camp/sessions', '/camps'],
+    ['/camp/attendance', '/camps/attendance-overview'],
+    ['/camp/templates', '/camps/templates'],
+  ]
+  for (const [from, to] of cases) {
+    await page.goto(`${BASE}${from}`)
+    await expect(page).toHaveURL(`${BASE}${to}`)
+  }
+  // 本用例只验 URL 映射：blanket mock 的空 data 形状会让部分列表页 mount 报错，
+  // 目标页各自的挂载健康由其专属用例（带正确形状 mock + pageerror 断言）负责
+})
+
+// ── 营期工作区（IA 重构）：?tab= 兼容映射 / 类型与能力门禁 / 面包屑 / 概览 / focus 深链 ──
+
+test('旧营期详情 ?tab= 深链映射到工作区叶子（兼容层）', async ({ page }) => {
+  await loginAsStaff(page)
+  await mockCampSessionDetail(page)
+  const pageErrors = []
+  page.on('pageerror', (e) => pageErrors.push(e.message))
+
+  const cases = [
+    ['?tab=settings', '/camps/1/settings'],
+    ['?tab=pdeli', '/camps/1/project/deliveries'],
+    ['?tab=ms&focus=12', '/camps/1/learning/mentor-matching?focus=12'],
+    ['', '/camps/1/people/members'],
+    ['?tab=bogus', '/camps/1/people/members'],
+  ]
+  for (const [from, to] of cases) {
+    await page.goto(`${BASE}/camp/sessions/1${from}`)
+    await expect(page).toHaveURL(`${BASE}${to}`)
+  }
+  expect(pageErrors).toEqual([])
+})
+
+test('工作区导航按营期类型分组：培训营见选导生、无项目营工作区', async ({ page }) => {
+  await loginAsStaff(page)
+  await mockCampSessionDetail(page)
+  const pageErrors = []
+  page.on('pageerror', (e) => pageErrors.push(e.message))
+
+  await page.goto(`${BASE}/camps/1/overview`)
+  await expect(page.getByRole('menuitem', { name: '导生招募与匹配' })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: '学习进度' })).toBeVisible()
+  // learning 营没有项目营工作区（类型分组导航，P-05）
+  await expect(page.getByRole('menuitem', { name: '项目申报' })).toHaveCount(0)
+  await expect(page.getByRole('menuitem', { name: '项目组队' })).toHaveCount(0)
+  expect(pageErrors).toEqual([])
+})
+
+// 项目营 mock：category=project，业务端点走通用空数据拦截即可
+async function mockProjectCamp(page, id = 2) {
+  await page.route(`http://127.0.0.1:5001/camp/sessions/${id}`, (route) =>
+    route.fulfill({ json: { code: 200, session: {
+      id, name: '项目营测试营', status: 'running', category: 'project',
+    } } }))
+}
+
+test('项目营工作区：类型门禁重定向 + blocked 原因告警', async ({ page }) => {
+  await loginAsStaff(page)
+  await mockProjectCamp(page)
+  const pageErrors = []
+  page.on('pageerror', (e) => pageErrors.push(e.message))
+
+  await page.goto(`${BASE}/camps/2/learning/progress`)
+  // 冷路径权威门禁：session 加载后复核 → 带原因跳概览（刷新仍可读）
+  await expect(page).toHaveURL(/\/camps\/2\/overview\?blocked=camp\.learning\.progress/)
+  await expect(page.getByText('该页面仅适用于培训营')).toBeVisible()
+
+  // 暖路径：同会话再次直进错型叶子，beforeEnter 直接拦（不经叶子渲染）
+  await page.goto(`${BASE}/camps/2/learning/mentor-matching`)
+  await expect(page).toHaveURL(/\/camps\/2\/overview\?blocked=camp\.learning\.mentorMatching/)
+
+  // 反向：项目营工作区齐备、培训营工作区消失
+  await expect(page.getByRole('menuitem', { name: '项目申报' })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: '导生招募与匹配' })).toHaveCount(0)
+  expect(pageErrors).toEqual([])
+})
+
+test('能力开关门禁：seat 关闭 → 座位分配叶重定向 + 导航项消失', async ({ page }) => {
+  await loginAsStaff(page)
+  await mockCampSessionDetail(page)
+  // 覆盖 session：policy 显式关座位（后一个 route 覆盖 mockCampSessionDetail 的同 URL mock）
+  await page.route('http://127.0.0.1:5001/camp/sessions/1', (route) =>
+    route.fulfill({ json: { code: 200, session: {
+      id: 1, name: '本地导师双选测试营', status: 'running', category: 'learning',
+      mentor_selection_enabled: true,
+      policy: { capabilities: { seat: false } },
+    } } }))
+  const pageErrors = []
+  page.on('pageerror', (e) => pageErrors.push(e.message))
+
+  await page.goto(`${BASE}/camps/1/operations/seats`)
+  await expect(page).toHaveURL(/\/camps\/1\/overview\?blocked=camp\.ops\.seats/)
+  await expect(page.getByText('本营未启用座位能力，可在「营期设置」开启')).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: '座位分配' })).toHaveCount(0)
+  expect(pageErrors).toEqual([])
+})
+
+test('面包屑携带营期对象名 + 父菜单激活', async ({ page }) => {
+  await loginAsStaff(page)
+  await mockCampSessionDetail(page)
+  const pageErrors = []
+  page.on('pageerror', (e) => pageErrors.push(e.message))
+
+  await page.goto(`${BASE}/camps/1/people/members`)
+  // 对象详情面包屑：工作台 / 营期运营 / {营期名} / 人员与组织（分组） / 成员名单
+  const breadcrumb = page.getByRole('navigation', { name: 'Breadcrumb' })
+  await expect(breadcrumb.getByText('本地导师双选测试营')).toBeVisible()
+  await expect(breadcrumb.getByText('成员名单')).toBeVisible()
+  // 所有 /camps/:id/* 激活全局父菜单「教学周期与营期」
+  await expect(page.getByRole('menuitem', { name: '教学周期与营期' })).toHaveClass(/is-active/)
+  expect(pageErrors).toEqual([])
+})
+
+test('负责人页：委任入口 + 名单与职责事件表', async ({ page }) => {
+  await loginAsStaff(page)
+  await mockCampSessionDetail(page)
+  const staffMock = {
+    code: 200,
+    staff: [
+      { user_id: 71, username: '李老师', role: 'owner', status: 'active', assigned_by_name: '管理员', assigned_at: '2026-08-01T09:00:00' },
+      { user_id: 72, username: '王老师', role: 'teacher', status: 'active', assigned_by_name: '李老师', assigned_at: '2026-08-02T09:00:00' },
+    ],
+    events: [
+      { id: 1, username: '李老师', action: 'assign', before_role: null, after_role: 'owner', operator_name: '管理员', reason: '', occurred_at: '2026-08-01T09:00:00' },
+    ],
+  }
+  await page.route('http://127.0.0.1:5001/camp/sessions/1/staff', (route) =>
+    route.fulfill({ json: staffMock }))
+  const pageErrors = []
+  page.on('pageerror', (e) => pageErrors.push(e.message))
+
+  await page.goto(`${BASE}/camps/1/people/staff`)
+  await expect(page.getByRole('button', { name: '委任主负责人' })).toBeVisible()
+  await expect(page.getByRole('button', { name: '委任协同老师' })).toBeVisible()
+  await expect(page.getByRole('cell', { name: '李老师', exact: true }).first()).toBeVisible()
+  await expect(page.getByText('职责变更记录')).toBeVisible()
+  expect(pageErrors).toEqual([])
+})
+
+test('概览页：聚合摘要渲染 + blocked 说明与设置入口', async ({ page }) => {
+  await loginAsStaff(page)
+  await mockCampSessionDetail(page)
+  const overviewMock = {
+    code: 200,
+    overview: {
+      stage: 'running', stage_label: '进行中',
+      start_date: '2026-09-01', end_date: '2026-10-24',
+      counts: { student: 20, mentor: 8, member: 0, unmatched: 12 },
+      pending: { join: 1, leave: 2, delivery: 0, oldest_join_at: '2026-09-18T10:00:00' },
+      capabilities: { attendance: true, leave: true, seat: false },
+      available_transitions: ['close'],
+      learning_summary: { ms_stats: { mentors_without_profile: 1, students_without_preference: 5, preference_deadline: null } },
+      recent_events: [],
+    },
+  }
+  await page.route('http://127.0.0.1:5001/camp/sessions/1/admin-overview', (route) =>
+    route.fulfill({ json: overviewMock }))
+  const pageErrors = []
+  page.on('pageerror', (e) => pageErrors.push(e.message))
+
+  await page.goto(`${BASE}/camps/1/overview`)
+  await expect(page.getByText('当前阶段', { exact: true })).toBeVisible()
+  await expect(page.getByText(/可执行动作：结营归档/)).toBeVisible()
+  await expect(page.getByText('成员构成', { exact: true })).toBeVisible()
+  await expect(page.getByText('待审加入申请')).toBeVisible()
+  await expect(page.getByText('待审批请假')).toBeVisible()
+  await expect(page.getByText('座位（关）', { exact: true })).toBeVisible()
+
+  // blocked 说明可刷新存活，且带设置入口（canManage 时）
+  await page.goto(`${BASE}/camps/1/overview?blocked=camp.ops.seats`)
+  await expect(page.getByText('已离开「座位分配」')).toBeVisible()
+  await expect(page.getByRole('button', { name: '前往营期设置调整能力开关' })).toBeVisible()
+  expect(pageErrors).toEqual([])
+})
+
+test('focus 深链：加入申请行定位高亮', async ({ page }) => {
+  await loginAsStaff(page)
+  await mockCampSessionDetail(page)
+  const pageErrors = []
+  page.on('pageerror', (e) => pageErrors.push(e.message))
+
+  await page.goto(`${BASE}/camps/1/people/applications?focus=11`)
+  const row = page.getByRole('row', { name: /申请学员/ })
+  await expect(row).toBeVisible()
+  await expect(row).toHaveClass(/current-row/, { timeout: 5000 })
+  expect(pageErrors).toEqual([])
+})
+
+// ── 用户反馈工单（阶段 6A）：列表/详情/受理回复/状态迁移 ──
+
+async function mockFeedbackTickets(page) {
+  const tickets = [
+    { id: 501, title: '登录后头像不显示', reporter_user_id: 52, reporter_name: '学员小一',
+      category: 'bug', severity: 'high', priority: 'medium', status: 'new',
+      assignee_user_id: null, assignee_name: null, resolution_code: null, resolution_summary: null,
+      attachment_count: 1, message_count: 0,
+      created_at: '2026-09-20T10:00:00', updated_at: '2026-09-20T10:00:00' },
+    { id: 502, title: '希望增加深色模式', reporter_user_id: 53, reporter_name: '学员小二',
+      category: 'feature_request', severity: 'normal', priority: 'low', status: 'triaged',
+      assignee_user_id: 74, assignee_name: '本地超管(测试)', resolution_code: null, resolution_summary: null,
+      attachment_count: 0, message_count: 2,
+      created_at: '2026-09-19T09:00:00', updated_at: '2026-09-19T12:00:00' },
+    { id: 503, title: '课程封面显示异常', reporter_user_id: 54, reporter_name: '学员小三',
+      category: 'content_issue', severity: 'low', priority: 'medium', status: 'closed',
+      assignee_user_id: 74, assignee_name: '本地超管(测试)', resolution_code: 'fixed',
+      resolution_summary: '已更换资源', attachment_count: 0, message_count: 1,
+      created_at: '2026-09-10T09:00:00', updated_at: '2026-09-12T09:00:00' },
+  ]
+  await page.route('http://127.0.0.1:5001/admin/feedback-tickets?*', (route) =>
+    route.fulfill({ json: { code: 200, tickets, total: tickets.length, page: 1, page_size: 15 } }))
+  await page.route('http://127.0.0.1:5001/admin/feedback-tickets/501', (route) =>
+    route.fulfill({ json: { code: 200, ticket: {
+      ...tickets[0], description: '点击头像区域后页面空白',
+      attachments: [{ id: 9, original_name: 'repro.png', mime_type: 'image/png', size: 4096,
+        url: '/feedback-tickets/attachments/9?u=74&e=1999999999&st=abc' }],
+      messages: [
+        { id: 1, author_user_id: 74, author_name: '本地超管(测试)', visibility: 'internal',
+          body: '内部判断：疑似缓存问题', created_at: '2026-09-20T11:00:00' },
+      ],
+      events: [{ id: 1, event_type: 'created', from_status: null, to_status: 'new',
+        actor_user_id: 52, actor_name: '学员小一', created_at: '2026-09-20T10:00:00' }],
+    } } }))
+  await page.route('http://127.0.0.1:5001/admin/feedback-tickets/501/messages', (route) =>
+    route.fulfill({ json: { code: 200, message: '已回复（用户可见）' } }))
+  await page.route('http://127.0.0.1:5001/admin/feedback-tickets/501/triage', (route) =>
+    route.fulfill({ json: { code: 200, message: '已受理' } }))
+  await page.route('http://127.0.0.1:5001/user/user_list', (route) =>
+    route.fulfill({ json: [{ User_Id: 74, User_Name: '本地超管(测试)', role: 'super_admin' }] }))
+}
+
+test('工单列表：待处理优先 + 筛选 + 详情深链', async ({ page }) => {
+  await loginAsStaff(page)
+  await mockFeedbackTickets(page)
+  const pageErrors = []
+  page.on('pageerror', (e) => pageErrors.push(e.message))
+
+  await page.goto(`${BASE}/operations/feedback-tickets`)
+  await expect(page.locator('.page-title')).toContainText('用户反馈工单')
+  // 默认排序：新提交在前、已关闭在后
+  const rows = page.getByRole('row')
+  await expect(page.getByRole('row', { name: /登录后头像不显示/ })).toBeVisible()
+  await expect(page.getByRole('row', { name: /课程封面显示异常/ })).toBeVisible()
+
+  // 行点击 → 详情
+  await page.getByRole('row', { name: /登录后头像不显示/ }).click()
+  await expect(page).toHaveURL(/feedback-tickets\/501$/)
+  await expect(page.getByText('工单 #501')).toBeVisible()
+  expect(pageErrors).toEqual([])
+})
+
+test('工单详情：内部备注标记 + 受理 + 公开回复 + 状态迁移动作', async ({ page }) => {
+  await loginAsStaff(page)
+  await mockFeedbackTickets(page)
+  const pageErrors = []
+  page.on('pageerror', (e) => pageErrors.push(e.message))
+
+  await page.goto(`${BASE}/operations/feedback-tickets/501`)
+  // 内部备注在管理端带「内部」标记（用户接口侧由后端查询层排除——smoke 覆盖）
+  await expect(page.getByText('内部判断：疑似缓存问题')).toBeVisible()
+  await expect(page.getByText('内部', { exact: true })).toBeVisible()
+
+  // 公开回复（默认 public）→ POST messages
+  const replyReq = page.waitForRequest((req) =>
+    req.url().includes('/admin/feedback-tickets/501/messages') && req.method() === 'POST')
+  await page.locator('textarea[placeholder*="公开回复"]').fill('已复现，正在排查')
+  await page.getByRole('button', { name: '发送', exact: true }).click()
+  expect((await replyReq).postDataJSON()).toEqual({ body: '已复现，正在排查', visibility: 'public' })
+
+  // 受理（new 状态 → triage 走 PATCH triage）
+  const triageReq = page.waitForRequest((req) =>
+    req.url().includes('/admin/feedback-tickets/501/triage') && req.method() === 'PATCH')
+  await page.getByRole('button', { name: '受理', exact: true }).click()
+  await triageReq
+
+  // 状态迁移动作随状态机渲染（mock 仍 new → 只显示「不予受理」）
+  await expect(page.getByRole('button', { name: '不予受理' })).toBeVisible()
+  await expect(page.getByRole('button', { name: '开始处理' })).toHaveCount(0)
+  expect(pageErrors).toEqual([])
+})
+
+test('工作台：待办摘要 + 进行中营期 + 风险提示', async ({ page }) => {
+  await loginAsStaff(page)
+  await page.route('http://127.0.0.1:5001/admin/workbench/summary', (route) =>
+    route.fulfill({ json: { code: 200, data: {
+      pending: { camp_join: 3, camp_leave: 7, project_application: 0, project_delivery: 2,
+        quota_request: 1, feedback_ticket: 4 },
+      oldest_pending_at: { camp_join: null, camp_leave: '2026-09-20T12:40:10' },
+      running_camps: [{ id: 63, name: '2026秋季培训营', category: 'learning', cycle_name: '2026 秋季',
+        start_date: '2026-09-01', end_date: '2027-01-18', member_count: 28,
+        pending_join: 3, pending_leave: 7, unmatched: 0 }],
+      risks: [{ camp_id: 63, camp_name: '2026秋季培训营', rule: 'attendance_not_configured',
+        detail: '已启用考勤但营内没有考勤计划（承诺出勤日未生成）' }],
+    } } }))
+  await page.route('http://127.0.0.1:5001/admin/overview', (route) =>
+    route.fulfill({ json: { code: 200, data: { user_new_today: 2, checkin_today: 15 } } }))
+  await page.route('http://127.0.0.1:5001/auth/audit_records*', (route) =>
+    route.fulfill({ json: { code: 200, data: { logs: [], total: 0 } } }))
+  const pageErrors = []
+  page.on('pageerror', (e) => pageErrors.push(e.message))
+
+  await page.goto(`${BASE}/`)
+  await expect(page.getByText('欢迎回来', { exact: false })).toBeVisible()
+  await expect(page.getByText('待我处理')).toBeVisible()
+  await expect(page.getByRole('row')).toHaveCount(0)
+  // 待办分组按处理语义渲染，数量来自摘要
+  await expect(page.locator('.todo-card', { hasText: '人员准入' }).locator('.todo-count')).toHaveText('3')
+  await expect(page.locator('.todo-card', { hasText: '项目流程' }).locator('.todo-count')).toHaveText('2')
+  await expect(page.locator('.todo-card', { hasText: '用户支持' }).locator('.todo-count')).toHaveText('4')
+  // 进行中营期卡 + 风险
+  await expect(page.getByText('2026秋季培训营')).toBeVisible()
+  await expect(page.getByText('已启用考勤但营内没有考勤计划')).toBeVisible()
   expect(pageErrors).toEqual([])
 })

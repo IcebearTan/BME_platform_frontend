@@ -49,7 +49,7 @@ test('平台资料管理：表格渲染与分类筛选', async ({ page }) => {
   page.on('pageerror', (e) => errors.push(e.message))
   await loginAsStaff(page)
 
-  await page.goto(`${BASE}/resource/manage`, { waitUntil: 'domcontentloaded' })
+  await page.goto(`${BASE}/content/resources`, { waitUntil: 'domcontentloaded' })
   await expect(page.locator('.page-title', { hasText: '平台资料管理' })).toBeVisible()
 
   // 两行资料 + 分类 tag + 上传人

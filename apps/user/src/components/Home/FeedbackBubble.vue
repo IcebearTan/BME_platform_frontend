@@ -20,6 +20,16 @@
           <DewInput v-model="feedbackForm.title" placeholder="请输入问题标题" />
         </el-form-item>
 
+        <el-form-item label="反馈类型">
+          <el-select v-model="feedbackForm.category" style="width: 100%;">
+            <el-option label="问题故障（Bug）" value="bug" />
+            <el-option label="功能建议" value="feature_request" />
+            <el-option label="内容问题" value="content_issue" />
+            <el-option label="账号问题" value="account_issue" />
+            <el-option label="其他反馈" value="other" />
+          </el-select>
+        </el-form-item>
+
         <el-form-item label="问题描述" prop="content">
           <DewInput
             v-model="feedbackForm.content"
@@ -67,7 +77,7 @@
 
 <script setup>
 import { ref, reactive } from 'vue'
-import { ElForm, ElFormItem, ElUpload, ElIcon, ElMessage } from 'element-plus'
+import { ElForm, ElFormItem, ElUpload, ElIcon, ElMessage, ElSelect, ElOption } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import DewDialog from '@bme/dew-ui/DewDialog.vue'
 import DewButton from '@bme/dew-ui/DewButton.vue'
@@ -98,7 +108,8 @@ const previewImageUrl = ref('')
 // 表单数据
 const feedbackForm = reactive({
   title: '',
-  content: ''
+  content: '',
+  category: 'bug'
 })
 
 // 表单验证规则
@@ -145,6 +156,7 @@ const resetForm = () => {
   }
   feedbackForm.title = ''
   feedbackForm.content = ''
+  feedbackForm.category = 'bug'
   fileList.value = []
 }
 
@@ -194,25 +206,26 @@ const submitFeedback = async () => {
       const imageFile = fileList.value[0]?.raw
       const formData = new FormData()
       formData.append('title', feedbackForm.title)
-      formData.append('content', feedbackForm.content)
+      formData.append('description', feedbackForm.content)
+      formData.append('category', feedbackForm.category)
       if (imageFile) formData.append('image', imageFile)
 
+      // 2026-09-21 起走工单闭环（旧 /information/error/add 保留兼容期）
       const response = await api({
-        url: '/information/error/add',
+        url: '/feedback-tickets',
         method: 'post',
         data: formData,
         headers: { 'Content-Type': 'multipart/form-data' }
       })
 
       if (response.data.code === 200) {
-        ElMessage.success('反馈提交成功，感谢您的反馈！')
+        ElMessage.success('反馈提交成功，处理进度可在「我的反馈」查看')
         resetForm()
         dialogVisible.value = false
       } else {
         ElMessage.error(response.data.message || '提交失败，请重试')
       }
     } catch (error) {
-      console.error('提交反馈失败:', error)
       ElMessage.error('提交失败，请检查网络后重试')
     } finally {
       isSubmitting.value = false

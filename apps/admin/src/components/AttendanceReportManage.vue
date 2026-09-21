@@ -2,7 +2,7 @@
   <div class="attendance-report-manage">
     <!-- 页面标题 -->
     <div class="page-header">
-      <h2>出勤报告管理</h2>
+      <h2>出勤日报订阅</h2>
     </div>
 
     <!-- 说明 -->

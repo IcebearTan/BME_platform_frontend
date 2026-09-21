@@ -3,7 +3,7 @@
        按项目类别维护节点序列（施工图）；下线走状态 archived，不物理删。 -->
   <div class="selectable">
     <div class="page-header">
-      <div class="page-title">平台项目模板</div>
+      <div class="page-title">项目模板</div>
       <div class="header-actions">
         <el-select v-model="statusFilter" size="small" style="width: 120px;" @change="fetchList">
           <el-option label="启用中" value="active" />

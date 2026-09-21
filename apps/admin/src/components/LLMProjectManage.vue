@@ -6,9 +6,9 @@
       <div class="hero-left">
         <div class="hero-eyebrow">
           <span class="eyebrow-dot"></span>
-          <span>大模型服务 · 管理后台</span>
+          <span>API 平台 · 管理后台</span>
         </div>
-        <h2 class="hero-title">项目管理</h2>
+        <h2 class="hero-title">API 项目</h2>
         <p class="hero-sub">管理接入大模型服务的各个项目，分配独立 API Key 与用量配额</p>
       </div>
       <el-button type="primary" class="hero-btn" @click="openCreate">

@@ -418,6 +418,8 @@ test('导生人员确认：志愿截止后可锁定/释放学员', async ({ page
   await expect(page.getByText('人员确认')).toBeVisible()
   await expect(page.getByText('已选 2 / 3')).toBeVisible()
   await expect(page.locator('.pick-item', { hasText: '学员小张' }).getByText('志愿 1')).toBeVisible()
+  // taken 默认收进开关（09-20 全量卡片卡死修复）：先展开已分配，才见「已属他人」信号
+  await page.getByRole('button', { name: /展开已分配 1 人/ }).click()
   await expect(page.locator('.pick-item', { hasText: '学员小王' }).getByText('已属 别的导生')).toBeVisible()
   await expect(page.locator('.pick-item', { hasText: '学员小赵' }).getByText('未交志愿')).toBeVisible()
   await expect(page.locator('.pick-item', { hasText: '学员小李' }).getByText('老师指派')).toBeVisible()

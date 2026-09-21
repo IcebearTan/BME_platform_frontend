@@ -104,7 +104,7 @@ const createEmptyHtmlDraft = async () => {
     isOfficial.value = true
   } catch (e) {
     ElMessage.error(e?.response?.data?.message || '草稿创建失败，无法进入富文本编辑')
-    router.push('/article/manage')
+    router.push('/content/articles')
   }
 }
 
@@ -242,7 +242,7 @@ const handleSubmit = async () => {
     if (wasPublished && isOfficial.value && notifyAll.value && publishedId) {
       await broadcastArticle(publishedId)
     }
-    router.push('/article/manage')
+    router.push('/content/articles')
   } catch (e) {
     ElMessage.error(e?.response?.data?.message || '保存失败')
   } finally {

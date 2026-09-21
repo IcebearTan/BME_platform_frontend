@@ -222,7 +222,7 @@ onMounted(() => {
 <template>
   <div style="width: 100%; height: 100%; position: relative; overflow: hidden;">
     <div class="page-header">
-      <div class="page-title">用户列表</div>
+      <div class="page-title">账号与权限</div>
       <div class="header-actions">
         <el-form :inline="true" class="form-inline" :model="formInline" @submit.prevent>
           <el-form-item label="用户查询">

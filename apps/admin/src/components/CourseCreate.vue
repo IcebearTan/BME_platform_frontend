@@ -710,7 +710,7 @@ const getChapterLessons = (chapterId) => {
 
 // 返回列表
 const goBack = () => {
-  router.push({ path: '/course/manage' });
+  router.push({ path: '/content/courses' });
 };
 </script>
 

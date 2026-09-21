@@ -1,7 +1,7 @@
 <template>
   <div class="selectable">
     <div class="page-header">
-      <div class="page-title">成员组归属</div>
+      <div class="page-title">成员归属</div>
       <div class="header-actions">
         <el-button @click="fetchMeta" :loading="loading">刷新</el-button>
       </div>

@@ -93,7 +93,7 @@ export default {
 <template>
   <div class="selectable" style="width: 100%;">
     <div class="page-header">
-      <div class="page-title">XLAB 项目治理
+      <div class="page-title">项目广场治理
         <span class="page-subtitle">广场条目集中上下架</span>
       </div>
       <div class="header-actions">

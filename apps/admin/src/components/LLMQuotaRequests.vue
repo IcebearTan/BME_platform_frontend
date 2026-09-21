@@ -7,9 +7,9 @@
         <div class="hero-left">
           <div class="hero-eyebrow">
             <span class="eyebrow-dot"></span>
-            <span>大模型服务 · 管理后台</span>
+            <span>API 平台 · 管理后台</span>
           </div>
-          <h2 class="hero-title">增额申请审批</h2>
+          <h2 class="hero-title">API 配额审批</h2>
           <p class="hero-sub">审核用户提交的额度提升申请，通过后自动同步至 LiteLLM</p>
         </div>
         <div v-if="pendingCount > 0" class="pending-alert">

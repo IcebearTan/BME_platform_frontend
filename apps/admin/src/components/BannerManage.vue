@@ -1,7 +1,7 @@
 <template>
   <div class="selectable">
     <div class="page-header">
-      <div class="page-title">首页轮播</div>
+      <div class="page-title">首页内容</div>
       <div class="header-actions">
         <el-button type="primary" @click="openCreate"><el-icon><Plus /></el-icon>&nbsp;新建轮播帧</el-button>
       </div>

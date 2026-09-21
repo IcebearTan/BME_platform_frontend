@@ -10,7 +10,7 @@
       <template #header>
         <div class="fb-header">
           <span class="fb-title">我的反馈记录</span>
-          <span class="fb-subtitle">查看您提交的所有反馈记录</span>
+          <span class="fb-subtitle">状态与回复来自处理端实时同步</span>
         </div>
       </template>
 
@@ -21,7 +21,6 @@
           style="width: 100%;"
           stripe
           :cell-style="{ 'vertical-align': 'top', 'padding': '12px 8px' }"
-          :default-sort="{ prop: 'created_at', order: 'descending' }"
         >
           <el-table-column label="标题" width="120">
             <template #default="scope">
@@ -29,44 +28,28 @@
             </template>
           </el-table-column>
 
-          <el-table-column label="问题描述" min-width="240">
+          <el-table-column label="类型" width="90" align="center">
             <template #default="scope">
-              <div class="cell-content content-cell">{{ scope.row.content }}</div>
+              <span class="muted">{{ CATEGORY_LABELS[scope.row.category] || scope.row.category }}</span>
             </template>
           </el-table-column>
 
-          <el-table-column label="图片" width="70" align="center">
+          <el-table-column label="问题描述" min-width="200">
             <template #default="scope">
-              <div v-if="scope.row.has_image && scope.row.images && scope.row.images.length > 0" class="image-preview">
-                <el-image
-                  :src="scope.row.images[0]"
-                  style="width: 40px; height: 40px; border-radius: 6px"
-                  fit="cover"
-                  :preview-src-list="scope.row.images"
-                  :preview-teleported="true"
-                />
-                <span v-if="scope.row.images.length > 1" class="image-count">
-                  +{{ scope.row.images.length - 1 }}
-                </span>
-              </div>
-              <span v-else class="muted">无</span>
+              <div class="cell-content content-cell">{{ scope.row.description || '—' }}</div>
             </template>
           </el-table-column>
 
-          <el-table-column label="时间" width="150">
+          <el-table-column label="提交时间" width="140">
             <template #default="scope">
               <div class="cell-content time-cell">{{ scope.row.created_at }}</div>
             </template>
           </el-table-column>
 
-          <el-table-column label="状态" width="90" align="center">
+          <el-table-column label="状态" width="100" align="center">
             <template #default="scope">
-              <DewTag
-                :type="scope.row.status === '已处理' ? 'success' : 'warning'"
-                size="sm"
-                round
-              >
-                {{ scope.row.status || '待处理' }}
+              <DewTag :type="STATUS_META[scope.row.status]?.tag || 'default'" size="sm" round>
+                {{ STATUS_META[scope.row.status]?.label || scope.row.status }}
               </DewTag>
             </template>
           </el-table-column>
@@ -74,8 +57,11 @@
           <el-table-column label="操作" width="110" align="center">
             <template #default="scope">
               <div class="action-buttons">
-                <DewButton size="sm" type="ghost" @click="viewDetail(scope.row)">查看</DewButton>
-                <DewButton size="sm" type="danger" @click="confirmDelete(scope.row)">删除</DewButton>
+                <DewButton size="sm" type="ghost" @click="viewDetail(scope.row)">详情</DewButton>
+                <DewButton v-if="scope.row.status === 'new'" size="sm" type="danger"
+                  @click="confirmWithdraw(scope.row)">撤回</DewButton>
+                <DewButton v-else-if="['resolved', 'closed'].includes(scope.row.status)" size="sm"
+                  @click="confirmReopen(scope.row)">重新打开</DewButton>
               </div>
             </template>
           </el-table-column>
@@ -90,151 +76,218 @@
       </div>
     </DewCard>
 
-    <!-- 详情对话框（DewUI） -->
-    <DewDialog v-model="detailVisible" title="反馈详情" :width="600">
-      <div v-if="currentFeedback" class="feedback-detail">
-        <div class="detail-item">
-          <label>标题：</label>
-          <span>{{ currentFeedback.title }}</span>
+    <!-- 详情对话框：公开回复时间线 + 附件 + 回复框 -->
+    <DewDialog v-model="detailVisible" title="反馈详情" :width="640">
+      <div v-if="current" class="feedback-detail">
+        <div class="detail-head">
+          <span class="detail-title">{{ current.title }}</span>
+          <DewTag :type="STATUS_META[current.status]?.tag || 'default'" size="sm" round>
+            {{ STATUS_META[current.status]?.label || current.status }}
+          </DewTag>
         </div>
         <div class="detail-item">
           <label>问题描述：</label>
-          <p class="content">{{ currentFeedback.content }}</p>
+          <p class="content">{{ current.description || '—' }}</p>
         </div>
-        <div class="detail-item" v-if="currentFeedback.has_image && currentFeedback.images && currentFeedback.images.length">
+        <div class="detail-item" v-if="current.attachments?.length">
           <label>相关图片：</label>
           <div class="images-grid">
             <el-image
-              v-for="(img, index) in currentFeedback.images"
-              :key="index"
-              :src="img"
+              v-for="(a, index) in current.attachments"
+              :key="a.id"
+              :src="attachmentUrl(a)"
               style="width: 80px; height: 80px; border-radius: 8px"
               fit="cover"
-              :preview-src-list="currentFeedback.images"
+              :preview-src-list="current.attachments.map(attachmentUrl)"
               :initial-index="index"
               :preview-teleported="true"
             />
           </div>
         </div>
-        <div class="detail-item">
-          <label>提交时间：</label>
-          <span>{{ currentFeedback.created_at }}</span>
+
+        <!-- 公开回复时间线（内部备注不出现在用户接口） -->
+        <div class="detail-item column" v-if="current.messages?.length">
+          <label>处理沟通：</label>
+          <div class="msg-timeline">
+            <div v-for="m in current.messages" :key="m.id" class="msg-row" :class="{ staff: m.is_staff_reply }">
+              <div class="msg-meta">
+                <b>{{ m.is_staff_reply ? '处理人员' : '我' }}</b>
+                <span class="muted">{{ formatDateTime(m.created_at) }}</span>
+              </div>
+              <p class="msg-body">{{ m.body }}</p>
+            </div>
+          </div>
         </div>
-        <div class="detail-item">
-          <label>处理状态：</label>
-          <DewTag
-            :type="currentFeedback.status === '已处理' ? 'success' : 'warning'"
-            size="sm"
-            round
-          >
-            {{ currentFeedback.status || '待处理' }}
-          </DewTag>
+
+        <!-- 回复框：waiting_user / 处理中可补充 -->
+        <div v-if="canReply" class="reply-box">
+          <DewInput v-model="replyBody" type="textarea" :rows="2"
+            :placeholder="current.status === 'waiting_user' ? '处理人员请你补充信息，回复后将自动继续处理' : '补充说明（可选）'" />
+          <DewButton :active="true" :disabled="replySubmitting || !replyBody.trim()" @click="submitReply">
+            {{ replySubmitting ? '发送中…' : '回复' }}
+          </DewButton>
         </div>
+        <el-alert v-else-if="current.status === 'closed' && current.resolution_code === 'withdrawn'"
+          type="info" :closable="false" title="该反馈已由你撤回（记录保留）；如问题仍在，可重新打开" />
       </div>
     </DewDialog>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Document } from '@element-plus/icons-vue'
-import { DewCard, DewTag, DewButton, DewDialog, DewMessageBox } from '@bme/dew-ui'
-import api from '../../api'
+import { DewCard, DewTag, DewButton, DewDialog, DewInput, DewMessageBox } from '@bme/dew-ui'
+import api, { API_URL } from '../../api'
+
+// 状态真相源在后端（旧实现前端写死「待处理」的缺陷修复）
+const STATUS_META = {
+  new: { label: '待处理', tag: 'warning' },
+  triaged: { label: '已受理', tag: 'primary' },
+  in_progress: { label: '处理中', tag: 'primary' },
+  waiting_user: { label: '待你补充', tag: 'warning' },
+  resolved: { label: '已解决', tag: 'success' },
+  closed: { label: '已关闭', tag: 'default' },
+  rejected: { label: '未予受理', tag: 'danger' },
+  reopened: { label: '已重新打开', tag: 'warning' },
+}
+const CATEGORY_LABELS = {
+  bug: '问题故障', feature_request: '功能建议', content_issue: '内容问题',
+  account_issue: '账号问题', other: '其他',
+}
 
 const feedbackList = ref([])
 const loading = ref(false)
 const detailVisible = ref(false)
-const currentFeedback = ref(null)
+const current = ref(null)
+const replyBody = ref('')
+const replySubmitting = ref(false)
 
-// 获取反馈记录列表
+const canReply = computed(() => current.value && !['closed', 'rejected'].includes(current.value.status))
+
+// 获取反馈记录列表（新工单端点：分页 + 真实状态）
 const fetchFeedbacks = async () => {
   loading.value = true
   try {
     const response = await api({
-      url: '/information/error/query',
-      method: 'get'
+      url: '/feedback-tickets/mine',
+      method: 'get',
+      params: { page: 1, page_size: 50 },
     })
-
     if (response.data.code === 200) {
-      feedbackList.value = (response.data.data || []).map(item => {
-        let images = []
-        if (item.has_image && item.image) {
-          const imageData = item.image.startsWith('data:image/')
-            ? item.image
-            : `data:image/png;base64,${item.image}`
-          images = [imageData]
-        }
-
-        return {
-          id: item.id,
-          title: item.title,
-          content: item.content,
-          images,
-          created_at: formatDate(item.create_time),
-          has_image: item.has_image,
-          status: '待处理'
-        }
-      })
+      feedbackList.value = (response.data.tickets || []).map((t) => ({
+        ...t,
+        created_at: formatDateTime(t.created_at),
+      }))
     } else {
       ElMessage.error(response.data.message || '获取反馈记录失败')
     }
-  } catch (error) {
-    console.error('获取反馈记录失败:', error)
+  } catch {
     ElMessage.error('网络错误，无法获取反馈记录')
   } finally {
     loading.value = false
   }
 }
 
-// 查看详情
-const viewDetail = (feedback) => {
-  currentFeedback.value = feedback
+// 详情：拉全量（含公开回复时间线与附件短签 URL）
+const viewDetail = async (row) => {
   detailVisible.value = true
-}
-
-// 格式化日期
-const formatDate = (dateStr) => {
-  if (!dateStr) return '-'
-  const date = new Date(dateStr)
-  return date.toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-}
-
-// 删除反馈（DewUI 确认弹窗）
-const confirmDelete = async (row) => {
+  current.value = null
+  replyBody.value = ''
   try {
-    await DewMessageBox.confirm(`确定要删除标题为“${row.title}”的反馈吗？`, '删除确认', {
-      confirmText: '删除',
-      cancelText: '取消',
-    })
-  } catch (e) {
-    return // 用户取消
+    const res = await api({ url: `/feedback-tickets/${row.id}`, method: 'get' })
+    if (res.data.code === 200) {
+      current.value = res.data.ticket
+    } else {
+      ElMessage.error(res.data.message || '加载详情失败')
+    }
+  } catch {
+    ElMessage.error('网络错误，无法加载详情')
   }
-  deleteFeedback(row.id)
 }
 
-const deleteFeedback = async (id) => {
+const attachmentUrl = (a) => `${API_URL}${a.url}`
+
+const submitReply = async () => {
+  if (!replyBody.value.trim() || !current.value) return
+  replySubmitting.value = true
   try {
-    const response = await api({
-      url: '/information/error/delete',
+    const res = await api({
+      url: `/feedback-tickets/${current.value.id}/messages`,
       method: 'post',
-      data: { id }
+      data: { body: replyBody.value.trim() },
     })
-    if (response.data.code === 200) {
-      ElMessage.success('删除成功')
+    if (res.data.code === 200) {
+      ElMessage.success('已回复')
+      replyBody.value = ''
+      viewDetail(current.value)   // 重拉详情（waiting_user 回复后自动 in_progress）
       fetchFeedbacks()
     } else {
-      ElMessage.error(response.data.message || '删除失败')
+      ElMessage.error(res.data.message || '回复失败')
     }
-  } catch (error) {
-    ElMessage.error('网络错误，删除失败')
+  } catch {
+    ElMessage.error('网络错误，回复失败')
+  } finally {
+    replySubmitting.value = false
   }
+}
+
+// 撤回（仅未受理）：状态迁移非物理删，记录保留可追溯
+const confirmWithdraw = async (row) => {
+  try {
+    await DewMessageBox.confirm(
+      `确定撤回「${row.title}」吗？撤回后处理端不再跟进（记录保留，可重新打开）。`, '撤回反馈', {
+        confirmText: '撤回',
+        cancelText: '取消',
+      })
+  } catch {
+    return
+  }
+  try {
+    const res = await api({ url: `/feedback-tickets/${row.id}/withdraw`, method: 'post' })
+    if (res.data.code === 200) {
+      ElMessage.success('已撤回')
+      fetchFeedbacks()
+    } else {
+      ElMessage.error(res.data.message || '撤回失败')
+    }
+  } catch {
+    ElMessage.error('网络错误，撤回失败')
+  }
+}
+
+// 重新打开（已解决/已关闭后问题仍存在）
+const confirmReopen = async (row) => {
+  try {
+    await DewMessageBox.confirm(
+      `重新打开「${row.title}」？该反馈将回到处理队列。`, '重新打开', {
+        confirmText: '重新打开',
+        cancelText: '取消',
+      })
+  } catch {
+    return
+  }
+  try {
+    const res = await api({ url: `/feedback-tickets/${row.id}/reopen`, method: 'post', data: {} })
+    if (res.data.code === 200) {
+      ElMessage.success('已重新打开')
+      fetchFeedbacks()
+    } else {
+      ElMessage.error(res.data.message || '操作失败')
+    }
+  } catch {
+    ElMessage.error('网络错误，操作失败')
+  }
+}
+
+const formatDateTime = (s) => {
+  if (!s) return '-'
+  const date = new Date(s.includes('T') ? `${s}+08:00` : s.replace(' ', 'T'))
+  if (Number.isNaN(date.getTime())) return s
+  return date.toLocaleString('zh-CN', {
+    year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
+  })
 }
 
 onMounted(() => {
@@ -272,8 +325,6 @@ onMounted(() => {
 
 /* el-table 变量映射到 DewUI token：让表格在玻璃卡上 + 亮/暗都正确 */
 .fb-table-wrap {
-  /* 容器收口：防止 el-table 的列 min-content 把栅格项撑到无限宽，
-     表格超宽时在卡片内横向滚动，而不是把整个页面拉长 */
   min-width: 0;
   max-width: 100%;
   overflow-x: auto;
@@ -285,7 +336,6 @@ onMounted(() => {
   --el-table-border-color: var(--dew-card-divider);
   --el-table-border: 1px solid var(--dew-card-divider);
   --el-table-row-hover-bg-color: var(--dew-ghost-hover-bg);
-  /* 斑马纹底色 */
   --el-fill-color-light: var(--dew-card-inset-bg);
   --el-fill-color-blank: transparent;
 }
@@ -346,23 +396,6 @@ onMounted(() => {
   align-items: center;
 }
 
-/* 图片预览角标 */
-.image-preview {
-  position: relative;
-  display: inline-block;
-}
-
-.image-count {
-  position: absolute;
-  bottom: 0;
-  right: 0;
-  background: rgba(0, 0, 0, 0.6);
-  color: white;
-  font-size: 11px;
-  padding: 1px 5px;
-  border-radius: 0 6px 0 6px;
-}
-
 /* 空状态 */
 .empty-state {
   display: flex;
@@ -389,10 +422,26 @@ onMounted(() => {
   gap: 16px;
 }
 
+.detail-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.detail-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--dew-text-heading);
+}
+
 .detail-item {
   display: flex;
   align-items: flex-start;
   gap: 8px;
+}
+
+.detail-item.column {
+  flex-direction: column;
 }
 
 .detail-item label {
@@ -415,6 +464,57 @@ onMounted(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+/* 公开回复时间线 */
+.msg-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.msg-row {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--dew-card-inset-bg);
+}
+
+.msg-row.staff {
+  background: rgba(var(--dew-primary-rgb, 99, 102, 241), 0.08);
+}
+
+.msg-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.msg-meta b {
+  color: var(--dew-text-heading);
+}
+
+.msg-body {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--dew-text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* 回复框 */
+.reply-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.reply-box :deep(.dew-input) {
+  width: 100%;
 }
 
 @media (max-width: 768px) {
