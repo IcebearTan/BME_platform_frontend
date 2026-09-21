@@ -240,7 +240,9 @@ const filteredList = computed(() => {
   } else if (activeFilter.value === 'community') {
     list = list.filter(n => n.category === 'community')
   }
-  return list
+  // 重要通知置顶（09-22 修复）：版本更新公告等被日常通知冲到分页第 2 页「丢失」；
+  // sort 稳定，组内保持服务端 created_at 倒序
+  return [...list].sort((a, b) => (b.is_important ? 1 : 0) - (a.is_important ? 1 : 0))
 })
 const totalPages = computed(() => Math.max(1, Math.ceil(filteredList.value.length / pageSize)))
 const pagedList = computed(() =>

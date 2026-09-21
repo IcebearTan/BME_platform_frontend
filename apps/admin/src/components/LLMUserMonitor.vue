@@ -681,4 +681,29 @@ onMounted(fetchUsers);
 }
 .quota-username { font-size: 14px; font-weight: 600; color: #0f172a; }
 .quota-hint { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+
+/* ── 暗色适配（09-22）：亮色硬编码在暗色下白卡浅字、蓝底蓝字（duration-tag/chip-active）不可读 ── */
+.theme-dark .stat-card { background: var(--bg-primary); border-color: var(--border-light); box-shadow: none; }
+.theme-dark .stat-label { color: #94a3b8; }
+.theme-dark .stat-icon-blue { background: rgba(59, 130, 246, 0.15); color: #93c5fd; }
+.theme-dark .stat-icon-amber { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+.theme-dark .stat-icon-emerald { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+.theme-dark .stat-icon-red { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+.theme-dark .stat-val-blue { color: #93c5fd; }
+.theme-dark .stat-val-amber { color: #fbbf24; }
+.theme-dark .stat-val-emerald { color: #34d399; }
+.theme-dark .stat-val-red { color: #f87171; }
+.theme-dark .chip-active { background: rgba(59, 130, 246, 0.18); color: #93c5fd; }
+.theme-dark .chip-empty { background: rgba(148, 163, 184, 0.12); color: #94a3b8; }
+.theme-dark .action-btn-detail { background: transparent; border-color: rgba(139, 92, 246, 0.45); color: #c4b5fd; }
+.theme-dark .action-btn-detail:hover { background: rgba(139, 92, 246, 0.15); }
+.theme-dark .action-btn-quota { background: transparent; border-color: rgba(59, 130, 246, 0.45); color: #93c5fd; }
+.theme-dark .action-btn-quota:hover { background: rgba(59, 130, 246, 0.15); }
+.theme-dark .chart-tab { background: transparent; border-color: var(--border-light); color: #94a3b8; }
+.theme-dark .model-name { color: #93c5fd; }
+.theme-dark .budget-value { color: #93c5fd; }
+.theme-dark .pct-green { color: #34d399; }
+.theme-dark .pct-amber { color: #fbbf24; }
+.theme-dark .pct-red { color: #f87171; }
+.theme-dark .duration-tag { background: rgba(59, 130, 246, 0.15); color: #93c5fd; }
 </style>

@@ -816,4 +816,26 @@ onMounted(() => {
   line-height: 1.7;
   margin: 0;
 }
+
+/* ── 暗色适配（09-22）：亮色硬编码在暗色下白卡浅字/蓝紫底深字不可读 ── */
+.theme-dark .url-item { background: rgba(255, 255, 255, 0.03); border-color: var(--border-light); }
+.theme-dark .url-code { color: #cbd5e1; }
+.theme-dark .models-section { border-color: var(--border-light); }
+.theme-dark .models-header { background: rgba(255, 255, 255, 0.03); }
+.theme-dark .models-header:hover { background: rgba(255, 255, 255, 0.06); }
+.theme-dark .models-title { color: var(--text-primary); }
+.theme-dark .inner-table :deep(.el-table__header-wrapper th) { background: rgba(255, 255, 255, 0.04) !important; color: #9ca3af; }
+.theme-dark .model-id-code { color: #93c5fd; }
+.theme-dark .guide-link-box { background: rgba(139, 92, 246, 0.10); border-color: rgba(139, 92, 246, 0.30); color: #cbd5e1; }
+.theme-dark .project-name { color: var(--text-primary); }
+.theme-dark .model-tag { background: rgba(99, 102, 241, 0.15); color: #c7d2fe; }
+.theme-dark .abtn-default { background: transparent; border-color: var(--border-medium); color: #d1d5db; }
+.theme-dark .abtn-default:hover { background: rgba(255, 255, 255, 0.06); }
+.theme-dark .abtn-warning { background: transparent; color: #fbbf24; }
+.theme-dark .abtn-warning:hover { background: rgba(245, 158, 11, 0.12); }
+.theme-dark .abtn-danger { background: transparent; color: #f87171; }
+.theme-dark .abtn-danger:hover { background: rgba(239, 68, 68, 0.12); }
+.theme-dark .abtn-activity { background: transparent; color: #c4b5fd; }
+.theme-dark .abtn-activity:hover { background: rgba(139, 92, 246, 0.15); }
+.theme-dark .chart-tab { background: transparent; border-color: var(--border-light); color: #94a3b8; }
 </style>

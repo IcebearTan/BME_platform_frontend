@@ -420,9 +420,10 @@ const spotlightItems = ref([])        // 精选带：官方推文（feed 不重�
 
 async function fetchNoticeBar() {
   try {
-    const res = await api.get('/notification/list', { params: { category: 'system', per_page: 5 } })
-    const rows = res.data?.data?.notifications || []
-    noticeItem.value = rows.find(n => n.is_important) || null
+    // 服务端 is_important 精确过滤（09-22 修复）：原先拉最近 5 条 system 前端 find，
+    // 通知一多就被挤出窗口，版本更新公告在广场上「丢失」
+    const res = await api.get('/notification/list', { params: { category: 'system', is_important: 'true', per_page: 1 } })
+    noticeItem.value = res.data?.data?.notifications?.[0] || null
   } catch { /* 公告条静默隐藏 */ }
 }
 async function fetchSpotlight() {

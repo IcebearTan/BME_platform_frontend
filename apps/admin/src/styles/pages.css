@@ -235,3 +235,40 @@
 .selectable {
     user-select: text;
 }
+
+/* ── LLM 家族页暗色适配（09-22）：三页原为纯亮色硬编码，暗色下白卡配浅字、
+   蓝底蓝字（filter-tab/duration-tag/chip-active 等）不可读。按暗色 tokens 重投影，
+   卡片走实心底（--bg-primary），彩色徽章走同色系半透明底+亮字。 ── */
+.theme-dark .admin-llm-page { background: var(--bg-secondary); }
+.theme-dark .page-hero {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, rgba(16, 185, 129, 0.08) 60%, rgba(139, 92, 246, 0.10) 100%);
+    border-color: var(--border-light);
+}
+.theme-dark .hero-title { background: linear-gradient(135deg, #93c5fd, #c4b5fd); }
+.theme-dark .hero-sub { color: #94a3b8; }
+.theme-dark .section-card {
+    background: var(--bg-primary);
+    border-color: var(--border-light);
+    box-shadow: none;
+}
+.theme-dark .section-header { background: rgba(255, 255, 255, 0.03); border-bottom-color: var(--border-light); }
+.theme-dark .section-title { color: var(--text-primary); }
+.theme-dark .section-icon-blue { background: rgba(59, 130, 246, 0.15); color: #93c5fd; }
+.theme-dark .section-icon-violet { background: rgba(139, 92, 246, 0.15); color: #c4b5fd; }
+.theme-dark .main-table .el-table__header-wrapper th { background: rgba(255, 255, 255, 0.04) !important; color: #9ca3af; }
+.theme-dark .user-name { color: var(--text-primary); }
+.theme-dark .table-footer { border-top-color: var(--border-light); }
+.theme-dark .act-stat-card, .theme-dark .chart-wrap { background: rgba(255, 255, 255, 0.03); border-color: var(--border-light); }
+.theme-dark .act-section-title { color: var(--text-primary); }
+.theme-dark .act-blue { color: #93c5fd; }
+.theme-dark .act-violet { color: #c4b5fd; }
+.theme-dark .act-emerald { color: #34d399; }
+.theme-dark .act-amber { color: #fbbf24; }
+.theme-dark .act-red { color: #f87171; }
+.theme-dark .act-slate { color: #cbd5e1; }
+.theme-dark .model-table th { background: rgba(255, 255, 255, 0.04); color: #9ca3af; border-bottom-color: var(--border-light); }
+.theme-dark .model-table td { color: #e5e7eb; border-bottom-color: var(--border-light); }
+.theme-dark .rate-good { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+.theme-dark .rate-warn { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+.theme-dark .rate-na { background: rgba(148, 163, 184, 0.14); color: #94a3b8; }
+.theme-dark .spend-value { color: #fbbf24; }
