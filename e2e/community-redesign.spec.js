@@ -15,6 +15,9 @@ const FEED = {
     { type: 'discussion', id: 51, title: '带图帖子', summary: '一张现场图分享',
       images: ['/media/discussions/t/a.webp', '/media/discussions/t/b.webp'],
       category: 'recruit', category_text: '招人', project_id: 801, project_title: '智能输液监护',
+      project_summary: '病房样机', project_cover_thumb: '/media/showcase/801/c_thumb.webp',
+      project_status: 'ongoing', project_status_text: '进行中', project_source: 'community',
+      project_source_text: '自由分享', project_tags: ['医疗设备'], project_view_count: 9,
       author_id: 11, author_name: '陈嘉树', author_avatar: '', author_badge: '社长',
       created_at: '2026-09-18 09:00:00', reply_count: 2, like_count: 1, view_count: 9,
       is_pinned: false,
@@ -81,7 +84,17 @@ async function mockCommunity(page) {
       return route.fulfill({ json: NOTICES })
     }
     if (url.includes('/showcase/projects')) {
-      return route.fulfill({ json: PROJECTS })
+      // 面板请求带 sort/limit/project_status（XLab 引流优化 §7.1 契约）；发帖下拉无参全量
+      const u = new URL(url)
+      let projects = PROJECTS.projects.slice()
+      const ps = u.searchParams.get('project_status')
+      if (ps) projects = projects.filter(p => p.project_status === ps)
+      const sort = u.searchParams.get('sort')
+      if (sort === 'popular') projects.sort((a, b) => b.view_count - a.view_count)
+      else if (sort === 'latest') projects.sort((a, b) => b.created_at.localeCompare(a.created_at))
+      const limit = u.searchParams.get('limit')
+      if (limit) projects = projects.slice(0, Number(limit))
+      return route.fulfill({ json: { ...PROJECTS, projects, total: projects.length } })
     }
     if (url.includes('/community/feed')) {
       return route.fulfill({ json: FEED })
@@ -175,24 +188,83 @@ test('社区重设计：分层混排卡片（文章封面 / 帖子图集 / 回�
   expect(errors).toEqual([])
 })
 
-test('社区重设计：XLAB 引流卡 + 发帖弹层', async ({ page }) => {
+test('社区 XLAB 信号面板：主/次项目 + 排序切换 + 导流', async ({ page }) => {
   const errors = []
   page.on('pageerror', (e) => errors.push(e.message))
   await mockCommunity(page)
 
   await page.goto(`${BASE}/community`, { waitUntil: 'domcontentloaded' })
-  // 项目现场：两个进行中项目，点击进 XLAB 详情
-  const xlab = page.locator('.xlab-card')
-  await expect(xlab).toBeVisible()
-  await expect(xlab.locator('.xlab-item')).toHaveCount(2)
+  const panel = page.locator('.community-xlab-panel')
+  await expect(panel).toBeVisible()
+
+  // 默认 latest：created_at 新者（802 宿舍门锁）为主项目，801 为唯一次项目
+  await expect(panel.locator('.cxp-main')).toContainText('宿舍门锁')
+  await expect(panel.locator('.cxp-rest__btn')).toHaveCount(1)
+  await expect(panel.locator('.cxp-rest__btn')).toContainText('智能输液监护')
+
+  // 主项目点击：新开标签页进 XLAB 详情，社区页原地保留
   const [projTab] = await Promise.all([
     page.waitForEvent('popup'),
-    xlab.locator('.xlab-item').first().click(),
+    panel.locator('.cxp-main').click(),
   ])
-  await expect(projTab).toHaveURL(/\/projects\/801$/)
+  await expect(projTab).toHaveURL(/\/projects\/802$/)
   await projTab.close()
   await expect(page).toHaveURL(/\/community$/)
 
+  // 切「最多浏览」：请求带 sort=popular + limit=3，主项目变为浏览量更高的 801
+  const popularReq = page.waitForRequest((req) =>
+    req.url().includes('/showcase/projects') && req.url().includes('sort=popular'))
+  await panel.getByRole('tab', { name: '最多浏览' }).click()
+  const popularUrl = (await popularReq).url()
+  expect(popularUrl).toContain('project_status=ongoing')
+  expect(popularUrl).toContain('limit=3')
+  await expect(panel.locator('.cxp-main')).toContainText('智能输液监护')
+
+  // 品牌行点击：进 XLAB 列表页（新标签页）
+  const [xlabTab] = await Promise.all([
+    page.waitForEvent('popup'),
+    panel.locator('.cxp-brand').click(),
+  ])
+  await expect(xlabTab).toHaveURL(/\/projects$/)
+  await xlabTab.close()
+
+  expect(errors).toEqual([])
+})
+
+test('社区 XLAB 信号面板：错误态重试 + reduced-motion', async ({ page }) => {
+  const errors = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  await mockCommunity(page)
+
+  // 首次请求失败 → 面板内错误态（非全局 Toast），点重试恢复
+  let failFirst = true
+  await page.route(/\/showcase\/projects/, (route) => {
+    if (failFirst) { failFirst = false; return route.fulfill({ status: 500, json: { code: 500 } }) }
+    return route.fallback()
+  })
+  await page.goto(`${BASE}/community`, { waitUntil: 'domcontentloaded' })
+  const panel = page.locator('.community-xlab-panel')
+  await expect(panel.locator('.cxp-state')).toContainText('信号暂时中断')
+  await panel.getByRole('button', { name: '重试' }).click()
+  await expect(panel.locator('.cxp-main')).toContainText('宿舍门锁')
+
+  // reduced-motion：扫描线动画关停（骨架/装饰动画不出现在 reduce 环境）
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  const scan = panel.locator('.cxp-scan')
+  await expect(scan).toBeVisible()
+  const anim = await scan.evaluate((el) => getComputedStyle(el).animationName)
+  expect(anim).toBe('none')
+
+  expect(errors).toEqual([])
+})
+
+
+test('社区：发帖弹层（无话题发帖 + 候选全量）', async ({ page }) => {
+  const errors = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  await mockCommunity(page)
+
+  await page.goto(`${BASE}/community`, { waitUntil: 'domcontentloaded' })
   // 发帖：入口一行 → DewDialog 弹层 → 字数门槛可见 → POST body
   await page.locator('.post-entry').click()
   const dlg = page.locator('.dew-dialog').filter({ hasText: '发布新帖' })
@@ -214,6 +286,27 @@ test('社区重设计：XLAB 引流卡 + 发帖弹层', async ({ page }) => {
 })
 
 
+test('社区 XLAB 面板与关联卡：约 400px 窄屏不溢出', async ({ page }) => {
+  const errors = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  await mockCommunity(page)
+
+  await page.setViewportSize({ width: 400, height: 800 })
+  await page.goto(`${BASE}/community`, { waitUntil: 'domcontentloaded' })
+  // 右栏上移：只展示主项目（次项目隐藏），关联卡封面上文字在下
+  await expect(page.locator('.community-xlab-panel .cxp-main')).toContainText('宿舍门锁')
+  await expect(page.locator('.community-xlab-panel .cxp-rest')).toBeHidden()
+  const lpc = page.locator('.linked-project-card').first()
+  await expect(lpc).toBeVisible()
+  // 约 400px 无横向溢出（§12.2.14）
+  const overflow = await page.evaluate(() =>
+    document.documentElement.scrollWidth - document.documentElement.clientWidth)
+  expect(overflow).toBeLessThanOrEqual(1)
+
+  expect(errors).toEqual([])
+})
+
+
 // Phase 2（09-20）：话题标签 + 关联 XLAB 项目（招人帖导流）
 test('社区 Phase 2：帖子话题/项目 chip + 发帖选话题关联项目', async ({ page }) => {
   const errors = []
@@ -221,16 +314,37 @@ test('社区 Phase 2：帖子话题/项目 chip + 发帖选话题关联项目', 
   await mockCommunity(page)
 
   await page.goto(`${BASE}/community`, { waitUntil: 'domcontentloaded' })
-  // 帖子卡：话题 tag + 关联项目 chip，点 chip 进 XLAB 详情
+  // 帖子卡：话题 tag + 关联项目大卡（feed 投影摘要：封面/状态/简介/浏览），点整卡进 XLAB 详情
   const dc = page.locator('.discussion-card').first()
   await expect(dc.locator('.dc-tags')).toContainText('招人')
-  await expect(dc.locator('.dc-project')).toContainText('智能输液监护')
-  const [chipTab] = await Promise.all([
+  const lpc = dc.locator('.linked-project-card')
+  await expect(lpc).toContainText('智能输液监护')
+  await expect(lpc).toContainText('病房样机')
+  await expect(lpc).toContainText('进行中')
+  await expect(lpc).toContainText('自由分享')
+  await expect(lpc.locator('.lpc-cover img')).toHaveAttribute('src', /showcase\/801\/c_thumb\.webp$/)
+  const [cardTab] = await Promise.all([
     page.waitForEvent('popup'),
-    dc.locator('.dc-project').click(),
+    lpc.click(),
   ])
-  await expect(chipTab).toHaveURL(/\/projects\/801$/)
-  await chipTab.close()
+  await expect(cardTab).toHaveURL(/\/projects\/801$/)
+  await cardTab.close()
+
+  // 键盘访问（§12.2.11）：Enter 原生导航、Space 由组件接管，均新开标签页
+  await lpc.focus()
+  const [enterTab] = await Promise.all([
+    page.waitForEvent('popup'),
+    page.keyboard.press('Enter'),
+  ])
+  await expect(enterTab).toHaveURL(/\/projects\/801$/)
+  await enterTab.close()
+  await lpc.focus()
+  const [spaceTab] = await Promise.all([
+    page.waitForEvent('popup'),
+    page.keyboard.press('Space'),
+  ])
+  await expect(spaceTab).toHaveURL(/\/projects\/801$/)
+  await spaceTab.close()
 
   // 话题筛选 chips 从 feed 聚合出现
   await page.goto(`${BASE}/community`, { waitUntil: 'domcontentloaded' })

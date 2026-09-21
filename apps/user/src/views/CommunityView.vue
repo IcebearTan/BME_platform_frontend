@@ -140,26 +140,13 @@
               </div>
             </DewCard>
 
-            <!-- XLAB 引流：正在做的项目（09-19，社区为项目广场导流） -->
-            <DewCard v-if="xlabProjects.length" size="lg" class="xlab-card">
-              <template #header>
-                <div class="xlab-card__head" @click="openTab('/projects')">
-                  <span class="xlab-card__title">项目现场</span>
-                  <span class="xlab-card__more">进入 XLAB<el-icon><ArrowRight /></el-icon></span>
-                </div>
-              </template>
-              <div class="xlab-card__list">
-                <div v-for="prj in xlabProjects" :key="prj.id" class="xlab-item" @click="openTab(`/projects/${prj.id}`)">
-                  <DewImage v-if="prj.cover_thumb || prj.cover" class="xlab-item__cover"
-                            :src="assetUrl(prj.cover_thumb || prj.cover)" ratio="1/1" width="44px" alt="项目封面" />
-                  <div v-else class="xlab-item__cover xlab-item__cover--ph">{{ (prj.title || '?')[0] }}</div>
-                  <div class="xlab-item__body">
-                    <div class="xlab-item__name">{{ prj.title }}</div>
-                    <div class="xlab-item__meta">{{ prj.project_status_text }}<template v-if="prj.camp_name"> · {{ prj.camp_name }}</template></div>
-                  </div>
-                </div>
-              </div>
-            </DewCard>
+            <!-- XLAB 引流（XLab 引流优化 09-21）：右栏信号面板——发现项目，
+                 最新/最多浏览排序，主项目 + 次项目层级，路由行为由页面层 openTab 承载 -->
+            <CommunityXlabPanel
+              class="community-xlab-slot"
+              @open-project="(id) => openTab(`/projects/${id}`)"
+              @open-xlab="() => openTab('/projects')"
+            />
           </aside>
         </div>
       </el-main>
@@ -187,7 +174,9 @@
           <span class="create-dlg__label">关联项目</span>
           <select v-model="newThread.project_id" class="create-dlg__select">
             <option :value="null">不关联</option>
-            <option v-for="prj in xlabProjects" :key="prj.id" :value="prj.id">{{ prj.title }}</option>
+            <option v-for="prj in linkableProjects" :key="prj.id" :value="prj.id">
+              {{ prj.title }}（{{ prj.project_status_text }}）
+            </option>
           </select>
           <span class="create-dlg__hint-inline">招人帖关联 XLAB 项目，读者直达项目页</span>
         </div>
@@ -222,6 +211,7 @@ import MenuComponent from '../components/MenuComponent.vue'
 import MobileMenuComponent from '../components/MobileMenuComponent.vue'
 import DiscussionCard from '../components/Community/DiscussionCard.vue'
 import ArticleCard from '../components/Community/ArticleCard.vue'
+import CommunityXlabPanel from '../components/Community/CommunityXlabPanel.vue'
 import { DewButtonBar, DewCard, DewInput, DewButton, DewSkeleton, DewDialog, DewImage } from '@bme/dew-ui'
 import api from '../api'
 import { assetUrl } from '../services/campService'
@@ -330,6 +320,20 @@ const fetchThreads = async (reset = false) => {
         isEssence: !!item.is_essence,
         projectId: item.project_id,
         projectTitle: item.project_title || '',
+        // 关联项目摘要（XLab 引流优化 §6.4）：feed 同一 SQL 投影带回，无逐帖请求；
+        // 项目下架/无关联时后端不落字段，这里为 null——DiscussionCard 不渲染项目卡
+        project: (item.project_id && item.project_title) ? {
+          id: item.project_id,
+          title: item.project_title,
+          summary: item.project_summary || '',
+          cover_thumb: item.project_cover_thumb ? assetUrl(item.project_cover_thumb) : null,
+          status: item.project_status,
+          status_text: item.project_status_text || '',
+          source: item.project_source,
+          source_text: item.project_source_text || '',
+          tags: item.project_tags || [],
+          view_count: item.project_view_count || 0,
+        } : null,
         category: '全局',
         author: item.author_name,
         authorId: item.author_id,
@@ -410,10 +414,9 @@ const formatTimeAgo = (dateStr) => {
 }
 
 // 专题数据
-// ── 社区重设计（09-19）：公告条 / 推文精选带 / XLAB 引流 ──
+// ── 社区重设计（09-19）：公告条 / 推文精选带；XLAB 引流已升级为独立信号面板组件（09-21） ──
 const noticeItem = ref(null)          // 顶部公告条：最近一条 system 重要通知
 const spotlightItems = ref([])        // 精选带：官方推文（feed 不重复出现）
-const xlabProjects = ref([])          // 右栏项目现场：进行中的 XLAB 项目
 
 async function fetchNoticeBar() {
   try {
@@ -428,21 +431,15 @@ async function fetchSpotlight() {
     spotlightItems.value = res.data?.data || []
   } catch { /* 精选带静默隐藏 */ }
 }
-async function fetchXlabProjects() {
-  try {
-    const res = await showcaseService.fetchProjects({ project_status: 'ongoing' })
-    const rows = res.projects || []
-    // 有封面的优先，最多 4 个
-    rows.sort((a, b) => Number(!!(b.cover_thumb || b.cover)) - Number(!!(a.cover_thumb || a.cover)))
-    xlabProjects.value = rows.slice(0, 4)
-  } catch { /* 引流卡静默隐藏 */ }
-}
 // 新开标签页打开（09-20 用户定调）：社区流原地保留，内容在新页承载
 const openTab = (path) => window.open(router.resolve(path).href, '_blank', 'noopener')
 const goSpotlight = (id) => openTab(`/article-v2?id=${id}`)
 
-// 发帖关联项目候选（全量可见项目；右栏 xlabProjects 仅前 4）
+// 发帖关联项目候选（XLab 引流优化 §9）：全量可见项目按需拉取，
+// 候选允许构思中/进行中（排除已完成与下架——下架由后端非 admin 视角过滤）
 const allProjects = ref([])
+const linkableProjects = computed(() =>
+  allProjects.value.filter(p => p.project_status === 'idea' || p.project_status === 'ongoing'))
 async function fetchAllProjects() {
   try {
     const res = await showcaseService.fetchProjects({})
@@ -474,8 +471,8 @@ function openCreateDlg() {
   newThread.value = { title: '', content: '', scope_type: 'global', scope_id: null, category: '', project_id: null }
   pendingImages.value = []
   createDlg.value = true
-  // 项目下拉数据：右栏 xlabProjects 只取 4 个，选「招人」时需要更多候选——拉全量（社团级数据量）
-  if (!allProjects.length) fetchAllProjects()
+  // 项目下拉数据：按需拉全量可见项目（社团级数据量），右栏面板数据互不相干
+  if (!allProjects.value.length) fetchAllProjects()
 }
 function removePendingImage(i) {
   pendingImages.value.splice(i, 1)
@@ -558,12 +555,17 @@ onMounted(() => {
   fetchThreads(true)
   fetchNoticeBar()
   fetchSpotlight()
-  fetchXlabProjects()
 })
 
 // 监听类型/排序/话题变化：重置到第 1 页并重拉
 watch([contentType, sortType, topicFilter], () => {
   fetchThreads(true)
+})
+
+// 切换离开「招人」话题时清空待提交的 project_id（XLab 引流优化 §9.5）：
+// 关联项目行随话题隐藏，残留的选中值不再随隐藏字段误提交
+watch(() => newThread.value.category, (cat) => {
+  if (cat !== 'recruit') newThread.value.project_id = null
 })
 
 onUnmounted(() => {
@@ -760,35 +762,8 @@ onUnmounted(() => {
 .post-entry { width: 100%; margin-bottom: 14px; justify-content: center; }
 .post-entry__icon { margin-right: 6px; }
 
-/* ── XLAB 引流卡（09-19）：项目现场 ── */
-.xlab-card__head {
-  display: flex; align-items: center; justify-content: space-between; cursor: pointer;
-}
-.xlab-card__title { font-size: 15px; font-weight: 700; color: var(--dew-text-heading, #1f2937); }
-.xlab-card__more {
-  display: inline-flex; align-items: center; gap: 3px;
-  font-size: 12px; color: var(--dew-text-faint, #999); transition: color 0.15s;
-}
-.xlab-card__head:hover .xlab-card__more { color: var(--dew-accent, #00915d); }
-.xlab-card__list { display: flex; flex-direction: column; gap: 4px; }
-.xlab-item {
-  display: flex; align-items: center; gap: 10px; padding: 6px; margin: 0 -6px;
-  border-radius: var(--radius-sm, 8px); cursor: pointer; transition: background 0.15s;
-}
-.xlab-item:hover { background: rgba(0, 0, 0, 0.05); }
-.theme-dark .xlab-item:hover { background: rgba(255, 255, 255, 0.07); }
-.xlab-item__cover { flex-shrink: 0; border-radius: var(--radius-sm, 8px); overflow: hidden; }
-.xlab-item__cover--ph {
-  width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
-  background: rgba(0, 0, 0, 0.08); color: var(--dew-text-faint, #999); font-weight: 700;
-}
-.theme-dark .xlab-item__cover--ph { background: rgba(255, 255, 255, 0.08); }
-.xlab-item__body { flex: 1; min-width: 0; }
-.xlab-item__name {
-  font-size: 13px; font-weight: 600; color: var(--dew-text-heading, #1f2937);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.xlab-item__meta { font-size: 11px; color: var(--dew-text-faint, #999); margin-top: 2px; }
+/* XLAB 信号面板（09-21）自带黑底直角视觉与全部样式，这里只负责它在右栏的占位 */
+.community-xlab-slot { margin-bottom: 16px; }
 
 /* ── 发帖弹层内部 ── */
 .create-dlg__form { display: flex; flex-direction: column; gap: 10px; }
@@ -1666,7 +1641,7 @@ onUnmounted(() => {
   }
 
   /* 右栏不再隐藏（09-19：移动端发帖可达）——上提为 feed 顶部的横向工具条：
-     发帖入口全宽，写文章与 XLAB 卡并排 */
+     发帖入口全宽，写文章与 XLAB 信号面板并排；面板内容多、占整行（09-21） */
   .right-sidebar {
     order: -1;
     display: grid;
@@ -1675,6 +1650,7 @@ onUnmounted(() => {
   }
   .right-sidebar .post-entry { grid-column: 1 / -1; margin-bottom: 0; }
   .right-sidebar .write-entry { margin-bottom: 0; }
+  .right-sidebar .community-xlab-slot { grid-column: 1 / -1; }
 
   .spotlight-track { grid-template-columns: 1fr; }
 
