@@ -1,9 +1,11 @@
 import { test, expect } from '@playwright/test'
+import { readFileSync } from 'node:fs'
 
 // 团购导生市集（/camp/:sid/market）+ ms tab 状态机：mock 后端数据，零依赖真实库
 // 规范见 docs/营期模块-设计与IA规范.md §1.2 例外 / §2.4
 
 const BASE = 'http://127.0.0.1:18081/AMEII'
+const PHOTO_SOURCE = 'apps/user/src/assets/back_groud.jpg'
 
 // 200 字上限内的长留言（真实场景：导生端列表单行放不下，需"展开"看全文）
 const LONG_NOTE = '想加入硬件组学习嵌入式开发。此前自学过 C 语言与数字电路，做过流水灯、按键消抖和串口通信的小实验，也在面包板上搭过 51 的最小系统。这次营期希望能跟着您系统学习 STM32，从原理图、PCB 打样到固件调试完整走一遍，做出第一个能拿得出手的实物项目。我时间充裕，愿意投入，也乐于帮同学排查问题，期待有机会加入您的队伍。'
@@ -32,7 +34,7 @@ const DEADLINES = {
 const MENTORS = {
   mentors: [
     { user_id: 13, username: 'test_mentor', photo_url: '/camp/ms/photo/test.svg', avatar: null,
-      capacity: 8, matched: 7, remaining: 1, full: false, tags: ['硬件组'], bio: '搞硬件的，项目资料：https://example.com/mentor-kit。' },
+      capacity: 8, matched: 7, remaining: 1, full: false, tags: ['硬件组'], bio: '搞硬件的，项目资料：[项目资料](https://example.com/mentor-kit)。' },
     { user_id: 20, username: '满员导生', photo_url: null, avatar: null,
       capacity: 3, matched: 3, remaining: 0, full: true, tags: ['软件组'], bio: '' },
     { user_id: 21, username: '软件导生', photo_url: null, avatar: null,
@@ -40,6 +42,38 @@ const MENTORS = {
     { user_id: 22, username: 'AI导生', photo_url: null, avatar: null,
       capacity: 4, matched: 1, remaining: 3, full: false, tags: ['人工智能'], bio: '让数据真正帮助人' },
   ],
+}
+
+function jpegSize(image) {
+  const frameMarkers = new Set([0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf])
+  let offset = 2
+  while (offset + 9 < image.length) {
+    if (image[offset] !== 0xff) {
+      offset += 1
+      continue
+    }
+    const marker = image[offset + 1]
+    if (marker === 0x01 || (marker >= 0xd0 && marker <= 0xd9)) {
+      offset += 2
+      continue
+    }
+    const length = image.readUInt16BE(offset + 2)
+    if (frameMarkers.has(marker)) {
+      return {
+        height: image.readUInt16BE(offset + 5),
+        width: image.readUInt16BE(offset + 7),
+      }
+    }
+    offset += length
+  }
+  throw new Error('compressed JPEG dimensions not found')
+}
+
+function multipartJpeg(body) {
+  const start = body.indexOf(Buffer.from([0xff, 0xd8, 0xff]))
+  const end = body.lastIndexOf(Buffer.from([0xff, 0xd9]))
+  if (start < 0 || end <= start) throw new Error('compressed JPEG not found in upload')
+  return body.subarray(start, end + 2)
 }
 
 function phaseOf(phase, me = {}) {
@@ -120,7 +154,7 @@ test('市集营业：collecting 可逛可收志愿', async ({ page }) => {
   await expect(page.getByRole('dialog')).toContainText('修改时整组替换志愿，以最后一次提交为准。')
   await page.keyboard.press('Escape')
   await expect(page.getByText('可带 8 人', { exact: true })).toBeVisible()
-  const cardBioLink = page.locator('.market-grid .bio').getByRole('link', { name: 'https://example.com/mentor-kit' })
+  const cardBioLink = page.locator('.market-grid .bio').getByRole('link', { name: '项目资料' })
   await expect(cardBioLink).toHaveAttribute('href', 'https://example.com/mentor-kit')
   await expect(cardBioLink).toHaveAttribute('target', '_blank')
   await expect(cardBioLink).toHaveAttribute('rel', 'noopener noreferrer')
@@ -155,8 +189,8 @@ test('市集营业：collecting 可逛可收志愿', async ({ page }) => {
   // 加入志愿 → 托盘计数变化
   await page.getByRole('button', { name: '查看 test_mentor 的完整介绍' }).click()
   const detail = page.getByRole('dialog')
-  await expect(detail.locator('.detail-bio')).toHaveText('搞硬件的，项目资料：https://example.com/mentor-kit。')
-  await expect(detail.getByRole('link', { name: 'https://example.com/mentor-kit' })).toHaveAttribute('href', 'https://example.com/mentor-kit')
+  await expect(detail.locator('.detail-bio')).toHaveText('搞硬件的，项目资料：项目资料。')
+  await expect(detail.getByRole('link', { name: '项目资料' })).toHaveAttribute('href', 'https://example.com/mentor-kit')
   await detail.getByRole('button', { name: '加入心仪导生 test_mentor' }).click()
   await expect(detail.getByText('已选为第 1 志愿')).toBeVisible()
   await page.keyboard.press('Escape')
@@ -340,6 +374,20 @@ test('导生工作台：谁报了我只读名单，无收人按钮', async ({ pa
   await expect(page.getByText('最多 1000 字')).toBeVisible()
   await expect(page.getByText('这位导生有点神秘，先看看标签吧~~')).toBeVisible()
   const bioInput = page.getByPlaceholder('介绍你的经历、擅长的方向、能带学员做什么，以及你期待怎样的伙伴。')
+  const linkedBio = 'A[项目主页](https://example.com/mentor-profile)B'
+  await bioInput.fill('AB')
+  await bioInput.press('Home')
+  await bioInput.press('ArrowRight')
+  await page.getByRole('button', { name: '插入链接', exact: true }).click()
+  await page.getByPlaceholder('例如：项目资料').fill('项目主页')
+  await page.getByPlaceholder('https://example.com').fill('https://example.com/mentor-profile')
+  await page.getByRole('button', { name: '插入', exact: true }).click()
+  await expect(bioInput).toHaveValue(linkedBio)
+  await page.locator('.detail-link').click()
+  const linkedDetail = page.getByRole('dialog')
+  await expect(linkedDetail.locator('.detail-bio')).toHaveText('A项目主页B')
+  await expect(linkedDetail.getByRole('link', { name: '项目主页' })).toHaveAttribute('href', 'https://example.com/mentor-profile')
+  await page.keyboard.press('Escape')
   const longBio = '介绍'.repeat(500)
   await bioInput.fill(longBio)
   await expect(bioInput).toHaveValue(longBio)
@@ -369,6 +417,52 @@ test('导生工作台：谁报了我只读名单，无收人按钮', async ({ pa
   // 单轮制：收集期名单纯只读，勾选动作只在截止后的人员确认页出现
   await expect(page.getByRole('button', { name: '收下' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: '预览', exact: true })).toHaveCount(0)
+
+  // 上传前本地压缩：网络里出去的图片最长边 <=800、<=600KB，且小于源图
+  let uploadedBody = null
+  let uploadPreamble = ''
+  let uploadCount = 0
+  await page.route('**/camp/ms/1/profile/photo', async (route) => {
+    if (route.request().method() !== 'POST') return route.fulfill({ status: 204 })
+    uploadCount += 1
+    uploadedBody = route.request().postDataBuffer()
+    const jpegStart = uploadedBody.indexOf(Buffer.from([0xff, 0xd8, 0xff]))
+    uploadPreamble = uploadedBody.subarray(0, Math.max(0, jpegStart)).toString('utf8')
+    return route.fulfill({ json: { code: 200, photo_url: '/camp/ms/photo/test.svg' } })
+  })
+  await page.locator('.photo-upload input[type="file"]')
+    .setInputFiles(PHOTO_SOURCE)
+  await expect(page.getByText('照片已上传，记得保存名片')).toBeVisible()
+  await expect.poll(() => uploadedBody?.length || 0).toBeGreaterThan(0)
+  const uploadedImage = multipartJpeg(uploadedBody)
+  const { width, height } = jpegSize(uploadedImage)
+  const sourceImage = readFileSync(PHOTO_SOURCE)
+  expect(Math.max(width, height)).toBeLessThanOrEqual(800)
+  expect(uploadedImage.length).toBeLessThanOrEqual(600 * 1024)
+  expect(uploadedImage.length).toBeLessThan(sourceImage.length)
+  expect(uploadPreamble).toContain('back_groud.jpg')
+
+  await page.evaluate(async () => {
+    const canvas = document.createElement('canvas')
+    canvas.width = 120
+    canvas.height = 90
+    const context = canvas.getContext('2d')
+    context.fillStyle = '#e8f2ff'
+    context.fillRect(0, 0, 120, 90)
+    context.fillStyle = '#315b8a'
+    context.fillRect(25, 20, 70, 50)
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.95))
+    const file = new File([blob], 'tiny-source.jpg', { type: 'image/jpeg' })
+    const transfer = new DataTransfer()
+    transfer.items.add(file)
+    const input = document.querySelector('.photo-upload input[type="file"]')
+    input.files = transfer.files
+    input.dispatchEvent(new Event('change', { bubbles: true }))
+  })
+  await expect.poll(() => uploadCount).toBe(2)
+  const smallUpload = multipartJpeg(uploadedBody)
+  const smallSize = jpegSize(smallUpload)
+  expect(Math.max(smallSize.width, smallSize.height)).toBeLessThanOrEqual(800)
 
   expect(errors).toEqual([])
 })

@@ -307,27 +307,31 @@ const handleEntryClick = (entry) => {
 }
 
 .content-sections {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
   gap: 20px;
   width: 100%;
   min-height: 400px;
   box-sizing: border-box;
-  overflow: visible; /* 允许阴影等效果显示 */
+  overflow: clip;
+  position: relative;
+  z-index: 2;
 }
 
 .left-section {
-  flex: 1;
   display: flex;
   flex-direction: column;
-  min-width: 0; /* 允许flex项目收缩到最小尺寸 */
-  overflow: visible; /* 允许轮播悬停效果溢出显示 */
+  min-width: 0;
+  overflow: clip;
+  isolation: isolate;
 }
 
 .right-section {
-  width: 300px;
-  flex-shrink: 0;
-  min-width: 0; /* 允许内容在必要时收缩 */
-  overflow: visible; /* 允许阴影等效果显示 */
+  min-width: 0;
+  overflow: hidden;
+  position: relative;
+  z-index: 2;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -340,8 +344,9 @@ const handleEntryClick = (entry) => {
   }
   
   .right-section {
-    width: 280px;
+    width: auto;
   }
+  .content-sections { grid-template-columns: minmax(0, 1fr) 280px; }
   
   .homeMainContainer {
     padding: 16px;
@@ -354,8 +359,9 @@ const handleEntryClick = (entry) => {
   }
   
   .right-section {
-    width: 250px;
+    width: auto;
   }
+  .content-sections { grid-template-columns: minmax(0, 1fr) 250px; }
   
   .homeMainContainer {
     padding: 12px;
@@ -364,12 +370,13 @@ const handleEntryClick = (entry) => {
 
 @media (max-width: 900px) {
   .content-sections {
-    flex-direction: column;
+    grid-template-columns: 1fr;
     gap: 20px;
   }
   
   .right-section {
     width: 100%;
+    overflow: visible;
   }
   
   .left-section {

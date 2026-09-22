@@ -67,7 +67,7 @@
           target="_blank"
           rel="noopener noreferrer"
           @click.stop
-        >{{ token.value }}</a><span v-else>{{ token.value }}</span></template>”</span>
+        >{{ token.label || token.value }}</a><span v-else>{{ token.value }}</span></template>”</span>
       </p>
 
       <button class="detail-link" type="button" :aria-label="`查看 ${mentor.username} 的完整介绍`" @click="detailVisible = true">
@@ -108,7 +108,7 @@
           :href="token.value"
           target="_blank"
           rel="noopener noreferrer"
-        >{{ token.value }}</a><span v-else>{{ token.value }}</span></template></p>
+        >{{ token.label || token.value }}</a><span v-else>{{ token.value }}</span></template></p>
         <img v-if="photoSrc" class="detail-photo" :src="photoSrc" :alt="`${mentor.username} 的展示图片`" />
       </div>
       <template #footer>

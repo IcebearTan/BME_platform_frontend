@@ -127,7 +127,7 @@
       <div class="crop-stage">
         <img ref="cropImgEl" :src="cropDlg.src" alt="待裁切底图" />
       </div>
-      <p class="form-hint">拖动平移、滚轮缩放取景框；首页展示条约为全宽 160px（比 2:1 更扁），请把主体放在取景框<b>纵向中部</b>，再用「显示焦点」微调。</p>
+      <p class="form-hint">拖动平移、滚轮缩放取景框；首页主卡按设备在 2:1 / 16:7 / 16:9 间自适应取景，请把主体放在取景框<b>纵向中部</b>，再用「显示焦点」微调。</p>
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="closeCropDialog">取消</el-button>

@@ -6,6 +6,7 @@ import { extname, join } from 'node:path';
 
 const port = 5002;
 const assetDir = join(process.cwd(), 'apps', 'user', 'src', 'assets');
+const previewBannerFile = join(assetDir, 'preview', 'home-carousel-adaptive-demo.png');
 // 本地演示服务器：放行任意端口的本机来源（端口随启动方式浮动，写死会挡掉自定义端口的预览实例）
 function isLocalOrigin(origin) {
   if (!origin) return false;
@@ -250,6 +251,32 @@ const server = createServer(async (req, res) => {
   }
 
   const url = new URL(req.url, `http://127.0.0.1:${port}`);
+  // Preview-only home banner. Production banners remain managed by the API/database.
+  if (url.pathname === '/preview/banner/home-carousel-adaptive-demo.png' && existsSync(previewBannerFile)) {
+    res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'no-store' });
+    createReadStream(previewBannerFile).pipe(res);
+    return;
+  }
+  if (url.pathname === '/banner/list') {
+    sendJson(res, {
+      code: 200,
+      // Repeat the supplied artwork only to demonstrate multi-frame carousel behavior locally.
+      data: [1, 2, 3].map((index) => ({
+        Banner_Id: `preview-home-carousel-adaptive-${index}`,
+        title: `26级卓越工程师技能训练 · 示例 ${index}`,
+        description: '',
+        image: '/preview/banner/home-carousel-adaptive-demo.png',
+        image_focus_y: 50,
+        image_fit: 'cover',
+        // Source artwork is 1984 × 792. Preserve its complete composition in this preview.
+        display_ratio: 1984 / 792,
+        link_type: 'route',
+        link_value: '/camp',
+        is_camp_frame: false,
+      })),
+    });
+    return;
+  }
   if ((url.pathname === '/auth/login' || url.pathname === '/auth/admin_login') && req.method === 'POST') {
     const body = await readJson(req);
     const email = String(body.User_Email || '').toLowerCase();

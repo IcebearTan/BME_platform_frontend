@@ -44,7 +44,7 @@
               :href="token.value"
               target="_blank"
               rel="noopener noreferrer"
-            >{{ token.value }}</a><span v-else>{{ token.value }}</span></template></p>
+            >{{ token.label || token.value }}</a><span v-else>{{ token.value }}</span></template></p>
           </div>
         </div>
       </DewCard>
