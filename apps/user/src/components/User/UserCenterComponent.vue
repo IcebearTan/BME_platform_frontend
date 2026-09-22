@@ -96,9 +96,11 @@ const fetchUserAvatar = async () => {
   }
 }
 
-// 角色标签：身份解耦后全局角色仅两级（导生/学员是营内身份，展示层不再区分）
-const roleLabel = computed(() => (store.getters.role === 'super_admin' ? '超管' : '同学'))
-const roleIsStaff = computed(() => store.getters.role === 'super_admin')
+// 等级徽标（替代旧「超管/同学」身份标签）：super_admin 显示「超管」（管理员无等级语义，
+// 同 MenuComponent 约定），否则 LV1-4 走全局 lv-badge 色阶。
+// 数据优先 user_index 回包（User_Info 含 role+level），未回包瞬间回落 store（顶栏已静默校准过）
+const isStaff = computed(() => (User_Info.value.role || store.getters.role) === 'super_admin')
+const userLevel = computed(() => User_Info.value.level ?? store.getters.level ?? 1)
 
 // 计算当前应该高亮的菜单项
 const getActiveMenuIndex = (currentPath) => {
@@ -165,7 +167,8 @@ onMounted(() => {
               alt="image"
             />
             <div class="uc-username">{{ User_Info.User_Name }}</div>
-            <span class="uc-role" :class="roleIsStaff ? 'uc-role--staff' : 'uc-role--student'">{{ roleLabel }}</span>
+            <span v-if="isStaff" class="uc-role uc-role--staff">超管</span>
+            <span v-else :class="['lv-badge', `lv-${userLevel}`]">LV{{ userLevel }}</span>
           </div>
         </template>
 
@@ -195,15 +198,16 @@ onMounted(() => {
   display: none;
 }
 
-/* 角色 tag：与顶栏点头像（MenuComponent .avatar-pop__role）完全一致 */
+/* 超管徽标：与顶栏点头像（MenuComponent .avatar-pop__role--admin）同款琥珀；
+   LV1-4 徽标直接用全局 .lv-badge 色阶（tokens.css 单源），不在此重复定义 */
 .uc-role {
   font-size: 11px;
-  font-weight: 600;
-  padding: 1px 8px;
+  font-weight: 700;
+  line-height: 18px;
+  padding: 0 8px;
   border-radius: var(--radius-full);
 }
-.uc-role--staff { color: var(--color-primary); background: var(--color-primary-light); }
-.uc-role--student { color: var(--color-success); background: var(--color-success-light); }
+.uc-role--staff { color: var(--color-warning); background: var(--color-warning-light); }
 
 /* 两栏布局：左侧栏 / 右内容，20px 间隔 */
 .uc-layout {
@@ -224,7 +228,7 @@ onMounted(() => {
   width: 100%;
 }
 
-/* 个人资料（头部）：头像 + 用户名 + 身份标签，居中 */
+/* 个人资料（头部）：头像 + 用户名 + 等级徽标，居中 */
 .uc-profile {
   display: flex;
   flex-direction: column;
