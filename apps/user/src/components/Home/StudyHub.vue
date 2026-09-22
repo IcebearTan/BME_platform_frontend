@@ -6,23 +6,22 @@
     <!-- 轮播Banner区域（DB 驱动：GET /banner/list）。
          加载期骨架占位（对齐 card 轮播主卡形制，防数据到达后布局下推）；失败/空数据整区隐藏 -->
     <div v-if="bannersLoading" class="banner-section banner-section--loading">
-      <DewSkeleton variant="rect" width="50%" :height="carouselHeight" rounded="12px" />
+      <DewSkeleton variant="rect" class="banner-skeleton" :height="carouselHeight" rounded="12px" />
     </div>
     <div v-else-if="banners.length" class="banner-section">
-      <el-carousel
-        :interval="4000"
-        type="card"
-        :height="carouselHeight"
-        indicator-position="outside"
-        arrow="hover"
-        @change="handleBannerChange"
-      >
-        <el-carousel-item
+      <div class="carousel-viewport" @mouseenter="pauseBannerAutoplay" @mouseleave="startBannerAutoplay">
+        <div
+          :class="['carousel-stage', { 'carousel-stage--single': !hasSidePreviews }]"
+          :style="{ '--carousel-ratio': carouselRatio }"
+        >
+          <article
           v-for="(banner, index) in banners"
           :key="banner.id"
-          :class="{ 'is-outgoing-banner': index === outgoingBannerIndex }"
-        >
-          <div class="banner-item" @click="handleBannerClick(banner)">
+          :class="['banner-slide', slideClass(index)]"
+          :style="slideStyle(index)"
+          @click="handleSlideClick(index, banner)"
+          >
+            <div class="banner-item">
             <!-- 学期营帧 = corner 模式：左下角玻璃状态条（避开底图烧录文字区），标题/状态/链接由主推营期驱动 -->
             <div v-if="!banner.bare" :class="['banner-overlay', { 'overlay-corner': banner.corner }]">
               <template v-if="banner.corner">
@@ -39,12 +38,34 @@
               </template>
             </div>
             <DewImage :src="banner.image" :alt="banner.title" class="banner-image"
-                      fit="cover"
+                      :fit="banner.fit"
                       :position="`50% ${banner.focusY ?? 50}%`"
                       :lazy="false" />
-          </div>
-        </el-carousel-item>
-      </el-carousel>
+            </div>
+          </article>
+          <button v-if="banners.length > 1" class="carousel-arrow carousel-arrow--prev" type="button" aria-label="上一张" @click.stop="previousBanner">‹</button>
+          <button v-if="banners.length > 1" class="carousel-arrow carousel-arrow--next" type="button" aria-label="下一张" @click.stop="nextBanner">›</button>
+        </div>
+      </div>
+      <div
+        v-if="banners.length > 1"
+        class="carousel-indicators"
+        aria-label="轮播分页"
+        @mouseenter="pauseBannerAutoplay"
+        @mouseleave="handleIndicatorsLeave"
+      >
+        <button
+          v-for="(_banner, index) in banners"
+          :key="`indicator-${index}`"
+          :class="{ 'is-active': index === activeBannerIndex }"
+          type="button"
+          :aria-label="`切换到第 ${index + 1} 张`"
+          @mouseenter="scheduleBannerPreview(index)"
+          @mouseleave="cancelBannerPreview"
+          @focus="goToBanner(index)"
+          @click="goToBanner(index)"
+        />
+      </div>
     </div>
 
     <!-- 内容切换：学习入口 / 社区广场 / 座位图 -->
@@ -100,7 +121,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onBeforeUnmount, onMounted, h } from 'vue'
+import { ref, reactive, computed, nextTick, onBeforeUnmount, onMounted, h } from 'vue'
 import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
 // el-carousel / el-icon 由 unplugin-vue-components 按需解析（含样式），不再显式 import
@@ -170,7 +191,20 @@ const banners = ref([])
 const bannersLoading = ref(true)   // 加载期骨架占位（防数据到达后整区下推 CLS）
 const bannerSectionRef = ref(null)
 const carouselHeight = ref('160px')
+const isCompactBanner = ref(false)
+const activeBannerIndex = ref(0)
+const hasSidePreviews = computed(() => !isCompactBanner.value && banners.value.length > 1)
+const imageRatio = computed(() => {
+  const ratios = [...new Set(banners.value.map((banner) => banner.displayRatio).filter(Boolean))]
+  return ratios.length === 1 ? ratios[0] : (isCompactBanner.value ? 16 / 9 : 2 / 1)
+})
+const carouselRatio = computed(() => {
+  // 多帧时主卡仅占舞台 68%，舞台必须按该比例反算，主卡才与原图同宽高比。
+  return hasSidePreviews.value ? imageRatio.value / 0.68 : imageRatio.value
+})
 let bannerResizeObserver = null
+let bannerAutoplayTimer = null
+let bannerPreviewTimer = null
 
 function getBannerRatio(width) {
   if (width <= 768) return 16 / 9
@@ -182,11 +216,12 @@ function updateCarouselHeight() {
   const width = bannerSectionRef.value?.clientWidth
   if (!width) return
 
-  // Element Plus card 模式主卡约为容器 50%；按设备档位取主卡展示比例。
-  const activeCardWidth = width * 0.5
-  const ratio = getBannerRatio(width)
+  // 窄屏使用全宽舞台；桌面保留原来的半栏视觉尺度。
+  isCompactBanner.value = width <= 768
+  const activeCardWidth = isCompactBanner.value ? width : width * 0.74 * (hasSidePreviews.value ? 0.68 : 1)
+  const ratio = carouselRatio.value || getBannerRatio(width)
   const height = Math.round(activeCardWidth / ratio)
-  carouselHeight.value = `${Math.max(120, Math.min(height, 300))}px`
+  carouselHeight.value = `${Math.max(120, height)}px`
 }
 
 async function fetchBanners() {
@@ -200,6 +235,8 @@ async function fetchBanners() {
         description: row.description || '',
         image: assetUrl(row.image),
         focusY: row.image_focus_y,   // 显示条纵向焦点（0-100，默认 50 显示中带；管理页可调）
+        fit: row.image_fit || 'cover',
+        displayRatio: Number(row.display_ratio) || null,
         bare: true,
       }
       if (row.link_type === 'external' && row.link_value) banner.external = row.link_value
@@ -207,10 +244,14 @@ async function fetchBanners() {
       if (row.is_camp_frame) applyFeaturedBanner(banner)
       return banner
     })
+    activeBannerIndex.value = 0
   } catch (e) {
     banners.value = []   // 拉取失败整区隐藏（模板 v-if），不阻塞首屏
   } finally {
     bannersLoading.value = false
+    await nextTick()
+    updateCarouselHeight()
+    startBannerAutoplay()
   }
 }
 
@@ -233,10 +274,82 @@ async function applyFeaturedBanner(banner) {
     /* 未登录/接口失败：保持静默角标兜底文案 */
   }
 }
-const outgoingBannerIndex = ref(banners.value.length - 1)
+function circularOffset(index) {
+  const count = banners.value.length
+  if (!count) return 0
+  let offset = index - activeBannerIndex.value
+  if (offset > count / 2) offset -= count
+  if (offset < -count / 2) offset += count
+  return offset
+}
 
-const handleBannerChange = (_currentIndex, previousIndex) => {
-  outgoingBannerIndex.value = previousIndex
+function slideClass(index) {
+  const offset = circularOffset(index)
+  return {
+    'is-active': offset === 0,
+    'is-prev': offset === -1,
+    'is-next': offset === 1,
+    'is-hidden': Math.abs(offset) > 1,
+  }
+}
+
+function slideStyle(index) {
+  const offset = circularOffset(index)
+  if (offset === 0) return { left: '50%', transform: 'translateX(-50%) scale(1)' }
+  if (offset === -1) return { left: '0%', transform: 'translateX(-58%) scale(.84)' }
+  if (offset === 1) return { left: '100%', transform: 'translateX(-42%) scale(.84)' }
+  return { left: '50%', transform: 'translateX(-50%) scale(.72)' }
+}
+
+function goToBanner(index) {
+  cancelBannerPreview()
+  activeBannerIndex.value = index
+}
+
+function nextBanner() {
+  goToBanner((activeBannerIndex.value + 1) % banners.value.length)
+}
+
+function previousBanner() {
+  goToBanner((activeBannerIndex.value - 1 + banners.value.length) % banners.value.length)
+}
+
+function handleSlideClick(index, banner) {
+  if (index !== activeBannerIndex.value) {
+    goToBanner(index)
+    return
+  }
+  handleBannerClick(banner)
+}
+
+function pauseBannerAutoplay() {
+  if (bannerAutoplayTimer) clearInterval(bannerAutoplayTimer)
+  bannerAutoplayTimer = null
+}
+
+function cancelBannerPreview() {
+  if (bannerPreviewTimer) clearTimeout(bannerPreviewTimer)
+  bannerPreviewTimer = null
+}
+
+function scheduleBannerPreview(index) {
+  cancelBannerPreview()
+  pauseBannerAutoplay()
+  if (index === activeBannerIndex.value) return
+  bannerPreviewTimer = setTimeout(() => {
+    activeBannerIndex.value = index
+    bannerPreviewTimer = null
+  }, 180)
+}
+
+function handleIndicatorsLeave() {
+  cancelBannerPreview()
+  startBannerAutoplay()
+}
+
+function startBannerAutoplay() {
+  pauseBannerAutoplay()
+  if (banners.value.length > 1) bannerAutoplayTimer = setInterval(nextBanner, 5000)
 }
 
 // 学习功能入口数据（全部已上线可点；题库/考核/资源等未上线入口统一放服务台「学习服务」板块）
@@ -371,6 +484,8 @@ onMounted(() => {
 onBeforeUnmount(() => {
   bannerResizeObserver?.disconnect()
   bannerResizeObserver = null
+  pauseBannerAutoplay()
+  cancelBannerPreview()
 })
 </script>
 
@@ -388,7 +503,8 @@ onBeforeUnmount(() => {
 .banner-section {
   width: 100%;
   position: relative;
-  overflow: visible;
+  min-width: 0;
+  overflow: clip;
 }
 
 /* 加载期骨架：主卡居中，底部预留外置指示条高度，数据到达无跳动 */
@@ -396,6 +512,62 @@ onBeforeUnmount(() => {
   display: flex;
   justify-content: center;
   padding-bottom: 24px;
+}
+
+.banner-skeleton {
+  width: clamp(360px, 50%, 720px);
+  max-width: 100%;
+}
+
+.carousel-viewport {
+  width: 100%;
+  min-width: 0;
+  overflow: clip;
+}
+
+.carousel-stage {
+  width: clamp(420px, 74%, 900px);
+  max-width: 100%;
+  aspect-ratio: var(--carousel-ratio);
+  position: relative;
+  margin: 0 auto;
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: 12px;
+}
+
+.carousel-stage--single {
+  width: clamp(360px, 50%, 720px);
+}
+
+.banner-slide {
+  position: absolute;
+  top: 0;
+  width: 68%;
+  height: 100%;
+  z-index: 1;
+  cursor: pointer;
+  opacity: .58;
+  transition: left .42s ease, transform .42s ease, opacity .28s ease;
+}
+
+.carousel-stage--single .banner-slide {
+  width: 100%;
+}
+
+.banner-slide.is-active {
+  z-index: 3;
+  opacity: 1;
+}
+
+.banner-slide.is-prev,
+.banner-slide.is-next {
+  z-index: 2;
+}
+
+.banner-slide.is-hidden {
+  pointer-events: none;
+  opacity: 0;
 }
 
 .banner-item {
@@ -408,10 +580,8 @@ onBeforeUnmount(() => {
   overflow: hidden;
 }
 
-.banner-item:hover {
-  transform: scale(1.02);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-  z-index: 10;
+.banner-slide.is-active .banner-item:hover .banner-image {
+  transform: scale(1.025);
 }
 
 .banner-image {
@@ -587,54 +757,44 @@ onBeforeUnmount(() => {
   width: 100%;
 }
 
-/* 轮播组件样式修复 - 允许悬停放大溢出 + 去掉自带灰底 */
-:deep(.el-carousel),
-:deep(.el-carousel__container) {
-  overflow: visible !important;
-  background: transparent !important;
+.carousel-arrow {
+  position: absolute;
+  top: 50%;
+  z-index: 5;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  transform: translateY(-50%);
+  background: rgba(15, 23, 42, .38);
+  color: #fff;
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
 }
 
-:deep(.el-carousel__item),
-:deep(.el-carousel__item--card),
-:deep(.el-carousel__item--card.is-in-stage),
-:deep(.el-carousel__item--card.is-active) {
-  overflow: visible !important;
-  background: transparent !important;
+.carousel-arrow:hover { background: rgba(15, 23, 42, .7); }
+.carousel-arrow--prev { left: 10px; }
+.carousel-arrow--next { right: 10px; }
+
+.carousel-indicators {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  padding-top: 12px;
 }
 
-:deep(.el-carousel__item--card.is-active) {
-  z-index: 3;
+.carousel-indicators button {
+  width: 28px;
+  height: 3px;
+  border: 0;
+  border-radius: 999px;
+  padding: 0;
+  background: color-mix(in srgb, var(--dew-text-muted) 30%, transparent);
+  cursor: pointer;
 }
 
-:deep(.el-carousel__item--card.is-outgoing-banner:not(.is-active)) {
-  z-index: 2;
-}
-
-/* card 轮播侧卡的灰色遮罩（侧卡变灰的元凶；激活卡无此遮罩）→ 透明 */
-:deep(.el-carousel__mask) {
-  background: transparent !important;
-}
-
-/* 轮播组件主题适配 */
-:deep(.el-carousel__indicator) {
-  transition: all 0.3s ease;
-}
-
-.theme-light :deep(.el-carousel__indicator button) {
-  background-color: rgba(0, 0, 0, 0.3);
-}
-
-.theme-dark :deep(.el-carousel__indicator button) {
-  background-color: rgba(255, 255, 255, 0.4);
-}
-
-.theme-light :deep(.el-carousel__indicator.is-active button) {
-  background-color: #409EFF;
-}
-
-.theme-dark :deep(.el-carousel__indicator.is-active button) {
-  background-color: #409EFF;
-}
+.carousel-indicators button.is-active { background: var(--color-primary, #409eff); }
 
 /* 响应式设计 */
 @media (max-width: 1200px) {
@@ -669,6 +829,21 @@ onBeforeUnmount(() => {
 @media (max-width: 768px) {
   .study-hub-container {
     gap: 16px;
+  }
+
+  .carousel-stage,
+  .banner-skeleton {
+    width: 100%;
+  }
+
+  .banner-slide {
+    width: 100%;
+  }
+
+  .banner-slide.is-prev,
+  .banner-slide.is-next {
+    opacity: 0;
+    pointer-events: none;
   }
 
   .banner-overlay {

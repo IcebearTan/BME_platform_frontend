@@ -227,14 +227,24 @@ const submitFeedback = async () => {
   position: fixed;
   bottom: 60px;
   right: 60px;
-  z-index: 1000;
+  /* 内容卡片优先于浮钮：避免它压住首页轮播或右侧信息栏。 */
+  z-index: 1;
+}
+
+/* 中小屏信息密度高，反馈入口进入正常文档流，不能遮住轮播或信息卡。 */
+@media (max-width: 1200px) {
+  .feedback-float {
+    position: static;
+    display: flex;
+    justify-content: flex-end;
+    margin: 20px 24px;
+  }
 }
 
 /* 移动端适配 */
 @media (max-width: 768px) {
   .feedback-float {
-    bottom: 30px;
-    right: 30px;
+    margin: 16px;
   }
 }
 
