@@ -217,7 +217,8 @@ const activeFilter = computed({
   set: (v) => { emit('update:tab', v) },
 })
 const currentPage = ref(1)
-const pageSize = 20
+// 09-22：20 条一页屏占过长，收敛为 10 条/页（铃铛预览仍是独立 8 条口径）
+const pageSize = 10
 
 // 统计
 const total = computed(() => filteredList.value.length)

@@ -1,12 +1,13 @@
 <script>
 import api from '../api';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { Search } from '@element-plus/icons-vue';
 import { DewCard } from '@bme/dew-ui';
 
 // XLAB 广场项目治理（Phase 2 09-20）：集中上下架（admin 视角含 hidden 条目；
 // 权限后端 _can_manage = is_admin 或项目 owner）。删除走用户端详情页，本页只做上下架。
 export default {
-  components: { DewCard },
+  components: { DewCard, Search },
 
   data() {
     return {

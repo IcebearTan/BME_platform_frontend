@@ -126,6 +126,7 @@ import api from '../api';
 import { onBeforeMount } from 'vue';
 import { ref, reactive} from 'vue';
 import { ElDialog, ElMessage, ElMessageBox} from 'element-plus';
+import { Search } from '@element-plus/icons-vue';
 import { useStore } from 'vuex';
 import { DewCard } from '@bme/dew-ui';
 
