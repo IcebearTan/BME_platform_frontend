@@ -22,6 +22,8 @@ const loadUserSettings = () => import('./components/User/UserSettingsComponent.v
 const loadMyFeedbacks = () => import('./components/User/MyFeedbacksComponent.vue')
 const loadMyFavorites = () => import('./components/User/MyFavoritesComponent.vue')
 const loadMyArticles = () => import('./components/User/MyArticlesComponent.vue')
+// 我的书架（courseShelf 收藏课程，2026-09-22）
+const loadMyShelf = () => import('./components/User/MyShelfComponent.vue')
 const loadMyThreads = () => import('./components/User/MyThreadsComponent.vue')
 const loadArticle = () => import('./views/ArticleView.vue')
 const loadArticleV2 = () => import('./views/ArticleViewV2.vue')
@@ -167,6 +169,12 @@ const router = createRouter({
                     path: '/user-center/my-favorites',
                     name: 'my-favorites',
                     component: loadMyFavorites,
+                },
+                {
+                    // 我的书架：courseShelf 收藏的课程列表（学习分组入口在 UserCenterComponent 侧栏）
+                    path: '/user-center/my-shelf',
+                    name: 'my-shelf',
+                    component: loadMyShelf,
                 },
                 {
                     path: '/user-center/my-articles',

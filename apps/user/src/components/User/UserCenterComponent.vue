@@ -6,7 +6,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRouter, useRoute } from 'vue-router'
 import { useStore } from 'vuex';
-import { Message, User, Setting, Calendar, Collection, EditPen, Document, ChatDotRound } from '@element-plus/icons-vue';
+import { Message, User, Setting, Calendar, Collection, EditPen, Document, ChatDotRound, Notebook } from '@element-plus/icons-vue';
 import { DewCard, DewSidebar } from '@bme/dew-ui'
 
 const User_Info = ref({})
@@ -38,6 +38,7 @@ const navItems = [
   {
     label: '学习', children: [
       { value: '/camp', label: '营期中心', icon: Calendar },
+      { value: '/user-center/my-shelf', label: '我的书架', icon: Notebook },
     ],
   },
 ]
@@ -128,6 +129,11 @@ const getActiveMenuIndex = (currentPath) => {
   }
   if (currentPath.startsWith('/user-center/my-articles')) {
     return '/user-center/my-articles'
+  }
+
+  // 我的书架子路由
+  if (currentPath.startsWith('/user-center/my-shelf')) {
+    return '/user-center/my-shelf'
   }
 
   // 营期中心独立页
