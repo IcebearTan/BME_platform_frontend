@@ -29,7 +29,10 @@
 
     <!-- A. 平台队列：尚无逐项指派语义，不称为「我的待办」 -->
     <div class="section">
-      <div class="section-title">平台待办</div>
+      <div class="section-heading">
+        <div class="section-title">平台待办</div>
+        <el-button type="primary" link @click="go('/workbench/items')">查看全部待办</el-button>
+      </div>
       <div v-if="summary?.as_of" class="muted">数据更新于 {{ summary.as_of.slice(0, 16).replace('T', ' ') }}</div>
       <div v-if="summaryState === 'error'" class="muted pad">待办数据暂不可用 <el-button size="small" link @click="loadSummary">重试</el-button></div>
       <div v-else-if="summaryState === 'loading'" class="muted pad">待办数据加载中…</div>
@@ -298,6 +301,7 @@ onMounted(() => {
 }
 
 .todo-card.unavailable { cursor: default; }
+.section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .todo-card:disabled { opacity: 1; }
 
 .todo-details { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }

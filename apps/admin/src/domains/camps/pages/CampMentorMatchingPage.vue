@@ -18,7 +18,7 @@
           <el-button size="small" :loading="batchApproving"
             @click="confirmApproveAll(mentorJoinRequests)">一键通过</el-button>
         </div>
-        <el-table :data="mentorJoinRequests" border size="small"
+        <el-table ref="mentorRequestTable" :data="mentorJoinRequests" border size="small" row-key="id" highlight-current-row
           @selection-change="(rows) => (mentorJoinSel = rows)">
           <el-table-column type="selection" width="40" />
           <el-table-column label="报名导生" prop="username" width="110" />
@@ -228,6 +228,7 @@ import api from '../../../api'
 import { useCampContext } from '../context/campContext'
 import { createJoinApproval } from '../shared/joinRequests'
 import { createGuardedAction } from '../shared/guardedAction'
+import { useFocusRow, bindFocusToTable } from '../shared/useFocusRow'
 import AccessDenied from '../workspace/AccessDenied.vue'
 
 const ctx = useCampContext()
@@ -236,7 +237,10 @@ const { campId, session, canManage, manageWritable, isSuperAdmin, gateOn, load }
 // ── 导生报名（join-requests 里 apply_role=mentor 的子集；本叶自取一份读态） ──
 const joinRequests = ref([])
 const mentorJoinSel = ref([])
+const mentorRequestTable = ref(null)
 const mentorJoinRequests = computed(() => joinRequests.value.filter((r) => r.apply_role === 'mentor'))
+const { focusId } = useFocusRow()
+bindFocusToTable(mentorRequestTable, mentorJoinRequests, focusId)
 
 async function fetchJoinRequests() {
   try {

@@ -9,7 +9,7 @@
       <h4 class="sec-title">待审核材料（{{ pending.length }}）</h4>
       <div v-if="!pending.length" class="hint" style="padding: 8px 0 4px;">没有待你审核的材料</div>
       <DewCard v-else no-hover class="table-card">
-        <el-table :data="pending" border size="small">
+        <el-table ref="pendingTable" :data="pending" border size="small" row-key="submission_id" highlight-current-row>
           <el-table-column label="项目" prop="unit_name" min-width="120" />
           <el-table-column label="节点" prop="milestone_title" min-width="110" />
           <el-table-column label="提交人" prop="submitted_by_name" width="100" />
@@ -63,23 +63,29 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { nextTick, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { DewCard } from '@bme/dew-ui'
 import api from '../../../api'
 import { useCampContext } from '../context/campContext'
+import { useFocusRow } from '../shared/useFocusRow'
 import AccessDenied from '../workspace/AccessDenied.vue'
 
 const ctx = useCampContext()
 const { campId, canManage, manageWritable } = ctx
 
 const pending = ref([])
+const pendingTable = ref(null)
+const { focusId } = useFocusRow()
 const outcomes = ref([])
 
 async function fetchDeliveryAdmin() {
   try {
     const res = await api.get(`/camp/sessions/${campId.value}/delivery-admin`)
     pending.value = res.data.pending_reviews || []
+    await nextTick()
+    const focused = pending.value.find((row) => row.submission_id === focusId.value)
+    if (focused) pendingTable.value?.setCurrentRow(focused)
     outcomes.value = res.data.outcomes || []
   } catch (e) {
     ElMessage.error(e.response?.data?.message || '加载交付审核数据失败')

@@ -1411,3 +1411,63 @@ test('工作台：来源故障显示不可用，不显示零待办', async ({ pa
   await expect(page.getByText('营期数据暂不可用')).toBeVisible()
   await expect(page.getByText('风险数据暂不可用')).toBeVisible()
 })
+
+test('平台待办：按范围和营期筛选保留 URL，单条直达原业务', async ({ page }) => {
+  await loginAsStaff(page)
+  await page.route('http://127.0.0.1:5001/admin/workbench/summary', (route) =>
+    route.fulfill({ json: { code: 200, data: { pending_camps: [{ id: 63, name: '秋季培训营' }] } } }))
+  const seen = []
+  await page.route('http://127.0.0.1:5001/admin/workbench/items*', (route) => {
+    const url = new URL(route.request().url())
+    seen.push(url.searchParams.toString())
+    const ticket = { key: 'feedback_ticket:8', type: 'feedback_ticket', source_id: 8,
+      title: '登录问题', camp_name: null, responsible_name: '管理员', created_at: '2026-09-23T10:00:00',
+      target_route: '/operations/feedback-tickets/8', target_query: {} }
+    const join = { key: 'camp_join:42', type: 'camp_join', source_id: 42,
+      title: '营期加入申请', camp_name: '秋季培训营', responsible_name: '管理员',
+      created_at: '2026-09-23T09:00:00',
+      target_route: '/camps/63/people/applications', target_query: { focus: 42 } }
+    const rows = url.searchParams.get('camp_id') === '63' ? [join]
+      : url.searchParams.get('scope') === 'mine' ? [ticket] : [join, ticket]
+    return route.fulfill({ json: { code: 200, data: {
+      items: rows, total: rows.length, page: 1, page_size: 20,
+      as_of: '2026-09-23T10:01:00', due_policy: 'not_configured',
+    } } })
+  })
+  const pageErrors = []
+  page.on('pageerror', (e) => pageErrors.push(e.message))
+
+  await page.goto(`${BASE}/workbench/items`)
+  await expect(page.getByRole('row')).toHaveCount(3)
+  await page.getByText('我负责', { exact: true }).click()
+  await expect(page).toHaveURL(/scope=mine/)
+  await expect(page.getByText('登录问题')).toBeVisible()
+  await page.locator('.filter-bar .el-select').nth(1).click()
+  await page.getByRole('option', { name: '秋季培训营' }).click()
+  await expect(page).toHaveURL(/camp_id=63/)
+  await expect(page.locator('tbody').getByText('营期加入申请', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: '去处理' }).click()
+  await expect(page).toHaveURL(/\/camps\/63\/people\/applications\?focus=42/)
+  await page.goBack()
+  await expect(page).toHaveURL(/scope=mine/)
+  await expect(page).toHaveURL(/camp_id=63/)
+  await expect(page.locator('tbody').getByText('营期加入申请', { exact: true })).toBeVisible()
+  expect(seen.some((query) => query.includes('scope=mine') && query.includes('camp_id=63'))).toBe(true)
+  expect(pageErrors).toEqual([])
+})
+
+test('平台待办：接口失败显示错误并可重试', async ({ page }) => {
+  await loginAsStaff(page)
+  let attempts = 0
+  await page.route('http://127.0.0.1:5001/admin/workbench/items*', (route) => {
+    attempts += 1
+    return route.fulfill(attempts === 1
+      ? { status: 503, json: { code: 503, message: '暂不可用' } }
+      : { json: { code: 200, data: { items: [], total: 0, as_of: '2026-09-23T10:00:00' } } })
+  })
+  await page.goto(`${BASE}/workbench/items`)
+  await expect(page.getByText('待办数据暂不可用')).toBeVisible()
+  await page.getByRole('button', { name: '重试' }).click()
+  await expect(page.getByText('当前筛选下没有待处理事项')).toBeVisible()
+  expect(attempts).toBe(2)
+})
