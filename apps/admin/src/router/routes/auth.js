@@ -19,12 +19,12 @@ export const authRoutes = [
     path: '/editor',
     name: 'editor',
     component: loadArticleEditorV2,
-    meta: { title: '文章编辑', backTo: '/content/articles' },
+    meta: { title: '文章编辑', backTo: '/content/articles', staffOnly: true },
   },
   {
     path: '/public',
     name: 'public',
     component: loadArticleEditorV2,
-    meta: { title: '文章编辑', backTo: '/content/articles' },
+    meta: { title: '文章编辑', backTo: '/content/articles', staffOnly: true },
   },
 ]

@@ -26,7 +26,7 @@ async function loginAsStaff(page) {
   await page.route('http://127.0.0.1:5001/**', (route) => {
     if (route.request().url().includes('/user/user_index')) {
       return route.fulfill({
-        json: { code: 200, role: 'super_admin', permissions: [], data: { username: 'e2e' } },
+        json: { code: 200, role: 'super_admin', permissions: [], User_Name: 'e2e', data: { username: 'e2e' } },
       })
     }
     return route.fulfill({ json: { code: 200, message: 'ok', data: {} } })
@@ -238,6 +238,18 @@ test('管理布局壳挂载（侧边栏 + 主区域）', async ({ page }) => {
   await page.goto(`${BASE}/`)
   await expect(page.locator('.admin-layout')).toBeVisible()
   await expect(page.locator('.sidebar-container')).toBeVisible()
+})
+
+test('普通账号即使拥有业务权限也不能进入管理端', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('bme-admin-token', 'legacy-token')
+    localStorage.setItem('bme-admin-state', JSON.stringify({
+      token: 'legacy-token', user: { role: 'user', permissions: ['course_management'] },
+    }))
+  })
+  await page.goto(`${BASE}/`)
+  await expect(page).toHaveURL(`${BASE}/login`)
+  await expect(page.locator('.admin-layout')).toHaveCount(0)
 })
 
 test('用户管理页：角色/状态列 + 搜索 + 编辑 + 封禁', async ({ page }) => {
@@ -1331,18 +1343,27 @@ test('工单详情：内部备注标记 + 受理 + 公开回复 + 状态迁移�
   expect(pageErrors).toEqual([])
 })
 
-test('工作台：待办摘要 + 进行中营期 + 风险提示', async ({ page }) => {
+test('工作台：待办摘要、按营期下钻与风险提示', async ({ page }) => {
   await loginAsStaff(page)
   await page.route('http://127.0.0.1:5001/admin/workbench/summary', (route) =>
     route.fulfill({ json: { code: 200, data: {
       pending: { camp_join: 3, camp_leave: 7, project_application: 0, project_delivery: 2,
         quota_request: 1, feedback_ticket: 4 },
+      pending_by_camp: { camp_join: { 63: 3 }, camp_leave: { 63: 7 },
+        project_application: {}, project_delivery: { 64: 2 } },
+      pending_camps: [{ id: 63, name: '2026秋季培训营' }, { id: 64, name: '秋季项目营' }],
+      source_status: {}, section_status: { running_camps: 'ok', risks: 'ok' },
+      as_of: '2026-09-23T09:00:00',
       oldest_pending_at: { camp_join: null, camp_leave: '2026-09-20T12:40:10' },
       running_camps: [{ id: 63, name: '2026秋季培训营', category: 'learning', cycle_name: '2026 秋季',
         start_date: '2026-09-01', end_date: '2027-01-18', member_count: 28,
         pending_join: 3, pending_leave: 7, unmatched: 0 }],
-      risks: [{ camp_id: 63, camp_name: '2026秋季培训营', rule: 'attendance_not_configured',
-        detail: '已启用考勤但营内没有考勤计划（承诺出勤日未生成）' }],
+      risks: [
+        { camp_id: 63, camp_name: '2026秋季培训营', rule: 'attendance_not_configured',
+          detail: '已启用考勤但营内没有考勤计划（承诺出勤日未生成）' },
+        { camp_id: 63, camp_name: '2026秋季培训营', rule: 'owner_missing',
+          detail: '2026秋季培训营 尚未委任主负责人' },
+      ],
     } } }))
   await page.route('http://127.0.0.1:5001/admin/overview', (route) =>
     route.fulfill({ json: { code: 200, data: { user_new_today: 2, checkin_today: 15 } } }))
@@ -1353,14 +1374,40 @@ test('工作台：待办摘要 + 进行中营期 + 风险提示', async ({ page 
 
   await page.goto(`${BASE}/`)
   await expect(page.getByText('欢迎回来', { exact: false })).toBeVisible()
-  await expect(page.getByText('待我处理')).toBeVisible()
+  await expect(page.getByRole('heading', { name: '欢迎回来，e2e' })).toBeVisible()
+  await expect(page.getByText('平台待办')).toBeVisible()
+  await expect(page.getByText('需平台介入')).toBeVisible()
+  await expect(page.getByRole('button', { name: /负责人缺失/ })).toBeVisible()
   await expect(page.getByRole('row')).toHaveCount(0)
   // 待办分组按处理语义渲染，数量来自摘要
   await expect(page.locator('.todo-card', { hasText: '人员准入' }).locator('.todo-count')).toHaveText('3')
   await expect(page.locator('.todo-card', { hasText: '项目流程' }).locator('.todo-count')).toHaveText('2')
   await expect(page.locator('.todo-card', { hasText: '用户支持' }).locator('.todo-count')).toHaveText('4')
   // 进行中营期卡 + 风险
-  await expect(page.getByText('2026秋季培训营')).toBeVisible()
+  await expect(page.locator('.camp-card').getByText('2026秋季培训营', { exact: true })).toBeVisible()
   await expect(page.getByText('已启用考勤但营内没有考勤计划')).toBeVisible()
+  await page.locator('.todo-card', { hasText: '人员准入' }).click()
+  await expect(page.getByRole('button', { name: '2026秋季培训营 · 加入申请 3' })).toBeVisible()
+  await page.getByRole('button', { name: '2026秋季培训营 · 加入申请 3' }).click()
+  await expect(page).toHaveURL(`${BASE}/camps/63/people/applications`)
   expect(pageErrors).toEqual([])
+})
+
+test('工作台：来源故障显示不可用，不显示零待办', async ({ page }) => {
+  await loginAsStaff(page)
+  await page.route('http://127.0.0.1:5001/admin/workbench/summary', (route) =>
+    route.fulfill({ json: { code: 200, data: {
+      pending: { camp_join: null, camp_leave: 0, project_application: 0,
+        project_delivery: 0, quota_request: 0, feedback_ticket: 0 },
+      pending_by_camp: { camp_join: null, camp_leave: {}, project_application: {}, project_delivery: {} },
+      pending_camps: [], running_camps: [], risks: [],
+      source_status: { camp_join: 'unavailable' },
+      section_status: { running_camps: 'unavailable', risks: 'unavailable' },
+    } } }))
+  await page.goto(`${BASE}/`)
+  const card = page.locator('.todo-card', { hasText: '人员准入' })
+  await expect(card.locator('.todo-count')).toHaveText('—')
+  await expect(card).toContainText('数据暂不可用')
+  await expect(page.getByText('营期数据暂不可用')).toBeVisible()
+  await expect(page.getByText('风险数据暂不可用')).toBeVisible()
 })

@@ -12,6 +12,7 @@ const router = createRouter({
             path: '/',
             name: 'home',
             component: HomeView,
+            meta: { staffOnly: true },
             children: shellChildren,
         },
         ...authRoutes,
@@ -27,7 +28,7 @@ router.beforeEach((to) => {
         return { path: '/login' };
     }
     if (to.meta.staffOnly && !store.getters.isStaff) {
-        return { name: 'home_default' };
+        return { name: 'login' };
     }
 });
 

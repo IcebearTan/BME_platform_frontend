@@ -45,7 +45,7 @@ const breadcrumbItems = computed(() => {
 const isDarkMode = computed(() => store.getters.isDarkMode)
 
 const userInitial = computed(() => {
-  const name = store?.state?.user?.name || '管'
+  const name = store?.state?.user?.User_Name || '管'
   return String(name).charAt(0).toUpperCase()
 })
 
@@ -75,6 +75,10 @@ onMounted(async () => {
     })
     if (res.data.code == 200) {
       store.dispatch('setUser', res.data)
+      if (res.data.role !== 'super_admin') {
+        store.dispatch('logout')
+        router.replace('/login')
+      }
     }
   } catch (error) {
     ElMessage.error('登录失效，请重新登录')
