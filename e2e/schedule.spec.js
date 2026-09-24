@@ -177,3 +177,175 @@ test('日程通知：收件箱「日程」页签浮现，点击深链回 /schedu
   await expect(page).toHaveURL(/\/schedule/)
   await expect(page.getByText('今日时间线')).toBeVisible()
 })
+
+// ── Phase 2：文字意图 + 智能排程 ───────────────────────────────────────────
+
+const CAPTURE_DONE = {
+  code: 200,
+  data: {
+    id: 501, input_type: 'text', text: '明早九点开组会，六点前交实验报告两小时',
+    status: 'done', error: null, error_code: null, created_at: NOW,
+    result: {
+      version: 1, now: NOW, unparsed: [], plan_ids: [71],
+      items: [
+        { index: 0, kind: 'event', title: '组会', evidence: '明早九点开组会', status: 'scheduled',
+          fields: {}, duration_source: 'user', ambiguities: [], answers: {},
+          result: { task_id: null, event_id: 41, block_ids: [], plan_id: 71, message: '已创建日程：09-25 09:00–10:00' } },
+        { index: 1, kind: 'task', title: '实验报告', evidence: '六点前交实验报告两小时', status: 'scheduled',
+          fields: {}, duration_source: 'user', ambiguities: [], answers: {},
+          result: { task_id: 61, event_id: null, block_ids: [81], plan_id: 71, message: '已安排 09-25 10:15–12:15' } },
+        { index: 2, kind: 'task', title: '三点做实验', evidence: '三点做实验', status: 'needs_clarification',
+          fields: {}, duration_source: 'user',
+          ambiguities: [{ field: 'start_at', question: '上午 3 点还是下午 3 点？',
+            options: [{ label: '上午', value: `${TODAY} 03:00` }, { label: '下午', value: `${TODAY} 15:00` }] }],
+          answers: {}, result: null },
+      ],
+    },
+  },
+}
+
+function phase2Backend(page, extra = {}) {
+  return page.route('http://127.0.0.1:5001/**', (route) => {
+    const url = route.request().url()
+    if (extra.match?.(url, route)) return extra.respond(route, url)
+    if (url.includes('/schedule/captures') || url.includes('/schedule/plans')) {
+      return route.fulfill({ json: { code: 200, message: 'ok', data: {} } })
+    }
+    if (url.includes('/schedule/agenda')) return route.fulfill({ json: AGENDA })
+    if (url.includes('/schedule/tasks')) return route.fulfill({ json: TASKS_BY_BUCKET.all })
+    if (url.includes('/schedule/preferences')) return route.fulfill({ json: PREFERENCES })
+    return route.fulfill({ json: { code: 200, message: 'ok', data: {} } })
+  })
+}
+
+const quickSend = (page) => page.locator('.quick-input').getByRole('button', { name: '安排' })
+
+test('说一句录入：提交轮询到结果卡分区渲染', async ({ page }) => {
+  const errors = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  let posted = null
+  let pollCount = 0
+  await loginAs(page)
+  await phase2Backend(page, {
+    match: (url, route) => url.includes('/schedule/captures') && route.request().method() === 'POST',
+    respond: (route) => {
+      posted = route.request().postDataJSON()
+      return route.fulfill({ status: 202, json: { code: 200, data: { capture: { id: 501, status: 'pending' }, submitted: true } } })
+    },
+  })
+  // GET 轮询：第一次 processing，之后 done
+  await page.route('http://127.0.0.1:5001/schedule/captures/501', (route) => {
+    pollCount += 1
+    if (pollCount === 1) {
+      return route.fulfill({ json: { code: 200, data: { id: 501, status: 'processing' } } })
+    }
+    return route.fulfill({ json: CAPTURE_DONE })
+  })
+  await page.goto(`${BASE}/schedule`)
+
+  await page.fill('input[placeholder*="说一句"]', '明早九点开组会，六点前交实验报告两小时')
+  await quickSend(page).click()
+
+  await expect(page.getByText('录入结果')).toBeVisible({ timeout: 8000 })
+  await expect(page.getByText('已创建日程：09-25 09:00–10:00')).toBeVisible()
+  await expect(page.getByText('已安排 09-25 10:15–12:15').first()).toBeVisible()
+  await expect(page.getByText('上午 3 点还是下午 3 点？')).toBeVisible()
+  expect(posted?.request_id).toBeTruthy()
+  expect(errors).toEqual([])
+})
+
+test('待补充：chips 选择后 resolve 更新卡片', async ({ page }) => {
+  let resolved = null
+  await loginAs(page)
+  await phase2Backend(page, {
+    match: (url) => url.includes('/schedule/captures'),
+    respond: (route) => route.fulfill({ json: { code: 200, data: { capture: CAPTURE_DONE.data } } }),
+  })
+  await page.route('http://127.0.0.1:5001/schedule/captures/501/resolve', (route) => {
+    resolved = route.request().postDataJSON()
+    return route.fulfill({ json: { code: 200, data: { ...CAPTURE_DONE.data, status: 'done',
+      result: { ...CAPTURE_DONE.data.result, items: CAPTURE_DONE.data.result.items.slice(0, 2) } } } })
+  })
+  await page.goto(`${BASE}/schedule`)
+
+  await page.fill('input[placeholder*="说一句"]', '三点做实验')
+  await quickSend(page).click()
+  await expect(page.getByText('上午 3 点还是下午 3 点？')).toBeVisible({ timeout: 8000 })
+
+  await page.locator('.q-chip', { hasText: '下午' }).click()
+  await page.getByRole('button', { name: '提交补充' }).click()
+  await expect(page.getByText('上午 3 点还是下午 3 点？')).toHaveCount(0, { timeout: 8000 })
+  expect(resolved?.answers).toBeTruthy()
+})
+
+test('撤销本次录入：revert 打点且卡片进入已撤销态', async ({ page }) => {
+  const reverted = []
+  await loginAs(page)
+  await phase2Backend(page, {
+    match: (url) => url.includes('/schedule/captures'),
+    respond: (route) => route.fulfill({ json: { code: 200, data: { capture: CAPTURE_DONE.data } } }),
+  })
+  await page.route('http://127.0.0.1:5001/schedule/plans/71/revert', (route) => {
+    reverted.push(71)
+    return route.fulfill({ json: { code: 200, data: { reverted: [{ entity: 'block', entity_id: 81, operation: 'create' }], skipped: [] } } })
+  })
+  await page.goto(`${BASE}/schedule`)
+
+  await page.fill('input[placeholder*="说一句"]', '撤销场景')
+  await quickSend(page).click()
+  await expect(page.getByText('录入结果')).toBeVisible({ timeout: 8000 })
+
+  await page.getByRole('button', { name: '撤销本次录入' }).click()
+  await expect(page.getByText('已撤销本次录入')).toBeVisible({ timeout: 8000 })
+  expect(reverted).toContain(71)
+})
+
+test('manual 偏好：新建任务出方案卡并可应用', async ({ page }) => {
+  const applied = []
+  await loginAs(page)
+  await phase2Backend(page, {
+    match: (url, route) => url.includes('/schedule/tasks') && route.request().method() === 'POST',
+    respond: (route) => route.fulfill({ json: { code: 200, data: {
+      task: TASK(77, '方案卡任务', { due_at: `${TODAY} 23:00`, deadline_precision: 'datetime' }),
+      reminder_created: true,
+      plan: { id: 90, mode: 'proposed', reason: '已安排 60 分钟执行时间',
+        blocks: [{ start_at: `${TODAY} 20:00`, end_at: `${TODAY} 21:00` }], unscheduled: [] },
+    } } }),
+  })
+  await page.route('http://127.0.0.1:5001/schedule/plans/90/apply', (route) => {
+    applied.push(90)
+    return route.fulfill({ json: { code: 200, data: { plan: { id: 90, status: 'applied' }, changes_n: 1 } } })
+  })
+  await page.goto(`${BASE}/schedule`)
+
+  await page.getByRole('button', { name: '新建' }).click()
+  await page.getByRole('button', { name: '任务', exact: true }).click()
+  await page.fill('input[placeholder="要做什么"]', '方案卡任务')
+  await page.getByRole('button', { name: '创建', exact: true }).click()
+
+  await expect(page.getByText('建议的执行安排')).toBeVisible({ timeout: 8000 })
+  await expect(page.locator('.plan-card .block-time').first()).toBeVisible()
+  await page.getByRole('button', { name: '应用安排' }).click()
+  expect(applied).toContain(90)
+})
+
+test('设置面板：自动安排模式两选可改', async ({ page }) => {
+  let saved = null
+  await loginAs(page)
+  await phase2Backend(page, {
+    match: (url, route) => url.includes('/schedule/preferences') && route.request().method() === 'PATCH',
+    respond: (route) => {
+      saved = route.request().postDataJSON()
+      return route.fulfill({ json: { code: 200, data: { ...PREFERENCES.data, ...saved } } })
+    },
+  })
+  await page.goto(`${BASE}/schedule?tab=settings`)
+  await expect(page.getByText('日程偏好')).toBeVisible()
+
+  // PREFERENCES mock 是 manual → 先打开模式下拉再选 suggest（DewPopover 展开选项）
+  await page.locator('.mode-row .dew-select__trigger').click()
+  await page.locator('.dew-select__option', { hasText: '适度自动' }).click()
+  await page.getByRole('button', { name: '保存' }).click()
+  await expect(page.getByText('偏好已保存')).toBeVisible({ timeout: 5000 })
+  expect(saved?.automation_mode).toBe('suggest')
+})

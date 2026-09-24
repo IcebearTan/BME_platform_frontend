@@ -85,7 +85,7 @@ async function submit() {
       ? await scheduleService.updateTask(props.task.id, { ...payload, expected_version: props.task.version })
       : await scheduleService.createTask(payload)
     ElMessage.success(props.task ? '任务已更新' : (data?.reminder_created ? '任务已创建，将按时提醒' : '任务已创建'))
-    emit('saved', data.task)
+    emit('saved', data.task, data.plan)
     close()
   } catch (err) {
     ElMessage.error(err.message || '保存失败')

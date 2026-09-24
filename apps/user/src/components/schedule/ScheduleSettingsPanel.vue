@@ -15,15 +15,15 @@ const REMINDER_OPTIONS = [
   { label: '提前 2 小时', value: 120 }
 ]
 const MODE_OPTIONS = [
-  { label: '完全手动', value: 'manual' },
-  { label: '适度自动（敬请期待）', value: 'suggest' },
-  { label: '积极自动（敬请期待）', value: 'auto' }
+  { label: '完全手动（只建议，不自动安排）', value: 'manual' },
+  { label: '适度自动（新任务自动安排执行时间）', value: 'suggest' }
 ]
 
 const { profile, load, save } = useScheduleProfile()
 const loading = ref(true)
 const saving = ref(false)
-const form = reactive({ day_start_time: '09:00', day_end_time: '22:00', default_reminder_minutes: 15 })
+const form = reactive({ day_start_time: '09:00', day_end_time: '22:00',
+                        default_reminder_minutes: 15, automation_mode: 'suggest' })
 
 onMounted(async () => {
   const data = await load(true)
@@ -31,6 +31,7 @@ onMounted(async () => {
     form.day_start_time = data.day_start_time
     form.day_end_time = data.day_end_time
     form.default_reminder_minutes = data.default_reminder_minutes
+    form.automation_mode = data.automation_mode
   }
   loading.value = false
 })
@@ -46,19 +47,24 @@ async function submit() {
       day_start_time: form.day_start_time,
       day_end_time: form.day_end_time,
       default_reminder_minutes: form.default_reminder_minutes,
+      automation_mode: form.automation_mode,
       expected_version: profile.value?.version
     })
     ElMessage.success('偏好已保存')
-    form.day_start_time = data.day_start_time
-    form.day_end_time = data.day_end_time
-    form.default_reminder_minutes = data.default_reminder_minutes
+    Object.assign(form, {
+      day_start_time: data.day_start_time,
+      day_end_time: data.day_end_time,
+      default_reminder_minutes: data.default_reminder_minutes,
+      automation_mode: data.automation_mode
+    })
   } catch (err) {
     ElMessage.error(err.message || '保存失败')
     const fresh = await load(true)      // 409 等场景：重拉最新版本供再次编辑
     if (fresh) Object.assign(form, {
       day_start_time: fresh.day_start_time,
       day_end_time: fresh.day_end_time,
-      default_reminder_minutes: fresh.default_reminder_minutes
+      default_reminder_minutes: fresh.default_reminder_minutes,
+      automation_mode: fresh.automation_mode
     })
   } finally {
     saving.value = false
@@ -87,8 +93,8 @@ async function submit() {
 
         <label class="field-label">自动安排模式</label>
         <div class="mode-row">
-          <DewSelect :model-value="profile?.automation_mode || 'manual'" :options="MODE_OPTIONS" disabled />
-          <span class="field-hint">智能排程即将上线，当前所有时间安排均为手动</span>
+          <DewSelect v-model="form.automation_mode" :options="MODE_OPTIONS" />
+          <span class="field-hint">适度自动：新任务自动安排执行时间、未锁定的自动块可被重排；你锁定的安排、固定日程与进行中的事项永不被移动</span>
         </div>
       </div>
       <template #footer>

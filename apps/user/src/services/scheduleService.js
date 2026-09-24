@@ -65,5 +65,33 @@ export const scheduleService = {
   },
   updatePreferences(payload) {
     return request({ url: '/schedule/preferences', method: 'patch', data: payload }, '偏好保存失败')
+  },
+
+  // ── 意图录入（Phase 2：说一句，帮我安排） ──
+  createCapture(text, requestId) {
+    return request({
+      url: '/schedule/captures', method: 'post',
+      data: { text, request_id: requestId }
+    }, '提交失败，请稍后重试')
+  },
+  getCapture(id) {
+    return request({ url: `/schedule/captures/${id}`, method: 'get' }, '结果加载失败')
+  },
+  resolveCapture(id, answers) {
+    return request({
+      url: `/schedule/captures/${id}/resolve`, method: 'post',
+      data: { answers }
+    }, '补充失败，请重试')
+  },
+
+  // ── 排程方案（Phase 2） ──
+  applyPlan(id) {
+    return request({ url: `/schedule/plans/${id}/apply`, method: 'post' }, '应用方案失败')
+  },
+  revertPlan(id) {
+    return request({ url: `/schedule/plans/${id}/revert`, method: 'post' }, '撤销失败')
+  },
+  fetchPlans(limit = 10) {
+    return request({ url: '/schedule/plans', method: 'get', params: { limit } }, '方案加载失败')
   }
 }

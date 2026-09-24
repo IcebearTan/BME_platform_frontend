@@ -7,6 +7,9 @@ import { ElMessage } from 'element-plus'
 import { Plus, Clock, WarningFilled, CircleCheck, Calendar } from '@element-plus/icons-vue'
 import { DewCard, DewTag, DewButton, DewSkeleton } from '@bme/dew-ui'
 import { scheduleService } from '../../services/scheduleService'
+import ScheduleQuickInput from './ScheduleQuickInput.vue'
+import ScheduleCaptureResultCard from './ScheduleCaptureResultCard.vue'
+import { useScheduleCapture } from '../../composables/useScheduleCapture'
 
 const props = defineProps({
   refreshKey: { type: Number, default: 0 }
@@ -57,6 +60,12 @@ async function fetchAll() {
 
 onMounted(fetchAll)
 watch(() => props.refreshKey, fetchAll)
+
+// 录入落定（done/clarify/reverted）即刷新今日数据
+const { phase: capturePhase } = useScheduleCapture()
+watch(capturePhase, (p) => {
+  if (['done', 'clarify_needed', 'reverted'].includes(p)) fetchAll()
+})
 
 // 时间线：事件 + 执行块合并排序；冲突项标红（后端只检测不阻断的口径）
 const timeline = computed(() => {
@@ -154,6 +163,10 @@ async function postpone(block) {
       </div>
     </div>
     <div v-if="newMenuOpen" class="new-menu-mask" @click="newMenuOpen = false"></div>
+
+    <!-- 说一句，帮我安排（Phase 2 文字意图；语音入口位预留） -->
+    <ScheduleQuickInput />
+    <ScheduleCaptureResultCard @edit-task="(t) => emit('edit-task', t)" @settled="fetchAll" />
 
     <DewSkeleton v-if="loading" variant="text" :lines="6" />
     <template v-else>

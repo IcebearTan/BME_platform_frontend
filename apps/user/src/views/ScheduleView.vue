@@ -16,6 +16,7 @@ import ScheduleSettingsPanel from '../components/schedule/ScheduleSettingsPanel.
 import ScheduleTaskDialog from '../components/schedule/ScheduleTaskDialog.vue'
 import ScheduleEventDialog from '../components/schedule/ScheduleEventDialog.vue'
 import ScheduleBlockDialog from '../components/schedule/ScheduleBlockDialog.vue'
+import SchedulePlanCard from '../components/schedule/SchedulePlanCard.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -69,6 +70,17 @@ function openCreateBlock(payload = {}) {
 }
 function openEditBlock(block) { blockDialog.value = { visible: true, block, taskId: null, prefill: null } }
 function onSaved() { refreshKey.value += 1 }
+
+// manual 模式：新建任务产生的 proposed 方案 → 确认卡
+const pendingProposal = ref(null)
+function onTaskSaved(task, plan) {
+  refreshKey.value += 1
+  if (plan && plan.mode === 'proposed') pendingProposal.value = plan
+}
+function onProposalSettled(applied) {
+  pendingProposal.value = null
+  if (applied) refreshKey.value += 1
+}
 </script>
 
 <template>
@@ -111,6 +123,8 @@ function onSaved() { refreshKey.value += 1 }
             @create-task="openCreateTask" @edit-task="openEditTask"
             @create-event="openCreateEvent" @edit-event="openEditEvent"
             @create-block="openCreateBlock" @edit-block="openEditBlock" />
+          <SchedulePlanCard v-if="pendingProposal" :plan="pendingProposal"
+            @applied="onProposalSettled(true)" @dismissed="onProposalSettled(false)" />
           <ScheduleWeekGrid v-show="activeTab === 'week'" :refresh-key="refreshKey"
             @create-event="openCreateEvent" @edit-event="openEditEvent"
             @create-block="openCreateBlock" @edit-block="openEditBlock" />
@@ -124,7 +138,7 @@ function onSaved() { refreshKey.value += 1 }
       </el-footer>
     </el-container>
 
-    <ScheduleTaskDialog v-model="taskDialog.visible" :task="taskDialog.task" @saved="onSaved" />
+    <ScheduleTaskDialog v-model="taskDialog.visible" :task="taskDialog.task" @saved="onTaskSaved" />
     <ScheduleEventDialog v-model="eventDialog.visible" :event="eventDialog.event" :prefill="eventDialog.prefill"
       @saved="onSaved" />
     <ScheduleBlockDialog v-model="blockDialog.visible" :block="blockDialog.block" :initial-task-id="blockDialog.taskId"
