@@ -2,7 +2,7 @@
 // 范式对齐 useNotifications：模块级单例状态，双组件使用不重复打 /camp/sessions。
 // 09-20 随「tab 条上移出 340px 左列」从 NotificationListComponent 抽出。
 import { ref, computed } from 'vue'
-import { Bell, ChatDotRound } from '@element-plus/icons-vue'
+import { Bell, Calendar, ChatDotRound } from '@element-plus/icons-vue'
 import { campService } from '../services/campService'
 import { useNotifications } from './useNotifications'
 import { useGratitude } from './useGratitude'
@@ -43,6 +43,10 @@ export function useNotificationTabs() {
     // 社区域预留：社区广场点赞/评论通知落地日（category='community'），tab 自动浮现
     if (notificationList.value.some(n => n.category === 'community') || unreadByCategory.value.community) {
       items.push({ value: 'community', label: '社区', icon: Bell, badge: cat('community') })
+    }
+    // 日程域（category='schedule'）：提醒投递后 tab 自动浮现（community 同款条件浮现）
+    if (notificationList.value.some(n => n.category === 'schedule') || unreadByCategory.value.schedule) {
+      items.push({ value: 'schedule', label: '日程', icon: Calendar, badge: cat('schedule') })
     }
     if (isMentor.value) {
       items.push({ value: 'message', label: '私信', icon: ChatDotRound, badge: letterUnread.value || undefined })

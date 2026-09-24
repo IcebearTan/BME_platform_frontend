@@ -227,7 +227,7 @@ const currentUnread = computed(() => (activeFilter.value === 'message' ? letterU
 const emptyText = computed(() => (activeFilter.value === 'message' ? '暂无私信' : '暂无通知'))
 
 // 详情弹窗分类文案（查表，新业务域只加一行）
-const CATEGORY_LABELS = { system: '系统通知', camp: '营期通知', community: '社区通知', message: '私信' }
+const CATEGORY_LABELS = { system: '系统通知', camp: '营期通知', community: '社区通知', schedule: '日程提醒', message: '私信' }
 const categoryLabel = (c) => CATEGORY_LABELS[c] || '系统通知'
 
 // 筛选 + 分页（message tab 数据源切换为信件表——私信是富内容+独立已读态，不走通知过滤）
@@ -240,6 +240,8 @@ const filteredList = computed(() => {
     list = list.filter(n => n.category === 'camp')
   } else if (activeFilter.value === 'community') {
     list = list.filter(n => n.category === 'community')
+  } else if (activeFilter.value === 'schedule') {
+    list = list.filter(n => n.category === 'schedule')
   }
   // 重要通知置顶（09-22 修复）：版本更新公告等被日常通知冲到分页第 2 页「丢失」；
   // sort 稳定，组内保持服务端 created_at 倒序
@@ -280,6 +282,10 @@ function handleClick(item) {
   if (item.category === 'camp') {
     router.push(notificationTarget(item))
   }
+  // 日程提醒：深链直达我的日程今日页签（映射与铃铛共用）
+  if (item.category === 'schedule') {
+    router.push(notificationTarget(item))
+  }
 }
 
 // 信件点击：桌面端右栏展示，移动端回退弹窗（打开即已读由 GratitudeLetterDetail 处理）
@@ -293,10 +299,11 @@ function handleLetterClick(letter) {
 }
 
 function handleMarkAllAsRead() {
-  // 在分类 tab 下只标记该分类，避免把营期/系统通知一起标掉
-  const cat = (activeFilter.value === 'camp' || activeFilter.value === 'system') ? activeFilter.value : null
+  // 在分类 tab 下只标记该分类，避免把其他域通知一起标掉
+  const CAT_LABELS = { camp: '营期', system: '系统', schedule: '日程' }
+  const cat = CAT_LABELS[activeFilter.value] ? activeFilter.value : null
   markAllAsRead(cat)
-  ElMessage.success(cat ? `已将「${cat === 'camp' ? '营期' : '系统'}」通知标记为已读` : '已全部标记为已读')
+  ElMessage.success(cat ? `已将「${CAT_LABELS[cat]}」通知标记为已读` : '已全部标记为已读')
 }
 
 // 初始化：拉取数据 + 导生判定并预载信件（供私信域通知点击时定位信件） + 移动端断点监听

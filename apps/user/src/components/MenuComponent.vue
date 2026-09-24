@@ -214,6 +214,9 @@ const handleUserInfo = () => {
                 <el-menu-item index="/projects" class="xlab-nav-item">
                     <img src="../assets/XLAB.png" alt="XLab" class="xlab-nav-logo" />
                 </el-menu-item>
+                <el-menu-item index="/schedule">
+                    我的日程
+                </el-menu-item>
                 <el-menu-item index="/service-hall">
                     服务台
                 </el-menu-item>

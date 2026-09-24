@@ -51,6 +51,7 @@ const loadUiShowcase = () => import('./views/UiShowcaseView.vue')
 const loadCampHome = () => import('./views/CampHome.vue')
 const loadCamp = () => import('./views/CampView.vue')
 const loadCampMarket = () => import('./views/CampMarket.vue')
+const loadSchedule = () => import('./views/ScheduleView.vue')
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -83,6 +84,14 @@ const router = createRouter({
             path: '/camp/:sid/market',
             name: 'camp-market',
             component: loadCampMarket,
+            meta: { requiresAuth: true }
+        },
+
+        // ── 个人日程（AI 日程模块 Phase 1，需登录）──
+        {
+            path: '/schedule',
+            name: 'schedule',
+            component: loadSchedule,
             meta: { requiresAuth: true }
         },
 

@@ -17,6 +17,10 @@ export function notificationTarget(item) {
   if (item.category === 'message' || item.category === 'gratitude') {
     return MESSAGE_TARGET
   }
+  // 日程提醒（category=schedule）→ 我的日程今日页签（铃铛与收件箱共用）
+  if (item.category === 'schedule') {
+    return { path: '/schedule', query: { tab: 'today' } }
+  }
   if (item.category !== 'camp') {
     return { path: '/notifications' }
   }

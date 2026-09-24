@@ -40,7 +40,8 @@ onMounted(detectMentor)
 
 // 合法 tab：all/system/camp/message（category=业务域；未读是状态不是类别，已并入徽标）。
 // legacy：'gratitude' 是旧 tab 值（感谢信曾是独立类别），归一化到私信域 message
-const VALID_TABS = ['all', 'system', 'camp', 'community', 'message']
+// schedule：日程提醒域（09-24 AI 日程模块；tab 在 useNotificationTabs 按内容浮现）
+const VALID_TABS = ['all', 'system', 'camp', 'community', 'schedule', 'message']
 const normalizeTab = (tab) => (tab === 'gratitude' ? 'message' : VALID_TABS.includes(tab) ? tab : 'all')
 
 // URL 即状态：?tab= 由本容器统一持有（铃铛/深链可直达筛选）
