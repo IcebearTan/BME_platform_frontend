@@ -4,7 +4,7 @@ import { markRaw } from 'vue'
 import {
   Monitor, Clock, Document, OfficeBuilding, Setting, Cpu, SetUp,
   User, Grid, Tickets, DataLine, Folder, Key, Collection, FolderOpened,
-  Picture, Bell, Trophy, ChatDotRound, ChatLineRound, List, Plus,
+  Picture, Bell, Trophy, ChatDotRound, ChatLineRound, List, Plus, Calendar,
 } from '@element-plus/icons-vue'
 
 export const ICONS = {
@@ -30,6 +30,7 @@ export const ICONS = {
   ChatLineRound: markRaw(ChatLineRound),
   List: markRaw(List),
   Plus: markRaw(Plus),
+  Calendar: markRaw(Calendar),
 }
 
 // type=item 的分区是直达菜单项（工作台；只有一个子项的域不再折叠，如社团组织）

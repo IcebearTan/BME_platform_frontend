@@ -141,6 +141,9 @@ const RISK_LABELS = {
   stale_delivery_reviews: '交付逾期未审',
   students_unmatched: '学员未归属',
   owner_missing: '负责人缺失',
+  schedule_scan_stale: '日程扫描异常',
+  schedule_reminder_exhausted: '日程提醒重试耗尽',
+  schedule_capture_stalled: '日程录入停滞',
 }
 
 const interventionRules = new Set(['owner_missing', 'stale_delivery_reviews'])
@@ -198,6 +201,16 @@ function go(path) {
 }
 
 function goRisk(r) {
+  // 日程服务风险是平台级（无 camp_id），在营期早退之前分流到日程服务记录页
+  const scheduleRiskQuery = {
+    schedule_scan_stale: { tab: 'records', type: 'reminder', bucket: 'overdue' },
+    schedule_reminder_exhausted: { tab: 'records', type: 'reminder', bucket: 'exhausted' },
+    schedule_capture_stalled: { tab: 'records', type: 'capture', bucket: 'stalled' },
+  }[r.rule]
+  if (scheduleRiskQuery) {
+    router.push({ path: '/operations/schedule', query: scheduleRiskQuery })
+    return
+  }
   if (!r.camp_id) return
   const path = r.rule === 'owner_missing' ? 'people/staff'
     : r.rule === 'stale_delivery_reviews' ? 'project/deliveries' : 'overview'

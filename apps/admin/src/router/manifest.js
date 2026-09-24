@@ -4,6 +4,7 @@ import { workbenchRoutes } from './routes/workbench'
 import { campsRoutes, campsRedirects } from '../domains/camps/routes'
 import { organizationRoutes } from '../domains/organization/routes'
 import { feedbackRoutes } from '../domains/feedback/routes'
+import { scheduleRoutes } from '../domains/schedule/routes'
 import { miscRoutes, miscRedirects } from './routes/misc'
 
 // HomeView 壳的路由子表（authRoutes 在壳外，见 router.js）
@@ -12,6 +13,7 @@ export const shellChildren = [
   ...campsRoutes,
   ...organizationRoutes,
   ...feedbackRoutes,
+  ...scheduleRoutes,
   ...miscRoutes,
   ...campsRedirects,
   ...miscRedirects,
