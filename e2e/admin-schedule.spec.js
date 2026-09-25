@@ -71,6 +71,14 @@ const SETTINGS = {
         component: 'POST /schedule/captures 限流', note: '超出限额收到 429',
         default_value: 50, desired_value: '20', effective_value: 20,
         overridden: true, version: 3, updated_at: NOW, updated_by_name: 'admin', reason: '试点收紧' },
+      { key: 'SCHEDULE_INTENT_MODEL', label: '意图理解模型', type: 'str',
+        component: 'intent.parse_capture', note: '留空恢复回退链',
+        default_value: null, desired_value: null, effective_value: 'deepseek-chat',
+        overridden: false, version: 0, updated_at: null, updated_by_name: null, reason: null },
+      { key: 'DEEPSEEK_API_KEY', label: 'DeepSeek API Key', type: 'secret',
+        component: 'litellm_chat.chat_completion', note: '平台覆盖 > .env；值只写不读',
+        default_value: '环境变量', desired_value: null, effective_value: '已配置（平台配置）',
+        configured: true, overridden: true, version: 2, updated_at: NOW, updated_by_name: 'admin', reason: null },
     ],
     groups: [
       { section: '提醒扫描', items: [
@@ -189,18 +197,27 @@ test('服务设置：在线配置渲染 + 发布流差异确认与打点', async
   // 在线配置区：覆盖态徽标 + 生效值 + 默认值对照
   await expect(page.getByText('在线配置（发布后即时生效）')).toBeVisible()
   await expect(page.getByText('平台覆盖 v3')).toBeVisible()
-  await expect(page.getByText(/最近发布：.* by admin/)).toBeVisible()
+  await expect(page.getByText(/最近发布：.* by admin/).first()).toBeVisible()
 
-  // 修改限额 → 发布 → 差异确认弹窗 → 打点
+  // 模型与密钥行渲染（密钥不回显值，只显示配置状态）
+  await expect(page.getByText('意图理解模型', { exact: true })).toBeVisible()
+  await expect(page.getByText('已配置（平台配置）').first()).toBeVisible()
+
+  // 修改限额 + 填新密钥 → 发布 → 差异确认弹窗（密钥显示不回显）→ 打点
   const limitInput = page.locator('.edit-control .el-input-number input')
   await limitInput.fill('100')
+  await page.locator('.edit-control input[type="password"]').fill('sk-e2e-new-key-000000000000')
   await page.getByRole('button', { name: '发布变更' }).click()
   await expect(page.getByText('确认发布以下配置变更？发布后即时生效。')).toBeVisible()
   await expect(page.getByText('AI 录入每日限额（每用户） → 100')).toBeVisible()
+  await expect(page.getByText('DeepSeek API Key → 已更新（不回显）')).toBeVisible()
   await page.getByRole('button', { name: '发布', exact: true }).click()
   await expect(page.getByText('配置已发布并即时生效')).toBeVisible({ timeout: 5000 })
   expect(published.length).toBe(1)
-  expect(published[0].updates[0].value).toBe(100)
+  const limitUpdate = published[0].updates.find((u) => u.key === 'SCHEDULE_INTENT_DAILY_LIMIT')
+  const keyUpdate = published[0].updates.find((u) => u.key === 'DEEPSEEK_API_KEY')
+  expect(limitUpdate.value).toBe(100)
+  expect(keyUpdate.value).toBe('sk-e2e-new-key-000000000000')
 
   // 只读区（env/代码键）仍无任何写控件
   await expect(page.getByText('提醒扫描（只读，需改环境变量或代码）')).toBeVisible()

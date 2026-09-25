@@ -21,6 +21,7 @@ function baseline(item) {
 function isDirty(item) {
   const draft = drafts[item.key]
   if (!draft) return false
+  if (item.type === 'secret') return draft.value !== ''   // 有输入才发布；恢复默认走 resetDraft+显式 null
   const base = baseline(item)
   if (base === null) return draft.value !== null
   return String(draft.value) !== String(base)
@@ -30,13 +31,21 @@ const hasDirty = () => (settings.value?.editable || []).some((i) => isDirty(i))
 async function fetchSettings() {
   try {
     settings.value = await scheduleAdminService.fetchSettings()
-    for (const item of settings.value.editable || []) {
-      drafts[item.key] = { value: item.overridden ? normalize(item, item.desired_value) : null, reason: '' }
-    }
+    initDrafts(settings.value.editable)
   } catch (err) {
     ElMessage.error(err.message || '配置加载失败')
   } finally {
     loading.value = false
+  }
+}
+
+function initDrafts(editables) {
+  for (const item of editables || []) {
+    if (item.type === 'secret') {
+      drafts[item.key] = { value: '', reason: '' }   // 密钥只写不读：空串=保持现状（不发布）
+    } else {
+      drafts[item.key] = { value: item.overridden ? normalize(item, item.desired_value) : null, reason: '' }
+    }
   }
 }
 onMounted(fetchSettings)
@@ -46,8 +55,9 @@ function normalize(item, raw) {
 }
 
 function effectiveText(item) {
+  if (item.type === 'secret') return item.effective_value      // 已是脱敏描述串
   if (item.type === 'bool') return item.effective_value ? '开启' : '关闭'
-  return String(item.effective_value)
+  return String(item.effective_value ?? '（回退链默认）')
 }
 function defaultText(item) {
   if (item.type === 'bool') return item.default_value ? '开启' : '关闭'
@@ -55,7 +65,9 @@ function defaultText(item) {
 }
 function draftText(item) {
   const draft = drafts[item.key]
-  if (!draft || draft.value === null) return '跟随默认'
+  if (!draft) return '跟随默认'
+  if (item.type === 'secret') return draft.value ? '已填写（发布后不回显）' : '保持现状'
+  if (draft.value === null || draft.value === '') return '跟随默认'
   if (item.type === 'bool') return draft.value ? '开启' : '关闭'
   return String(draft.value)
 }
@@ -63,16 +75,22 @@ function draftText(item) {
 /** 发布（差异确认 → PATCH；value=null 表示恢复默认） */
 async function publish() {
   const items = settings.value?.editable || []
-  const updates = items.filter((i) => isDirty(i)).map((i) => ({
+  const updates = items.filter((i) => isDirty(i) || pendingReset.has(i.key)).map((i) => ({
     key: i.key,
-    value: drafts[i.key].value,
+    value: pendingReset.has(i.key) ? null
+      : (i.type === 'secret' ? (drafts[i.key].value || null) : drafts[i.key].value),
     expected_version: i.version,
     reason: drafts[i.key].reason || null,
   }))
+  pendingReset.clear()
   if (!updates.length) return
   const lines = updates.map((u) => {
     const item = items.find((i) => i.key === u.key)
-    const to = u.value === null ? '跟随默认' : (item.type === 'bool' ? (u.value ? '开启' : '关闭') : String(u.value))
+    let to
+    if (u.value === null) to = '跟随默认'
+    else if (item.type === 'secret') to = '已更新（不回显）'
+    else if (item.type === 'bool') to = u.value ? '开启' : '关闭'
+    else to = String(u.value)
     return `${item.label} → ${to}`
   })
   try {
@@ -83,9 +101,7 @@ async function publish() {
   try {
     const data = await scheduleAdminService.publishSettings(updates)
     settings.value = { ...settings.value, editable: data.editable }
-    for (const item of data.editable || []) {
-      drafts[item.key] = { value: item.overridden ? normalize(item, item.desired_value) : null, reason: '' }
-    }
+    initDrafts(data.editable)
     ElMessage.success('配置已发布并即时生效')
   } catch (err) {
     ElMessage.error(err.message || '发布失败')
@@ -95,8 +111,15 @@ async function publish() {
   }
 }
 
+const pendingReset = new Set()
 function resetDraft(item) {
-  drafts[item.key] = { value: item.overridden ? normalize(item, item.desired_value) : null, reason: '' }
+  initDrafts([item])
+  pendingReset.delete(item.key)
+}
+function markReset(item) {
+  if (item.type === 'secret') drafts[item.key].value = ''
+  else drafts[item.key].value = null
+  if (item.overridden) pendingReset.add(item.key)   // 已有覆盖时显式发布恢复默认
 }
 
 function displayValue(value) {
@@ -144,10 +167,17 @@ const SOURCE_META = { env: 'primary', default: 'info', code: 'neutral' }
           </div>
           <div class="edit-control">
             <DewSwitch v-if="item.type === 'bool'" v-model="drafts[item.key].value" />
-            <el-input-number v-else v-model="drafts[item.key].value" :min="1" :max="1000" size="small" />
-            <el-tooltip content="恢复为跟随默认（发布新版本，不擦除历史）">
+            <el-input-number v-else-if="item.type === 'int'" v-model="drafts[item.key].value"
+              :min="1" :max="1000" size="small" />
+            <el-input v-else-if="item.type === 'str'" v-model="drafts[item.key].value"
+              size="small" placeholder="留空跟随回退链" style="width: 220px" clearable />
+            <el-input v-else-if="item.type === 'secret'" v-model="drafts[item.key].value"
+              type="password" show-password size="small"
+              placeholder="填写新值即更新；留空保持现状" style="width: 260px" />
+            <el-tooltip content="恢复为跟随默认/.env（发布新版本，不擦除历史）">
               <el-button size="small" text :icon="RefreshLeft"
-                :disabled="drafts[item.key].value === null" @click="drafts[item.key].value = null" />
+                :disabled="!item.overridden && drafts[item.key]?.value === (item.type === 'secret' ? '' : null)"
+                @click="markReset(item)" />
             </el-tooltip>
           </div>
         </div>
