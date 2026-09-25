@@ -1,7 +1,7 @@
 <template>
   <div class="selectable">
     <div class="page-header">
-      <div class="page-title">社团组别架构</div>
+      <div class="page-title">组树</div>
       <div class="header-actions">
         <el-button type="primary" plain @click="openCreate(null)">
           <el-icon><Plus /></el-icon>新建一级组

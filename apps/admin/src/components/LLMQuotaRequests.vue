@@ -7,9 +7,9 @@
         <div class="hero-left">
           <div class="hero-eyebrow">
             <span class="eyebrow-dot"></span>
-            <span>大模型服务 · 管理后台</span>
+            <span>API 平台 · 管理后台</span>
           </div>
-          <h2 class="hero-title">增额申请审批</h2>
+          <h2 class="hero-title">API 配额审批</h2>
           <p class="hero-sub">审核用户提交的额度提升申请，通过后自动同步至 LiteLLM</p>
         </div>
         <div v-if="pendingCount > 0" class="pending-alert">
@@ -297,4 +297,18 @@ onMounted(fetchRequests);
 .status-approved .status-dot { background: #10b981; }
 .status-rejected { background: #fee2e2; color: #7f1d1d; }
 .status-rejected .status-dot { background: #ef4444; }
+
+/* ── 暗色适配（09-22）：亮色硬编码在暗色下蓝底蓝字/深字深底不可读 ── */
+.theme-dark .pending-alert { background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.35); color: #fbbf24; }
+.theme-dark .pending-alert svg { color: #fbbf24; }
+.theme-dark .filter-tab { color: #94a3b8; }
+.theme-dark .filter-tab:hover { background: rgba(59, 130, 246, 0.12); color: #93c5fd; }
+.theme-dark .filter-tab.active { background: rgba(59, 130, 246, 0.16); color: #93c5fd; border-color: rgba(59, 130, 246, 0.45); }
+.theme-dark .money-cur { color: #94a3b8; }
+.theme-dark .money-req { color: #93c5fd; }
+.theme-dark .reason-text { color: #cbd5e1; }
+.theme-dark .expires-text { color: #fbbf24; }
+.theme-dark .status-pending { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+.theme-dark .status-approved { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+.theme-dark .status-rejected { background: rgba(239, 68, 68, 0.15); color: #f87171; }
 </style>

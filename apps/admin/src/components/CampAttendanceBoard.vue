@@ -1,8 +1,8 @@
 <template>
   <div class="camp-attendance-board">
-    <!-- 控制条 -->
+    <!-- 控制条（内嵌模式隐藏营期选择器：营期上下文已定） -->
     <div class="control-bar">
-      <el-select v-model="sid" placeholder="选择营期" @change="onSessionChange" style="width: 220px">
+      <el-select v-if="!hideSelector" v-model="sid" placeholder="选择营期" @change="onSessionChange" style="width: 220px">
         <el-option v-for="s in sessions" :key="s.id" :label="s.name" :value="s.id" />
       </el-select>
       <!-- 日期范围仅每日模式有意义；按周累计固定营期范围 -->
@@ -79,8 +79,16 @@ import { ElMessage } from 'element-plus';
 const store = useStore();
 const role = computed(() => store.getters.role);
 
+// 内嵌模式（营期工作区·考勤叶）：campId 直接给定，跳过营期列表与选择器
+const props = defineProps({
+  campId: { type: Number, default: null },
+  hideSelector: { type: Boolean, default: false },
+  startDate: { type: String, default: null },
+  endDate: { type: String, default: null },
+});
+
 const sessions = ref([]);
-const sid = ref(null);
+const sid = ref(props.campId);
 const dateRange = ref(null);   // [from, to] YYYY-MM-DD
 const board = ref({});
 const loading = ref(false);
@@ -229,7 +237,21 @@ async function fetchBoard() {
   }
 }
 
-onMounted(fetchSessions);
+onMounted(() => {
+  if (props.campId) {
+    // 内嵌：用传入的营期范围做日期 clamp（与 onSessionChange 同一口径），直接拉看板
+    if (props.startDate && props.endDate) {
+      const now = new Date();
+      const pad = (n) => String(n).padStart(2, '0');
+      const todayIso = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+      const to = [props.startDate, todayIso, props.endDate].sort()[1];
+      dateRange.value = [props.startDate, to];
+    }
+    fetchBoard();
+    return;
+  }
+  fetchSessions();
+});
 </script>
 
 <style scoped>

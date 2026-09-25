@@ -135,7 +135,7 @@ onMounted(() => {
 <template>
   <div style="width: 100%; height: 100%; position: relative; overflow: hidden;">
     <div class="page-header">
-      <div class="page-title">座位管理</div>
+      <div class="page-title">物理座位</div>
       <div class="header-actions">
         <el-select v-model="currentRoomName" placeholder="选择自习室" @change="onRoomChange" style="width: 150px; margin-right: 12px;">
           <el-option v-for="r in rooms" :key="r.Room_Id" :label="r.Room_Name" :value="r.Room_Name" />

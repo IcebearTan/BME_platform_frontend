@@ -2,7 +2,8 @@
 import { computed } from 'vue'
 import { VideoPlay, Document, Link, Reading, CircleCheck } from '@element-plus/icons-vue'
 
-// 只读目录树：展示章节/课时结构与进度，暂不支持点击进入
+// 目录树：章节只读；课时可点击 → emit('lesson-click', lesson) 由父级跳学习页对应小节。
+// lessonsClickable=false 时课时行呈不可用态（不响应点击/键盘，title 说明原因）
 const props = defineProps({
   chapters: {
     type: Array,
@@ -16,6 +17,10 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
+  lessonsClickable: {
+    type: Boolean,
+    default: false
+  },
   completedLessons: {
     type: Array,
     default: () => []
@@ -25,6 +30,13 @@ const props = defineProps({
     default: 'theme-light'
   }
 })
+const emit = defineEmits(['lesson-click'])
+
+// 无权限（营期学未选课）时不派发点击，避免绕过学习页门禁
+const onLessonClick = (lesson) => {
+  if (!props.lessonsClickable) return
+  emit('lesson-click', lesson)
+}
 
 // 计算缩进层级样式
 const getLevelStyle = (level) => {
@@ -192,7 +204,7 @@ const isDark = computed(() => props.themeClass === 'theme-dark')
         />
       </div>
 
-      <!-- 课时列表 - 展示在所有章节下 -->
+      <!-- 课时列表 - 点击进入学习页对应小节（支持 Enter/Space；无权限时不可用态） -->
       <div
         v-if="chapter.lessons && chapter.lessons.length > 0"
         class="lesson-list"
@@ -201,6 +213,14 @@ const isDark = computed(() => props.themeClass === 'theme-dark')
           v-for="lesson in chapter.lessons"
           :key="lesson.id"
           class="lesson-item"
+          :class="{ 'is-disabled': !lessonsClickable }"
+          role="button"
+          :tabindex="lessonsClickable ? 0 : -1"
+          :aria-disabled="!lessonsClickable"
+          :title="lessonsClickable ? '' : '加入营期学习方向后开放学习'"
+          @click="onLessonClick(lesson)"
+          @keydown.enter="onLessonClick(lesson)"
+          @keydown.space.prevent="onLessonClick(lesson)"
         >
           <!-- 课时类型图标 -->
           <el-icon
@@ -244,8 +264,10 @@ const isDark = computed(() => props.themeClass === 'theme-dark')
         :chapters="chapter.children"
         :level="level + 1"
         :is-enrolled="isEnrolled"
+        :lessons-clickable="lessonsClickable"
         :completed-lessons="completedLessons"
         :theme-class="themeClass"
+        @lesson-click="emit('lesson-click', $event)"
       />
     </div>
   </div>
@@ -424,6 +446,40 @@ const isDark = computed(() => props.themeClass === 'theme-dark')
   background-color: transparent;
   overflow: hidden;
   box-sizing: border-box;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+/* 可点击进入小节：悬停反馈（不可用态不给反馈、不变手型） */
+.chapter-tree.theme-light .lesson-item:not(.is-disabled):hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+.chapter-tree.theme-dark .lesson-item:not(.is-disabled):hover {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+.lesson-item:not(.is-disabled):hover .lesson-title {
+  color: var(--color-primary);
+}
+
+/* 键盘可达：focus-visible 走 token 描边 */
+.lesson-item:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+/* 无权限（营期学未选课）：弱化呈现，明确不可点 */
+.lesson-item.is-disabled {
+  cursor: not-allowed;
+}
+
+.chapter-tree.theme-light .lesson-item.is-disabled .lesson-title {
+  color: #b0b0b0;
+}
+
+.chapter-tree.theme-dark .lesson-item.is-disabled .lesson-title {
+  color: #5c5c5c;
 }
 
 /* 课时类型图标 */

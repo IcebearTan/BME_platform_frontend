@@ -2,7 +2,7 @@
   <div class="notification-manage">
     <!-- 页面标题 -->
     <div class="page-header">
-      <h2>通知管理</h2>
+      <h2>通知中心</h2>
       <el-button type="primary" :icon="Plus" @click="showSendDialog">
         发送系统通知
       </el-button>

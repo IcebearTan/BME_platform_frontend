@@ -205,7 +205,7 @@ onMounted(() => {
 <template>
   <div style="width: 100%; height: 100%; position: relative; overflow: hidden;">
     <div class="page-header">
-      <div class="page-title">勋章授予</div>
+      <div class="page-title">勋章发放记录</div>
       <div class="header-actions">
         <el-form :inline="true" class="form-inline" :model="formInline" @submit.prevent>
           <el-form-item label="查询">

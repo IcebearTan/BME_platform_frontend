@@ -1,7 +1,7 @@
 <template>
   <div class="selectable">
     <div class="page-header">
-      <div class="page-title">社团职位</div>
+      <div class="page-title">职位定义</div>
       <div class="header-actions">
         <el-button type="primary" plain @click="openCreate">
           <el-icon><Plus /></el-icon>新建职位

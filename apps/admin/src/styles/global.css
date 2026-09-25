@@ -120,14 +120,17 @@ body {
     transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast) !important;
 }
 
-/* is-link 排除在外：link 型按钮是「透明底 + 彩色字」，灌实底会把文字埋进同色背景里 */
-.el-button--primary:not(.is-link) {
+/* is-link / is-text / is-plain / is-dashed 排除在外：这四型按钮是「浅/透明底 + 彩色字」，
+   灌实底会把文字埋进同色背景里（09-22 两轮修复：text 型与 plain 型先后漏排，
+   营期「新建/进入成员名单」及「结营/发布」等 plain 动作按钮变蓝底蓝字不可读；
+   :not() 链特异性高于 .is-plain 规则，必须在此排除而非调顺序） */
+.el-button--primary:not(.is-link):not(.is-text):not(.is-plain):not(.is-dashed) {
     background-color: var(--primary-color) !important;
     border-color: var(--primary-color) !important;
 }
 
-.el-button--primary:not(.is-link):hover,
-.el-button--primary:not(.is-link):focus {
+.el-button--primary:not(.is-link):not(.is-text):not(.is-plain):not(.is-dashed):hover,
+.el-button--primary:not(.is-link):not(.is-text):not(.is-plain):not(.is-dashed):focus {
     background-color: var(--primary-dark) !important;
     border-color: var(--primary-dark) !important;
 }

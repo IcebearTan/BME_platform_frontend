@@ -1,12 +1,13 @@
 <script>
 import api from '../api';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { Search } from '@element-plus/icons-vue';
 import { DewCard } from '@bme/dew-ui';
 
 // 社区治理（Phase 2 09-20）：global 帖置顶（可设天数）/锁定/隐藏/恢复/删除。
 // 后端 pin/lock/hide 走 can_moderate_thread（super_admin 或 discussion_management 权限）。
 export default {
-  components: { DewCard },
+  components: { DewCard, Search },
 
   data() {
     return {

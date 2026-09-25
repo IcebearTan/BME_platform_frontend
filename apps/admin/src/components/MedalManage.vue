@@ -430,7 +430,7 @@ onMounted(() => {
   <div style="width: 100%; height: 100%; position: relative; overflow: hidden;">
     <div class="page-header">
       <div class="title-group">
-        <div class="page-title">勋章管理</div>
+        <div class="page-title">勋章定义</div>
         <el-button class="config" size="large" @click="handleAdd">新增勋章</el-button>
       </div>
       <div class="header-actions">

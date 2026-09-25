@@ -1,11 +1,11 @@
 <script setup>
-// 课程「相关资源」tab：数据获取 + Down_Code 一次性码下载策略；
-// 文件行渲染/多选/骨架屏由共享组件 ResourceFileList 承担（2026-09-20 抽取，
-// 与学习资源中心共用，行为不变）。
+// 课程「相关资源」tab：取数与下载策略走共享 courseResourceService（09-21 抽取，
+// 与章节学习页「课程资源」区共用）；文件行渲染/多选/骨架屏由共享组件
+// ResourceFileList 承担（2026-09-20 抽取，与学习资源中心共用，行为不变）。
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import api, { API_URL } from '../../api'
 import ResourceFileList from './ResourceFileList.vue'
+import { courseResourceService } from '../../services/courseResourceService'
 
 const props = defineProps({
   courseId: {
@@ -25,14 +25,7 @@ const isLoading = ref(false)
 const fetchResources = async () => {
   isLoading.value = true
   try {
-    const res = await api({
-      url: '/course/resources',
-      method: 'get',
-      params: { Course_Id: props.courseId }
-    })
-    if (res.data.code === 200) {
-      resources.value = res.data.data || []
-    }
+    resources.value = await courseResourceService.list(props.courseId)
   } catch (error) {
     console.error('获取课程资源失败', error)
   } finally {
@@ -46,46 +39,16 @@ onMounted(fetchResources)
 const download = async (ids) => {
   if (!ids.length) return
   try {
-    const res = await api({
-      url: '/course/resource_down',
-      method: 'get',
-      params: {
-        Course_Id: props.courseId,
-        Resource_Ids: ids.join(',')
-      }
-    })
-    if (res.data.code === 200) {
-      const url = `${API_URL}/course/resource_download?Down_Code=${encodeURIComponent(res.data.Down_Code)}`
-      window.open(url, '_blank')
-    } else {
-      ElMessage.warning(res.data.message || '获取下载链接失败')
-    }
+    await courseResourceService.download(props.courseId, ids)
   } catch (error) {
     console.error('下载失败', error)
-    ElMessage.error('下载失败，请重试')
+    ElMessage.error(error?.message || '下载失败，请重试')
   }
 }
 
 const downloadOne = (item) => download([item.id])
 const downloadSelected = (ids) => download(ids)
-const downloadAll = () => {
-  // 不传 Resource_Ids，后端打包该课程全部资源
-  return api({
-    url: '/course/resource_down',
-    method: 'get',
-    params: { Course_Id: props.courseId }
-  }).then(res => {
-    if (res.data.code === 200) {
-      const url = `${API_URL}/course/resource_download?Down_Code=${encodeURIComponent(res.data.Down_Code)}`
-      window.open(url, '_blank')
-    } else {
-      ElMessage.warning(res.data.message || '获取下载链接失败')
-    }
-  }).catch(error => {
-    console.error('下载失败', error)
-    ElMessage.error('下载失败，请重试')
-  })
-}
+const downloadAll = () => download([])
 </script>
 
 <template>

@@ -1,7 +1,7 @@
 <template>
   <div class="selectable">
     <div class="page-header">
-      <div class="page-title">社团干事</div>
+      <div class="page-title">任职管理</div>
       <div class="header-actions">
         <el-form :inline="true" class="form-inline" :model="query" @submit.prevent>
           <el-form-item>

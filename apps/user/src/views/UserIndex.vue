@@ -24,6 +24,9 @@ const DEFAULT_AVATAR = 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e
 const username = ref('')
 const user_email = ref('')
 const uid = ref('')
+// 等级徽标：super_admin 显示「超管」（管理员无等级语义，同 MenuComponent 约定），否则 LV1-4
+const viewRole = ref('')
+const viewLevel = ref(null)
 const User_Avatar = ref(DEFAULT_AVATAR)
 // 遗留的 avatar 点击占位（原 Options 版本既有，保持不动）
 const visible = ref(false)
@@ -51,6 +54,14 @@ const fetchAvatar = async (id) => {
   }
 }
 
+// 徽标文案与样式：超管走 warning 琥珀（同顶栏头像弹层），学员走全局 lv-badge 色阶；
+// 资料未取到 level（如请求失败）则学员不显示，避免误挂 LV1
+const isStaff = computed(() => viewRole.value === 'super_admin')
+const badgeText = computed(() => {
+  if (isStaff.value) return '超管'
+  return viewLevel.value != null ? `LV${viewLevel.value}` : ''
+})
+
 const load = async () => {
   applyStats(null)
   if (isOther.value) {
@@ -61,6 +72,8 @@ const load = async () => {
         username.value = res.data.User_Name || ''
         user_email.value = ''              // 邮箱不对外
         uid.value = res.data.User_Id || ''
+        viewRole.value = res.data.role || ''
+        viewLevel.value = res.data.level ?? null
         applyStats(res.data.data)          // 月度统计（接口 data 字段）
         await fetchAvatar(targetId.value)
       }
@@ -75,6 +88,8 @@ const load = async () => {
         username.value = res.data.User_Name
         user_email.value = res.data.User_Email
         uid.value = res.data.User_Id
+        viewRole.value = res.data.role || ''
+        viewLevel.value = res.data.level ?? null
       }
     } catch (error) {
       // 401 交给全局拦截器，这里只做本地跳转
@@ -132,7 +147,13 @@ watch(targetId, load)
               />
             </div>
             <div class="user-details">
-              <div class="username">{{ username }}</div>
+              <div class="username">
+                {{ username }}
+                <span
+                  v-if="!loading && badgeText"
+                  :class="isStaff ? ['lv-badge', 'username-badge--staff'] : ['lv-badge', `lv-${viewLevel || 1}`]"
+                >{{ badgeText }}</span>
+              </div>
               <div class="user-email" v-if="user_email">Email：{{ user_email }}</div>
               <div class="user-uid">#uid：{{ uid }}</div>
             </div>
@@ -242,10 +263,19 @@ watch(targetId, load)
 }
 
 .username {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 20px;
   font-weight: 700;
   margin-bottom: 6px;
   color: var(--dew-text-heading);
+}
+
+/* 超管徽标：复用 lv-badge 药丸度量，只盖配色（同 MenuComponent 头像弹层） */
+.username-badge--staff {
+  color: var(--color-warning);
+  background: var(--color-warning-light);
 }
 
 .user-email,

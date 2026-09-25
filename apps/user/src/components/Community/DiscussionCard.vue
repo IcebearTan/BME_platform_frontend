@@ -11,14 +11,6 @@
       <DewTag type="neutral" size="sm" round>讨论</DewTag>
       <DewTag v-if="discussion.topic" type="info" size="sm" round>{{ discussion.topic }}</DewTag>
       <DewTag v-if="discussion.isEssence" type="success" size="sm" round>精华</DewTag>
-      <span
-        v-if="discussion.projectTitle"
-        class="dc-project"
-        title="关联的 XLAB 项目"
-        @click.stop="goProject"
-      >
-        <el-icon><Grid /></el-icon>{{ discussion.projectTitle }}
-      </span>
       <DewTag v-if="discussion.isHot" type="warning" size="sm" round>置顶</DewTag>
       <button
         v-if="canDelete"
@@ -60,6 +52,10 @@
                 :src="img" ratio="4/3" alt="帖子图片" @click.stop="openViewer(i)" />
     </div>
 
+    <!-- 关联 XLAB 项目大卡（XLab 引流优化 §6）：feed 已投影摘要才渲染（下架/无关联为 null），
+         点击整卡新开标签页进项目详情，不再回退顶部名称胶囊 -->
+    <LinkedProjectCard v-if="discussion.project" :project="discussion.project" />
+
     <!-- 操作按钮 -->
     <div class="dc-actions">
       <button
@@ -97,9 +93,10 @@
 import { ref, computed } from 'vue'
 import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
-import { ChatDotRound, View, Star, StarFilled, Delete, Grid } from '@element-plus/icons-vue'
+import { ChatDotRound, View, Star, StarFilled, Delete } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { DewCard, DewTag, DewMessageBox } from '@bme/dew-ui'
+import LinkedProjectCard from './LinkedProjectCard.vue'
 import api from '../../api'
 
 const props = defineProps({
@@ -116,11 +113,6 @@ const router = useRouter()
 
 // 新开标签页打开（09-20 用户定调）：社区流原地保留，点开的内容在新页承载
 const openTab = (path) => window.open(router.resolve(path).href, '_blank', 'noopener')
-
-// 关联项目 chip：新页直达 XLAB 项目详情（Phase 2 招人帖导流）
-const goProject = () => {
-  if (props.discussion.projectId != null) openTab(`/projects/${props.discussion.projectId}`)
-}
 
 // 整卡进帖子详情页（新标签页；feed 卡只做浏览层，互动都在详情页）
 const goDetail = () => openTab(`/community/thread/${props.discussion.id}`)

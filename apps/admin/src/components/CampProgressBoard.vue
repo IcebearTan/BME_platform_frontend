@@ -88,18 +88,34 @@ function courseTip(b, c) {
 async function fetchBoard() {
   loading.value = true;
   try {
-    const res = await api.get(`/camp/sessions/${props.sid}/progress/board`);
-    if (res.data.code === 200) {
-      // 行内挂课程索引（模板按 course_id 取格子，同考勤看板 _byWeek 模式）
-      for (const g of res.data.groups || []) {
-        for (const s of g.students || []) {
-          s._byCourse = Object.fromEntries((s.courses || []).map((b) => [b.course_id, b]));
-        }
+    // 接口已服务端分页（团队桶为单位，page_size 上限 20）：管理端保持全营视图，
+    // 按 total 逐页取完再合并（通常 1-2 页）
+    const pageSize = 20;
+    let page = 1;
+    let acc = [];
+    let total = Infinity;
+    let summary = null;
+    while ((page - 1) * pageSize < total) {
+      const res = await api.get(`/camp/sessions/${props.sid}/progress/board`,
+        { params: { page, page_size: pageSize } });
+      if (res.data.code !== 200) {
+        ElMessage.error(res.data.message || '加载学习进度看板失败');
+        return;
       }
-      board.value = res.data;
-    } else {
-      ElMessage.error(res.data.message || '加载学习进度看板失败');
+      const groups = res.data.groups || [];
+      acc = acc.concat(groups);
+      total = res.data.total ?? acc.length;
+      summary = res.data.summary;
+      if (!groups.length) break;
+      page += 1;
     }
+    // 行内挂课程索引（模板按 course_id 取格子，同考勤看板 _byWeek 模式）
+    for (const g of acc) {
+      for (const s of g.students || []) {
+        s._byCourse = Object.fromEntries((s.courses || []).map((b) => [b.course_id, b]));
+      }
+    }
+    board.value = { groups: acc, summary };
   } catch (e) {
     ElMessage.error(e.response?.data?.message || '加载学习进度看板失败');
   } finally {
