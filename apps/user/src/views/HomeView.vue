@@ -308,8 +308,8 @@ const handleEntryClick = (entry) => {
 
 .content-sections {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
-  gap: 20px;
+  grid-template-columns: minmax(0, 1fr) clamp(260px, 20vw, 300px);
+  gap: 16px;
   width: 100%;
   min-height: 400px;
   box-sizing: border-box;
@@ -346,7 +346,7 @@ const handleEntryClick = (entry) => {
   .right-section {
     width: auto;
   }
-  .content-sections { grid-template-columns: minmax(0, 1fr) 280px; }
+  .content-sections { grid-template-columns: minmax(0, 1fr) 260px; }
   
   .homeMainContainer {
     padding: 16px;
@@ -361,7 +361,7 @@ const handleEntryClick = (entry) => {
   .right-section {
     width: auto;
   }
-  .content-sections { grid-template-columns: minmax(0, 1fr) 250px; }
+  .content-sections { grid-template-columns: minmax(0, 1fr) 240px; }
   
   .homeMainContainer {
     padding: 12px;
