@@ -189,8 +189,13 @@ test('服务设置：在线配置渲染 + 发布流差异确认与打点', async
     match: (url, route) => url.includes('/admin/schedule/settings') && route.request().method() === 'PATCH',
     respond: (route) => {
       published.push(route.request().postDataJSON())
+      const publishedEditable = SETTINGS.data.editable.map((i) =>
+        i.key === 'SCHEDULE_INTENT_MODEL'
+          ? { ...i, desired_value: 'deepseek-reasoner', effective_value: 'deepseek-reasoner',
+              overridden: true, version: 1, updated_at: NOW, updated_by_name: 'admin' }
+          : i)
       return route.fulfill({ json: { code: 200, data: { changes: [{ key: 'SCHEDULE_INTENT_DAILY_LIMIT', to: '100', version: 4 }],
-        editable: SETTINGS.data.editable } } })
+        editable: publishedEditable } } })
     },
   })
   await page.goto(`${BASE}/operations/schedule?tab=settings`)
@@ -223,6 +228,10 @@ test('服务设置：在线配置渲染 + 发布流差异确认与打点', async
   const keyUpdate = published[0].updates.find((u) => u.key === 'DEEPSEEK_API_KEY')
   expect(limitUpdate.value).toBe(100)
   expect(keyUpdate.value).toBe('sk-e2e-new-key-000000000000')
+
+  // 发布成功后模型覆盖值回填输入框（str 类型不得变成 NaN），密钥框保持空但提示已保存
+  await expect(page.getByPlaceholder('留空跟随回退链')).toHaveValue('deepseek-reasoner')
+  await expect(page.getByPlaceholder('已保存覆盖值（不回显）；填写新值即替换')).toBeVisible()
 
   // 只读区（env/代码键）仍无任何写控件
   await expect(page.getByText('提醒扫描（只读，需改环境变量或代码）')).toBeVisible()

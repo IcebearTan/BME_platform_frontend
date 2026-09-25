@@ -51,7 +51,9 @@ function initDrafts(editables) {
 onMounted(fetchSettings)
 
 function normalize(item, raw) {
-  return item.type === 'bool' ? String(raw).toLowerCase() === 'true' : Number(raw)
+  if (item.type === 'bool') return String(raw).toLowerCase() === 'true'
+  if (item.type === 'int') return Number(raw)
+  return raw                 // str：模型名等按原样字符串（Number() 会得到 NaN）
 }
 
 function effectiveText(item) {
@@ -190,7 +192,8 @@ const SOURCE_META = { env: 'primary', default: 'info', code: 'neutral' }
               size="small" placeholder="留空跟随回退链" style="width: 220px" clearable />
             <el-input v-else-if="item.type === 'secret'" v-model="drafts[item.key].value"
               type="password" show-password size="small"
-              placeholder="填写新值即更新；留空保持现状" style="width: 260px" />
+              :placeholder="item.overridden ? '已保存覆盖值（不回显）；填写新值即替换' : '填写新值即更新；留空使用 .env'"
+              style="width: 260px" />
             <el-tooltip content="恢复为跟随默认/.env（发布新版本，不擦除历史）">
               <el-button size="small" text :icon="RefreshLeft"
                 :disabled="!item.overridden && drafts[item.key]?.value === (item.type === 'secret' ? '' : null)"
