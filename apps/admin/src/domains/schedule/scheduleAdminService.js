@@ -32,7 +32,11 @@ export const scheduleAdminService = {
   publishSettings(updates) {
     return api.patch('/admin/schedule/settings', { updates })
       .then((res) => {
-        if (res.data.code !== 200) throw new Error(res.data.message || '发布失败')
+        if (res.data.code !== 200) {
+          const err = new Error(res.data.message || '发布失败')
+          err.status = res.data.code
+          throw err
+        }
         return res.data.data
       })
   },

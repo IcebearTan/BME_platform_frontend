@@ -239,3 +239,56 @@ test('工作台：日程风险行展示并深链到记录页筛选', async ({ pa
   await riskRow.click()
   await expect(page).toHaveURL(/operations\/schedule\?tab=records&type=capture&bucket=stalled/)
 })
+
+test('服务设置：409 冲突后保留已填值，刷新版本可重试', async ({ page }) => {
+  let patchCount = 0
+  const seenPayloads = []
+  // GET 版本基线 v3（模拟页面上已有旧版本）
+  const STALE_SETTINGS = JSON.parse(JSON.stringify(SETTINGS))
+  STALE_SETTINGS.data.editable = STALE_SETTINGS.data.editable.map((i) =>
+    i.key === 'SCHEDULE_INTENT_MODEL' ? { ...i, version: 2 } : i)   // 页面持有 v2，服务端实际 v3
+  await loginAsStaff(page)
+  await page.route('http://127.0.0.1:5001/**', (route) => {
+    const url = route.request().url()
+    const method = route.request().method()
+    if (url.includes('/admin/schedule/settings') && method === 'PATCH') {
+      patchCount += 1
+      seenPayloads.push(route.request().postDataJSON())
+      if (patchCount === 1) {
+        return route.fulfill({ json: { code: 409, message: '意图理解模型 已被他人修改，请刷新后重试' } })
+      }
+      return route.fulfill({ json: { code: 200, data: { changes: [], editable: SETTINGS.data.editable } } })
+    }
+    if (url.includes('/admin/schedule/settings')) {
+      // 首次 GET 给旧版本 v2（页面陈旧）；409 触发重拉后给 v3（他人已更新的现状）
+      const fresh = patchCount >= 1
+      const body = fresh
+        ? { ...STALE_SETTINGS, data: { ...STALE_SETTINGS.data,
+            editable: STALE_SETTINGS.data.editable.map((i) =>
+              i.key === 'SCHEDULE_INTENT_MODEL' ? { ...i, version: 3 } : i) } }
+        : STALE_SETTINGS
+      return route.fulfill({ json: body })
+    }
+    if (url.includes('/user/user_index')) {
+      return route.fulfill({ json: { code: 200, role: 'super_admin', User_Name: 'e2e' } })
+    }
+    return route.fulfill({ json: { code: 200, message: 'ok', data: {} } })
+  })
+  await page.goto(`${BASE}/operations/schedule?tab=settings`)
+
+  // 用旧版本发布 → 409 → 提示刷新版本，输入框内容保留
+  await page.getByPlaceholder('留空跟随回退链').fill('deepseek-reasoner')
+  await page.getByRole('button', { name: '发布变更' }).click()
+  await expect(page.getByText('确认发布以下配置变更？发布后即时生效。')).toBeVisible()
+  await page.getByRole('button', { name: '发布', exact: true }).click()
+  await expect(page.getByText('版本已刷新；请再次点击「发布变更」', { exact: false })).toBeVisible({ timeout: 5000 })
+  await expect(page.getByPlaceholder('留空跟随回退链')).toHaveValue('deepseek-reasoner')
+
+  // 再次发布 → 携带刷新后的版本（3）与保留的值
+  await page.getByRole('button', { name: '发布变更' }).click()
+  await page.getByRole('button', { name: '发布', exact: true }).click()
+  await expect(page.getByText('配置已发布并即时生效')).toBeVisible({ timeout: 5000 })
+  expect(seenPayloads.length).toBe(2)
+  expect(seenPayloads[1].updates[0].value).toBe('deepseek-reasoner')
+  expect(seenPayloads[1].updates[0].expected_version).toBe(3)
+})

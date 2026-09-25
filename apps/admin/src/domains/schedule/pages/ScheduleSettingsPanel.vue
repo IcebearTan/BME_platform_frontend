@@ -105,8 +105,22 @@ async function publish() {
     initDrafts(data.editable)
     ElMessage.success('配置已发布并即时生效')
   } catch (err) {
-    ElMessage.error(err.message || '发布失败')
-    fetchSettings()      // 409 等场景：重拉最新版本供再次编辑
+    if (err.status === 409) {
+      // 乐观锁冲突：只刷新版本基线，保留已填值——用户确认后直接再点发布即可
+      try {
+        const fresh = await scheduleAdminService.fetchSettings()
+        settings.value = { ...settings.value, editable: fresh.editable }
+        for (const item of fresh.editable || []) {
+          if (!drafts[item.key]) initDrafts([item])   // 仅新增键初始化
+        }
+        ElMessage.warning('配置已被其他人更新，版本已刷新；请再次点击「发布变更」')
+      } catch {
+        ElMessage.error(err.message || '发布失败')
+      }
+    } else {
+      ElMessage.error(err.message || '发布失败')
+      fetchSettings()
+    }
   } finally {
     publishing.value = false
   }
