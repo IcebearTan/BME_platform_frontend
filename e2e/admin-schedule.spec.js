@@ -67,8 +67,9 @@ const SETTINGS = {
         component: 'POST /schedule/captures', note: '关闭仅阻止新的 AI 录入请求',
         default_value: true, desired_value: null, effective_value: true,
         overridden: false, version: 0, updated_at: null, updated_by_name: null, reason: null },
-      { key: 'SCHEDULE_INTENT_DAILY_LIMIT', label: 'AI 录入每日限额（每用户）', type: 'int',
-        component: 'POST /schedule/captures 限流', note: '超出限额收到 429',
+      { key: 'SCHEDULE_INTENT_DAILY_LIMIT', label: 'AI 录入每日限额', type: 'int',
+        unit: '次/天（每用户）',
+        component: 'POST /schedule/captures 限流', note: '单位=提交次数：一句话记 1 次',
         default_value: 50, desired_value: '20', effective_value: 20,
         overridden: true, version: 3, updated_at: NOW, updated_by_name: 'admin', reason: '试点收紧' },
       { key: 'SCHEDULE_INTENT_MODEL', label: '意图理解模型', type: 'str',
@@ -203,13 +204,17 @@ test('服务设置：在线配置渲染 + 发布流差异确认与打点', async
   await expect(page.getByText('意图理解模型', { exact: true })).toBeVisible()
   await expect(page.getByText('已配置（平台配置）').first()).toBeVisible()
 
+  // 限额单位明示
+  await expect(page.getByText('次/天（每用户）').first()).toBeVisible()
+  await expect(page.getByText('20 次/天（每用户）').first()).toBeVisible()
+
   // 修改限额 + 填新密钥 → 发布 → 差异确认弹窗（密钥显示不回显）→ 打点
   const limitInput = page.locator('.edit-control .el-input-number input')
   await limitInput.fill('100')
   await page.locator('.edit-control input[type="password"]').fill('sk-e2e-new-key-000000000000')
   await page.getByRole('button', { name: '发布变更' }).click()
   await expect(page.getByText('确认发布以下配置变更？发布后即时生效。')).toBeVisible()
-  await expect(page.getByText('AI 录入每日限额（每用户） → 100')).toBeVisible()
+  await expect(page.getByText('AI 录入每日限额 → 100')).toBeVisible()
   await expect(page.getByText('DeepSeek API Key → 已更新（不回显）')).toBeVisible()
   await page.getByRole('button', { name: '发布', exact: true }).click()
   await expect(page.getByText('配置已发布并即时生效')).toBeVisible({ timeout: 5000 })

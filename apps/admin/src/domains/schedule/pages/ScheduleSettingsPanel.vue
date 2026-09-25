@@ -57,7 +57,8 @@ function normalize(item, raw) {
 function effectiveText(item) {
   if (item.type === 'secret') return item.effective_value      // 已是脱敏描述串
   if (item.type === 'bool') return item.effective_value ? '开启' : '关闭'
-  return String(item.effective_value ?? '（回退链默认）')
+  const unit = item.unit ? ` ${item.unit}` : ''
+  return String(item.effective_value ?? '（回退链默认）') + unit
 }
 function defaultText(item) {
   if (item.type === 'bool') return item.default_value ? '开启' : '关闭'
@@ -167,8 +168,10 @@ const SOURCE_META = { env: 'primary', default: 'info', code: 'neutral' }
           </div>
           <div class="edit-control">
             <DewSwitch v-if="item.type === 'bool'" v-model="drafts[item.key].value" />
-            <el-input-number v-else-if="item.type === 'int'" v-model="drafts[item.key].value"
-              :min="1" :max="1000" size="small" />
+            <template v-else-if="item.type === 'int'">
+              <el-input-number v-model="drafts[item.key].value" :min="1" :max="1000" size="small" />
+              <span v-if="item.unit" class="unit-text">{{ item.unit }}</span>
+            </template>
             <el-input v-else-if="item.type === 'str'" v-model="drafts[item.key].value"
               size="small" placeholder="留空跟随回退链" style="width: 220px" clearable />
             <el-input v-else-if="item.type === 'secret'" v-model="drafts[item.key].value"
@@ -305,6 +308,12 @@ const SOURCE_META = { env: 'primary', default: 'info', code: 'neutral' }
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.unit-text {
+  font-size: 12px;
+  color: var(--text-secondary, var(--text-primary));
+  white-space: nowrap;
 }
 
 .reason-row {
