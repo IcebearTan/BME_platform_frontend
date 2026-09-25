@@ -300,4 +300,9 @@ function displayValue(value) {
   color: var(--text-faint, var(--text-secondary));
   line-height: 1.6;
 }
+.records-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
 </style>

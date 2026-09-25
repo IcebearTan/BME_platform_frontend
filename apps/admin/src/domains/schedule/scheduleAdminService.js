@@ -29,6 +29,13 @@ export const scheduleAdminService = {
   fetchSettings() {
     return get('/admin/schedule/settings').then((d) => d.data)
   },
+  publishSettings(updates) {
+    return api.patch('/admin/schedule/settings', { updates })
+      .then((res) => {
+        if (res.data.code !== 200) throw new Error(res.data.message || '发布失败')
+        return res.data.data
+      })
+  },
 }
 
 // 安全错误码 → 固定文案映射（服务端只出码不出自由文本，脱敏审查收敛于此）

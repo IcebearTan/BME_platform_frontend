@@ -226,4 +226,9 @@ function goRisk(risk) {
   font-size: 12px;
   color: var(--text-faint, var(--text-secondary));
 }
+.overview-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
 </style>

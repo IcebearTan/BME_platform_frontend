@@ -62,6 +62,16 @@ const SETTINGS = {
   data: {
     as_of: NOW,
     scope_note: '以下为本 API 进程有效值',
+    editable: [
+      { key: 'SCHEDULE_INTENT_ENABLED', label: 'AI 意图录入开关', type: 'bool',
+        component: 'POST /schedule/captures', note: '关闭仅阻止新的 AI 录入请求',
+        default_value: true, desired_value: null, effective_value: true,
+        overridden: false, version: 0, updated_at: null, updated_by_name: null, reason: null },
+      { key: 'SCHEDULE_INTENT_DAILY_LIMIT', label: 'AI 录入每日限额（每用户）', type: 'int',
+        component: 'POST /schedule/captures 限流', note: '超出限额收到 429',
+        default_value: 50, desired_value: '20', effective_value: 20,
+        overridden: true, version: 3, updated_at: NOW, updated_by_name: 'admin', reason: '试点收紧' },
+    ],
     groups: [
       { section: '提醒扫描', items: [
         { key: 'SCHEDULE_REMINDER_SCAN_ENABLED', value: true, source: 'default',
@@ -107,7 +117,7 @@ async function loginAsStaff(page) {
 async function mockBackend(page, overrides = {}) {
   await page.route('http://127.0.0.1:5001/**', (route) => {
     const url = route.request().url()
-    if (overrides.match?.(url)) return overrides.respond(route, url)
+    if (overrides.match?.(url, route)) return overrides.respond(route, url)
     if (url.includes('/admin/workbench/summary')) return route.fulfill({ json: WORKBENCH_SUMMARY })
     if (url.includes('/admin/schedule/overview')) return route.fulfill({ json: OVERVIEW })
     if (url.includes('/admin/schedule/reminders/301')) return route.fulfill({ json: REMINDER_DETAIL })
@@ -163,18 +173,38 @@ test('运行记录：筛选保留在 URL、状态脱敏渲染、详情抽屉', a
   await expect(page.getByText('4', { exact: true }).first()).toBeVisible()   // target_current_version
 })
 
-test('服务设置：只读展示、密钥只显配置状态、无写入口', async ({ page }) => {
+test('服务设置：在线配置渲染 + 发布流差异确认与打点', async ({ page }) => {
+  const published = []
   await loginAsStaff(page)
-  await mockBackend(page)
+  await mockBackend(page, {
+    match: (url, route) => url.includes('/admin/schedule/settings') && route.request().method() === 'PATCH',
+    respond: (route) => {
+      published.push(route.request().postDataJSON())
+      return route.fulfill({ json: { code: 200, data: { changes: [{ key: 'SCHEDULE_INTENT_DAILY_LIMIT', to: '100', version: 4 }],
+        editable: SETTINGS.data.editable } } })
+    },
+  })
   await page.goto(`${BASE}/operations/schedule?tab=settings`)
 
-  await expect(page.getByText('以下为本 API 进程有效值', { exact: false })).toBeVisible()
-  await expect(page.getByText('需重启').first()).toBeVisible()
+  // 在线配置区：覆盖态徽标 + 生效值 + 默认值对照
+  await expect(page.getByText('在线配置（发布后即时生效）')).toBeVisible()
+  await expect(page.getByText('平台覆盖 v3')).toBeVisible()
+  await expect(page.getByText(/最近发布：.* by admin/)).toBeVisible()
+
+  // 修改限额 → 发布 → 差异确认弹窗 → 打点
+  const limitInput = page.locator('.edit-control .el-input-number input')
+  await limitInput.fill('100')
+  await page.getByRole('button', { name: '发布变更' }).click()
+  await expect(page.getByText('确认发布以下配置变更？发布后即时生效。')).toBeVisible()
+  await expect(page.getByText('AI 录入每日限额（每用户） → 100')).toBeVisible()
+  await page.getByRole('button', { name: '发布', exact: true }).click()
+  await expect(page.getByText('配置已发布并即时生效')).toBeVisible({ timeout: 5000 })
+  expect(published.length).toBe(1)
+  expect(published[0].updates[0].value).toBe(100)
+
+  // 只读区（env/代码键）仍无任何写控件
+  await expect(page.getByText('提醒扫描（只读，需改环境变量或代码）')).toBeVisible()
   await expect(page.getByText('DEEPSEEK_API_KEY')).toBeVisible()
-  await expect(page.getByText('已配置').first()).toBeVisible()
-  // 批次 A 无任何保存/编辑控件
-  const saveButtons = await page.getByRole('button', { name: /保存|发布|编辑/ }).count()
-  expect(saveButtons).toBe(0)
 })
 
 test('工作台：日程风险行展示并深链到记录页筛选', async ({ page }) => {
