@@ -8,6 +8,7 @@ import { scheduleService } from '../services/scheduleService'
 const capture = ref(null)     // GET /captures/:id 形状（含 result 解析后的 items）
 const phase = ref('idle')     // idle|submitting|processing|done|clarify_needed|failed|timeout|reverted
 const phaseDetail = ref('')   // 失败原因 / 撤销 skipped 摘要
+const settleTick = ref(0)     // 每次「有结果的落定」（settle/撤销完）+1，驱动全局刷新
 let pollTimer = null
 let pollCount = 0
 let currentRequestId = null
@@ -25,6 +26,7 @@ function stopPolling() {
 function settle(row) {
   capture.value = row
   phase.value = row.status
+  settleTick.value += 1
   stopPolling()
 }
 
@@ -105,6 +107,7 @@ export function useScheduleCapture() {
     phaseDetail.value = skipped.length
       ? `已撤销，${skipped.length} 项因已被修改跳过`
       : '已撤销本次录入'
+    settleTick.value += 1
   }
 
   /** 手动模式：应用一个 proposed 方案 */
@@ -119,5 +122,5 @@ export function useScheduleCapture() {
     phaseDetail.value = ''
   }
 
-  return { capture, phase, phaseDetail, submit, resolve, revertCapture, applyProposal, dismiss }
+  return { capture, phase, phaseDetail, settleTick, submit, resolve, revertCapture, applyProposal, dismiss }
 }

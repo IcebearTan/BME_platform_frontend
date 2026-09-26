@@ -17,6 +17,7 @@ import ScheduleTaskDialog from '../components/schedule/ScheduleTaskDialog.vue'
 import ScheduleEventDialog from '../components/schedule/ScheduleEventDialog.vue'
 import ScheduleBlockDialog from '../components/schedule/ScheduleBlockDialog.vue'
 import SchedulePlanCard from '../components/schedule/SchedulePlanCard.vue'
+import { useScheduleCapture } from '../composables/useScheduleCapture'
 
 const route = useRoute()
 const router = useRouter()
@@ -55,6 +56,10 @@ watch(() => route.query.tab, (tab) => {
 
 // ── 弹窗编排 + 数据刷新 ──
 const refreshKey = ref(0)
+// 「说一句」录入落定（含补答、撤销）→ 全部页签重拉：AI 创建的任务/日程
+// 必须立刻出现在今日/周历/待安排，否则用户以为没记录上
+const { settleTick: captureSettleTick } = useScheduleCapture()
+watch(captureSettleTick, () => { refreshKey.value += 1 })
 const taskDialog = ref({ visible: false, task: null })
 const eventDialog = ref({ visible: false, event: null, prefill: null })
 const blockDialog = ref({ visible: false, block: null, taskId: null, prefill: null })

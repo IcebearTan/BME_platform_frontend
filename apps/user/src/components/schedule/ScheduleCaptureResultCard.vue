@@ -1,16 +1,19 @@
 <script setup>
 // 录入结果卡：多事项分区（已安排 / 已创建待安排 / 待补充 / 失败）+ 待补充追问
-// chips + 撤销本次录入。已安排项可「修改」打开任务编辑弹窗（事件走撤销重说）。
-import { computed, reactive } from 'vue'
+// （有选项出 chips，时间类字段一律配日期时间选择器，不再要求手输格式化时间）
+// + 撤销本次录入 + manual 模式的排程方案确认卡（「下一步」）。
+// 已安排项可「修改」打开任务编辑弹窗（事件走撤销重说）。
+import { computed, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { RefreshLeft, Close } from '@element-plus/icons-vue'
 import { DewCard, DewTag, DewButton } from '@bme/dew-ui'
 import { useScheduleCapture } from '../../composables/useScheduleCapture'
 import { scheduleService } from '../../services/scheduleService'
+import SchedulePlanCard from './SchedulePlanCard.vue'
 
 const emit = defineEmits(['edit-task', 'settled'])
 
-const { capture, phase, phaseDetail, resolve, revertCapture, dismiss } = useScheduleCapture()
+const { capture, phase, phaseDetail, settleTick, resolve, revertCapture, dismiss } = useScheduleCapture()
 
 const result = computed(() => capture.value?.result || null)
 const items = computed(() => result.value?.items || [])
@@ -24,6 +27,33 @@ const visible = computed(() =>
 
 // 追问答案本地态：{itemIndex: {field: value}}
 const answers = reactive({})
+const UNSET = '__unset__'
+const TIME_FIELDS = ['start_at', 'end_at', 'due_at']
+const UNSET_FIELDS = ['start_at', 'due_at', 'due_date']
+
+const isDatetimeField = (field) => TIME_FIELDS.includes(field)
+const isDateField = (field) => field === 'due_date'
+const canUnset = (field) => UNSET_FIELDS.includes(field)
+const unsetLabel = (field) => (field === 'due_date' || field === 'due_at'
+  ? '不设定截止' : '没有固定时间，记为待办')
+
+// 选择器禁选今天之前的日期（过去时间由后端追问「明天同一时间」处理）
+const disablePastDays = (d) => {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return d.getTime() < today.getTime()
+}
+
+function setAnswer(item, ambiguity, value) {
+  if (!value) return
+  answers[item.index] = { ...(answers[item.index] || {}), [ambiguity.field]: value }
+}
+
+// 选择器展示值：哨兵值不进选择器（避免解析告警）
+const pickerValue = (item, field) => {
+  const v = answers[item.index]?.[field]
+  return v && v !== UNSET ? v : undefined
+}
 
 function choose(item, ambiguity, option) {
   answers[item.index] = { ...(answers[item.index] || {}), [ambiguity.field]: option.value }
@@ -70,6 +100,21 @@ async function editTask(item) {
   }
 }
 
+// manual 模式：录入产生的 proposed 排程方案 → 确认卡（应用后全局刷新）
+const proposalHidden = ref(false)
+watch(() => capture.value?.id, () => { proposalHidden.value = false })
+const proposalPlan = computed(() => {
+  const p = result.value?.proposal
+  if (!p?.plan_id || proposalHidden.value) return null
+  if (!['done', 'clarify_needed'].includes(phase.value)) return null
+  return { id: p.plan_id, mode: 'proposed', reason: p.reason, blocks: p.blocks || [], unscheduled: p.unscheduled || [] }
+})
+
+function onProposalApplied() {
+  proposalHidden.value = true
+  settleTick.value += 1          // 应用产生新时间块：今日/周历/待安排全部重拉
+}
+
 const statusTag = (item) => ({
   scheduled: { type: 'success', label: '已安排' },
   created: { type: 'primary', label: '已创建' },
@@ -103,7 +148,7 @@ const statusTag = (item) => ({
       </li>
     </ul>
 
-    <!-- 待补充：追问 chips -->
+    <!-- 待补充：追问 chips + 时间选择器 -->
     <div v-if="clarifying.length && phase !== 'reverted'" class="clarify-block">
       <div v-for="it in clarifying" :key="it.index" class="clarify-item">
         <div class="clarify-title">{{ it.title }}</div>
@@ -114,8 +159,25 @@ const statusTag = (item) => ({
               :class="{ 'is-picked': answers[it.index]?.[a.field] === opt.value }"
               @click="choose(it, a, opt)">{{ opt.label }}</button>
           </div>
-          <input v-else class="q-input" type="text" placeholder="直接输入时间，如 2026-09-25 15:00"
-            @input="answers[it.index] = { ...(answers[it.index] || {}), [a.field]: $event.target.value }" />
+          <div v-if="isDatetimeField(a.field) || isDateField(a.field) || !(a.options && a.options.length)"
+            class="q-fill">
+            <el-date-picker v-if="isDatetimeField(a.field)" class="q-picker" type="datetime"
+              :model-value="pickerValue(it, a.field)"
+              @update:model-value="(v) => setAnswer(it, a, v)"
+              format="YYYY-MM-DD HH:mm" value-format="YYYY-MM-DD HH:mm"
+              placeholder="选择时间" :clearable="false" :disabled-date="disablePastDays" />
+            <el-date-picker v-else-if="isDateField(a.field)" class="q-picker q-picker-date" type="date"
+              :model-value="pickerValue(it, a.field)"
+              @update:model-value="(v) => setAnswer(it, a, v)"
+              value-format="YYYY-MM-DD" placeholder="选择日期" :clearable="false"
+              :disabled-date="disablePastDays" />
+            <input v-else class="q-input" type="text" placeholder="输入补充内容"
+              :value="pickerValue(it, a.field)"
+              @input="setAnswer(it, a, $event.target.value)" />
+            <button v-if="canUnset(a.field)" class="q-chip q-chip-ghost"
+              :class="{ 'is-picked': answers[it.index]?.[a.field] === UNSET }"
+              @click="setAnswer(it, a, UNSET)">{{ unsetLabel(a.field) }}</button>
+          </div>
         </div>
       </div>
       <DewButton type="glass" size="md" @click="submitAnswers">提交补充</DewButton>
@@ -141,13 +203,22 @@ const statusTag = (item) => ({
       <DewButton size="sm" type="ghost" @click="retry"><el-icon><RefreshLeft /></el-icon>重试</DewButton>
     </div>
 
+    <!-- 完成但一个事项都没有 -->
+    <div v-else-if="phase === 'done' && !items.length && !result?.unparsed?.length" class="empty-slim">
+      本次没有识别出新事项，可换个说法再试或手动新建
+    </div>
+
     <template #footer>
       <div class="footer-row" v-if="hasPlan && phase !== 'reverted'">
-        <span class="footer-hint">以上安排可一键撤销；已锁定的安排不受影响</span>
+        <span class="footer-hint">新任务在「待安排」、日程在「今日/周历」页签查看；已锁定的安排不受影响</span>
         <DewButton size="sm" type="ghost" @click="undo"><el-icon><RefreshLeft /></el-icon>撤销本次录入</DewButton>
       </div>
     </template>
   </DewCard>
+
+  <!-- manual 模式：建议的执行安排（录入的「下一步」） -->
+  <SchedulePlanCard v-if="proposalPlan" :plan="proposalPlan"
+    @applied="onProposalApplied" @dismissed="proposalHidden = true" />
 </template>
 
 <style scoped>
@@ -266,6 +337,26 @@ const statusTag = (item) => ({
   font-weight: 600;
 }
 
+.q-chip-ghost {
+  border-style: dashed;
+  color: var(--dew-text-muted);
+}
+
+.q-fill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.q-picker {
+  max-width: 224px;
+}
+
+.q-picker-date {
+  max-width: 176px;
+}
+
 .q-input {
   border: 1px solid var(--dew-card-divider);
   background: var(--dew-dialog-bg);
@@ -296,11 +387,13 @@ const statusTag = (item) => ({
   align-items: center;
   justify-content: flex-end;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .footer-hint {
   font-size: var(--text-xs);
   color: var(--dew-text-faint);
+  margin-right: auto;
 }
 
 .empty-slim {

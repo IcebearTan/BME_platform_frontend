@@ -278,6 +278,148 @@ test('待补充：chips 选择后 resolve 更新卡片', async ({ page }) => {
   expect(resolved?.answers).toBeTruthy()
 })
 
+// 无选项的时间追问：渲染日期时间选择器（不再要求手输格式化时间）
+const CAPTURE_CLARIFY_PICKER = {
+  code: 200,
+  data: {
+    id: 502, input_type: 'text', text: '明天下午开会', status: 'clarify_needed',
+    error: null, error_code: null, created_at: NOW,
+    result: {
+      version: 1, now: NOW, unparsed: [], plan_ids: [],
+      items: [
+        { index: 0, kind: 'event', title: '开会', evidence: '明天下午开会', status: 'needs_clarification',
+          fields: {}, duration_source: 'user',
+          ambiguities: [{ field: 'start_at', question: '这件事几点开始？', options: [] }],
+          answers: {}, result: null },
+      ],
+    },
+  },
+}
+
+test('待补充：时间追问用选择器作答，不手输格式', async ({ page }) => {
+  const errors = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  let resolved = null
+  await loginAs(page)
+  await phase2Backend(page, {
+    match: (url) => url.includes('/schedule/captures'),
+    respond: (route) => route.fulfill({ json: { code: 200, data: { capture: CAPTURE_CLARIFY_PICKER.data } } }),
+  })
+  await page.route('http://127.0.0.1:5001/schedule/captures/502/resolve', (route) => {
+    resolved = route.request().postDataJSON()
+    return route.fulfill({ json: { code: 200, data: { ...CAPTURE_CLARIFY_PICKER.data, status: 'done',
+      result: { ...CAPTURE_CLARIFY_PICKER.data.result,
+        items: [{ ...CAPTURE_CLARIFY_PICKER.data.result.items[0], status: 'scheduled',
+          ambiguities: [], result: { task_id: null, event_id: 42, block_ids: [], plan_id: 71,
+            message: '已创建日程：09-26 15:00–16:00' } }] } } } })
+  })
+  await page.goto(`${BASE}/schedule`)
+
+  await page.fill('input[placeholder*="说一句"]', '明天下午开会')
+  await quickSend(page).click()
+  await expect(page.getByText('这件事几点开始？')).toBeVisible({ timeout: 8000 })
+  await expect(page.locator('.q-picker')).toHaveCount(1)
+
+  const pickerInput = page.locator('.q-picker input')
+  await pickerInput.fill('2026-09-26 15:00')
+  await pickerInput.press('Enter')
+  await page.getByRole('button', { name: '提交补充' }).click()
+
+  await expect(page.getByText('已创建日程：09-26 15:00–16:00')).toBeVisible({ timeout: 8000 })
+  expect(resolved?.answers?.['0']?.start_at).toBe('2026-09-26 15:00')
+  expect(errors).toEqual([])
+})
+
+test('待补充：「记为待办」哨兵可提交', async ({ page }) => {
+  let resolved = null
+  await loginAs(page)
+  await phase2Backend(page, {
+    match: (url) => url.includes('/schedule/captures'),
+    respond: (route) => route.fulfill({ json: { code: 200, data: { capture: CAPTURE_CLARIFY_PICKER.data } } }),
+  })
+  await page.route('http://127.0.0.1:5001/schedule/captures/502/resolve', (route) => {
+    resolved = route.request().postDataJSON()
+    return route.fulfill({ json: { code: 200, data: { ...CAPTURE_CLARIFY_PICKER.data, status: 'done',
+      result: { ...CAPTURE_CLARIFY_PICKER.data.result,
+        items: [{ ...CAPTURE_CLARIFY_PICKER.data.result.items[0], status: 'created', kind: 'task',
+          ambiguities: [], result: { task_id: 63, event_id: null, block_ids: [], plan_id: 71,
+            message: '已创建任务' } }] } } } })
+  })
+  await page.goto(`${BASE}/schedule`)
+
+  await page.fill('input[placeholder*="说一句"]', '明天下午开会')
+  await quickSend(page).click()
+  await expect(page.getByText('这件事几点开始？')).toBeVisible({ timeout: 8000 })
+
+  await page.locator('.q-chip-ghost', { hasText: '记为待办' }).click()
+  await page.getByRole('button', { name: '提交补充' }).click()
+  await expect(page.getByText('已创建任务')).toBeVisible({ timeout: 8000 })
+  expect(resolved?.answers?.['0']?.start_at).toBe('__unset__')
+})
+
+test('录入落定后：今日/周历/待安排全部重拉（不再漏记录）', async ({ page }) => {
+  const errors = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  let taskFetches = 0
+  let agendaFetches = 0
+  await loginAs(page)
+  await phase2Backend(page, {
+    match: (url, route) => url.includes('/schedule/captures') && route.request().method() === 'POST',
+    respond: (route) => route.fulfill({ status: 202, json: { code: 200, data: { capture: { id: 501, status: 'pending' }, submitted: true } } }),
+  })
+  await page.route('http://127.0.0.1:5001/schedule/captures/501', (route) =>
+    route.fulfill({ json: CAPTURE_DONE }))
+  await page.route('http://127.0.0.1:5001/schedule/tasks**', (route) => {
+    taskFetches += 1
+    return route.fulfill({ json: TASKS_BY_BUCKET.all })
+  })
+  await page.route('http://127.0.0.1:5001/schedule/agenda**', (route) => {
+    agendaFetches += 1
+    return route.fulfill({ json: AGENDA })
+  })
+  await page.goto(`${BASE}/schedule`)
+
+  await page.fill('input[placeholder*="说一句"]', '明早九点开组会，六点前交实验报告两小时')
+  await quickSend(page).click()
+  await expect(page.getByText('录入结果')).toBeVisible({ timeout: 8000 })
+
+  // 挂载期一批（今日 3 桶 + 待安排 1 + 周历 1）→ 落定后必须再来一批
+  await expect.poll(() => taskFetches, { timeout: 8000 }).toBeGreaterThanOrEqual(8)
+  await expect.poll(() => agendaFetches, { timeout: 8000 }).toBeGreaterThanOrEqual(4)
+  expect(errors).toEqual([])
+})
+
+test('manual 模式：录入结果带方案确认卡（下一步）', async ({ page }) => {
+  const errors = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  const applied = []
+  await loginAs(page)
+  await phase2Backend(page, {
+    match: (url) => url.includes('/schedule/captures'),
+    respond: (route) => route.fulfill({ json: { code: 200, data: { capture: {
+      ...CAPTURE_DONE.data, status: 'done',
+      result: { ...CAPTURE_DONE.data.result, plan_ids: [91],
+        proposal: { plan_id: 91, reason: '已安排 120 分钟执行时间',
+          blocks: [{ start_at: `${TODAY} 20:00`, end_at: `${TODAY} 22:00` }], unscheduled: [] } },
+    } } } }),
+  })
+  await page.route('http://127.0.0.1:5001/schedule/plans/91/apply', (route) => {
+    applied.push(91)
+    return route.fulfill({ json: { code: 200, data: { plan: { id: 91, status: 'applied' }, changes_n: 1 } } })
+  })
+  await page.goto(`${BASE}/schedule`)
+
+  await page.fill('input[placeholder*="说一句"]', '六点前交实验报告两小时')
+  await quickSend(page).click()
+  await expect(page.getByText('建议的执行安排')).toBeVisible({ timeout: 8000 })
+  await expect(page.locator('.plan-card .block-time').first()).toBeVisible()
+
+  await page.getByRole('button', { name: '应用安排' }).click()
+  await expect(page.getByText('建议的执行安排')).toHaveCount(0, { timeout: 8000 })
+  expect(applied).toContain(91)
+  expect(errors).toEqual([])
+})
+
 test('撤销本次录入：revert 打点且卡片进入已撤销态', async ({ page }) => {
   const reverted = []
   await loginAs(page)
