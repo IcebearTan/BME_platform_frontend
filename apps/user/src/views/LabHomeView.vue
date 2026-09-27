@@ -50,10 +50,10 @@
               <span class="action-copy"><small>02 / CREATE</small><strong>PUBLISH PROJECT</strong><em>分享我的项目</em></span>
               <el-icon class="action-arrow"><ArrowRight /></el-icon>
             </router-link>
-            <button type="button" class="console-action archive" aria-label="往届营期高光" @click="openGalaxy">
-              <span class="action-icon"><el-icon><Star /></el-icon></span>
-              <span class="action-copy"><small>03 / ARCHIVE</small><strong>CAMP GALAXY</strong><em>往届营期项目高光</em></span>
-              <el-icon class="action-arrow"><ArrowRight /></el-icon>
+            <button type="button" class="console-action archive pending" aria-label="待开发" disabled>
+              <span class="action-icon"><el-icon><Clock /></el-icon></span>
+              <span class="action-copy"><small>03 / PENDING</small><strong>待开发</strong><em>功能正在准备中</em></span>
+              <span class="action-pending">SOON</span>
             </button>
           </nav>
           <footer class="console-foot"><span>XLAB // BME_PLATFORM</span><span class="console-online"><i></i> NETWORK ONLINE</span></footer>
@@ -125,7 +125,7 @@
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { ArrowRight, ArrowUp, Close, Grid, Plus, Star } from '@element-plus/icons-vue';
+import { ArrowRight, ArrowUp, Clock, Close, Grid, Plus } from '@element-plus/icons-vue';
 import { gsap } from 'gsap';
 import MenuComponent from '../components/MenuComponent.vue';
 import { assetUrl } from '../services/campService';
@@ -423,6 +423,8 @@ onBeforeUnmount(() => {
 .console-action.publish:hover, .console-action.publish:focus-visible { border-color: #fff0c8; background: rgba(48, 39, 22, 0.9); box-shadow: inset 0 0 25px rgba(255, 209, 115, 0.12), 0 0 18px rgba(255, 201, 93, 0.12); }
 .console-action.archive { background: rgba(6, 26, 34, 0.78); border-color: rgba(126, 241, 226, 0.46); box-shadow: inset 0 0 20px rgba(53, 240, 208, 0.08); }
 .console-action.archive:hover, .console-action.archive:focus-visible { border-color: #c9fff7; background: rgba(9, 43, 52, 0.94); box-shadow: inset 0 0 25px rgba(53, 240, 208, 0.13), 0 0 18px rgba(53, 240, 208, 0.16); }
+.console-action.pending { opacity: 0.58; cursor: not-allowed; filter: saturate(0.55); }
+.console-action.pending:hover, .console-action.pending:focus-visible { border-color: rgba(126, 241, 226, 0.46); background: rgba(6, 26, 34, 0.78); box-shadow: inset 0 0 20px rgba(53, 240, 208, 0.08); transform: none; }
 .action-icon { display: grid; width: 38px; height: 38px; margin-left: 14px; place-items: center; color: var(--lab-blue-soft); font-size: 20px; border: 1px solid rgba(121, 202, 250, 0.58); box-shadow: inset 0 0 14px rgba(63, 176, 245, 0.2); }
 .publish .action-icon { color: var(--lab-gold); border-color: rgba(255, 217, 139, 0.54); }
 .archive .action-icon { color: #8ff6e7; border-color: rgba(126, 241, 226, 0.56); }
@@ -435,6 +437,7 @@ onBeforeUnmount(() => {
 .action-arrow { display: grid; width: 28px; height: 28px; place-items: center; color: var(--lab-blue-soft); border: 1px solid rgba(121, 202, 250, 0.55); border-radius: 50%; }
 .publish .action-arrow { color: var(--lab-gold); border-color: rgba(255, 217, 139, 0.54); }
 .archive .action-arrow { color: #8ff6e7; border-color: rgba(126, 241, 226, 0.54); }
+.action-pending { margin-right: 12px; padding: 5px 7px; color: rgba(178, 226, 221, 0.74); border: 1px solid rgba(126, 241, 226, 0.28); font: 7px var(--xl-mono); letter-spacing: 0.08em; }
 .console-foot { position: absolute; right: 22px; bottom: 20px; left: 22px; display: flex; align-items: center; justify-content: space-between; color: rgba(164, 196, 215, 0.42); font: 8px var(--xl-mono); }
 .console-online { color: rgba(111, 218, 202, 0.7); }
 .console-online i { display: inline-block; width: 6px; height: 6px; margin-right: 6px; background: #35f0d0; box-shadow: 0 0 8px #35f0d0; }

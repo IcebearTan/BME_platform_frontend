@@ -46,7 +46,6 @@ const loadLLMService = () => import('./views/LLMServiceView.vue')
 const loadCommunity = () => import('./views/CommunityView.vue')
 const loadCommunityThread = () => import('./views/CommunityThreadView.vue')
 const loadProjectSquare = () => import('./views/ProjectSquareView.vue')
-const loadProjectDetail = () => import('./views/ProjectDetailView.vue')
 const loadLabHome = () => import('./views/LabHomeView.vue')
 const loadProjectCreate = () => import('./views/ProjectCreateView.vue')
 const loadUiShowcase = () => import('./views/UiShowcaseView.vue')
@@ -364,7 +363,7 @@ const router = createRouter({
         {
             path: '/projects/:id',
             name: 'project-detail',
-            component: loadProjectDetail,
+            redirect: (to) => ({ path: '/lab/projects', query: { project: String(to.params.id) } }),
             meta: { requiresAuth: true }
         },
     ]
