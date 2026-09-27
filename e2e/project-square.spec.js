@@ -25,6 +25,15 @@ const LIST = {
   ],
 }
 
+const CAMP_DONE = {
+  id: 804, source: 'camp', source_text: '营期项目', title: '术后康复提醒装置',
+  summary: '从需求访谈到病房验证，完成一套可交付的康复提醒样机。', description: '团队完成了硬件、界面与照护流程验证。',
+  tags: ['医工交叉', '硬件'], project_status: 'done', project_status_text: '已完成', status: 'visible',
+  view_count: 96, members: ['proj_s3', 'proj_s4'], links: [], camp_name: '春季项目营', camp_cycle: '2026 春季',
+  cover: '/media/showcase/804/done.webp', cover_thumb: '/media/showcase/804/done_thumb.webp', images: [],
+  owner_name: 'proj_s3', created_at: '2026-06-01T10:00:00', favorited: false, can_manage: false,
+}
+
 // 1x1 PNG（封面/画廊 DewImage 的 /media 请求需要真图可解码，否则走 error 兜底）
 const PNG_1PX = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64')
@@ -47,13 +56,20 @@ async function loginAsUser(page) {
         return route.fulfill({ json: { code: 200, message: '已发布到项目广场（免审上架）',
           project: { ...LIST.projects[2], id: 900, title: '新分享' } } })
       }
-      // 列表按查询参数过滤（对齐后端 source/project_status 语义）
       const u = new URL(url)
+      // 首页高光星系只需要“营期来源 + 已完成”的独立投影，不与广场筛选结果混用
       let rows = LIST.projects
       const src = u.searchParams.get('source')
-      if (src) rows = rows.filter((p) => p.source === src)
       const ps = u.searchParams.get('project_status')
+      if (src === 'camp' && ps === 'done') {
+        return route.fulfill({ json: { code: 200, total: 1, all_tags: CAMP_DONE.tags, projects: [CAMP_DONE] } })
+      }
+      if (src) rows = rows.filter((p) => p.source === src)
       if (ps) rows = rows.filter((p) => p.project_status === ps)
+      const tag = u.searchParams.get('tag')
+      if (tag) rows = rows.filter((p) => p.tags.includes(tag))
+      const q = u.searchParams.get('q')?.trim().toLowerCase()
+      if (q) rows = rows.filter((p) => `${p.title} ${p.summary || ''}`.toLowerCase().includes(q))
       return route.fulfill({ json: { ...LIST, total: rows.length, projects: rows } })
     }
     return route.fulfill({ json: { code: 200, message: 'ok', data: {} } })
@@ -74,35 +90,185 @@ test('项目广场：双来源卡片渲染与来源/状态筛选', async ({ page
   await expect(page.locator('.p-card', { hasText: '宿舍智能门锁' }).getByText('已完成')).toBeVisible()
 
   // 来源筛选：只看营期项目
-  await page.getByRole('button', { name: '营期项目' }).click()
+  await page.getByRole('button', { name: '营期项目', exact: true }).click()
   await expect(page.locator('.p-card')).toHaveCount(1)
   // 状态筛选重置来源
   await page.getByRole('button', { name: '全部来源' }).click()
-  await page.getByRole('button', { name: '已完成' }).click()
+  await page.getByRole('button', { name: '已完成', exact: true }).click()
   await expect(page.locator('.p-card')).toHaveCount(1)
   await expect(page.locator('.p-card').first()).toContainText('宿舍智能门锁')
 
   expect(errors).toEqual([])
 })
 
-test('项目广场：分享我的项目弹窗（community 免审上架）', async ({ page }) => {
+test('项目广场：独立发布页（community 免审上架）', async ({ page }) => {
   const errors = []
   page.on('pageerror', (e) => errors.push(e.message))
   await loginAsUser(page)
 
   await page.goto(`${BASE}/projects`, { waitUntil: 'domcontentloaded' })
   await page.getByRole('button', { name: '分享我的项目' }).click()
-  const dlg = page.locator('.xlab-dialog').filter({ hasText: '分享我的项目' })
-  await expect(dlg).toBeVisible()
-  await expect(dlg.getByText('自由分享免审上架', { exact: false })).toBeVisible()
-  await expect(dlg.getByRole('button', { name: '发布' })).toBeDisabled()
-  // getByPlaceholder 定位标题框（弹窗内有隐藏 file input，locator('input').first 会误中）
-  await dlg.getByPlaceholder('如：宿舍智能门锁').fill('桌面天气站')
-  await expect(dlg.getByRole('button', { name: '发布' })).toBeEnabled()
-  await dlg.getByRole('button', { name: '发布' }).click()
+  await expect(page).toHaveURL(/\/lab\/projects\/new$/)
+  await expect(page.getByText('自由分享免审上架', { exact: false })).toBeVisible()
+  await expect(page.getByRole('button', { name: '发布项目' })).toBeDisabled()
+  await page.getByPlaceholder('如：宿舍智能门锁').fill('桌面天气站')
+  await page.getByRole('button', { name: '发布项目' }).click()
+  await expect(page).toHaveURL(/\/lab\/projects\?project=900$/)
+  await expect(page.locator('.xl-drawer')).toBeVisible()
   await expect(page.getByText('已发布到项目广场（免审上架）')).toBeVisible()
 
   expect(errors).toEqual([])
+})
+
+test('XLAB 首页：全屏舞台、导航收纳与往届营期星系', async ({ page }) => {
+  const errors = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  await loginAsUser(page)
+  await page.goto(`${BASE}/lab`, { waitUntil: 'domcontentloaded' })
+  const skip = page.getByRole('button', { name: '跳过动画' })
+  if (await skip.isVisible()) await skip.click()
+  await page.mouse.move(640, 400)
+
+  const menu = page.locator('.el-menu-demo').first()
+  const cue = page.getByRole('button', { name: '上滑唤起导航' })
+  await expect(menu).toHaveCSS('transform', /matrix\(1, 0, 0, 1, 0, -/)
+  await cue.focus()
+  await page.keyboard.press('Enter')
+  await expect(menu).toHaveCSS('transform', 'matrix(1, 0, 0, 1, 0, 0)')
+  await page.mouse.move(640, 400)
+  await expect(cue).toHaveCount(0)
+  expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight)).toBe(true)
+
+  await expect(page.getByRole('link', { name: /项目广场/ })).toBeVisible()
+  await expect(page.getByRole('link', { name: /发布项目/ })).toBeVisible()
+  await expect(page.locator('.lab-orbit')).toHaveCount(0)
+
+  await page.getByRole('button', { name: '往届营期高光' }).click()
+  await expect(page.getByRole('dialog', { name: '往届营期项目高光星系' })).toBeVisible()
+  await expect(page.locator('.galaxy-lines line')).toHaveCount(1)
+  await page.getByRole('button', { name: '查看术后康复提醒装置高光' }).click()
+  await expect(page.locator('.galaxy-detail')).toContainText('术后康复提醒装置')
+  await expect(page.locator('.galaxy-detail')).toContainText('春季项目营')
+  await expect(page.locator('.galaxy-layer a')).toHaveCount(0)
+  await page.getByRole('button', { name: '关闭项目高光' }).click()
+  await page.getByRole('button', { name: '关闭高光星系' }).click()
+  await expect(page.locator('.galaxy-layer')).toHaveCount(0)
+
+  await page.getByRole('link', { name: /项目广场/ }).click()
+  await expect(page).toHaveURL(/\/lab\/projects$/)
+  expect(errors).toEqual([])
+})
+
+test('XLAB 首页：减少动画偏好直接显示终态', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await loginAsUser(page)
+  await page.goto(`${BASE}/lab`, { waitUntil: 'domcontentloaded' })
+  await expect(page.getByRole('button', { name: '跳过动画' })).toHaveCount(0)
+  await expect(page.locator('.lab-layout')).toHaveCSS('opacity', '1')
+})
+
+test('XLAB 字标：几何切面落位，每 3 秒完成一次宽幅扫光', async ({ page }) => {
+  await loginAsUser(page)
+  await page.goto(`${BASE}/lab`, { waitUntil: 'domcontentloaded' })
+  const word = page.locator('.lab-brand h1.lab-wordmark')
+  const letters = word.locator('.lab-letters')
+  const fontSize = await word.evaluate((el) => getComputedStyle(el).fontSize)
+  await expect(page.getByRole('button', { name: '跳过动画' })).toHaveCount(0, { timeout: 5000 })
+  await expect(word).toHaveCSS('transform', 'none')
+  await expect(word).toHaveCSS('font-size', fontSize)
+  await expect(word.locator('.x-blade')).toHaveCount(4)
+  await expect(letters).toHaveText('LAB')
+  const sheen = await letters.evaluate((el) => ({
+    name: getComputedStyle(el).animationName,
+    duration: getComputedStyle(el).animationDuration,
+    backgroundSize: getComputedStyle(el).backgroundSize,
+  }))
+  expect(sheen.name).toMatch(/^wordmark-sheen/)
+  expect(sheen.duration).toBe('3s')
+  expect(sheen.backgroundSize).toBe('220% 100%')
+  await word.hover()
+  await expect.poll(() => letters.evaluate((el) => getComputedStyle(el).animationDuration)).toBe('3s')
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(1280)
+})
+
+test('广场：标签筛选、抽屉收藏与讨论，旧详情链接仍可访问', async ({ page }) => {
+  await loginAsUser(page)
+  await page.route('http://127.0.0.1:5001/showcase/projects/802', (route) =>
+    route.fulfill({ json: { code: 200, project: { ...LIST.projects[1], favorite_count: 3 } } }))
+  await page.route('http://127.0.0.1:5001/showcase/projects/802/favorite', (route) =>
+    route.fulfill({ json: { code: 200, favorited: false } }))
+  await page.route('http://127.0.0.1:5001/discussions/threads**', (route) => {
+    if (route.request().method() === 'POST') return route.fulfill({ json: { code: 200 } })
+    return route.fulfill({ json: { code: 200, data: [{ id: 1, author_name: '成员A', content: '作品很棒', created_at: '2026-09-01T10:00:00' }] } })
+  })
+  await page.goto(`${BASE}/lab/projects`, { waitUntil: 'domcontentloaded' })
+  await page.getByRole('button', { name: '硬件', exact: true }).click()
+  await expect(page.locator('.p-card')).toHaveCount(1)
+  const request = page.waitForRequest((req) => req.url().includes('/showcase/projects?') && req.url().includes('tag='))
+  await page.getByRole('button', { name: '医工交叉' }).click()
+  expect(new URL((await request).url()).searchParams.get('tag')).toBe('医工交叉')
+  await page.getByRole('button', { name: '全部标签' }).click()
+  await page.locator('.p-card', { hasText: '宿舍智能门锁' }).click()
+  await expect(page.locator('.xl-drawer')).toBeVisible()
+  await expect(page.locator('.xl-drawer')).toContainText('作品很棒')
+  await page.locator('.xl-drawer').getByRole('button', { name: '已收藏' }).click()
+  await expect(page.locator('.xl-drawer').getByRole('button', { name: '收藏', exact: true })).toBeVisible()
+  await page.getByLabel('发表讨论').fill('这是一个非常有趣的项目！')
+  await page.getByRole('button', { name: '发表', exact: true }).click()
+  await expect(page.getByText('已发布', { exact: true })).toBeVisible()
+  await page.getByRole('link', { name: /完整详情/ }).click()
+  await expect(page).toHaveURL(/\/projects\/802$/)
+})
+
+test('广场：空结果与无封面兜底，手机抽屉展开/收起/关闭', async ({ page }) => {
+  await page.setViewportSize({ width: 400, height: 850 })
+  await loginAsUser(page)
+  await page.route('http://127.0.0.1:5001/showcase/projects/801', (route) =>
+    route.fulfill({ json: { code: 200, project: LIST.projects[0] } }))
+  await page.goto(`${BASE}/lab/projects`, { waitUntil: 'domcontentloaded' })
+  await page.getByPlaceholder('搜索项目名 / 简介，回车检索').fill('没有这个项目')
+  await page.getByPlaceholder('搜索项目名 / 简介，回车检索').press('Enter')
+  await expect(page.locator('.xl-empty')).toBeVisible()
+  await page.getByPlaceholder('搜索项目名 / 简介，回车检索').fill('')
+  await page.getByPlaceholder('搜索项目名 / 简介，回车检索').press('Enter')
+  const card = page.locator('.p-card', { hasText: '智能输液监护系统' })
+  await expect(card.locator('.cover-char')).toHaveText('智')
+  await card.click()
+  const drawer = page.locator('.xl-drawer')
+  await expect(drawer).toBeVisible()
+  await expect(drawer).toHaveCSS('width', '400px')
+  await page.getByRole('button', { name: '展开详情' }).click()
+  await expect(drawer).toHaveClass(/expanded/)
+  await page.getByRole('button', { name: '收起详情' }).click()
+  await expect(drawer).not.toHaveClass(/expanded/)
+  const head = page.locator('.xl-drawer-head')
+  const box = await head.boundingBox()
+  const x = box.x + box.width / 2
+  const y = box.y + 20
+  await page.evaluate(({ x, y }) => {
+    const head = document.querySelector('.xl-drawer-head')
+    head.dispatchEvent(new TouchEvent('touchstart', { bubbles: true, changedTouches: [new Touch({ identifier: 1, target: head, clientX: x, clientY: y })] }))
+    head.dispatchEvent(new TouchEvent('touchend', { bubbles: true, changedTouches: [new Touch({ identifier: 1, target: head, clientX: x, clientY: y - 90 })] }))
+  }, { x, y })
+  await expect(drawer).toHaveClass(/expanded/)
+  await page.getByRole('button', { name: '关闭详情' }).click()
+  await expect(drawer).toHaveCount(0)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(400)
+})
+
+test('发布：封面上传失败仍进入新项目抽屉并提示补传', async ({ page }) => {
+  await loginAsUser(page)
+  await page.route('http://127.0.0.1:5001/showcase/projects/900/cover', (route) =>
+    route.fulfill({ status: 500, json: { message: 'upload failed' } }))
+  await page.goto(`${BASE}/lab/projects/new`, { waitUntil: 'domcontentloaded' })
+  await page.getByPlaceholder('如：宿舍智能门锁').fill('带图测试项目')
+  await page.locator('input[type=file]').first().setInputFiles({
+    name: 'cover.png', mimeType: 'image/png', buffer: PNG_1PX,
+  })
+  await page.getByRole('button', { name: '发布项目' }).click()
+  await expect(page).toHaveURL(/\/lab\/projects\?project=900$/)
+  await expect(page.getByText('部分图片未上传成功', { exact: false })).toBeVisible()
+  await expect(page.locator('.xl-drawer')).toBeVisible()
 })
 
 // 导航自动收纳（09-16）：进页上缩 / 悬停热区展开 / 移开 240ms 宽限后缩回

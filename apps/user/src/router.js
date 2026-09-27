@@ -47,6 +47,8 @@ const loadCommunity = () => import('./views/CommunityView.vue')
 const loadCommunityThread = () => import('./views/CommunityThreadView.vue')
 const loadProjectSquare = () => import('./views/ProjectSquareView.vue')
 const loadProjectDetail = () => import('./views/ProjectDetailView.vue')
+const loadLabHome = () => import('./views/LabHomeView.vue')
+const loadProjectCreate = () => import('./views/ProjectCreateView.vue')
 const loadUiShowcase = () => import('./views/UiShowcaseView.vue')
 const loadCampHome = () => import('./views/CampHome.vue')
 const loadCamp = () => import('./views/CampView.vue')
@@ -339,6 +341,24 @@ const router = createRouter({
             path: '/projects',
             name: 'project-square',
             component: loadProjectSquare,
+            meta: { requiresAuth: true }
+        },
+        {
+            path: '/lab',
+            name: 'lab-home',
+            component: loadLabHome,
+            meta: { requiresAuth: true }
+        },
+        {
+            path: '/lab/projects',
+            name: 'lab-projects',
+            component: loadProjectSquare,
+            meta: { requiresAuth: true }
+        },
+        {
+            path: '/lab/projects/new',
+            name: 'lab-project-new',
+            component: loadProjectCreate,
             meta: { requiresAuth: true }
         },
         {

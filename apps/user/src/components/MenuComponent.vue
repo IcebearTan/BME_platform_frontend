@@ -28,6 +28,7 @@ export default {
             if (path.startsWith('/home')) {
                 return '/home'
             }
+            if (path.startsWith('/lab') || path.startsWith('/projects')) return '/lab'
             return path
         }
     },
@@ -211,7 +212,7 @@ const handleUserInfo = () => {
                 <el-menu-item index="/camp-home" class="camp-nav-item">
                     <img :src="campLogo" alt="秋季学期营" class="camp-nav-logo" />
                 </el-menu-item>
-                <el-menu-item index="/projects" class="xlab-nav-item">
+                <el-menu-item index="/lab" class="xlab-nav-item">
                     <img src="../assets/XLAB.png" alt="XLab" class="xlab-nav-logo" />
                 </el-menu-item>
                 <el-menu-item index="/service-hall">
