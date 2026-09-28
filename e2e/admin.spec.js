@@ -39,6 +39,7 @@ async function mockCampSessionDetail(page) {
     username: ['林泽宇', '周启航', '陈思涵', '沈知行', '王嘉仪', '唐予安', '许一诺', '程知远'][index],
     role: 'mentor',
     team_mentor_id: null,
+    direction: index % 2 === 0 ? '硬件组' : '软件组',
     joined_at: '2026-08-20T09:00:00',
   }))
   const students = Array.from({ length: 20 }, (_, index) => ({
@@ -436,18 +437,18 @@ test('营期工作区保留选导生与成员添加能力', async ({ page }) => 
   expect(pageErrors).toEqual([])
 })
 
-// 营期设置（09-17 集中管理）：三区块分区渲染 + 叶子路由直达/切换跟随
-test('营期设置：三区块分区渲染 + 叶子路由直达', async ({ page }) => {
+// 营期设置（09-17 集中管理；09-28 方向解耦拆四区块）：分区渲染 + 叶子路由直达/切换跟随
+test('营期设置：四区块分区渲染 + 叶子路由直达', async ({ page }) => {
   await loginAsStaff(page)
   await mockCampSessionDetail(page)
   const pageErrors = []
   page.on('pageerror', (e) => pageErrors.push(e.message))
-  // 叶子路由直达（mock 营 running/learning → 三区块齐备）
+  // 叶子路由直达（mock 营 running/learning → 四区块齐备）
   await page.goto(`${BASE}/camps/1/settings`)
 
   await expect(page.locator('.page-title', { hasText: '营期设置' })).toBeVisible()
-  // 三区块标题齐备（learning 营：准入门槛/考勤模式/选导生流程）
-  for (const title of ['准入门槛', '考勤模式', '选导生流程']) {
+  // 四区块标题齐备（learning 营：准入门槛/考勤模式/学习方向/选导生流程）
+  for (const title of ['准入门槛', '考勤模式', '学习方向', '选导生流程']) {
     await expect(page.locator('.set-card__title', { hasText: title })).toBeVisible()
   }
   // 准入门槛：导生报名门槛开关（回退默认开）
@@ -455,12 +456,95 @@ test('营期设置：三区块分区渲染 + 叶子路由直达', async ({ page 
   // 考勤模式：三模式选项卡回退 daily（09-18 并自 jiayuanpush 布局改版，参数内联 daily 卡）
   await expect(page.getByText('假期营', { exact: true })).toBeVisible()
   await expect(page.locator('.att-daily-panel')).toBeVisible()
-  // 选导生流程：mock status=running → 时间窗锁定（方向课程绑定仍可改，1750de5 起语义放宽）
+  // 选导生流程：mock status=running → 时间窗锁定（流程键仅开营前可改）
   await expect(page.getByText(/时间窗锁定/)).toBeVisible()
+  // 学习方向（09-28 解耦独立区块）：running → 方向名锁定、课程绑定仍可改
+  await expect(page.getByText(/方向名锁定/)).toBeVisible()
 
   // 路由切换跟随：切到成员名单叶子 URL 同步
   await page.getByRole('menuitem', { name: '成员名单' }).click()
   await expect(page).toHaveURL(/people\/members/)
+  expect(pageErrors).toEqual([])
+})
+
+// 方向解耦（09-28）：未启用选导生的营独立配方向；成员页方向代设 + 调整课程
+test('方向解耦：未启用选导生可配方向 + 成员页代设方向与调整课程', async ({ page }) => {
+  await loginAsStaff(page)
+  const pageErrors = []
+  page.on('pageerror', (e) => pageErrors.push(e.message))
+  const directions = [
+    { name: '硬件组', course_ids: [11] },
+    { name: '软件组', course_ids: [12, 13] },
+  ]
+  const members = [
+    { user_id: 101, username: '林泽宇', role: 'mentor', team_mentor_id: null, direction: '硬件组', joined_at: '2026-08-20T09:00:00', status: 'active' },
+    { user_id: 201, username: '测试学员01', role: 'student', team_mentor_id: 101, direction: null, joined_at: '2026-08-20T09:00:00', status: 'active' },
+  ]
+  await page.route('**/camp/sessions/1?**', (route) =>
+    route.fulfill({ json: { code: 200 } }))
+  await page.route('http://127.0.0.1:5001/camp/sessions/1', (route) => {
+    if (route.request().method() === 'GET') {
+      return route.fulfill({ json: { code: 200, session: {
+        id: 1, name: '方向解耦测试营', status: 'upcoming', category: 'learning',
+        mentor_selection_enabled: false, ms_directions: directions,
+        policy: { capabilities: {} },
+      } } })
+    }
+    return route.fulfill({ json: { code: 200, message: 'ok' } })
+  })
+  await page.route('**/camp/sessions/1/members**', (route) =>
+    route.fulfill({ json: { code: 200, members, total: members.length,
+      counts: { student: 1, mentor: 1, member: 0 } } }))
+  const directionCalls = []
+  await page.route('**/camp/sessions/1/mentor-direction', (route) => {
+    directionCalls.push(route.request().postDataJSON())
+    return route.fulfill({ json: { code: 200, message: '已设置', propagated: 1 } })
+  })
+  await page.route('**/camp/sessions/1/course-assign**', (route) => {
+    const method = route.request().method()
+    if (method === 'GET') {
+      return route.fulfill({ json: { code: 200, items: [
+        { course_id: 11, title: '嵌入式基础', source_type: 'direction', assigned_at: '2026-09-01T09:00:00' },
+      ] } })
+    }
+    return route.fulfill({ json: { code: 200, message: 'ok' } })
+  })
+  await page.route('**/camp/sessions/1/courses**', (route) =>
+    route.fulfill({ json: { code: 200, courses: [
+      { course_id: 11, title: '嵌入式基础', difficulty: '入门' },
+      { course_id: 12, title: 'Web 全栈', difficulty: '进阶' },
+      { course_id: 13, title: '数据结构', difficulty: '进阶' },
+    ] } }))
+
+  // 设置页：学习方向独立区块（未启用选导生也可编辑），选导生流程=开关表单（upcoming 可编辑）
+  await page.goto(`${BASE}/camps/1/settings`)
+  await expect(page.locator('.set-card__title', { hasText: '学习方向' })).toBeVisible()
+  await expect(page.getByText('+ 添加方向')).toBeVisible()
+  await expect(page.locator('.set-card__title', { hasText: '选导生流程' })).toBeVisible()
+  await expect(page.getByText('启用选导生')).toBeVisible()
+  await expect(page.locator('.el-switch').first()).toBeVisible()
+
+  // 成员页：方向列 + 导生行下拉代设
+  await page.goto(`${BASE}/camps/1/people/members`)
+  await expect(page.locator('.el-table__header', { hasText: '方向' })).toBeVisible()
+  await expect(page.getByText('硬件组').first()).toBeVisible()
+  await page.locator('.el-table__row').filter({ hasText: '林泽宇' })
+    .locator('.el-select').first().click()
+  await page.getByRole('option', { name: '软件组' }).click()
+  await expect.poll(() => directionCalls).toEqual([
+    { user_id: 101, direction: '软件组' },
+  ])
+  await expect(page.getByText(/方向已设置/)).toBeVisible()
+
+  // 学员行「课程」：调整课程对话框（现修 + 目录添加）
+  await page.locator('.el-table__row').filter({ hasText: '测试学员01' })
+    .getByRole('button', { name: '课程' }).click()
+  await expect(page.locator('.el-dialog').filter({ hasText: '调整课程' })).toBeVisible()
+  await expect(page.getByText('嵌入式基础')).toBeVisible()
+  await expect(page.getByText('方向', { exact: true }).first()).toBeVisible()
+  // 添加下拉只列目录中未修课程（嵌入式基础已被过滤）
+  await page.locator('.el-dialog').getByRole('combobox').click()
+  await expect(page.getByRole('option', { name: 'Web 全栈' })).toBeVisible()
   expect(pageErrors).toEqual([])
 })
 
