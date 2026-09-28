@@ -200,7 +200,7 @@ const carouselHeight = ref('160px')
 const isCompactBanner = ref(false)
 const activeBannerIndex = ref(0)
 const hasSidePreviews = computed(() => !isCompactBanner.value && banners.value.length > 1)
-const ACTIVE_SLIDE_RATIO = 0.72
+const ACTIVE_SLIDE_RATIO = 0.68
 const PREFERRED_BANNER_RATIO = 1983 / 793
 const carouselRatio = computed(() => {
   // 多帧时主卡只占舞台一部分，舞台按同一比例反算，主卡才能保持原图宽高比。
@@ -216,11 +216,12 @@ function updateCarouselHeight() {
   const width = bannerSectionRef.value?.clientWidth
   if (!width) return
 
-  // 窄屏使用全宽单卡；桌面舞台铺满内容列，主卡占舞台 72%。
-  isCompactBanner.value = width <= 900
+  // 恢复原来的视觉尺度：桌面舞台约占内容列 74%，主卡约占舞台 68%。
+  isCompactBanner.value = width <= 768
+  const stageWidth = isCompactBanner.value ? width : width * 0.74
   const activeCardWidth = isCompactBanner.value
-    ? width
-    : width * (hasSidePreviews.value ? ACTIVE_SLIDE_RATIO : 1)
+    ? stageWidth
+    : stageWidth * (hasSidePreviews.value ? ACTIVE_SLIDE_RATIO : 1)
   const height = Math.round(activeCardWidth / PREFERRED_BANNER_RATIO)
   carouselHeight.value = `${Math.max(120, height)}px`
 }
@@ -297,8 +298,8 @@ function slideClass(index) {
 function slideStyle(index) {
   const offset = circularOffset(index)
   if (offset === 0) return { left: '50%', transform: 'translateX(-50%) scale(1)' }
-  if (offset === -1) return { left: '0%', transform: 'translateX(-36%) scale(.86)' }
-  if (offset === 1) return { left: '100%', transform: 'translateX(-64%) scale(.86)' }
+  if (offset === -1) return { left: '0%', transform: 'translateX(-58%) scale(.84)' }
+  if (offset === 1) return { left: '100%', transform: 'translateX(-42%) scale(.84)' }
   return { left: '50%', transform: 'translateX(-50%) scale(.72)' }
 }
 
@@ -522,7 +523,7 @@ onBeforeUnmount(() => {
 }
 
 .banner-skeleton {
-  width: 72%;
+  width: clamp(360px, 50%, 720px);
   max-width: 100%;
 }
 
@@ -533,7 +534,7 @@ onBeforeUnmount(() => {
 }
 
 .carousel-stage {
-  width: 100%;
+  width: clamp(420px, 74%, 900px);
   max-width: 100%;
   aspect-ratio: var(--carousel-ratio);
   position: relative;
@@ -544,17 +545,17 @@ onBeforeUnmount(() => {
 }
 
 .carousel-stage--single {
-  width: 100%;
+  width: clamp(360px, 50%, 720px);
 }
 
 .banner-slide {
   position: absolute;
   top: 0;
-  width: 72%;
+  width: 68%;
   height: 100%;
   z-index: 1;
   cursor: pointer;
-  opacity: .54;
+  opacity: .58;
   transition: left .42s ease, transform .42s ease, opacity .28s ease;
 }
 
@@ -570,7 +571,6 @@ onBeforeUnmount(() => {
 .banner-slide.is-prev,
 .banner-slide.is-next {
   z-index: 2;
-  filter: saturate(.9);
 }
 
 .banner-slide.is-hidden {
