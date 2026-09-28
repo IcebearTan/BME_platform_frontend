@@ -5,8 +5,36 @@ import { createServer } from 'node:http';
 import { extname, join } from 'node:path';
 
 const port = 5002;
-const assetDir = join(process.cwd(), 'apps', 'user', 'src', 'assets');
-const previewBannerFile = join(assetDir, 'preview', 'home-carousel-adaptive-demo.png');
+const publicDir = join(process.cwd(), 'apps', 'user', 'public');
+const previewBanners = [
+  {
+    id: 'camp',
+    title: '2026 秋季学期营',
+    image: '/preview/banner/camp.png',
+    file: join(publicDir, '2026秋季学期营.png'),
+    ratio: 1983 / 793,
+    linkType: 'route',
+    linkValue: '/camp',
+  },
+  {
+    id: 'llm',
+    title: '大模型服务中心',
+    image: '/preview/banner/llm.png',
+    file: join(publicDir, '大模型服务中心.png'),
+    ratio: 1774 / 887,
+    linkType: 'route',
+    linkValue: '/ai-service',
+  },
+  {
+    id: '3d-print',
+    title: '3D 打印农场',
+    image: '/preview/banner/3d-print.png',
+    file: join(publicDir, '3D打印农场.png'),
+    ratio: 1983 / 793,
+    linkType: 'external',
+    linkValue: '/3dfarm/',
+  },
+];
 // 本地演示服务器：放行任意端口的本机来源（端口随启动方式浮动，写死会挡掉自定义端口的预览实例）
 function isLocalOrigin(origin) {
   if (!origin) return false;
@@ -251,27 +279,26 @@ const server = createServer(async (req, res) => {
   }
 
   const url = new URL(req.url, `http://127.0.0.1:${port}`);
-  // Preview-only home banner. Production banners remain managed by the API/database.
-  if (url.pathname === '/preview/banner/home-carousel-adaptive-demo.png' && existsSync(previewBannerFile)) {
+  // Preview-only home banners. Production banners remain managed by the API/database.
+  const previewBanner = previewBanners.find((banner) => banner.image === url.pathname);
+  if (previewBanner && existsSync(previewBanner.file)) {
     res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'no-store' });
-    createReadStream(previewBannerFile).pipe(res);
+    createReadStream(previewBanner.file).pipe(res);
     return;
   }
   if (url.pathname === '/banner/list') {
     sendJson(res, {
       code: 200,
-      // Repeat the supplied artwork only to demonstrate multi-frame carousel behavior locally.
-      data: [1, 2, 3].map((index) => ({
-        Banner_Id: `preview-home-carousel-adaptive-${index}`,
-        title: `26级卓越工程师技能训练 · 示例 ${index}`,
+      data: previewBanners.map((banner) => ({
+        Banner_Id: `preview-home-carousel-${banner.id}`,
+        title: banner.title,
         description: '',
-        image: '/preview/banner/home-carousel-adaptive-demo.png',
+        image: banner.image,
         image_focus_y: 50,
         image_fit: 'cover',
-        // Source artwork is 1984 × 792. Preserve its complete composition in this preview.
-        display_ratio: 1984 / 792,
-        link_type: 'route',
-        link_value: '/camp',
+        display_ratio: banner.ratio,
+        link_type: banner.linkType,
+        link_value: banner.linkValue,
         is_camp_frame: false,
       })),
     });

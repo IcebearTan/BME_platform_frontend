@@ -15,11 +15,17 @@
           :style="{ '--carousel-ratio': carouselRatio }"
         >
           <article
-          v-for="(banner, index) in banners"
-          :key="banner.id"
-          :class="['banner-slide', slideClass(index)]"
-          :style="slideStyle(index)"
-          @click="handleSlideClick(index, banner)"
+            v-for="(banner, index) in banners"
+            :key="banner.id"
+            :class="['banner-slide', slideClass(index)]"
+            :style="slideStyle(index)"
+            :aria-hidden="index !== activeBannerIndex"
+            :aria-label="banner.title || `第 ${index + 1} 张轮播图`"
+            role="button"
+            :tabindex="index === activeBannerIndex ? 0 : -1"
+            @click="handleSlideClick(index, banner)"
+            @keydown.enter.prevent="handleSlideClick(index, banner)"
+            @keydown.space.prevent="handleSlideClick(index, banner)"
           >
             <div class="banner-item">
             <!-- 学期营帧 = corner 模式：左下角玻璃状态条（避开底图烧录文字区），标题/状态/链接由主推营期驱动 -->
@@ -37,14 +43,14 @@
                 <p class="banner-description">{{ banner.description }}</p>
               </template>
             </div>
-            <DewImage :src="banner.image" :alt="banner.title" class="banner-image"
-                      :fit="banner.fit"
-                      :position="`50% ${banner.focusY ?? 50}%`"
-                      :lazy="false" />
+              <DewImage :src="banner.image" :alt="banner.title" class="banner-image"
+                        :fit="banner.fit"
+                        :position="`50% ${banner.focusY ?? 50}%`"
+                        :lazy="false" />
             </div>
           </article>
-          <button v-if="banners.length > 1" class="carousel-arrow carousel-arrow--prev" type="button" aria-label="上一张" @click.stop="previousBanner">‹</button>
-          <button v-if="banners.length > 1" class="carousel-arrow carousel-arrow--next" type="button" aria-label="下一张" @click.stop="nextBanner">›</button>
+          <button v-if="banners.length > 1" class="carousel-arrow carousel-arrow--prev" type="button" aria-label="上一张" @click.stop="previousBanner">&lsaquo;</button>
+          <button v-if="banners.length > 1" class="carousel-arrow carousel-arrow--next" type="button" aria-label="下一张" @click.stop="nextBanner">&rsaquo;</button>
         </div>
       </div>
       <div
@@ -194,33 +200,28 @@ const carouselHeight = ref('160px')
 const isCompactBanner = ref(false)
 const activeBannerIndex = ref(0)
 const hasSidePreviews = computed(() => !isCompactBanner.value && banners.value.length > 1)
-const imageRatio = computed(() => {
-  const ratios = [...new Set(banners.value.map((banner) => banner.displayRatio).filter(Boolean))]
-  return ratios.length === 1 ? ratios[0] : (isCompactBanner.value ? 16 / 9 : 2 / 1)
-})
+const ACTIVE_SLIDE_RATIO = 0.72
+const PREFERRED_BANNER_RATIO = 1983 / 793
 const carouselRatio = computed(() => {
-  // 多帧时主卡仅占舞台 68%，舞台必须按该比例反算，主卡才与原图同宽高比。
-  return hasSidePreviews.value ? imageRatio.value / 0.68 : imageRatio.value
+  // 多帧时主卡只占舞台一部分，舞台按同一比例反算，主卡才能保持原图宽高比。
+  return hasSidePreviews.value
+    ? PREFERRED_BANNER_RATIO / ACTIVE_SLIDE_RATIO
+    : PREFERRED_BANNER_RATIO
 })
 let bannerResizeObserver = null
 let bannerAutoplayTimer = null
 let bannerPreviewTimer = null
 
-function getBannerRatio(width) {
-  if (width <= 768) return 16 / 9
-  if (width <= 1200) return 16 / 7
-  return 2 / 1
-}
-
 function updateCarouselHeight() {
   const width = bannerSectionRef.value?.clientWidth
   if (!width) return
 
-  // 窄屏使用全宽舞台；桌面保留原来的半栏视觉尺度。
-  isCompactBanner.value = width <= 768
-  const activeCardWidth = isCompactBanner.value ? width : width * 0.74 * (hasSidePreviews.value ? 0.68 : 1)
-  const ratio = carouselRatio.value || getBannerRatio(width)
-  const height = Math.round(activeCardWidth / ratio)
+  // 窄屏使用全宽单卡；桌面舞台铺满内容列，主卡占舞台 72%。
+  isCompactBanner.value = width <= 900
+  const activeCardWidth = isCompactBanner.value
+    ? width
+    : width * (hasSidePreviews.value ? ACTIVE_SLIDE_RATIO : 1)
+  const height = Math.round(activeCardWidth / PREFERRED_BANNER_RATIO)
   carouselHeight.value = `${Math.max(120, height)}px`
 }
 
@@ -234,8 +235,8 @@ async function fetchBanners() {
         title: row.title,
         description: row.description || '',
         image: assetUrl(row.image),
-        focusY: row.image_focus_y,   // 显示条纵向焦点（0-100，默认 50 显示中带；管理页可调）
-        fit: row.image_fit || 'cover',
+        focusY: Number.isFinite(Number(row.image_focus_y)) ? Number(row.image_focus_y) : 50,
+        fit: 'cover',
         displayRatio: Number(row.display_ratio) || null,
         bare: true,
       }
@@ -296,21 +297,25 @@ function slideClass(index) {
 function slideStyle(index) {
   const offset = circularOffset(index)
   if (offset === 0) return { left: '50%', transform: 'translateX(-50%) scale(1)' }
-  if (offset === -1) return { left: '0%', transform: 'translateX(-58%) scale(.84)' }
-  if (offset === 1) return { left: '100%', transform: 'translateX(-42%) scale(.84)' }
+  if (offset === -1) return { left: '0%', transform: 'translateX(-36%) scale(.86)' }
+  if (offset === 1) return { left: '100%', transform: 'translateX(-64%) scale(.86)' }
   return { left: '50%', transform: 'translateX(-50%) scale(.72)' }
 }
 
 function goToBanner(index) {
   cancelBannerPreview()
-  activeBannerIndex.value = index
+  const count = banners.value.length
+  if (!count) return
+  activeBannerIndex.value = ((index % count) + count) % count
 }
 
 function nextBanner() {
+  if (banners.value.length < 2) return
   goToBanner((activeBannerIndex.value + 1) % banners.value.length)
 }
 
 function previousBanner() {
+  if (banners.value.length < 2) return
   goToBanner((activeBannerIndex.value - 1 + banners.value.length) % banners.value.length)
 }
 
@@ -349,7 +354,9 @@ function handleIndicatorsLeave() {
 
 function startBannerAutoplay() {
   pauseBannerAutoplay()
-  if (banners.value.length > 1) bannerAutoplayTimer = setInterval(nextBanner, 5000)
+  if (banners.value.length > 1 && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    bannerAutoplayTimer = setInterval(nextBanner, 5000)
+  }
 }
 
 // 学习功能入口数据（全部已上线可点；题库/考核/资源等未上线入口统一放服务台「学习服务」板块）
@@ -515,7 +522,7 @@ onBeforeUnmount(() => {
 }
 
 .banner-skeleton {
-  width: clamp(360px, 50%, 720px);
+  width: 72%;
   max-width: 100%;
 }
 
@@ -526,7 +533,7 @@ onBeforeUnmount(() => {
 }
 
 .carousel-stage {
-  width: clamp(420px, 74%, 900px);
+  width: 100%;
   max-width: 100%;
   aspect-ratio: var(--carousel-ratio);
   position: relative;
@@ -537,17 +544,17 @@ onBeforeUnmount(() => {
 }
 
 .carousel-stage--single {
-  width: clamp(360px, 50%, 720px);
+  width: 100%;
 }
 
 .banner-slide {
   position: absolute;
   top: 0;
-  width: 68%;
+  width: 72%;
   height: 100%;
   z-index: 1;
   cursor: pointer;
-  opacity: .58;
+  opacity: .54;
   transition: left .42s ease, transform .42s ease, opacity .28s ease;
 }
 
@@ -563,6 +570,7 @@ onBeforeUnmount(() => {
 .banner-slide.is-prev,
 .banner-slide.is-next {
   z-index: 2;
+  filter: saturate(.9);
 }
 
 .banner-slide.is-hidden {
@@ -582,6 +590,10 @@ onBeforeUnmount(() => {
 
 .banner-slide.is-active .banner-item:hover .banner-image {
   transform: scale(1.025);
+}
+
+.banner-slide.is-active .banner-item {
+  box-shadow: 0 12px 32px rgba(15, 23, 42, .18);
 }
 
 .banner-image {
@@ -768,12 +780,13 @@ onBeforeUnmount(() => {
   transform: translateY(-50%);
   background: rgba(15, 23, 42, .38);
   color: #fff;
-  font-size: 28px;
+  font-size: 24px;
   line-height: 1;
   cursor: pointer;
 }
 
-.carousel-arrow:hover { background: rgba(15, 23, 42, .7); }
+.carousel-arrow:hover,
+.carousel-arrow:focus-visible { background: rgba(15, 23, 42, .7); }
 .carousel-arrow--prev { left: 10px; }
 .carousel-arrow--next { right: 10px; }
 
@@ -861,6 +874,15 @@ onBeforeUnmount(() => {
   .entries-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .study-hub-container,
+  .banner-slide,
+  .banner-image {
+    animation: none;
+    transition: none;
   }
 }
 
