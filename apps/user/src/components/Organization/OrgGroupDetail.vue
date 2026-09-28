@@ -2,11 +2,12 @@
 // 组详情视图（钻入层，任意层级复用）：组头（组长/分管/人数）+ 成员名录 + 下设子组令牌墙。
 // 子组令牌再点击继续向下一层钻入（emit select 交父层推栈），层级不假设固定。
 // 成员名录 = 本组直挂归属（组长置顶见 OrgMemberList）；头部人数 = 含子孙上卷口径。
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { DewCard, DewTag } from '@bme/dew-ui'
 import OrgMemberList from './OrgMemberList.vue'
 import OrgTokenBoard from './OrgTokenBoard.vue'
+import { useWorkAccess } from '../../composables/useWorkAccess'
 
 const props = defineProps({
   node: { type: Object, required: true },
@@ -23,6 +24,16 @@ const memberTotal = computed(() => {
   return (c.primary || 0) + (c.secondary || 0)
 })
 const children = computed(() => props.node.children || [])
+
+// 「进入工作区」按钮（设计方案 §6.1）：本组工作区且我有权时显示；
+// 单例探测 /work/me，按 group_id 匹配，不发额外请求
+const { hasAccess: workAccess, workspaceForGroup, detect: detectWork } = useWorkAccess()
+onMounted(detectWork)
+const myWorkspace = computed(() =>
+  (workAccess.value ? workspaceForGroup(props.node.id) : null))
+const goWorkspace = (ws) => {
+  if (ws) router.push({ path: '/work', query: { ws: String(ws.id), tab: 'group' } })
+}
 </script>
 
 <template>
@@ -34,6 +45,10 @@ const children = computed(() => props.node.children || [])
         <h2 class="ogd-name">{{ node.name }}</h2>
         <DewTag v-if="memberTotal > 0" type="neutral" size="sm" round>{{ memberTotal }} 人</DewTag>
         <DewTag v-else type="info" size="sm" round>招新中</DewTag>
+        <el-button v-if="myWorkspace" size="small" type="primary" plain class="ogd-work-btn"
+                   @click="goWorkspace(myWorkspace)">
+          进入工作区
+        </el-button>
       </div>
       <div class="ogd-meta">
         <template v-if="node.leader">
@@ -107,6 +122,10 @@ const children = computed(() => props.node.children || [])
   flex-wrap: wrap;
   gap: 10px;
   margin-bottom: 10px;
+}
+
+.ogd-work-btn {
+  margin-left: auto;
 }
 
 .title-accent {

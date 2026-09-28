@@ -20,6 +20,10 @@ export default {
             if (path === '/service-hall' || path.startsWith('/ai-service')) {
                 return '/service-hall'
             }
+            // 内部工作台域（工作台主页与事项详情）统一高亮「工作台」
+            if (path.startsWith('/work')) {
+                return '/work'
+            }
             // 课程相关高亮「课程」：课程列表 / 详情 / 章节页
             if (path.startsWith('/study') || path.startsWith('/course')) {
                 return '/study'
@@ -58,6 +62,12 @@ const popoverRef = ref()
 const store = useStore()
 const router = useRouter()
 const route = useRoute()
+
+// 内部工作台顶栏入口（feature/work-collab）：仅已开通工作人员可见；
+// 单例探测 /work/me（与服务台卡/组织页按钮/通知工作 tab 共用，不重复请求）
+import { useWorkAccess } from '../composables/useWorkAccess'
+const { hasAccess: workAccess, detect: detectWorkAccess } = useWorkAccess()
+if (!!localStorage.getItem('bme-user-token')) detectWorkAccess()
 
 const DEFAULT_AVATAR = 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png'
 
@@ -216,6 +226,10 @@ const handleUserInfo = () => {
                 </el-menu-item>
                 <el-menu-item index="/service-hall">
                     服务台
+                </el-menu-item>
+                <!-- 内部工作台：仅已开通工作人员可见（探测不通过不占位） -->
+                <el-menu-item v-if="workAccess" index="/work">
+                    工作台
                 </el-menu-item>
                 <el-menu-item index="/community">
                     社区广场

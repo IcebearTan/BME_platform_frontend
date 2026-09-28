@@ -1,0 +1,202 @@
+<script setup>
+// 新建话题/任务对话框（M3）：任务必填负责人+截止（发布前校验）；负责人选择源
+// 为 /work/candidates（仅显示有协作资格者）。创建即草稿，「立即发布」时紧接着
+// 执行 publish 命令并跳转详情。
+import { ref, reactive, computed, watch } from 'vue'
+import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import { DewDialog, DewInput } from '@bme/dew-ui'
+import { workService, VISIBILITY_LABELS } from '../../services/workService'
+
+const props = defineProps({
+  modelValue: { type: Boolean, default: false },
+  workspaces: { type: Array, default: () => [] },
+  defaultWorkspaceId: { type: Number, default: null },
+})
+const emit = defineEmits(['update:modelValue', 'created'])
+const router = useRouter()
+
+const visible = computed({
+  get: () => props.modelValue,
+  set: (v) => emit('update:modelValue', v),
+})
+
+const form = reactive({
+  workspaceId: null, kind: 'topic', title: '', visibility: 'workspace', body: '',
+  publishNow: true,
+  assigneeId: null, dueAt: null, priority: 'normal',
+  acceptCriteria: '', reviewerId: null,
+})
+const saving = ref(false)
+const candidates = ref([])
+const candidatesLoading = ref(false)
+
+const PRIORITY_OPTIONS = [
+  { value: 'normal', label: '普通' }, { value: 'high', label: '高' }, { value: 'urgent', label: '紧急' },
+]
+
+async function loadCandidates() {
+  if (candidates.value.length) return
+  candidatesLoading.value = true
+  try {
+    const res = await workService.fetchCandidates()
+    candidates.value = res.data?.candidates || []
+  } catch { candidates.value = [] }
+  finally { candidatesLoading.value = false }
+}
+
+watch(visible, (open) => {
+  if (open) {
+    form.workspaceId = props.defaultWorkspaceId || props.workspaces[0]?.id || null
+    form.kind = 'topic'
+    form.title = ''
+    form.visibility = 'workspace'
+    form.body = ''
+    form.publishNow = true
+    form.assigneeId = null
+    form.dueAt = null
+    form.priority = 'normal'
+    form.acceptCriteria = ''
+    form.reviewerId = null
+  }
+})
+watch(() => form.kind, (k) => { if (k === 'task') loadCandidates() })
+
+const canSubmit = computed(() => {
+  if (!form.workspaceId || form.title.trim().length < 2) return false
+  if (form.kind === 'task' && (!form.assigneeId || !form.dueAt)) return false
+  return true
+})
+
+async function submit() {
+  if (!canSubmit.value || saving.value) return
+  saving.value = true
+  try {
+    const payload = {
+      workspace_id: form.workspaceId,
+      kind: form.kind,
+      title: form.title.trim(),
+      visibility: form.visibility,
+      body: form.body.trim() || null,
+      idempotency_key: `create-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    }
+    if (form.kind === 'task') {
+      payload.task = {
+        assignee_user_id: form.assigneeId,
+        due_at: form.dueAt,
+        priority: form.priority,
+      }
+      if (form.acceptCriteria.trim()) payload.task.accept_criteria = form.acceptCriteria.trim()
+      if (form.reviewerId) payload.task.reviewer_user_id = form.reviewerId
+    }
+    const res = await workService.createItem(payload)
+    const itemId = res.data?.id
+    if (form.publishNow && itemId) {
+      await workService.runCommand(itemId, { command: 'publish', expected_version: 1 })
+    }
+    ElMessage.success(form.publishNow
+      ? (form.kind === 'task' ? '任务已发布' : '话题已发布') : '草稿已保存')
+    visible.value = false
+    emit('created', itemId)
+    if (itemId) router.push(`/work/items/${itemId}`)
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '创建失败，请重试')
+  } finally {
+    saving.value = false
+  }
+}
+</script>
+
+<template>
+  <DewDialog v-model="visible" title="发起工作事项" :width="540">
+    <el-form label-width="84px">
+      <el-form-item label="类型">
+        <el-radio-group v-model="form.kind">
+          <el-radio-button value="topic">话题</el-radio-button>
+          <el-radio-button value="task">任务</el-radio-button>
+        </el-radio-group>
+        <div class="hint-text">
+          {{ form.kind === 'topic'
+            ? '讨论形成结论后可转为任务（保留全部讨论）'
+            : '需要执行与验收的工作；负责人唯一，转交须对方确认' }}
+        </div>
+      </el-form-item>
+      <el-form-item label="工作区" required>
+        <el-select v-model="form.workspaceId" style="width: 100%;" placeholder="选择组工作区"
+                   :disabled="workspaces.length <= 1">
+          <el-option v-for="w in workspaces" :key="w.id" :label="w.group_name" :value="w.id" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="标题" required>
+        <DewInput v-model="form.title" maxlength="100" show-word-limit
+                  placeholder="一句话说清这件事是什么" />
+      </el-form-item>
+      <el-form-item label="可见范围">
+        <el-radio-group v-model="form.visibility">
+          <el-radio v-for="(label, key) in VISIBILITY_LABELS" :key="key" :value="key">{{ label }}</el-radio>
+        </el-radio-group>
+        <div class="hint-text">
+          {{ form.visibility === 'workspace'
+            ? '本工作区已开通的成员都可以看到并参与'
+            : '只有你和被邀请的参与人可以看到；协调员也没有天然阅读权' }}
+        </div>
+      </el-form-item>
+
+      <template v-if="form.kind === 'task'">
+        <el-form-item label="负责人" required>
+          <el-select v-model="form.assigneeId" filterable style="width: 100%;"
+                     :loading="candidatesLoading" placeholder="搜索并选择（仅显示有资格者）">
+            <el-option v-for="c in candidates" :key="c.user_id" :label="c.username" :value="c.user_id">
+              <span>{{ c.username }}</span>
+              <span class="option-id">#{{ c.user_id }}</span>
+            </el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="截止时间" required>
+          <el-date-picker v-model="form.dueAt" type="date" value-format="YYYY-MM-DD"
+                          placeholder="只选日期则截止当天 23:59" style="width: 220px;" />
+        </el-form-item>
+        <el-form-item label="优先级">
+          <el-radio-group v-model="form.priority">
+            <el-radio v-for="p in PRIORITY_OPTIONS" :key="p.value" :value="p.value">{{ p.label }}</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="验收标准">
+          <el-input v-model="form.acceptCriteria" type="textarea" :rows="2" maxlength="2000"
+                    placeholder="怎样算完成（选填，验收时对照）" />
+        </el-form-item>
+        <el-form-item label="验收人">
+          <el-select v-model="form.reviewerId" filterable clearable style="width: 100%;"
+                     :loading="candidatesLoading" placeholder="需要他人验收时选择（选填）">
+            <el-option v-for="c in candidates" :key="c.user_id" :label="c.username" :value="c.user_id" />
+          </el-select>
+          <div class="hint-text">课程发布、正式资料等重要交付建议指定另一人验收</div>
+        </el-form-item>
+      </template>
+
+      <el-form-item label="正文">
+        <el-input v-model="form.body" type="textarea" :rows="4" maxlength="20000"
+                  placeholder="补充说明、背景与要解决的问题。支持 Markdown，详情页按格式渲染" />
+      </el-form-item>
+      <el-form-item label="发布">
+        <el-checkbox v-model="form.publishNow">立即发布（取消则保存为仅自己可见的草稿）</el-checkbox>
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <el-button @click="visible = false">取消</el-button>
+      <el-button type="primary" :loading="saving" :disabled="!canSubmit" @click="submit">
+        {{ form.publishNow ? (form.kind === 'task' ? '发布任务' : '发布话题') : '保存草稿' }}
+      </el-button>
+    </template>
+  </DewDialog>
+</template>
+
+<style scoped>
+.hint-text {
+  width: 100%;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  line-height: 1.6;
+}
+.option-id { float: right; color: var(--el-text-color-secondary); font-size: 12px; }
+</style>

@@ -42,6 +42,9 @@ const loadQuestionBank = () => import('./views/QuestionBankView.vue')
 const loadServiceHall = () => import('./views/ServiceHallView.vue')
 const loadResourceCenter = () => import('./views/ResourceCenterView.vue')
 const loadOrganization = () => import('./views/OrganizationView.vue')
+// 内部工作台（feature/work-collab）：面向已开通授权的社团工作人员，入口按 /work/me 探测显隐
+const loadWork = () => import('./views/WorkView.vue')
+const loadWorkItem = () => import('./views/WorkItemView.vue')
 const loadLLMService = () => import('./views/LLMServiceView.vue')
 const loadCommunity = () => import('./views/CommunityView.vue')
 const loadCommunityThread = () => import('./views/CommunityThreadView.vue')
@@ -319,6 +322,20 @@ const router = createRouter({
             path: '/organization',
             name: 'organization',
             component: loadOrganization,
+            meta: { requiresAuth: true }
+        },
+        {
+            // 内部工作台（feature/work-collab）：tab=todo|group，ws=预选工作区
+            path: '/work',
+            name: 'work',
+            component: loadWork,
+            meta: { requiresAuth: true }
+        },
+        {
+            // 事项详情（话题/任务同构）：通知深链 /work/items/{source_id} 直达
+            path: '/work/items/:id',
+            name: 'work-item',
+            component: loadWorkItem,
             meta: { requiresAuth: true }
         },
         {

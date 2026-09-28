@@ -30,6 +30,7 @@ const sections = [
   { name: 'org.positions', label: '职位定义' },
   { name: 'org.officers', label: '任职管理' },
   { name: 'org.memberships', label: '成员归属' },
+  { name: 'org.workGrants', label: '协作授权' },
 ]
 
 // 绑定路由名：浏览器前进/后退时高亮随当前路由派生

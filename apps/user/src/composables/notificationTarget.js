@@ -17,6 +17,14 @@ export function notificationTarget(item) {
   if (item.category === 'message' || item.category === 'gratitude') {
     return MESSAGE_TARGET
   }
+  // 内部工作台（feature/work-collab）：work_item 深链直达事项；撤权后事项 404
+  // 由详情页统一渲染「内容不可访问」空态（§10.2 信息零泄露）
+  if (item.category === 'work') {
+    if (item.source_type === 'work_item' && item.source_id) {
+      return { path: `/work/items/${item.source_id}` }
+    }
+    return { path: '/work' }
+  }
   if (item.category !== 'camp') {
     return { path: '/notifications' }
   }

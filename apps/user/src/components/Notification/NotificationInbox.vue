@@ -35,12 +35,12 @@ const route = useRoute()
 const router = useRouter()
 
 // 分类 tab 选项 + 导生探测（tab 条移到本容器后由这里驱动；单例探测，不与列表组件重复请求）
-const { filterItems, detectMentor } = useNotificationTabs()
-onMounted(detectMentor)
+const { filterItems, detectAll } = useNotificationTabs()
+onMounted(detectAll)
 
 // 合法 tab：all/system/camp/message（category=业务域；未读是状态不是类别，已并入徽标）。
 // legacy：'gratitude' 是旧 tab 值（感谢信曾是独立类别），归一化到私信域 message
-const VALID_TABS = ['all', 'system', 'camp', 'community', 'message']
+const VALID_TABS = ['all', 'system', 'camp', 'community', 'work', 'message']
 const normalizeTab = (tab) => (tab === 'gratitude' ? 'message' : VALID_TABS.includes(tab) ? tab : 'all')
 
 // URL 即状态：?tab= 由本容器统一持有（铃铛/深链可直达筛选）

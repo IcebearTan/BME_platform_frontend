@@ -6,10 +6,13 @@ import { Bell, ChatDotRound } from '@element-plus/icons-vue'
 import { campService } from '../services/campService'
 import { useNotifications } from './useNotifications'
 import { useGratitude } from './useGratitude'
+import { useWorkAccess } from './useWorkAccess'
 
 // ── 模块级单例状态（所有 useNotificationTabs() 实例共享） ──
 const isMentor = ref(false)
 let mentorProbe = null      // 探测只发一次；失败置空允许下次重试
+// 内部工作台资格（feature/work-collab）：「工作」tab 仅已开通工作人员浮出
+const { hasAccess: workAccess, detect: detectWorkAccess } = useWorkAccess()
 
 export function useNotificationTabs() {
   const { notificationList, unreadCount, unreadByCategory } = useNotifications()
@@ -30,9 +33,10 @@ export function useNotificationTabs() {
   }
 
   // 筛选 tab 选项。
-  // 分类体系：category=业务域（system/camp/community/message），source_type=具体事件。
-  // tab = 全部 / 系统 / 营期 / 社区（有内容才浮出） / 私信（导生；感谢信是私信的第一种，
-  // 未来用户互信同 tab）。未读是状态不是类别——撤独立 tab，未读徽标挂「全部」+ 各分类。
+  // 分类体系：category=业务域（system/camp/community/message/work），source_type=具体事件。
+  // tab = 全部 / 系统 / 营期 / 社区（有内容才浮出） / 工作（已开通工作人员） /
+  // 私信（导生；感谢信是私信的第一种，未来用户互信同 tab）。
+  // 未读是状态不是类别——撤独立 tab，未读徽标挂「全部」+ 各分类。
   const filterItems = computed(() => {
     const cat = (c) => unreadByCategory.value[c] || undefined
     const items = [
@@ -44,11 +48,20 @@ export function useNotificationTabs() {
     if (notificationList.value.some(n => n.category === 'community') || unreadByCategory.value.community) {
       items.push({ value: 'community', label: '社区', icon: Bell, badge: cat('community') })
     }
+    // 内部工作台：资格探测通过才浮出（学员看不到该域）
+    if (workAccess.value) {
+      items.push({ value: 'work', label: '工作', icon: Bell, badge: cat('work') })
+    }
     if (isMentor.value) {
       items.push({ value: 'message', label: '私信', icon: ChatDotRound, badge: letterUnread.value || undefined })
     }
     return items
   })
 
-  return { isMentor, detectMentor, filterItems, letters, letterUnread, fetchLetters }
+  function detectAll() {
+    detectMentor()
+    detectWorkAccess()
+  }
+
+  return { isMentor, detectMentor, detectAll, filterItems, letters, letterUnread, fetchLetters }
 }

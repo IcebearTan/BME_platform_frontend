@@ -6,6 +6,7 @@ const loadClubGroupManage = () => import('../../components/ClubGroupManage.vue')
 const loadClubPositionManage = () => import('../../components/ClubPositionManage.vue')
 const loadOfficerManage = () => import('../../components/OfficerManage.vue')
 const loadClubMembershipManage = () => import('../../components/ClubMembershipManage.vue')
+const loadWorkGrantManage = () => import('../../components/WorkGrantManage.vue')
 
 const childMeta = (title, order) => ({
   title, domain: 'organization', navOrder: order,
@@ -25,6 +26,8 @@ export const organizationRoutes = [
       { path: 'positions', name: 'org.positions', component: loadClubPositionManage, meta: childMeta('职位定义', 30) },
       { path: 'officers', name: 'org.officers', component: loadOfficerManage, meta: childMeta('任职管理', 40) },
       { path: 'memberships', name: 'org.memberships', component: loadClubMembershipManage, meta: childMeta('成员归属', 50) },
+      // 协作授权（内部工作台治理）：后端 /work/governance/*（避开 /admin 路径门禁，超管∨治理授权可操作）
+      { path: 'work-grants', name: 'org.workGrants', component: loadWorkGrantManage, meta: childMeta('协作授权', 60) },
     ],
   },
 ]

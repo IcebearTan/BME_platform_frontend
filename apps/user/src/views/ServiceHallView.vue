@@ -6,7 +6,8 @@ import MenuComponent from "../components/MenuComponent.vue";
 import PageFooterComponent from "../components/PageFooterComponent.vue";
 import MobileMenuComponent from "../components/MobileMenuComponent.vue";
 import { DewCard, DewTag } from '@bme/dew-ui';
-import { Menu as Expand, Printer, Monitor, MagicStick, ArrowRight, OfficeBuilding, EditPen, Select, Files } from '@element-plus/icons-vue';
+import { Menu as Expand, Printer, Monitor, MagicStick, ArrowRight, OfficeBuilding, EditPen, Select, Files, Suitcase } from '@element-plus/icons-vue';
+import { useWorkAccess } from '../composables/useWorkAccess';
 
 const store = useStore();
 const router = useRouter();
@@ -75,14 +76,28 @@ const selfServices = [
   { title: 'AI 大模型服务', desc: '创建 API Key、查看用量与申请额度', icon: MagicStick, color: '#409EFF', action: handleAIServiceClick },
 ];
 
-// 社团服务：组织架构页（设计方案 docs/社团身份体系-设计方案.md §5.1）
+// 社团服务：组织架构页（设计方案 docs/社团身份体系-设计方案.md §5.1）；
+// 内部工作台（feature/work-collab）：仅对 /work/me 探测通过的工作人员渲染，学员不可见
 const goOrganization = () => {
   router.push('/organization');
 };
 
-const clubServices = [
-  { title: '社团组织架构', desc: '组织结构、干事名录与分组一览', icon: OfficeBuilding, color: '#10b981', action: goOrganization },
-];
+const goWork = () => {
+  router.push('/work');
+};
+
+const { hasAccess: workAccess, detect: detectWork } = useWorkAccess();
+onMounted(detectWork);
+
+const clubServices = computed(() => {
+  const services = [
+    { title: '社团组织架构', desc: '组织结构、干事名录与分组一览', icon: OfficeBuilding, color: '#10b981', action: goOrganization },
+  ];
+  if (workAccess.value) {
+    services.push({ title: '内部工作台', desc: '组内协作、任务跟进与工作留痕', icon: Suitcase, color: '#6366f1', action: goWork });
+  }
+  return services;
+});
 
 </script>
 
