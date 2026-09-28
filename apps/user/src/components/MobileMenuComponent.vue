@@ -1,9 +1,16 @@
 <script setup>
-import { defineEmits } from 'vue';
+import { defineEmits, onMounted } from 'vue';
 import { Close } from '@element-plus/icons-vue';
+import { useWorkAccess } from '../composables/useWorkAccess';
 
 // 定义可以触发的事件
 const emit = defineEmits(['close']);
+
+// 内部工作台入口（仅已开通工作人员可见；与个人中心同组的个人域入口）
+const { hasAccess: workAccess, detect: detectWorkAccess } = useWorkAccess();
+onMounted(() => {
+  if (localStorage.getItem('bme-user-token')) detectWorkAccess();
+});
 
 // 关闭菜单的方法
 const closeMenu = () => {
@@ -27,6 +34,7 @@ const closeMenu = () => {
         <li><router-link to="/community" @click="closeMenu">社区广场</router-link></li>
         <!-- 可以添加登录/注册/用户中心链接 -->
          <li><router-link to="/user-center/user-info" @click="closeMenu">个人中心</router-link></li>
+         <li v-if="workAccess"><router-link to="/work" @click="closeMenu">内部工作台</router-link></li>
       </ul>
     </div>
   </div>

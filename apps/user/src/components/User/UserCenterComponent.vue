@@ -7,6 +7,8 @@ import { ElMessage } from 'element-plus'
 import { useRouter, useRoute } from 'vue-router'
 import { useStore } from 'vuex';
 import { Message, User, Setting, Calendar, Collection, EditPen, Document, ChatDotRound, Notebook } from '@element-plus/icons-vue';
+import { Briefcase } from '@element-plus/icons-vue';
+import { useWorkAccess } from '../../composables/useWorkAccess';
 import { DewCard, DewSidebar } from '@bme/dew-ui'
 
 const User_Info = ref({})
@@ -19,8 +21,12 @@ const router = useRouter()
 const route = useRoute()
 const store = useStore()
 
-// 左侧导航项（DewSidebar：value 即路由路径，选中后 push 过去）
-const navItems = [
+// 左侧导航项（DewSidebar：value 即路由路径，选中后 push 过去）；
+// 「工作」分组仅已开通工作人员可见（内部工作台与营期中心同为跨路由入口）
+const { hasAccess: workAccess, detect: detectWorkAccess } = useWorkAccess()
+onMounted(detectWorkAccess)
+const navItems = computed(() => {
+  const groups = [
   {
     label: '账户与反馈', children: [
       { value: '/user-center/user-info', label: '个人资料', icon: User },
@@ -35,13 +41,22 @@ const navItems = [
       { value: '/user-center/my-favorites', label: '我的收藏', icon: Collection },
     ],
   },
-  {
-    label: '学习', children: [
-      { value: '/camp', label: '营期中心', icon: Calendar },
-      { value: '/user-center/my-shelf', label: '我的书架', icon: Notebook },
-    ],
-  },
-]
+    {
+      label: '学习', children: [
+        { value: '/camp', label: '营期中心', icon: Calendar },
+        { value: '/user-center/my-shelf', label: '我的书架', icon: Notebook },
+      ],
+    },
+  ]
+  if (workAccess.value) {
+    groups.push({
+      label: '工作', children: [
+        { value: '/work', label: '内部工作台', icon: Briefcase },
+      ],
+    })
+  }
+  return groups
+})
 
 const onNavSelect = (value) => {
   router.push(value)

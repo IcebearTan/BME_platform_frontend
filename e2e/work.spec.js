@@ -113,17 +113,50 @@ test.describe('入口显隐', () => {
     await expect(page).toHaveURL(new RegExp(`${BASE}/work`))
   })
 
-  test('服务台与顶栏：无资格不渲染（学员不可见）', async ({ page }) => {
+  test('服务台与头像下拉：无资格不渲染（学员不可见）', async ({ page }) => {
     await loginAsUser(page, ME_EMPTY)
     await page.goto(`${BASE}/service-hall`)
     await expect(page.locator('.entry-card', { hasText: '内部工作台' })).toHaveCount(0)
-    await expect(page.locator('.el-menu-item', { hasText: '工作台' })).toHaveCount(0)
+    // 头像下拉中也不出现（导航栏无一级入口，个人域入口按资格显隐）
+    await page.locator('.user-avatar .el-avatar').first().click()
+    await expect(page.locator('.avatar-pop__action', { hasText: '内部工作台' })).toHaveCount(0)
   })
 
-  test('顶栏：有资格显示「工作台」菜单项', async ({ page }) => {
+  test('头像下拉：有资格显示内部工作台（含待办徽标）并可进入；导航栏不再占位', async ({ page }) => {
     await loginAsUser(page, ME_GRANTED)
     await page.goto(`${BASE}/home`)
-    await expect(page.locator('.el-menu-item', { hasText: '工作台' })).toBeVisible()
+    // 快速入口移入头像下拉（个人域），顶栏导航不占位
+    await expect(page.locator('.el-menu-item', { hasText: '工作台' })).toHaveCount(0)
+    await page.locator('.user-avatar .el-avatar').first().click()
+    const action = page.locator('.avatar-pop__action', { hasText: '内部工作台' })
+    await expect(action).toBeVisible()
+    // 待办徽标：待回复 1（ME_GRANTED fixture）= 1 项待办
+    await expect(page.locator('.avatar-pop__badge')).toHaveText('1 项待办')
+    await action.click()
+    await expect(page).toHaveURL(new RegExp(`${BASE}/work`))
+  })
+})
+
+test.describe('个人中心整合（工作分组）', () => {
+  test('有资格：侧栏出现「工作」分组并可直达；无资格不显示', async ({ page }) => {
+    await loginAsUser(page, ME_GRANTED)
+    await page.route('**/user/user_index', (route) => route.fulfill({
+      json: { code: 200, User_Name: '陈干事', User_Id: 21, role: 'user',
+              data: { username: '陈干事' } } }))
+    await page.goto(`${BASE}/user-center/user-info`)
+    const workItem = page.locator('.dew-sidebar, aside').getByText('内部工作台', { exact: true })
+    await expect(workItem).toBeVisible()
+    await workItem.click()
+    await expect(page).toHaveURL(new RegExp(`${BASE}/work`))
+
+    const page2 = await page.context().browser().newPage()
+    await loginAsUser(page2, ME_EMPTY)
+    await page2.route('**/user/user_index', (route) => route.fulfill({
+      json: { code: 200, User_Name: '学员', User_Id: 22, role: 'user',
+              data: { username: '学员' } } }))
+    await page2.goto(`${BASE}/user-center/user-info`)
+    await expect(page2.getByText('内部工作台', { exact: true })).toHaveCount(0)
+    await page2.close()
   })
 })
 

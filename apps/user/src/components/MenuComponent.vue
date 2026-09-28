@@ -20,10 +20,6 @@ export default {
             if (path === '/service-hall' || path.startsWith('/ai-service')) {
                 return '/service-hall'
             }
-            // 内部工作台域（工作台主页与事项详情）统一高亮「工作台」
-            if (path.startsWith('/work')) {
-                return '/work'
-            }
             // 课程相关高亮「课程」：课程列表 / 详情 / 章节页
             if (path.startsWith('/study') || path.startsWith('/course')) {
                 return '/study'
@@ -63,11 +59,25 @@ const store = useStore()
 const router = useRouter()
 const route = useRoute()
 
-// 内部工作台顶栏入口（feature/work-collab）：仅已开通工作人员可见；
-// 单例探测 /work/me（与服务台卡/组织页按钮/通知工作 tab 共用，不重复请求）
+// 内部工作台快速入口（feature/work-collab）：位于头像下拉（与营期中心/个人资料
+// 同组，属个人域操作），仅已开通工作人员可见；待办徽标随探测与下拉打开刷新。
+// 单例探测 /work/me（与服务台卡/组织页按钮/个人中心分组/通知工作 tab 共用）
+import { watch } from 'vue'
+import { Briefcase } from '@element-plus/icons-vue'
 import { useWorkAccess } from '../composables/useWorkAccess'
+import { useWorkData } from '../composables/useWorkData'
 const { hasAccess: workAccess, detect: detectWorkAccess } = useWorkAccess()
+const { todoCounts, refreshSummary } = useWorkData()
 if (!!localStorage.getItem('bme-user-token')) detectWorkAccess()
+watch(workAccess, (v) => { if (v) refreshSummary().catch(() => {}) })
+const workTodoTotal = computed(() =>
+  (todoCounts.value.pending_responses || 0)
+  + (todoCounts.value.pending_transfers || 0)
+  + (todoCounts.value.to_review || 0))
+const goWorkbench = () => {
+  refreshSummary().catch(() => {})          // 打开下拉后的下一次计数保持新鲜
+  router.push('/work')
+}
 
 const DEFAULT_AVATAR = 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png'
 
@@ -227,10 +237,6 @@ const handleUserInfo = () => {
                 <el-menu-item index="/service-hall">
                     服务台
                 </el-menu-item>
-                <!-- 内部工作台：仅已开通工作人员可见（探测不通过不占位） -->
-                <el-menu-item v-if="workAccess" index="/work">
-                    工作台
-                </el-menu-item>
                 <el-menu-item index="/community">
                     社区广场
                 </el-menu-item>
@@ -287,6 +293,13 @@ const handleUserInfo = () => {
                             </div>
                         </div>
                         <div class="avatar-pop__actions">
+                            <div v-if="workAccess" class="avatar-pop__action" @click="goWorkbench">
+                                <el-icon><Briefcase /></el-icon>
+                                <span>内部工作台</span>
+                                <span v-if="workTodoTotal > 0" class="avatar-pop__badge">
+                                    {{ workTodoTotal }} 项待办
+                                </span>
+                            </div>
                             <div class="avatar-pop__action" @click="goCamp">
                                 <el-icon><Calendar /></el-icon>
                                 <span>营期中心</span>
@@ -1079,6 +1092,15 @@ const handleUserInfo = () => {
   transition: background 0.2s ease, color 0.2s ease;
 }
 .avatar-pop__action:hover { background: var(--dew-ghost-hover-bg); }
+.avatar-pop__badge {
+    margin-left: auto;
+    padding: 2px 8px;
+    border-radius: var(--radius-full, 999px);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--el-color-danger, #f56c6c);
+    background: var(--el-color-danger-light-9, rgba(245, 108, 108, 0.1));
+}
 .avatar-pop__action .el-icon { font-size: 16px; color: var(--dew-text-muted); }
 .avatar-pop__action--danger { color: var(--color-danger); }
 .avatar-pop__action--danger:hover { background: var(--color-danger-light); }
