@@ -1471,3 +1471,35 @@ test('平台待办：接口失败显示错误并可重试', async ({ page }) => 
   await expect(page.getByText('当前筛选下没有待处理事项')).toBeVisible()
   expect(attempts).toBe(2)
 })
+
+test('开发测试账号面板：独立页分组卡片，点击一键登录（import.meta.env.DEV 门控）', async ({ page }) => {
+  const posted = []
+  await page.route('http://127.0.0.1:5001/**', (route) => {
+    const url = route.request().url()
+    if (route.request().method() === 'GET' && url.endsWith('/auth/dev_accounts')) {
+      return route.fulfill({ json: { code: 200, data: { accounts: [
+        { email: 'admin@seed.dev', username: '本地超管(测试)', role: 'super_admin', admin_tag: null },
+        { email: 'teacher@seed.dev', username: '本地老师(测试)', role: 'super_admin', admin_tag: 'teacher' },
+        { email: 'stu1@seed.dev', username: '学员小一', role: 'user', admin_tag: null },
+      ] } } })
+    }
+    if (route.request().method() === 'POST' && url.endsWith('/auth/admin_login')) {
+      posted.push(route.request().postDataJSON())
+      return route.fulfill({ json: { code: 200, token: 'e2e-quick-token', refresh_token: 'e2e-quick-refresh',
+        User_Name: '本地超管(测试)', User_Id: 1, role: 'super_admin', permissions: [] } })
+    }
+    return route.fallback()
+  })
+
+  // 直达独立面板页：管理端只列 super_admin（学员被过滤），超管/老师两组各就位
+  await page.goto(`${BASE}/dev/accounts`)
+  await expect(page.locator('.dev-group-title', { hasText: '超级管理员' })).toBeVisible()
+  await expect(page.locator('.dev-group-title', { hasText: '老师' })).toBeVisible()
+  await expect(page.locator('.dev-card')).toHaveCount(2)
+
+  // 点击超管卡片即走完整登录链（md5 协议 payload 精确断言）
+  await page.locator('.dev-card', { hasText: '本地超管(测试)' }).click()
+  await expect(page).toHaveURL(/\/admin\/$/)
+  expect(posted).toHaveLength(1)
+  expect(posted[0]).toEqual({ User_Email: 'admin@seed.dev', User_Password: '25d55ad283aa400af464c76d713c07ad' })
+})

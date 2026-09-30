@@ -23,7 +23,8 @@ const router = createRouter({
 // 无 token 直跳登录页（2026-09-16 加固）——原先依赖接口 401 兜底踢回，
 // 退出后直访受保护页会先渲染整壳再闪退；staffOnly 防手输 URL 绕菜单
 router.beforeEach((to) => {
-    const publicPages = to.path === '/login' || to.path === '/register';
+    const publicPages = to.path === '/login' || to.path === '/register'
+        || (import.meta.env.DEV && to.path === '/dev/accounts');
     if (!publicPages && !localStorage.getItem('bme-admin-token')) {
         return { path: '/login' };
     }

@@ -20,6 +20,8 @@ export default {
             User: markRaw(User),
             Lock: markRaw(Lock),
             isLoading: false,
+            // 开发测试账号面板入口：仅 dev 构建显示（面板本体在独立页 /dev/accounts）
+            isDevBuild: import.meta.env.DEV,
             rules: {
                 password: [
                     { required: true, message: "请输入用户密码", trigger: "blur" },
@@ -34,7 +36,10 @@ export default {
         }
     },
 
+
+
     methods: {
+
         async submitForm() {
             const valid = await this.$refs.loginFormRef.validate().catch(() => false);
             if (!valid) {
@@ -135,6 +140,13 @@ export default {
                 </el-form-item>
             </el-form>
 
+            <!-- 开发测试账号面板入口（仅 dev 构建渲染；独立页面承载面板） -->
+            <div v-if="isDevBuild" class="dev-entry">
+                <DewButton type="ghost" size="sm" @click="$router.push('/dev/accounts')">
+                    测试账号面板
+                </DewButton>
+            </div>
+
             <template #footer>
                 <p class="login-footer-tip">登录代表着您是大佬，拥有更多的权限</p>
             </template>
@@ -192,6 +204,11 @@ export default {
     text-align: center;
     font-size: 12px;
     color: var(--dew-text-faint);
+}
+
+.dev-entry {
+    margin: -6px 0 14px;
+    text-align: center;
 }
 
 @keyframes fadeInUp {

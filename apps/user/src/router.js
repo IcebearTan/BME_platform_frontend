@@ -102,6 +102,13 @@ const router = createRouter({
             component: LoginView,
             meta: { authPage: true }
         },
+        // 开发测试账号面板：仅 dev 构建注册（生产构建路由不存在，页面代码亦不进产物）
+        ...(import.meta.env.DEV ? [{
+            path: '/dev/accounts',
+            name: 'dev-accounts',
+            component: () => import('./views/DevAccountsView.vue'),
+            meta: { authPage: true }
+        }] : []),
         {
             path: '/register',
             name: 'register',
