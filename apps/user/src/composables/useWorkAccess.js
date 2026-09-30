@@ -10,11 +10,14 @@ const hasAccess = ref(false)
 const isGovernance = ref(false)
 const detecting = ref(false)
 const detectFailed = ref(false)
-let probe = null      // 探测只发一次；失败置空允许下次重试（登出/换号后可 force）
+let probe = null      // 探测成功后按 TTL 复用；失败置空允许下次重试（登出/换号后可 force）
+let probedAt = 0      // 最近一次探测成功时间戳（TTL 计时起点）
+const PROBE_TTL_MS = 5 * 60 * 1000   // 资格变更最长 5 分钟内生效（与服务端「下一请求失效」在入口层对齐）
 
 export function useWorkAccess() {
   function detect(force = false) {
-    if (!force && probe) return probe
+    const fresh = probe && Date.now() - probedAt < PROBE_TTL_MS
+    if (!force && fresh) return probe
     const token = localStorage.getItem('bme-user-token')
     if (!token) {                                 // 未登录：清空单例态，不发请求
       me.value = null
@@ -22,6 +25,7 @@ export function useWorkAccess() {
       isGovernance.value = false
       detectFailed.value = false
       probe = null
+      probedAt = 0
       return Promise.resolve()
     }
     detecting.value = true
@@ -33,6 +37,7 @@ export function useWorkAccess() {
         // 入口判据：有可进入的工作区，或持有治理身份（治理人员可能暂无组工作区）
         hasAccess.value = Boolean(data.workspaces?.length) || Boolean(data.is_governance)
         isGovernance.value = Boolean(data.is_governance)
+        probedAt = Date.now()   // 成功也记时戳：TTL 过期后下一次 detect 自动重探
       })
       .catch(() => { probe = null; detectFailed.value = true })
       .finally(() => { detecting.value = false })

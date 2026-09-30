@@ -3,6 +3,7 @@
 // client_request_id 幂等（网络重试不产生重复回复）。可选「需要某人回应」生成待回复。
 import { ref, reactive, computed } from 'vue'
 import { ElMessage } from 'element-plus'
+import { DewButton } from '@bme/dew-ui'
 import { workService } from '../../services/workService'
 import { newClientRequestId } from '../../composables/useWorkData'
 
@@ -57,7 +58,7 @@ async function send() {
   <div class="composer">
     <div v-if="replyTo" class="reply-quote">
       回复 {{ replyTo.author_name }}：{{ (replyTo.body || '').slice(0, 40) }}…
-      <el-button text size="small" @click="$emit('cancel-quote')">取消引用</el-button>
+      <DewButton type="ghost" size="sm" class="quote-cancel" @click="$emit('cancel-quote')">取消引用</DewButton>
     </div>
     <div v-if="pendingRequest" class="reply-quote reply-quote--hot">
       这条回复将完结「{{ pendingRequest.item_title }}」的待回应请求
@@ -66,9 +67,9 @@ async function send() {
               placeholder="补充进展、说明阻碍或回复他人（纯文本，换行保留）" />
     <div class="composer-actions">
       <template v-if="responders.length">
-        <el-button v-if="!needReply" text size="small" @click="needReply = true">
+        <DewButton v-if="!needReply" type="ghost" size="sm" @click="needReply = true">
           需要某人回应
-        </el-button>
+        </DewButton>
         <template v-else>
           <el-select v-model="responseForm.userId" size="small" style="width: 140px;"
                      placeholder="选择回应人">
@@ -78,14 +79,15 @@ async function send() {
           <el-date-picker v-model="responseForm.dueAt" size="small" type="datetime"
                           placeholder="建议回复时限（可选）" value-format="YYYY-MM-DDTHH:mm"
                           style="width: 200px;" />
-          <el-button text size="small" @click="needReply = false; responseForm.userId = null">取消</el-button>
+          <DewButton type="ghost" size="sm"
+                     @click="needReply = false; responseForm.userId = null">取消</DewButton>
         </template>
       </template>
       <div class="spacer" />
       <span class="char-hint">{{ body.length }}/5000</span>
-      <el-button type="primary" size="small" :loading="sending" :disabled="!canSend" @click="send">
+      <DewButton size="sm" active :loading="sending" :disabled="!canSend" @click="send">
         发送
-      </el-button>
+      </DewButton>
     </div>
   </div>
 </template>
@@ -93,19 +95,22 @@ async function send() {
 <style scoped>
 .composer { margin-top: 12px; }
 
+/* 底色用 Dew token：暗色自动翻转（EP 仅亮色 token 会在暗色下刺眼） */
 .reply-quote {
+  display: flex; align-items: center; gap: 6px;
   margin-bottom: 8px; padding: 8px 12px; border-radius: 8px;
-  font-size: 12.5px; color: var(--el-text-color-secondary);
-  background: var(--el-fill-color-light);
+  font-size: 12.5px; color: var(--dew-text-muted);
+  background: var(--dew-card-flat-bg);
 }
 .reply-quote--hot {
   color: var(--el-color-warning, #e6a23c);
-  background: var(--el-color-warning-light-9, rgba(230, 162, 60, 0.1));
+  background: var(--color-warning-light);
 }
+.quote-cancel { flex: none; }
 
 .composer-actions {
   display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap;
 }
 .spacer { flex: 1; }
-.char-hint { font-size: 12px; color: var(--el-text-color-secondary); font-variant-numeric: tabular-nums; }
+.char-hint { font-size: 12px; color: var(--dew-text-muted); font-variant-numeric: tabular-nums; }
 </style>

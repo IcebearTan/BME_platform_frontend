@@ -14,10 +14,13 @@
         [`dew-card--accent-${accent}`]: accent,
       }
     ]"
+    :tabindex="interactive ? 0 : undefined"
+    :role="interactive ? 'button' : undefined"
     @mouseenter="onEnter"
     @mousemove="onMove"
     @mouseleave="onLeave"
-    @click="interactive && $emit('click', $event)"
+    @keydown="onKeydown"
+    @click="interactive && emit('click', $event)"
   >
     <!-- 折射层 -->
     <span class="dew-card__refraction" :style="refractionStyle"></span>
@@ -64,10 +67,19 @@ const props = defineProps({
   divided: { type: Boolean, default: false },
 })
 
-defineEmits(['click'])
+const emit = defineEmits(['click'])
 
 const cardRef = ref(null)
 const state = reactive({ hovering: false, x: 0.5, y: 0.5 })
+
+/** 键盘可达：interactive 卡可 Tab 聚焦，Enter/Space 触发与点击同源的 click 事件 */
+function onKeydown(e) {
+  if (!props.interactive) return
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault()
+    emit('click', e)
+  }
+}
 
 function onEnter() { state.hovering = true }
 function onMove(e) {

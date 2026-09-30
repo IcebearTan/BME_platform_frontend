@@ -76,7 +76,7 @@ const infoRows = computed(() => {
 
 .info-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px 20px; }
 .info-row { display: flex; gap: 8px; font-size: 13px; line-height: 1.7; }
-.info-label { color: var(--el-text-color-secondary); flex: none; }
+.info-label { color: var(--dew-text-muted); flex: none; }
 .info-value { word-break: break-all; }
 .info-value--danger { color: var(--el-color-danger, #f56c6c); font-weight: 600; }
 
@@ -85,11 +85,11 @@ const infoRows = computed(() => {
 .sub-row { padding: 8px 0; border-bottom: 1px dashed var(--el-border-color-lighter); }
 .sub-row:last-child { border-bottom: none; }
 .sub-head { display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
-.sub-seq { font-weight: 600; color: var(--el-text-color-secondary); }
+.sub-seq { font-weight: 600; color: var(--dew-text-muted); }
 .sub-by { font-weight: 600; }
-.sub-time { color: var(--el-text-color-secondary); }
+.sub-time { color: var(--dew-text-muted); }
 .sub-note { margin: 6px 0 0; font-size: 13px; line-height: 1.7; white-space: pre-wrap; }
-.sub-note--decision { color: var(--el-text-color-secondary); }
+.sub-note--decision { color: var(--dew-text-muted); }
 
 @media (max-width: 768px) {
   .info-grid { grid-template-columns: 1fr; }

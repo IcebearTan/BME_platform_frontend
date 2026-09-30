@@ -181,7 +181,7 @@ test.describe('管理端治理工具（M5）', () => {
       if (url.includes('/work/governance/takeover-queue')) {
         return route.fulfill({ json: { code: 200, data: { items: [
           { item_id: 101, title: '设备检修排期', assignee_user_id: 22,
-            assignee_name: '王组员', status: 'in_progress' }] } } })
+            assignee_name: '王组员', group_name: '软件组', status: 'in_progress' }] } } })
       }
       if (url.includes('/work/governance/handover')) {
         return route.fulfill({ json: { code: 200, data: {
@@ -211,6 +211,9 @@ test.describe('管理端治理工具（M5）', () => {
     // 需接管队列
     await expect(page.getByText('需接管事项')).toBeVisible()
     await expect(page.getByText('设备检修排期')).toBeVisible()
+    // 所属工作区列（takeover 行的 group_name 投影）
+    await expect(page.locator('.el-table').filter({ hasText: '设备检修排期' })
+      .getByText('软件组')).toBeVisible()
     // 治理工具：交接清单 + 紧急介入
     await expect(page.getByText('治理工具')).toBeVisible()
     await expect(page.getByText('交接清单（调组/卸任前生成）')).toBeVisible()

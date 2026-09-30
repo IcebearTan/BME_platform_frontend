@@ -1,8 +1,21 @@
 <script>
 import { mapGetters } from 'vuex';
+import { watch } from 'vue';
+import { useRoute } from 'vue-router';
+import { useWorkAccess } from './composables/useWorkAccess';
 
 export default {
   name: 'App',
+  setup() {
+    // 内部工作台入口（feature/work-collab）：路由切换时低频重探资格。
+    // detect 带 5 分钟 TTL（见 useWorkAccess），窗口内复用缓存不重复发请求；
+    // 探测瞬态失败后入口最长随下一次路由切换恢复，不再需要整页刷新。
+    const route = useRoute();
+    const { detect: detectWorkAccess } = useWorkAccess();
+    watch(() => route.path, () => {
+      if (localStorage.getItem('bme-user-token')) detectWorkAccess();
+    });
+  },
   computed: {
     ...mapGetters(['isDarkMode'])
   },

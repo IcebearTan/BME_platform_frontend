@@ -2,13 +2,15 @@
 // 任务/话题命令栏（M3）：按详情 allowed_actions 渲染按钮，后端每次仍重新授权（§13）。
 // 参数化命令走统一字段对话框（表驱动定义）；简单命令仅确认。expected_version
 // 由父组件传入（操作前详情版本），冲突 409 时提示刷新。
+// 命令分三档主次：推进类（点亮）/调整类（玻璃默认）/终止类（danger）。
 import { ref, reactive, computed, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { DewDialog } from '@bme/dew-ui'
+import { DewDialog, DewButton } from '@bme/dew-ui'
 import { workService } from '../../services/workService'
 
 const props = defineProps({
   itemId: { type: Number, required: true },
+  kind: { type: String, default: 'topic' },      // topic | task（reopen 等命令按 kind 取定义）
   version: { type: Number, required: true },
   allowed: { type: Array, default: () => [] },
   files: { type: Array, default: () => [] },     // 事项附件（提交时绑定固定版本）
@@ -21,62 +23,72 @@ const VISIBLE = ['publish', 'promote', 'start', 'block', 'unblock', 'submit', 'c
                  'reassign', 'cancel', 'transfer']
 const shown = computed(() => props.allowed.filter(a => VISIBLE.includes(a)))
 
-// 命令定义表：label/风格/确认文案/参数字段（与后端命令白名单同源，§13）
+// 命令定义表：label/tone（primary 推进 | default 调整 | danger 终止）/确认文案/参数字段
+// （与后端命令白名单同源，§13）。reopen 按 kind 拆reopen_topic / reopen_task 两键，
+// 渲染与提交仍用原名 'reopen'（defOf 负责映射）。
 const COMMAND_DEFS = {
-  publish: { label: '发布', type: 'primary', plain: true,
+  publish: { label: '发布', tone: 'primary',
              confirm: '确认发布？发布后本工作区可见（受限范围仍仅参与人）' },
-  close: { label: '关闭话题', title: '关闭话题（停止普通回复）', fields: [
+  close: { label: '关闭话题', tone: 'default', title: '关闭话题（停止普通回复）', fields: [
     { key: 'reason', label: '结论摘要', type: 'text' },
   ] },
-  reopen: { label: '重新打开', title: '重新打开已关闭的话题', fields: [
+  reopen_topic: { label: '重新打开', tone: 'primary', title: '重新打开已关闭的话题', fields: [
     { key: 'reason', label: '重新打开原因', type: 'text' },
   ] },
-  promote: { label: '转为任务', type: 'primary', plain: true, title: '话题转任务（保留原讨论与附件）', fields: [
+  reopen_task: { label: '重新打开', tone: 'primary', title: '重新打开已完成任务', fields: [
+    { key: 'reason', label: '重新打开原因', type: 'text', required: true },
+  ] },
+  promote: { label: '转为任务', tone: 'primary', title: '话题转任务（保留原讨论与附件）', fields: [
     { key: 'assignee_id', label: '负责人', type: 'candidates', required: true },
     { key: 'due_at', label: '截止时间', type: 'date', required: true },
     { key: 'priority', label: '优先级', type: 'static', options: PRIORITY_OPTIONS, default: 'normal' },
     { key: 'accept_criteria', label: '验收标准', type: 'textarea' },
     { key: 'reviewer_id', label: '验收人', type: 'candidates' },
   ] },
-  start: { label: '开始任务' },
-  block: { label: '标记受阻', title: '标记受阻（记录原因与跟进时间）', fields: [
+  start: { label: '开始任务', tone: 'primary' },
+  block: { label: '标记受阻', tone: 'default', title: '标记受阻（记录原因与跟进时间）', fields: [
     { key: 'blocker_reason', label: '受阻原因', type: 'textarea', required: true },
     { key: 'follow_up_at', label: '跟进时间', type: 'datetime' },
   ] },
-  unblock: { label: '解除受阻', confirm: '确认阻碍已解除，恢复进行中？' },
-  submit: { label: '提交结果', title: '提交交付（进入待验收）', fields: [
+  unblock: { label: '解除受阻', tone: 'primary', confirm: '确认阻碍已解除，恢复进行中？' },
+  submit: { label: '提交结果', tone: 'primary', title: '提交交付（进入待验收）', fields: [
     { key: 'result_note', label: '结果说明', type: 'textarea' },
     { key: 'file_version_ids', label: '交付文件', type: 'files' },
   ] },
-  complete: { label: '完成任务', title: '完成任务（无验收人路径）', fields: [
+  complete: { label: '完成任务', tone: 'primary', title: '完成任务（无验收人路径）', fields: [
     { key: 'completion_note', label: '完成说明', type: 'textarea', required: true },
   ] },
-  review_accept: { label: '验收通过', type: 'success', plain: true,
+  review_accept: { label: '验收通过', tone: 'primary',
                    confirm: '确认通过？验收将绑定当前提交版本（后续新版本须重新提交）', fields: [
     { key: 'note', label: '验收意见', type: 'textarea' },
   ] },
-  review_return: { label: '退回修改', type: 'warning', plain: true, title: '退回修改', fields: [
+  review_return: { label: '退回修改', tone: 'default', title: '退回修改', fields: [
     { key: 'decision_note', label: '退回原因', type: 'textarea', required: true },
   ] },
-  reschedule: { label: '改期', title: '调整截止时间（记录原值与原因）', fields: [
+  reschedule: { label: '改期', tone: 'default', title: '调整截止时间（记录原值与原因）', fields: [
     { key: 'due_at', label: '新截止时间', type: 'date', required: true },
     { key: 'reason', label: '改期原因', type: 'text', required: true },
   ] },
-  reassign: { label: '改派负责人', title: '改派负责人（组内直派；跨组新负责人请用转交确认）', fields: [
+  reassign: { label: '改派负责人', tone: 'default', title: '改派负责人（组内直派；跨组新负责人请用转交确认）', fields: [
     { key: 'assignee_id', label: '新负责人', type: 'candidates', required: true },
     { key: 'reason', label: '分派原因', type: 'text', required: true },
   ] },
-  cancel: { label: '取消任务', type: 'danger', plain: true, title: '取消任务', fields: [
+  cancel: { label: '取消任务', tone: 'danger', title: '取消任务', fields: [
     { key: 'reason', label: '取消原因', type: 'text', required: true },
   ] },
-  reopen: { label: '重新打开', title: '重新打开已完成任务', fields: [
-    { key: 'reason', label: '重新打开原因', type: 'text', required: true },
-  ] },
-  transfer: { label: '转交负责人', title: '转交负责人（对方确认后生效）', transfer: true, fields: [
+  transfer: { label: '转交负责人', tone: 'default', title: '转交负责人（对方确认后生效）', transfer: true, fields: [
     { key: 'to_user_id', label: '转交给', type: 'candidates', required: true },
     { key: 'reason', label: '转交原因', type: 'text' },
     { key: 'expires_at', label: '确认期限', type: 'datetime' },
   ] },
+}
+
+// 动作名 → 定义：reopen 按事项 kind 分流（话题版原因可选、任务版必填，与后端一致）
+function defOf(action) {
+  if (action === 'reopen') {
+    return props.kind === 'task' ? COMMAND_DEFS.reopen_task : COMMAND_DEFS.reopen_topic
+  }
+  return COMMAND_DEFS[action]
 }
 
 const PRIORITY_STATIC = [
@@ -104,7 +116,7 @@ async function loadCandidates() {
 }
 
 async function onClick(command) {
-  const def = COMMAND_DEFS[command]
+  const def = defOf(command)
   if (def.fields?.length) {
     activeCommand.value = command
     Object.keys(formValues).forEach(k => delete formValues[k])
@@ -124,7 +136,7 @@ async function onClick(command) {
 }
 
 const canSubmitDialog = computed(() => {
-  const def = COMMAND_DEFS[activeCommand.value]
+  const def = defOf(activeCommand.value)
   if (!def) return false
   return def.fields.every(f => !f.required
     || (formValues[f.key] !== null && formValues[f.key] !== '' && formValues[f.key] !== undefined))
@@ -135,13 +147,40 @@ const fileOptions = computed(() => (props.files || [])
   .map(f => ({ value: f.current_version.id,
                label: `${f.display_name}（v${f.current_version.version_no}）` })))
 
+// ── 我发起的待确认转交：撤回入口（会话级） ──
+// 后端 decide_transfer 支持 withdraw（仅发起人或本组协调员）；详情/待办接口暂不返回
+// 「我发起的转交」，故此入口覆盖本会话内发起的转交，跨会话持久入口待后端补数据源。
+const myPendingTransfer = ref(null)
+const withdrawing = ref(false)
+
+async function withdrawTransfer() {
+  if (!myPendingTransfer.value || withdrawing.value) return
+  withdrawing.value = true
+  try {
+    const res = await workService.decideTransfer(myPendingTransfer.value.transferId, 'withdraw')
+    ElMessage.success(res.message || '已撤回转交')
+    myPendingTransfer.value = null
+    emit('done')
+  } catch (e) {
+    const msg = e.response?.data?.message || '撤回失败'
+    // 已被接受/过期等完结态：入口随之收起
+    if (e.response?.status === 409) myPendingTransfer.value = null
+    ElMessage.error(msg)
+  } finally {
+    withdrawing.value = false
+  }
+}
+
 async function run(command, values) {
   if (running.value) return
   running.value = true
   try {
     let res
-    if (COMMAND_DEFS[command]?.transfer) {
+    if (defOf(command)?.transfer) {
       res = await workService.createTransfer(props.itemId, values)
+      if (res.data?.transfer_id) {
+        myPendingTransfer.value = { transferId: res.data.transfer_id, expiresAt: res.data.expires_at }
+      }
     } else {
       res = await workService.runCommand(props.itemId, {
         command, expected_version: props.version, ...values,
@@ -162,7 +201,7 @@ async function run(command, values) {
 function submitDialog() {
   if (!canSubmitDialog.value) return
   const values = {}
-  for (const f of COMMAND_DEFS[activeCommand.value].fields) {
+  for (const f of defOf(activeCommand.value).fields) {
     const v = formValues[f.key]
     if (Array.isArray(v) ? v.length : (v !== null && v !== '' && v !== undefined)) {
       values[f.key] = v
@@ -175,19 +214,25 @@ watch(dialogVisible, (v) => { if (!v) activeCommand.value = null })
 </script>
 
 <template>
-  <div v-if="shown.length" class="command-bar">
-    <el-button v-for="c in shown" :key="c" size="small"
-               :type="COMMAND_DEFS[c]?.type || 'default'"
-               :plain="COMMAND_DEFS[c]?.plain ?? true"
+  <div v-if="shown.length || myPendingTransfer" class="command-bar">
+    <!-- 三档主次：推进类点亮 / 调整类玻璃 / 终止类 danger -->
+    <DewButton v-for="c in shown" :key="c" size="sm"
+               :type="defOf(c)?.tone === 'danger' ? 'danger' : 'glass'"
+               :active="defOf(c)?.tone === 'primary'"
                @click="onClick(c)">
-      {{ COMMAND_DEFS[c]?.label || c }}
-    </el-button>
+      {{ defOf(c)?.label || c }}
+    </DewButton>
+    <!-- 我发起的待确认转交：会话内可撤回（对方确认前） -->
+    <DewButton v-if="myPendingTransfer" size="sm" type="danger"
+               :loading="withdrawing" @click="withdrawTransfer">
+      撤回转交
+    </DewButton>
   </div>
 
-  <DewDialog v-model="dialogVisible" :title="COMMAND_DEFS[activeCommand]?.title || '操作'"
+  <DewDialog v-model="dialogVisible" :title="defOf(activeCommand)?.title || '操作'"
              :width="460">
     <el-form label-width="92px">
-      <el-form-item v-for="f in (COMMAND_DEFS[activeCommand]?.fields || [])" :key="f.key"
+      <el-form-item v-for="f in (defOf(activeCommand)?.fields || [])" :key="f.key"
                     :label="f.label" :required="f.required">
         <el-select v-if="f.type === 'candidates'" v-model="formValues[f.key]" filterable
                    :loading="candidatesLoading" placeholder="搜索并选择（仅显示有资格者）"
@@ -216,15 +261,15 @@ watch(dialogVisible, (v) => { if (!v) activeCommand.value = null })
       </el-form-item>
     </el-form>
     <template #footer>
-      <el-button @click="dialogVisible = false">取消</el-button>
-      <el-button type="primary" :loading="running" :disabled="!canSubmitDialog" @click="submitDialog">
+      <DewButton @click="dialogVisible = false">取消</DewButton>
+      <DewButton active :loading="running" :disabled="!canSubmitDialog" @click="submitDialog">
         确认执行
-      </el-button>
+      </DewButton>
     </template>
   </DewDialog>
 </template>
 
 <style scoped>
-.command-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
-.files-empty-hint { width: 100%; font-size: 12px; color: var(--el-text-color-secondary); line-height: 1.6; }
+.command-bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 12px; }
+.files-empty-hint { width: 100%; font-size: 12px; color: var(--dew-text-muted); line-height: 1.6; }
 </style>

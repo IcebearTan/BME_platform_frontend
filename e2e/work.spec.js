@@ -130,8 +130,8 @@ test.describe('入口显隐', () => {
     await page.locator('.user-avatar .el-avatar').first().click()
     const action = page.locator('.avatar-pop__action', { hasText: '内部工作台' })
     await expect(action).toBeVisible()
-    // 待办徽标：待回复 1（ME_GRANTED fixture）= 1 项待办
-    await expect(page.locator('.avatar-pop__badge')).toHaveText('1 项待办')
+    // 待办徽标：口径 = 摘要条五桶之和（ME_GRANTED fixture：待回复 1 + 即将到期 2 = 3 项待办）
+    await expect(page.locator('.avatar-pop__badge')).toHaveText('3 项待办')
     await action.click()
     await expect(page).toHaveURL(new RegExp(`${BASE}/work`))
   })

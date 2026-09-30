@@ -5,7 +5,7 @@
 import { ref, reactive, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { DewDialog, DewInput } from '@bme/dew-ui'
+import { DewDialog, DewInput, DewButton } from '@bme/dew-ui'
 import { workService, VISIBILITY_LABELS } from '../../services/workService'
 
 const props = defineProps({
@@ -30,6 +30,8 @@ const form = reactive({
 const saving = ref(false)
 const candidates = ref([])
 const candidatesLoading = ref(false)
+// 幂等键在对话框打开时生成一次、整个生命周期复用：创建超时重试不会另建重复草稿
+const idempotencyKey = ref('')
 
 const PRIORITY_OPTIONS = [
   { value: 'normal', label: '普通' }, { value: 'high', label: '高' }, { value: 'urgent', label: '紧急' },
@@ -58,6 +60,7 @@ watch(visible, (open) => {
     form.priority = 'normal'
     form.acceptCriteria = ''
     form.reviewerId = null
+    idempotencyKey.value = `create-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
   }
 })
 watch(() => form.kind, (k) => { if (k === 'task') loadCandidates() })
@@ -71,6 +74,8 @@ const canSubmit = computed(() => {
 async function submit() {
   if (!canSubmit.value || saving.value) return
   saving.value = true
+  // 第一步：创建草稿（幂等键复用，重试同键不重复建）
+  let itemId = null
   try {
     const payload = {
       workspace_id: form.workspaceId,
@@ -78,7 +83,7 @@ async function submit() {
       title: form.title.trim(),
       visibility: form.visibility,
       body: form.body.trim() || null,
-      idempotency_key: `create-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      idempotency_key: idempotencyKey.value,
     }
     if (form.kind === 'task') {
       payload.task = {
@@ -90,20 +95,34 @@ async function submit() {
       if (form.reviewerId) payload.task.reviewer_user_id = form.reviewerId
     }
     const res = await workService.createItem(payload)
-    const itemId = res.data?.id
-    if (form.publishNow && itemId) {
-      await workService.runCommand(itemId, { command: 'publish', expected_version: 1 })
-    }
-    ElMessage.success(form.publishNow
-      ? (form.kind === 'task' ? '任务已发布' : '话题已发布') : '草稿已保存')
-    visible.value = false
-    emit('created', itemId)
-    if (itemId) router.push(`/work/items/${itemId}`)
+    itemId = res.data?.id || null
   } catch (e) {
     ElMessage.error(e.response?.data?.message || '创建失败，请重试')
-  } finally {
     saving.value = false
+    return
   }
+  // 第二步：立即发布（失败不再报「创建失败」——草稿已建，进详情可重发）
+  if (form.publishNow && itemId) {
+    try {
+      await workService.runCommand(itemId, { command: 'publish', expected_version: 1 })
+    } catch (e) {
+      ElMessage.warning(e.response?.data?.message
+        ? `草稿已保存，但发布失败：${e.response.data.message}`
+        : '草稿已保存，但发布失败；可在详情页重试发布')
+      finishCreate(itemId)
+      return
+    }
+  }
+  ElMessage.success(form.publishNow
+    ? (form.kind === 'task' ? '任务已发布' : '话题已发布') : '草稿已保存')
+  finishCreate(itemId)
+}
+
+function finishCreate(itemId) {
+  visible.value = false
+  emit('created', itemId)
+  if (itemId) router.push(`/work/items/${itemId}`)
+  saving.value = false
 }
 </script>
 
@@ -183,10 +202,10 @@ async function submit() {
       </el-form-item>
     </el-form>
     <template #footer>
-      <el-button @click="visible = false">取消</el-button>
-      <el-button type="primary" :loading="saving" :disabled="!canSubmit" @click="submit">
+      <DewButton @click="visible = false">取消</DewButton>
+      <DewButton active :loading="saving" :disabled="!canSubmit" @click="submit">
         {{ form.publishNow ? (form.kind === 'task' ? '发布任务' : '发布话题') : '保存草稿' }}
-      </el-button>
+      </DewButton>
     </template>
   </DewDialog>
 </template>
@@ -195,8 +214,8 @@ async function submit() {
 .hint-text {
   width: 100%;
   font-size: 12px;
-  color: var(--el-text-color-secondary);
+  color: var(--dew-text-muted);
   line-height: 1.6;
 }
-.option-id { float: right; color: var(--el-text-color-secondary); font-size: 12px; }
+.option-id { float: right; color: var(--dew-text-muted); font-size: 12px; }
 </style>

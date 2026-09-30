@@ -373,3 +373,84 @@ test('分类全部已读：只标记当前分类，请求带 category', async ({
 
   expect(errors).toEqual([])
 })
+
+// ── 内部工作台通知（feature/work-collab）：tab 浮出 + work_item 深链 ──
+
+// /work/me 探测形（有资格）：workspaces 非空即浮出「工作」tab
+const ME_WORK_GRANTED = {
+  code: 200, message: 'ok',
+  data: {
+    eligibility: { kind: 'member', group_ids: [3] }, is_governance: false,
+    workspaces: [{ id: 1, club_group_id: 3, group_name: '软件组', status: 'active', role: 'member' }],
+    todo: { pending_responses: 0, pending_transfers: 0, to_review: 0, due_soon: 0, overdue: 0 },
+  },
+}
+
+const ME_WORK_EMPTY = {
+  code: 200, message: 'ok',
+  data: { eligibility: null, is_governance: false, workspaces: [],
+          todo: { pending_responses: 0, pending_transfers: 0, to_review: 0, due_soon: 0, overdue: 0 } },
+}
+
+const WORK_NOTIFICATIONS = {
+  code: 200,
+  data: {
+    notifications: [
+      { id: 401, title: '设备检修转交给你', content: '陈干事 把「设备检修排期」转交给你，请确认接手。', category: 'work', source_type: 'work_item', source_id: 101, camp_session_id: null, is_read: false, is_important: false, created_at: NOW },
+    ],
+  },
+}
+
+async function mockWorkNotifBackend(page, meData) {
+  // work 域通知 + /work/me 探测给真形数据，其余统一 200 空数据
+  await page.route('http://127.0.0.1:5001/**', (route) => {
+    const url = route.request().url()
+    if (url.includes('/notification/list')) {
+      return route.fulfill({ json: WORK_NOTIFICATIONS })
+    }
+    if (url.includes('/gratitude/received')) {
+      return route.fulfill({ json: { code: 200, data: { letters: [] } } })
+    }
+    if (url.includes('/work/me/todos')) {
+      return route.fulfill({ json: { code: 200, data: { pending_responses: [], pending_transfers: [], to_review: [], due: [] } } })
+    }
+    if (url.includes('/work/me')) {
+      return route.fulfill({ json: meData })
+    }
+    if (url.includes('/camp/sessions') && !url.includes('/camp/ms')) {
+      return route.fulfill({ json: SESSIONS })
+    }
+    return route.fulfill({ json: { code: 200, message: 'ok', data: {} } })
+  })
+}
+
+test('工作通知：tab 随资格浮出，点击深链直达事项页', async ({ page }) => {
+  const errors = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  await loginAs(page, 'user')
+  await mockWorkNotifBackend(page, ME_WORK_GRANTED)
+
+  await page.goto(`${BASE}/notifications`, { waitUntil: 'domcontentloaded' })
+  // 「工作」tab 仅已开通工作人员可见（/work/me 探测通过）
+  await page.getByRole('button', { name: '工作' }).click()
+  await expect(page).toHaveURL(/tab=work/)
+  await expect(page.getByText('设备检修转交给你')).toBeVisible()
+
+  // work_item 通知点击 → /work/items/:source_id 深链
+  await page.getByText('设备检修转交给你').click()
+  await expect(page).toHaveURL(/\/work\/items\/101$/)
+
+  expect(errors).toEqual([])
+})
+
+test('无工作资格：「工作」tab 不浮出（学员不可见）', async ({ page }) => {
+  const errors = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  await loginAs(page, 'user')
+  await mockWorkNotifBackend(page, ME_WORK_EMPTY)
+
+  await page.goto(`${BASE}/notifications`, { waitUntil: 'domcontentloaded' })
+  await expect(page.getByRole('button', { name: '工作' })).toHaveCount(0)
+
+  expect(errors).toEqual([])
+})

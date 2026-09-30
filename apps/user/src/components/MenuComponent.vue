@@ -60,7 +60,7 @@ const router = useRouter()
 const route = useRoute()
 
 // 内部工作台快速入口（feature/work-collab）：位于头像下拉（与营期中心/个人资料
-// 同组，属个人域操作），仅已开通工作人员可见；待办徽标随探测与下拉打开刷新。
+// 同组，属个人域操作），仅已开通工作人员可见；待办徽标随探测与下拉打开（@show）刷新。
 // 单例探测 /work/me（与服务台卡/组织页按钮/个人中心分组/通知工作 tab 共用）
 import { watch } from 'vue'
 import { Briefcase } from '@element-plus/icons-vue'
@@ -70,10 +70,17 @@ const { hasAccess: workAccess, detect: detectWorkAccess } = useWorkAccess()
 const { todoCounts, refreshSummary } = useWorkData()
 if (!!localStorage.getItem('bme-user-token')) detectWorkAccess()
 watch(workAccess, (v) => { if (v) refreshSummary().catch(() => {}) })
+// 徽标口径 = 工作台摘要条五桶之和（待回复/待接手/待验收/即将到期/已逾期），与 /work 首页一致
 const workTodoTotal = computed(() =>
   (todoCounts.value.pending_responses || 0)
   + (todoCounts.value.pending_transfers || 0)
-  + (todoCounts.value.to_review || 0))
+  + (todoCounts.value.to_review || 0)
+  + (todoCounts.value.due_soon || 0)
+  + (todoCounts.value.overdue || 0))
+// 下拉每次打开即刷新计数（挂机会话徽标不再长期陈旧）；无资格者不额外发请求
+const onAvatarPopShow = () => {
+  if (workAccess.value) refreshSummary().catch(() => {})
+}
 const goWorkbench = () => {
   refreshSummary().catch(() => {})          // 打开下拉后的下一次计数保持新鲜
   router.push('/work')
@@ -277,7 +284,7 @@ const handleUserInfo = () => {
 
         <el-menu-item v-if="isLogin && !isAuthRoute" class="custom-menu-item theme-menu-item" :class="{ 'theme-dark': isDarkMode, 'theme-light': !isDarkMode }">
             <div class="user-avatar" style="cursor: pointer;">
-                <DewPopover trigger="click" placement="bottom" :width="260" :offset="6" :show-arrow="true">
+                <DewPopover trigger="click" placement="bottom" :width="260" :offset="6" :show-arrow="true" @show="onAvatarPopShow">
                     <template #trigger>
                         <el-avatar :src="User_Avatar" alt="头像" />
                     </template>

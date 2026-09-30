@@ -2,10 +2,10 @@
 // 小组工作面板：事项列表（话题/任务混排，kind 筛选）+ 工作区/状态/搜索筛选 + 分页。
 // 列表与计数走同一后端授权过滤（/work/items），此处只做展示层。
 // 三段式加载遵循《加载态与骨架规范》；点击行进入事项详情。
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { DewCard, DewTag, DewSkeleton } from '@bme/dew-ui'
+import { DewCard, DewTag, DewSkeleton, DewButton } from '@bme/dew-ui'
 import { Search, Plus, ChatLineSquare, Lock } from '@element-plus/icons-vue'
 import { workService, ITEM_STATUS_LABELS, ITEM_STATUS_TYPE, VISIBILITY_LABELS } from '../../services/workService'
 import { useWorkAccess } from '../../composables/useWorkAccess'
@@ -30,7 +30,10 @@ const total = ref(0)
 
 const createVisible = ref(false)
 
+// 竞态守卫：快速切筛选/翻页时旧请求后到不覆盖新结果
+let loadSeq = 0
 async function load() {
+  const seq = ++loadSeq
   loading.value = true
   loadFailed.value = false
   try {
@@ -40,13 +43,15 @@ async function load() {
     if (status.value) params.status = status.value
     if (keyword.value.trim()) params.q = keyword.value.trim()
     const res = await workService.fetchItems(params)
+    if (seq !== loadSeq) return      // 过期响应丢弃
     items.value = res.data?.items || []
     total.value = res.data?.total || 0
   } catch (e) {
+    if (seq !== loadSeq) return
     loadFailed.value = true
     ElMessage.error(e.response?.data?.message || '列表加载失败')
   } finally {
-    loading.value = false
+    if (seq === loadSeq) loading.value = false
   }
 }
 
@@ -67,6 +72,10 @@ onMounted(() => {
   load()
 })
 
+// kind 切换联动：旧 kind 的状态值对新选项集无效时重置，避免「状态=todo+类型=话题」的误导性空列表
+watch(kind, () => {
+  if (status.value && !STATUS_OPTIONS.value.includes(status.value)) status.value = ''
+})
 watch([workspaceId, kind, status], () => {
   page.value = 1
   load()
@@ -77,6 +86,7 @@ watch(keyword, () => {
   clearTimeout(searchDebounce)
   searchDebounce = setTimeout(() => { page.value = 1; load() }, 400)
 })
+onUnmounted(() => clearTimeout(searchDebounce))
 </script>
 
 <template>
@@ -97,25 +107,28 @@ watch(keyword, () => {
       <el-input v-model="keyword" :prefix-icon="Search" style="width: 200px;"
                 placeholder="搜索标题 / 正文" clearable />
       <div class="spacer" />
-      <el-button type="primary" :icon="Plus" @click="createVisible = true">发起话题</el-button>
+      <DewButton active @click="createVisible = true">
+        <el-icon :size="14"><Plus /></el-icon>
+        发起事项
+      </DewButton>
     </div>
 
     <!-- 骨架（三段式之一） -->
     <template v-if="loading && !items.length">
       <DewCard v-for="i in 3" :key="i" size="md" class="item-card">
-        <DewSkeleton type="text" :lines="2" />
+        <DewSkeleton variant="text" :lines="2" />
       </DewCard>
     </template>
 
     <!-- 失败态 -->
     <DewCard v-else-if="loadFailed" size="md" class="item-card">
       <p class="empty-text">列表加载失败，请重试</p>
-      <el-button size="small" @click="load">重试</el-button>
+      <DewButton size="sm" @click="load">重试</DewButton>
     </DewCard>
 
     <!-- 空态 -->
     <DewCard v-else-if="!items.length" size="md" class="item-card">
-      <p class="empty-text">还没有相关工作事项；需要讨论或执行时，从右上角「发起话题」开始</p>
+      <p class="empty-text">还没有相关工作事项；需要讨论或执行时，从右上角「发起事项」开始</p>
     </DewCard>
 
     <!-- 列表 -->
@@ -185,20 +198,20 @@ watch(keyword, () => {
   width: 8px; height: 8px; border-radius: 50%; flex: none;
   background: var(--el-color-danger, #f56c6c);
 }
-.lock-icon { color: var(--el-text-color-secondary); flex: none; }
+.lock-icon { color: var(--dew-text-muted); flex: none; }
 
 .item-meta {
   display: flex; align-items: center; gap: 10px; margin-top: 4px;
-  font-size: 12px; color: var(--el-text-color-secondary);
+  font-size: 12px; color: var(--dew-text-muted);
 }
 .meta-strong { color: var(--el-color-warning, #e6a23c); }
-.meta-assignee { color: var(--el-color-primary, #409EFF); }
+.meta-assignee { color: var(--color-primary); }
 .meta-due { font-variant-numeric: tabular-nums; }
 .meta-due--overdue { color: var(--el-color-danger, #f56c6c); font-weight: 600; }
 .reply-count { display: inline-flex; align-items: center; gap: 3px; }
 
 .pager-row { display: flex; justify-content: center; margin-top: 12px; }
-.empty-text { margin: 4px 0 10px; font-size: 13px; color: var(--el-text-color-secondary); }
+.empty-text { margin: 4px 0 10px; font-size: 13px; color: var(--dew-text-muted); }
 
 @media (max-width: 768px) {
   .filter-bar { gap: 8px; }

@@ -3,7 +3,7 @@
 // 默认折叠，展开时分页加载；治理类事件由后端按可见范围过滤。
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { DewCard } from '@bme/dew-ui'
+import { DewCard, DewButton } from '@bme/dew-ui'
 import { workService, EVENT_LABELS } from '../../services/workService'
 
 const props = defineProps({
@@ -40,13 +40,13 @@ onMounted(() => { /* 懒加载：展开时才取数 */ })
 </script>
 
 <template>
-  <DewCard size="md" class="trail-card">
+  <DewCard size="md" variant="flat" class="trail-card">
     <div class="trail-head" @click="toggle">
       <span class="trail-title">操作记录</span>
       <span class="trail-sub">谁在何时改变了状态、时限与访问范围</span>
-      <el-button text size="small" :loading="loading">
+      <DewButton type="ghost" size="sm" :loading="loading">
         {{ expanded ? '收起' : '展开' }}
-      </el-button>
+      </DewButton>
     </div>
     <div v-if="expanded" class="trail-list">
       <div v-for="e in events" :key="e.seq" class="trail-row">
@@ -71,20 +71,20 @@ onMounted(() => { /* 懒加载：展开时才取数 */ })
 .trail-card { margin-top: 16px; }
 .trail-head { display: flex; align-items: center; gap: 8px; cursor: pointer; }
 .trail-title { font-size: 14px; font-weight: 600; }
-.trail-sub { flex: 1; font-size: 12px; color: var(--el-text-color-secondary); }
+.trail-sub { flex: 1; font-size: 12px; color: var(--dew-text-muted); }
 
 .trail-list { margin-top: 12px; }
 .trail-row { display: flex; gap: 10px; padding: 6px 0; }
 .trail-dot {
   width: 7px; height: 7px; border-radius: 50%; margin-top: 7px; flex: none;
-  background: var(--el-color-primary, #409EFF); opacity: 0.65;
+  background: var(--color-primary); opacity: 0.65;
 }
 .trail-body { flex: 1; font-size: 13px; line-height: 1.7; }
 .trail-actor { font-weight: 600; margin-right: 6px; }
-.trail-action { color: var(--el-text-color-regular); }
-.trail-reason { margin-left: 6px; color: var(--el-text-color-secondary); }
-.trail-time { float: right; font-size: 12px; color: var(--el-text-color-secondary); }
-.trail-empty { font-size: 13px; color: var(--el-text-color-secondary); }
+.trail-action { color: var(--dew-text); }
+.trail-reason { margin-left: 6px; color: var(--dew-text-muted); }
+.trail-time { float: right; font-size: 12px; color: var(--dew-text-muted); }
+.trail-empty { font-size: 13px; color: var(--dew-text-muted); }
 .trail-pager { display: flex; justify-content: center; margin-top: 8px; }
 
 @media (max-width: 768px) {

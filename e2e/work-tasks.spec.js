@@ -212,7 +212,8 @@ test.describe('创建任务', () => {
       return route.fulfill({ json: { code: 200, data: { items: [], total: 0, page: 1, page_size: 20 } } })
     })
     await page.goto(`${BASE}/work?tab=group`)
-    await page.getByRole('button', { name: '发起话题' }).click()
+    // 09-30 #58：入口改「发起事项」（对话框内再选类型）
+    await page.getByRole('button', { name: '发起事项' }).click()
     // radio 的原生 input 被可见 label 拦截，点可见按钮本体
     await page.locator('.el-radio-button', { hasText: '任务' }).click()
     await page.getByPlaceholder('一句话说清这件事是什么').fill('筹备招新宣讲')

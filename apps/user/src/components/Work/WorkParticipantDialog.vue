@@ -3,8 +3,7 @@
 // （后端只返回有协作资格者——无权者不在可发送列表，§5.3）。
 import { ref, reactive, computed, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { DewDialog } from '@bme/dew-ui'
-import api from '../../api'
+import { DewDialog, DewButton } from '@bme/dew-ui'
 import { workService } from '../../services/workService'
 
 const props = defineProps({
@@ -24,12 +23,13 @@ const loadingCandidates = ref(false)
 const form = reactive({ userId: null, ptype: 'collaborator' })
 const saving = ref(false)
 
+// 候选人统一走 workService（服务层唯一入口约定，不再直调 api）
 async function loadCandidates() {
   loadingCandidates.value = true
   try {
-    const res = await api.get('/work/candidates')
+    const res = await workService.fetchCandidates()
     const inSet = new Set(props.existing)
-    candidates.value = (res.data?.data?.candidates || [])
+    candidates.value = (res.data?.candidates || [])
       .filter(c => !inSet.has(c.user_id))
   } catch (e) {
     ElMessage.error(e.response?.data?.message || '候选人加载失败')
@@ -84,12 +84,12 @@ async function submit() {
       </el-form-item>
     </el-form>
     <template #footer>
-      <el-button @click="visible = false">取消</el-button>
-      <el-button type="primary" :loading="saving" :disabled="!form.userId" @click="submit">邀请</el-button>
+      <DewButton @click="visible = false">取消</DewButton>
+      <DewButton active :loading="saving" :disabled="!form.userId" @click="submit">邀请</DewButton>
     </template>
   </DewDialog>
 </template>
 
 <style scoped>
-.option-id { float: right; color: var(--el-text-color-secondary); font-size: 12px; }
+.option-id { float: right; color: var(--dew-text-muted); font-size: 12px; }
 </style>

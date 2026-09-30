@@ -6,7 +6,7 @@ import MenuComponent from "../components/MenuComponent.vue";
 import PageFooterComponent from "../components/PageFooterComponent.vue";
 import MobileMenuComponent from "../components/MobileMenuComponent.vue";
 import { DewCard, DewTag } from '@bme/dew-ui';
-import { Menu as Expand, Printer, Monitor, MagicStick, ArrowRight, OfficeBuilding, EditPen, Select, Files, Suitcase } from '@element-plus/icons-vue';
+import { Menu as Expand, Printer, Monitor, MagicStick, ArrowRight, OfficeBuilding, EditPen, Select, Files, Briefcase } from '@element-plus/icons-vue';
 import { useWorkAccess } from '../composables/useWorkAccess';
 
 const store = useStore();
@@ -45,7 +45,7 @@ const open3DFarm = () => {
   window.open('/3dfarm/', '_blank');
 };
 
-// 服务入口数据（图标底色用 inline color+'1a'，对齐 StudyHub 范式）
+// 服务入口数据（图标底色用 color-mix 10% 派生：支持 token 值，工作台卡取 var(--color-info)）
 const deviceServices = [
   { title: '实验室设备', desc: '各类实验器材与设备预约', icon: Monitor, color: '#909399', status: '建设中' },
 ];
@@ -76,6 +76,12 @@ const selfServices = [
   { title: 'AI 大模型服务', desc: '创建 API Key、查看用量与申请额度', icon: MagicStick, color: '#409EFF', action: handleAIServiceClick },
 ];
 
+// 图标底色派生：主色 10% 透明混合（等价原 hex+'1a'，但兼容 CSS token）
+const iconBoxStyle = (color) => ({
+  background: `color-mix(in srgb, ${color} 10%, transparent)`,
+  color,
+});
+
 // 社团服务：组织架构页（设计方案 docs/社团身份体系-设计方案.md §5.1）；
 // 内部工作台（feature/work-collab）：仅对 /work/me 探测通过的工作人员渲染，学员不可见
 const goOrganization = () => {
@@ -94,7 +100,7 @@ const clubServices = computed(() => {
     { title: '社团组织架构', desc: '组织结构、干事名录与分组一览', icon: OfficeBuilding, color: '#10b981', action: goOrganization },
   ];
   if (workAccess.value) {
-    services.push({ title: '内部工作台', desc: '组内协作、任务跟进与工作留痕', icon: Suitcase, color: '#6366f1', action: goWork });
+    services.push({ title: '内部工作台', desc: '组内协作、任务跟进与工作留痕', icon: Briefcase, color: 'var(--color-info)', action: goWork });
   }
   return services;
 });
@@ -149,7 +155,7 @@ const clubServices = computed(() => {
                   @click="s.action && s.action()"
                 >
                   <div class="card-row">
-                    <div class="icon-box" :style="{ background: s.color + '1a', color: s.color }">
+                    <div class="icon-box" :style="iconBoxStyle(s.color)">
                       <el-icon><component :is="s.icon" /></el-icon>
                     </div>
                     <div class="text-content">
@@ -181,7 +187,7 @@ const clubServices = computed(() => {
                   class="entry-card entry-card--disabled"
                 >
                   <div class="card-row">
-                    <div class="icon-box" :style="{ background: s.color + '1a', color: s.color }">
+                    <div class="icon-box" :style="iconBoxStyle(s.color)">
                       <el-icon><component :is="s.icon" /></el-icon>
                     </div>
                     <div class="text-content">
@@ -211,7 +217,7 @@ const clubServices = computed(() => {
                   @click="s.action && s.action()"
                 >
                   <div class="card-row">
-                    <div class="icon-box" :style="{ background: s.color + '1a', color: s.color }">
+                    <div class="icon-box" :style="iconBoxStyle(s.color)">
                       <el-icon><component :is="s.icon" /></el-icon>
                     </div>
                     <div class="text-content">
@@ -243,7 +249,7 @@ const clubServices = computed(() => {
                   @click="s.action && s.action()"
                 >
                   <div class="card-row">
-                    <div class="icon-box" :style="{ background: s.color + '1a', color: s.color }">
+                    <div class="icon-box" :style="iconBoxStyle(s.color)">
                       <el-icon><component :is="s.icon" /></el-icon>
                     </div>
                     <div class="text-content">

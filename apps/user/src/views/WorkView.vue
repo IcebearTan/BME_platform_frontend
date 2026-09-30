@@ -3,14 +3,14 @@
 // IA（设计方案 §6.1）：我的待办（先展示需要本人行动的事，未读与待办分开计数）
 // / 小组工作（话题+任务列表+筛选）。工作资料（M4）/工作记录（M5）随后续版本加入 tab。
 // 待办摘要 30s 轮询（活动页可见时），与铃铛未读互不替代。
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, reactive, onMounted, onUnmounted, watch } from 'vue'
 import { useStore } from 'vuex'
 import { useRoute, useRouter } from 'vue-router'
 import MenuComponent from '../components/MenuComponent.vue'
 import PageFooterComponent from '../components/PageFooterComponent.vue'
 import MobileMenuComponent from '../components/MobileMenuComponent.vue'
-import { DewCard, DewTag, DewSkeleton } from '@bme/dew-ui'
-import { Expand, Briefcase, OfficeBuilding, ChatLineSquare, AlarmClock, Bell } from '@element-plus/icons-vue'
+import { DewCard, DewTag, DewSkeleton, DewButton, DewButtonBar } from '@bme/dew-ui'
+import { Expand, Briefcase, Folder, Clock, ChatLineSquare, Bell } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useWorkAccess } from '../composables/useWorkAccess'
 import { useWorkData } from '../composables/useWorkData'
@@ -38,16 +38,30 @@ onUnmounted(() => window.removeEventListener('resize', checkScreenSize))
 const { me, hasAccess, isGovernance, detecting, detectFailed, detect } = useWorkAccess()
 const { todoCounts, refreshSummary, startSummaryPolling, stopSummaryPolling } = useWorkData()
 const loadFailed = computed(() => detectFailed.value)
-const load = () => detect(true)
+// 探测通过后统一走「数据装载 + 轮询启动」路径（幂等）：重试成功不再漏待办/摘要
+const load = async () => {
+  await detect(true)
+  if (hasAccess.value) {
+    await Promise.allSettled([refreshSummary(), loadTodos()])
+    startSummaryPolling()
+  }
+}
 const loading = computed(() => detecting.value && !me.value && !loadFailed.value)
 
-// ── Tab（URL 即状态，CampView 范式） ──
-const TABS = [
-  { value: 'todo', label: '我的待办', icon: Bell },
+// ── Tab（URL 即状态，DewButtonBar 范式，CampView/NotificationInbox 同款） ──
+// 徽标口径 = 摘要条五桶之和（待回复/待接手/待验收/即将到期/已逾期）
+const todoBadgeTotal = computed(() =>
+  (todoCounts.value.pending_responses || 0)
+  + (todoCounts.value.pending_transfers || 0)
+  + (todoCounts.value.to_review || 0)
+  + (todoCounts.value.due_soon || 0)
+  + (todoCounts.value.overdue || 0))
+const tabItems = computed(() => [
+  { value: 'todo', label: '我的待办', icon: Bell, badge: todoBadgeTotal.value || undefined },
   { value: 'group', label: '小组工作', icon: ChatLineSquare },
-  { value: 'files', label: '工作资料', icon: OfficeBuilding },
-  { value: 'records', label: '工作记录', icon: AlarmClock },
-]
+  { value: 'files', label: '工作资料', icon: Folder },
+  { value: 'records', label: '工作记录', icon: Clock },
+])
 const TAB_VALUES = ['todo', 'group', 'files', 'records']
 const activeTab = ref(TAB_VALUES.includes(route.query.tab) ? route.query.tab : 'todo')
 watch(() => route.query.tab, (t) => {
@@ -68,9 +82,10 @@ const todoChips = computed(() => [
 // ── 待办四桶（§6.1：待接手/待回复/待验收/到期；M3 全量点亮） ──
 const todos = ref({ pending_responses: [], pending_transfers: [], to_review: [], due: [] })
 const todosLoading = ref(false)
-const decidingTransfer = ref(false)
+const todosFailed = ref(false)       // 失败与空态分开：干部不错过转交接手/待验收
 async function loadTodos() {
   todosLoading.value = true
+  todosFailed.value = false
   try {
     const res = await workService.fetchTodos()
     todos.value = {
@@ -80,15 +95,18 @@ async function loadTodos() {
       due: res.data?.due || [],
     }
   } catch {
-    todos.value = { pending_responses: [], pending_transfers: [], to_review: [], due: [] }
+    todosFailed.value = true
   } finally {
     todosLoading.value = false
   }
 }
 
+// 转交决策按「转交 id + 动作」分键：多张卡互不齐转
+const deciding = reactive({})
 async function decideTransfer(transferId, action) {
-  if (decidingTransfer.value) return
-  decidingTransfer.value = true
+  const key = `${transferId}:${action}`
+  if (deciding[key]) return
+  deciding[key] = true
   try {
     const res = await workService.decideTransfer(transferId, action)
     ElMessage.success(res.message || '已处理')
@@ -96,20 +114,16 @@ async function decideTransfer(transferId, action) {
   } catch (e) {
     ElMessage.error(e.response?.data?.message || '操作失败')
   } finally {
-    decidingTransfer.value = false
+    delete deciding[key]
   }
 }
 
-onMounted(async () => {
-  await load()
-  if (hasAccess.value) {
-    await Promise.allSettled([refreshSummary(), loadTodos()])
-    startSummaryPolling()
-  }
-})
+onMounted(load)
 onUnmounted(stopSummaryPolling)
 
 const goOrganization = () => router.push('/organization')
+// 治理提示分流：管理端登录仅超管放行（isStaff 只认 super_admin），治理授权人员走超管代办
+const isSuperAdmin = computed(() => store.getters.role === 'super_admin')
 </script>
 
 <template>
@@ -135,11 +149,11 @@ const goOrganization = () => router.push('/organization')
         <div class="content-wrapper">
           <!-- 骨架（L1：形制对齐真实内容，防 CLS） -->
           <template v-if="loading">
-            <DewSkeleton type="rect" :height="28" :width="220" class="sk-block" />
-            <DewSkeleton type="text" :lines="2" class="sk-block" />
+            <DewSkeleton variant="rect" :height="28" :width="220" class="sk-block" />
+            <DewSkeleton variant="text" :lines="2" class="sk-block" />
             <div class="ws-grid">
               <DewCard v-for="i in 2" :key="i" size="md">
-                <DewSkeleton type="text" :lines="3" />
+                <DewSkeleton variant="text" :lines="3" />
               </DewCard>
             </div>
           </template>
@@ -147,7 +161,7 @@ const goOrganization = () => router.push('/organization')
           <!-- 失败态：可见 + 可重试 -->
           <DewCard v-else-if="loadFailed" size="md" class="state-card">
             <p class="state-text">工作台信息加载失败，请稍后重试</p>
-            <el-button size="small" @click="load">重试</el-button>
+            <DewButton size="sm" @click="load">重试</DewButton>
           </DewCard>
 
           <!-- 无资格空态：面向学员的友好说明（入口卡本就不可见，多为直达 URL） -->
@@ -158,7 +172,7 @@ const goOrganization = () => router.push('/organization')
               这里是社团工作人员的内部协作区（话题讨论、任务跟进与工作留痕），
               面向已开通权限的干事与组内工作人员。如你认为自己需要访问，请联系平台负责人开通。
             </p>
-            <el-button size="small" @click="goOrganization">查看社团组织架构</el-button>
+            <DewButton size="sm" @click="goOrganization">查看社团组织架构</DewButton>
           </DewCard>
 
           <!-- 工作台主体 -->
@@ -183,20 +197,19 @@ const goOrganization = () => router.push('/organization')
               </div>
             </div>
 
-            <!-- Tab 切换 -->
-            <div class="tab-bar">
-              <button v-for="t in TABS" :key="t.value"
-                      class="tab-btn" :class="{ 'tab-btn--active': activeTab === t.value }"
-                      @click="activeTab = t.value">
-                <el-icon :size="14"><component :is="t.icon" /></el-icon>
-                {{ t.label }}
-              </button>
+            <!-- Tab 切换（DewButtonBar：icon/badge/滑动指示器原生支持） -->
+            <div class="work-tabs">
+              <DewButtonBar v-model="activeTab" :items="tabItems" />
             </div>
 
             <!-- 我的待办（四桶：先看需要你行动的事，§6.1） -->
             <div v-if="activeTab === 'todo'">
               <DewSkeleton v-if="todosLoading && !todos.pending_responses.length
-                                 && !todos.pending_transfers.length" type="text" :lines="3" />
+                                 && !todos.pending_transfers.length" variant="text" :lines="3" />
+              <DewCard v-else-if="todosFailed" size="md">
+                <p class="state-text">待办加载失败，转交接手与待验收可能被错过，请重试</p>
+                <DewButton size="sm" :loading="todosLoading" @click="loadTodos">重试</DewButton>
+              </DewCard>
               <DewCard v-else-if="!todos.pending_responses.length && !todos.pending_transfers.length
                                    && !todos.to_review.length && !todos.due.length" size="md">
                 <p class="state-text">当前没有等待你行动的事项；待回复、待接手、待验收与到期任务会出现在这里</p>
@@ -213,10 +226,12 @@ const goOrganization = () => router.push('/organization')
                         <span class="todo-due">确认期限 {{ t.expires_at }}</span>
                       </div>
                     </div>
-                    <el-button size="small" type="danger" plain :loading="decidingTransfer"
-                               @click="decideTransfer(t.transfer_id, 'reject')">拒绝</el-button>
-                    <el-button size="small" type="primary" :loading="decidingTransfer"
-                               @click="decideTransfer(t.transfer_id, 'accept')">接手</el-button>
+                    <DewButton size="sm" type="danger"
+                               :loading="!!deciding[`${t.transfer_id}:reject`]"
+                               @click="decideTransfer(t.transfer_id, 'reject')">拒绝</DewButton>
+                    <DewButton size="sm" active
+                               :loading="!!deciding[`${t.transfer_id}:accept`]"
+                               @click="decideTransfer(t.transfer_id, 'accept')">接手</DewButton>
                   </div>
                 </DewCard>
                 <!-- 待回复 -->
@@ -232,7 +247,7 @@ const goOrganization = () => router.push('/organization')
                         <span>{{ t.created_at }}</span>
                       </div>
                     </div>
-                    <el-button size="small" type="primary" plain>去回复</el-button>
+                    <DewButton size="sm">去回复</DewButton>
                   </div>
                 </DewCard>
                 <!-- 待验收 -->
@@ -244,7 +259,7 @@ const goOrganization = () => router.push('/organization')
                       <div class="todo-title">{{ t.item_title }}</div>
                       <div class="todo-meta"><span>提交待你验收</span></div>
                     </div>
-                    <el-button size="small" type="primary" plain>去验收</el-button>
+                    <DewButton size="sm">去验收</DewButton>
                   </div>
                 </DewCard>
                 <!-- 到期（含逾期标记） -->
@@ -260,7 +275,7 @@ const goOrganization = () => router.push('/organization')
                         </span>
                       </div>
                     </div>
-                    <el-button size="small" type="primary" plain>去处理</el-button>
+                    <DewButton size="sm">去处理</DewButton>
                   </div>
                 </DewCard>
               </template>
@@ -277,7 +292,9 @@ const goOrganization = () => router.push('/organization')
               <div class="ws-row">
                 <div class="ws-icon"><el-icon><ChatLineSquare /></el-icon></div>
                 <p class="state-text">
-                  你持有协作治理身份：授权开通与撤销在管理端「组织架构 → 协作授权」进行
+                  {{ isSuperAdmin
+                    ? '你持有协作治理身份：授权开通与撤销在管理端「组织架构 → 协作授权」进行'
+                    : '你持有协作治理身份：授权开通与撤销由超级管理员在管理端操作，如需调整请联系超管' }}
                 </p>
               </div>
             </DewCard>
@@ -293,7 +310,7 @@ const goOrganization = () => router.push('/organization')
 </template>
 
 <style scoped>
-/* 极光背景对齐 ServiceHallView 规范（亮色四角低透明、暗色克制近黑） */
+/* 极光背景对齐 HomeView/ServiceHallView 规范单源（亮色四角 + 中心 cyan 五层、暗色含 amber 克制近黑） */
 .work-view-container {
   min-height: 100vh;
   display: flex;
@@ -308,6 +325,7 @@ const goOrganization = () => router.push('/organization')
     radial-gradient(ellipse 55% 60% at 88% 12%, rgba(244, 114, 182, 0.24), transparent 55%),
     radial-gradient(ellipse 70% 55% at 82% 88%, rgba(52, 211, 153, 0.22), transparent 60%),
     radial-gradient(ellipse 55% 60% at 8% 92%, rgba(251, 191, 36, 0.20), transparent 55%),
+    radial-gradient(ellipse 50% 50% at 50% 50%, rgba(34, 211, 238, 0.10), transparent 70%),
     linear-gradient(135deg, #f0f4ff 0%, #fdf2f8 50%, #f0fdf4 100%);
   color: #303133;
 }
@@ -317,6 +335,7 @@ const goOrganization = () => router.push('/organization')
     radial-gradient(ellipse 60% 50% at 12% 18%, rgba(59, 130, 246, 0.18), transparent 60%),
     radial-gradient(ellipse 55% 60% at 88% 12%, rgba(236, 72, 153, 0.15), transparent 55%),
     radial-gradient(ellipse 70% 55% at 82% 88%, rgba(16, 185, 129, 0.14), transparent 60%),
+    radial-gradient(ellipse 55% 60% at 8% 92%, rgba(245, 158, 11, 0.12), transparent 55%),
     linear-gradient(160deg, #16161a 0%, #0f0f12 100%);
   color: #E5EAF3;
 }
@@ -330,11 +349,16 @@ const goOrganization = () => router.push('/organization')
 
 .sk-block { margin-bottom: 16px; }
 
+/* 页头定式对齐 OrganizationView 标杆（28px 标题 / 4x26 r2 强调条 / 15px 副题） */
 .page-header { margin-bottom: 20px; }
-.page-title-row { display: flex; align-items: center; gap: 10px; }
-.title-accent { width: 5px; height: 24px; border-radius: 3px; background: var(--el-color-primary, #409EFF); }
-.page-title { font-size: 24px; font-weight: 700; margin: 0; }
-.sub-title { margin: 8px 0 0 14px; font-size: 13px; color: var(--el-text-color-secondary); }
+.page-title-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.title-accent {
+  display: inline-block;
+  width: 4px; height: 26px; border-radius: 2px;
+  background: linear-gradient(180deg, #3b82f6, #8b5cf6);
+}
+.page-title { font-size: 28px; font-weight: 700; margin: 0; color: var(--dew-text-heading); }
+.sub-title { font-size: 15px; margin: 0; color: var(--dew-text-muted); }
 
 .todo-strip { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
 .todo-chip {
@@ -342,35 +366,34 @@ const goOrganization = () => router.push('/organization')
   padding: 10px 16px; border-radius: 12px; cursor: pointer;
   background: var(--dew-card-bg, rgba(255, 255, 255, 0.6));
   border: 1px solid var(--dew-card-border, rgba(255, 255, 255, 0.5));
+  transition: transform 0.25s var(--dew-bounce), background 0.25s ease;
+}
+.todo-chip:hover {
+  transform: translateY(-1px);
+  background: var(--dew-card-bg-hover, rgba(255, 255, 255, 0.85));
 }
 .todo-num { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .todo-chip--hot .todo-num { color: var(--el-color-danger, #f56c6c); }
-.todo-label { font-size: 12.5px; color: var(--el-text-color-secondary); }
+.todo-label { font-size: 12.5px; color: var(--dew-text-muted); }
 
-.tab-bar { display: flex; gap: 8px; margin-bottom: 16px; }
-.tab-btn {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 8px 16px; border-radius: 999px; border: none; cursor: pointer;
-  font-size: 13.5px; font-weight: 600;
-  color: var(--el-text-color-regular);
-  background: var(--dew-card-bg, rgba(255, 255, 255, 0.6));
-  border: 1px solid var(--dew-card-border, rgba(255, 255, 255, 0.5));
+/* Tab 条容器：DewButtonBar 自适应宽，超窄屏（375px）横向滚动兜底（同消息中心 inbox-tabs 范式） */
+.work-tabs {
+  margin-bottom: 16px;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
-.tab-btn--active {
-  color: #fff;
-  background: var(--el-color-primary, #409EFF);
-  border-color: transparent;
-}
+.work-tabs::-webkit-scrollbar { display: none; }
 
 .todo-card { margin-bottom: 10px; }
 .todo-row { display: flex; align-items: center; gap: 12px; }
 .todo-main { flex: 1; min-width: 0; }
 .todo-title { font-size: 14.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.todo-meta { display: flex; gap: 10px; margin-top: 4px; font-size: 12px; color: var(--el-text-color-secondary); flex-wrap: wrap; }
+.todo-meta { display: flex; gap: 10px; margin-top: 4px; font-size: 12px; color: var(--dew-text-muted); flex-wrap: wrap; }
 .todo-due { color: var(--el-color-warning, #e6a23c); }
 .todo-due--hot { color: var(--el-color-danger, #f56c6c); font-weight: 600; }
 .bucket-title {
-  font-size: 13px; font-weight: 600; color: var(--el-text-color-secondary);
+  font-size: 13px; font-weight: 600; color: var(--dew-text-muted);
   margin: 6px 0 8px;
 }
 
@@ -379,17 +402,19 @@ const goOrganization = () => router.push('/organization')
 .ws-icon {
   width: 40px; height: 40px; border-radius: 12px; flex: none;
   display: flex; align-items: center; justify-content: center; font-size: 20px;
-  background: rgba(64, 158, 255, 0.1); color: var(--el-color-primary, #409EFF);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  color: var(--color-primary);
 }
 
 .state-card { max-width: 560px; margin: 40px auto 0; text-align: center; }
 .empty-icon {
   width: 48px; height: 48px; margin: 0 auto 12px; border-radius: 14px;
   display: flex; align-items: center; justify-content: center; font-size: 24px;
-  background: rgba(64, 158, 255, 0.1); color: var(--el-color-primary, #409EFF);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  color: var(--color-primary);
 }
 .state-title { margin: 0 0 8px; font-size: 17px; font-weight: 600; }
-.state-text { margin: 0 0 12px; font-size: 13px; line-height: 1.7; color: var(--el-text-color-secondary); text-align: left; }
+.state-text { margin: 0 0 12px; font-size: 13px; line-height: 1.7; color: var(--dew-text-muted); text-align: left; }
 
 @media (max-width: 768px) {
   .main-content { padding: 84px 14px 32px; }
