@@ -327,3 +327,47 @@ test('全站搜索用户域：导航回车进搜索页，点结果进个人主�
 
   expect(pageErrors).toEqual([])
 })
+
+test('开发测试账号面板：独立页分组卡片，点击一键登录（import.meta.env.DEV 门控）', async ({ page }) => {
+  const posted = []
+  await page.route('http://127.0.0.1:5001/**', (route) => {
+    const url = route.request().url()
+    if (route.request().method() === 'GET' && url.endsWith('/auth/dev_accounts')) {
+      return route.fulfill({ json: { code: 200, data: { accounts: [
+        { email: 'admin@seed.dev', username: '本地超管(测试)', role: 'super_admin', admin_tag: null },
+        { email: 'mentor1@seed.dev', username: '导生阿明', role: 'user', admin_tag: null },
+        { email: 'stu1@seed.dev', username: '学员小一', role: 'user', admin_tag: null },
+        { email: 'stu4@seed.dev', username: '学员小四', role: 'user', admin_tag: null },
+      ] } } })
+    }
+    if (route.request().method() === 'POST' && url.endsWith('/auth/login')) {
+      posted.push(route.request().postDataJSON())
+      return route.fulfill({ json: { code: 200, token: 'e2e-quick-token', refresh_token: 'e2e-quick-refresh',
+        User_Name: '学员小一', User_Id: 1, role: 'user' } })
+    }
+    if (url.includes('/user/user_avatars')) {
+      return route.fulfill({ json: { code: 200, avatar_path: null } })
+    }
+    return route.fallback()
+  })
+
+  // 登录页入口 → 独立面板页
+  await page.goto(`${BASE}/login`)
+  await page.getByRole('button', { name: '测试账号面板' }).click()
+  await expect(page).toHaveURL(/\/dev\/accounts$/)
+
+  // 分组渲染：超管/导生/学员三组各就位，卡片带昵称与邮箱
+  await expect(page.locator('.dev-group-title', { hasText: '超级管理员' })).toBeVisible()
+  await expect(page.locator('.dev-group-title', { hasText: '导生' })).toBeVisible()
+  await expect(page.locator('.dev-group-title', { hasText: '学员' })).toBeVisible()
+  await expect(page.locator('.dev-card', { hasText: '学员小一' })).toContainText('stu1@seed.dev')
+
+  // 搜索过滤到一张卡，清空后点卡片即走完整登录链（md5 payload 精确断言）
+  await page.locator('.dev-search').fill('小四')
+  await expect(page.locator('.dev-card')).toHaveCount(1)
+  await page.locator('.dev-search').fill('')
+  await page.locator('.dev-card', { hasText: '学员小一' }).click()
+  await expect(page).toHaveURL(/\/home$/)
+  expect(posted).toHaveLength(1)
+  expect(posted[0]).toEqual({ User_Email: 'stu1@seed.dev', User_Password: '25d55ad283aa400af464c76d713c07ad' })
+})

@@ -47,6 +47,13 @@
         </el-form-item>
       </el-form>
 
+      <!-- 开发测试账号面板入口（仅 dev 构建渲染；独立页面承载面板） -->
+      <div v-if="isDev" class="dev-entry">
+        <DewButton type="ghost" size="sm" @click="router.push('/dev/accounts')">
+          测试账号面板
+        </DewButton>
+      </div>
+
       <p class="login-privacy">登录即表示您同意我们的服务条款和隐私政策</p>
 
       <div class="login-actions">
@@ -83,6 +90,9 @@ const loginForm = ref({
   email: '',
   password: '',
 })
+
+// 开发测试账号面板入口：仅 dev 构建显示（面板本体在独立页 /dev/accounts）
+const isDev = import.meta.env.DEV
 
 const isLoading = ref(false)
 const isDarkMode = computed(() => store.state.isDarkMode)
@@ -217,6 +227,11 @@ async function submitForm() {
   text-align: center;
   color: var(--dew-text-faint);
   line-height: 1.6;
+}
+
+.dev-entry {
+  margin: -6px 0 16px;
+  text-align: center;
 }
 
 .login-actions {
