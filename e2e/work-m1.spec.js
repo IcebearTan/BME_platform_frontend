@@ -90,8 +90,10 @@ test.describe('管理端 协作授权治理页', () => {
   const WORKSPACES = {
     code: 200, message: 'ok',
     data: { workspaces: [
-      { id: 1, club_group_id: 3, group_name: '软件组', status: 'active', group_status: 'active', active_grants: 2 },
-      { id: 2, club_group_id: 4, group_name: '硬件组', status: 'disabled', group_status: 'active', active_grants: 0 },
+      { id: 1, club_group_id: 3, group_name: '软件组', status: 'active', group_status: 'active',
+        auto_grant: true, active_grants: 2 },
+      { id: 2, club_group_id: 4, group_name: '硬件组', status: 'disabled', group_status: 'active',
+        auto_grant: false, active_grants: 0 },
     ] },
   }
 
@@ -102,16 +104,21 @@ test.describe('管理端 协作授权治理页', () => {
         { id: 11, user_id: 21, username: '陈干事', role: 'coordinator', workspace_id: 1,
           workspace_group_name: '软件组', source_type: 'officer', source_id: 8,
           group_id_snapshot: null, valid_from: null, valid_until: null, status: 'active',
-          revoke_reason: null, granted_by: 1, grant_reason: '运行保障值班',
+          origin: 'manual', revoke_reason: null, granted_by: 1, grant_reason: '运行保障值班',
           effective: true, ineffective_reason: null, created_at: '2026-09-28 10:00' },
         { id: 12, user_id: 22, username: '王组员', role: 'member', workspace_id: 1,
           workspace_group_name: '软件组', source_type: 'membership', source_id: 31,
           group_id_snapshot: 3, valid_from: null, valid_until: null, status: 'active',
-          revoke_reason: null, granted_by: 1, grant_reason: '软件组开通',
+          origin: 'auto', revoke_reason: null, granted_by: 1, grant_reason: '自动派生：归属变更（软件组）',
           effective: false, ineffective_reason: '组归属已调整（授权绑定原组）',
           created_at: '2026-09-28 10:05' },
+        { id: 13, user_id: 23, username: '李前干事', role: 'member', workspace_id: 1,
+          workspace_group_name: '软件组', source_type: 'membership', source_id: 33,
+          group_id_snapshot: 3, valid_from: null, valid_until: null, status: 'vetoed',
+          origin: 'auto', revoke_reason: '泄露风波', granted_by: 1, grant_reason: '自动派生：归属变更（软件组）',
+          effective: false, ineffective_reason: null, created_at: '2026-09-20 09:00' },
       ],
-      total: 2, page: 1, page_size: 20,
+      total: 3, page: 1, page_size: 20,
     },
   }
 
@@ -160,10 +167,15 @@ test.describe('管理端 协作授权治理页', () => {
 
     // 管理端页面标题为 div.page-title（仓内范式），非 heading 元素
     await expect(page.locator('.page-title', { hasText: '协作授权' })).toBeVisible()
-    // 工作区表：软件组启用 / 硬件组停用
+    // 工作区表：软件组启用 / 硬件组停用；入职自动授开关列渲染（软件组开/硬件组关且停用禁用）
     await expect(page.getByText('软件组').first()).toBeVisible()
+    await expect(page.locator('.el-switch').first()).toBeVisible()
+    // 授权记录：失效原因 / 来源列（自动/手动）/ 否决状态与解除入口
     await expect(page.getByText('已失效：组归属已调整（授权绑定原组）')).toBeVisible()
     await expect(page.getByText('生效中').first()).toBeVisible()
+    await expect(page.locator('.el-table').getByText('自动').first()).toBeVisible()
+    await expect(page.getByText('已否决（不再自动授）')).toBeVisible()
+    await expect(page.getByRole('button', { name: '解除否决' })).toBeVisible()
     // 开通表单三档岗位
     await expect(page.getByRole('radio', { name: '组员' })).toBeVisible()
     await expect(page.getByRole('radio', { name: '协调员' })).toBeVisible()

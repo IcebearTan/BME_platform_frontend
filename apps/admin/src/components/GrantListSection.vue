@@ -79,6 +79,7 @@
               <el-option label="全部" value="all" />
               <el-option label="生效中" value="active" />
               <el-option label="已撤销" value="revoked" />
+              <el-option label="已否决" value="vetoed" />
             </el-select>
             <el-select v-model="query.workspaceId" clearable placeholder="全部工作区" style="width: 160px;"
                        @change="onFilterChange">
@@ -101,6 +102,13 @@
         <el-table-column label="依据" min-width="120">
           <template #default="{ row }">{{ SOURCE_LABELS[row.source_type] || row.source_type }}</template>
         </el-table-column>
+        <el-table-column label="来源" width="76">
+          <template #default="{ row }">
+            <el-tag :type="row.origin === 'auto' ? 'info' : ''" size="small" effect="plain">
+              {{ row.origin === 'auto' ? '自动' : '手动' }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column label="有效期" width="100">
           <template #default="{ row }">{{ row.valid_until || '不限' }}</template>
         </el-table-column>
@@ -111,16 +119,21 @@
               <el-tag type="warning" size="small">已失效：{{ row.ineffective_reason }}</el-tag>
             </el-tooltip>
             <el-tag v-else-if="row.status === 'active'" type="success" size="small">生效中</el-tag>
-            <el-tag v-else type="danger" size="small">已撤销</el-tag>
+            <el-tooltip v-else-if="row.status === 'vetoed'" :content="row.revoke_reason || ''" placement="top">
+              <el-tag type="danger" size="small">已否决（不再自动授）</el-tag>
+            </el-tooltip>
+            <el-tag v-else type="info" size="small">已撤销</el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="grant_reason" label="原因" min-width="140" show-overflow-tooltip />
         <el-table-column prop="created_at" label="授予时间" width="110" />
-        <el-table-column label="操作" width="90" fixed="right">
+        <el-table-column label="操作" width="104" fixed="right">
           <template #default="{ row }">
             <el-button v-if="row.status === 'active'" size="small" type="danger" plain @click="openRevoke(row)">
               撤销
             </el-button>
+            <el-button v-else-if="row.status === 'vetoed'" size="small" type="warning" plain
+                       @click="unveto(row)">解除否决</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -150,12 +163,15 @@
       <p class="dialog-text">撤销即时生效（该成员下一请求即失去权限）。请填写撤销原因（必填）：</p>
       <el-input v-model="revokeReason" type="textarea" :rows="3" maxlength="200" show-word-limit
                 placeholder="请填写撤销原因（必填）" />
+      <el-checkbox v-if="revokeTarget?.workspace_id" v-model="revokeVeto" class="dialog-veto">
+        同时否决：该成员本工作区不再自动获得授权（退社再入社也不复活）
+      </el-checkbox>
       <!-- 操作区放主体尾部而非 #footer slot：本仓 e2e 环境下子组件 dialog 的 footer slot
            事件挂载不生效（主体 slot 与 EP 自绘的头部 X 均正常，逐层验证见 2026-09-30 排查） -->
       <div class="dialog-actions">
         <el-button @click="revokeVisible = false">取消</el-button>
         <el-button type="danger" :loading="revoking" :disabled="!revokeReason.trim()" @click="confirmRevoke">
-          确认撤销
+          {{ revokeVeto ? '撤销并否决' : '确认撤销' }}
         </el-button>
       </div>
     </el-dialog>
@@ -164,7 +180,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { DewCard } from '@bme/dew-ui'
 import api from '../api'
 
@@ -306,12 +322,14 @@ const onPageChange = (p) => {
 
 const revokeVisible = ref(false)
 const revokeReason = ref('')
+const revokeVeto = ref(false)
 const revoking = ref(false)
 const revokeTarget = ref(null)
 
 const openRevoke = (row) => {
   revokeTarget.value = row
   revokeReason.value = ''
+  revokeVeto.value = false
   revokeVisible.value = true
 }
 
@@ -319,7 +337,8 @@ const confirmRevoke = async () => {
   revoking.value = true
   try {
     const res = await api({ url: `/work/governance/grants/${revokeTarget.value.id}/revoke`,
-                            method: 'post', data: { reason: revokeReason.trim() } })
+                            method: 'post',
+                            data: { reason: revokeReason.trim(), veto: revokeVeto.value } })
     ElMessage.success(res.data?.message || '已撤销')
     revokeVisible.value = false
     emit('changed')          // 工作区有效授权计数需要刷新，由主页面处理
@@ -328,6 +347,23 @@ const confirmRevoke = async () => {
     ElMessage.error(e.response?.data?.message || '撤销失败')
   } finally {
     revoking.value = false
+  }
+}
+
+// 解除否决：vetoed→revoked，并按当前组织事实重算（人在组里则当场恢复权限）
+const unveto = async (row) => {
+  try {
+    await ElMessageBox.confirm(
+      `解除对 ${row.username}（${row.workspace_group_name || '全局'}）的否决？解除后若组织事实仍命中，将自动恢复其本工作区授权。`,
+      '解除否决', { confirmButtonText: '解除否决', cancelButtonText: '取消' })
+  } catch { return }
+  try {
+    const res = await api({ url: `/work/governance/grants/${row.id}/unveto`, method: 'post' })
+    ElMessage.success(res.data?.message || '已解除否决')
+    emit('changed')
+    await fetchGrants()
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '解除失败')
   }
 }
 
@@ -352,6 +388,7 @@ defineExpose({ fetchGrants })
 .source-fail { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
 .dialog-text { margin: 0 0 10px; font-size: 13px; color: var(--el-text-color-regular); line-height: 1.6; }
+.dialog-veto { margin: 10px 0 0; }
 
 .revoke-summary {
   margin-bottom: 12px;

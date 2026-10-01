@@ -11,8 +11,8 @@
     </div>
     <p class="page-subtitle">
       授权岗位仅三档：组员（本组工作人员）/ 协调员（本组分派与验收协调）/ 治理（全局授权管理，仅超管可授）。
-      依据「任职」的授权随卸任或任期结束自动失效；依据「组归属」的授权随调组自动失效（绑定授权时组快照）——
-      均为下一请求即时生效，无需重新登录。
+      开启「入职自动授」的工作区：组归属/任职建档即自动开通对应岗位授权，卸任/调组/退组自动失效——
+      手动开通的授权优先；撤销时可勾选「同时否决」阻止该成员再自动获得授权。
     </p>
 
     <!-- 工作区管理 -->
@@ -45,6 +45,13 @@
             </el-tag>
           </template>
         </el-table-column>
+        <el-table-column label="入职自动授" width="110">
+          <template #default="{ row }">
+            <el-switch :model-value="row.auto_grant" :disabled="row.status !== 'active'"
+                       :loading="autoGrantSaving === row.id"
+                       @change="(v) => toggleAutoGrant(row, v)" />
+          </template>
+        </el-table-column>
         <el-table-column prop="active_grants" label="有效授权" width="90" />
         <el-table-column label="操作" width="110" fixed="right">
           <template #default="{ row }">
@@ -58,6 +65,7 @@
       <div class="open-ws-row">
         <el-cascader v-model="newWsGroup" :options="openableGroupOptions" :props="cascaderProps"
                      placeholder="选择要开通工作区的启用组" clearable style="width: 320px;" />
+        <el-checkbox v-model="newWsAuto">入职自动授（建区即按现任归属/任职批量开通）</el-checkbox>
         <el-button type="primary" :disabled="!newWsGroup" :loading="wsSaving" @click="openWorkspace">开通工作区</el-button>
       </div>
     </DewCard>
@@ -132,6 +140,7 @@ const openableGroupOptions = computed(() => {
 
 // ── 工作区开通与启停 ──
 const newWsGroup = ref(null)
+const newWsAuto = ref(true)
 const wsSaving = ref(false)
 
 const openWorkspace = async () => {
@@ -139,14 +148,40 @@ const openWorkspace = async () => {
   wsSaving.value = true
   try {
     const res = await api({ url: '/work/governance/workspaces', method: 'post',
-                            data: { club_group_id: newWsGroup.value } })
+                            data: { club_group_id: newWsGroup.value, auto_grant: newWsAuto.value } })
     ElMessage.success(res.data?.message || '工作区已开通')
     newWsGroup.value = null
+    grantListRef.value?.fetchGrants()
     await fetchWorkspaces()
   } catch (e) {
     ElMessage.error(e.response?.data?.message || '开通失败')
   } finally {
     wsSaving.value = false
+  }
+}
+
+// ── 入职自动授开关（关=只停新增；开=按现任组织行批量补授） ──
+const autoGrantSaving = ref(null)
+const toggleAutoGrant = async (row, enabled) => {
+  try {
+    await ElMessageBox.confirm(
+      enabled
+        ? `开启「${row.group_name}」入职自动授：将按现任归属/任职批量开通授权（已有授权不重复）。确认开启？`
+        : `关闭「${row.group_name}」入职自动授：此后新入组成员不再自动获得授权（存量授权保留）。确认关闭？`,
+      enabled ? '开启自动授' : '关闭自动授',
+      { confirmButtonText: enabled ? '开启' : '关闭', cancelButtonText: '取消' })
+  } catch { return }
+  autoGrantSaving.value = row.id
+  try {
+    const res = await api({ url: `/work/governance/workspaces/${row.id}/auto-grant`,
+                            method: 'post', data: { enabled } })
+    ElMessage.success(res.data?.message || '已调整')
+    grantListRef.value?.fetchGrants()
+    await fetchWorkspaces()
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '调整失败')
+  } finally {
+    autoGrantSaving.value = null
   }
 }
 
