@@ -93,7 +93,7 @@ test.describe('待接单桶', () => {
     await expect(page.getByText('软件组 交付给本组')).toBeVisible()
     await page.getByRole('button', { name: '接单' }).click()
     await expect.poll(() => posts.length).toBe(1)
-    await expect(page.getByText('任务已建到本组「小组工作」')).toBeVisible()
+    await expect(page.getByText('任务已建到本组「小组事项」')).toBeVisible()
   })
 })
 
@@ -114,8 +114,9 @@ test.describe('子组汇总 tab', () => {
       return route.fulfill({ json: { code: 200, message: 'ok', data: {} } })
     })
     await page.goto(`${BASE}/work`)
-    await expect(page.getByRole('button', { name: '子组汇总' })).toBeVisible()
-    await page.getByRole('button', { name: '子组汇总' }).click()
+    // 工作台 III：子组汇总为侧栏导航项（subtree 授权者渲染），点击进子路由
+    await expect(page.locator('.ws-nav-item', { hasText: '子组汇总' })).toBeVisible()
+    await page.locator('.ws-nav-item', { hasText: '子组汇总' }).click()
     await expect(page.getByText('设备检修排期')).toBeVisible()
     await expect(page.getByText('（已逾期）')).toBeVisible()
     await expect(page.getByText('一项受限事项')).toBeVisible()

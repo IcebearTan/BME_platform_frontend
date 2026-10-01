@@ -59,13 +59,13 @@ onMounted(load)
     </div>
 
     <template v-if="loading && !items.length">
-      <DewCard v-for="i in 3" :key="i" size="md"><DewSkeleton variant="text" :lines="2" /></DewCard>
+      <DewCard v-for="i in 3" :key="i" size="md" variant="flat"><DewSkeleton variant="text" :lines="2" /></DewCard>
     </template>
-    <DewCard v-else-if="loadFailed" size="md">
+    <DewCard v-else-if="loadFailed" size="md" variant="flat">
       <p class="empty-text">记录加载失败，请重试</p>
       <DewButton size="sm" :loading="loading" @click="load">重试</DewButton>
     </DewCard>
-    <DewCard v-else-if="!items.length" size="md">
+    <DewCard v-else-if="!items.length" size="md" variant="flat">
       <p class="empty-text">没有匹配的工作记录</p>
     </DewCard>
 

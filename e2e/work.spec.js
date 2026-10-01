@@ -160,37 +160,39 @@ test.describe('个人中心整合（工作分组）', () => {
   })
 })
 
-test.describe('工作台主页', () => {
-  test('待办摘要与待回复列表；tab 切换到小组工作并渲染列表', async ({ page }) => {
+test.describe('工作台主页（工作台 III：概览仪表盘 + 侧栏导航）', () => {
+  test('待办数字块与待回复列表；侧栏切到小组事项并渲染表格', async ({ page }) => {
     await loginAsUser(page)
     await page.goto(`${BASE}/work`)
 
-    // 摘要条：待回复 1 高亮
-    const chip = page.locator('.todo-chip', { hasText: '待回复' })
-    await expect(chip).toContainText('1')
-    // 我的待办：待回复卡（请求人 + 时限）
-    await expect(page.getByText('期中材料修订排期')).toBeVisible()
+    // 数字块：待回复 1
+    const block = page.locator('.stat-block', { hasText: '待回复' })
+    await expect(block).toContainText('1')
+    // 概览待办：待回复桶（请求人 + 时限；标题同时出现在「最近活动」，用桶内定位）
+    await expect(page.locator('.todo-title', { hasText: '期中材料修订排期' }).first()).toBeVisible()
     await expect(page.getByText('请求你回复')).toBeVisible()
 
-    // 切到小组工作：列表渲染（未读点 + 参与档锁标记）
-    await page.getByRole('button', { name: '小组工作' }).click()
-    await expect(page).toHaveURL(new RegExp('tab=group'))
-    await expect(page.locator('.item-card', { hasText: '期中材料修订排期' })).toBeVisible()
-    await expect(page.locator('.item-card', { hasText: '受限：值班安排调整' })).toBeVisible()
+    // 切到小组事项：表格渲染（未读点 + 参与档锁标记列）
+    await page.locator('.ws-nav-item', { hasText: '小组事项' }).click()
+    await expect(page).toHaveURL(new RegExp('/work/items'))
+    await expect(page.locator('.cell-title', { hasText: '期中材料修订排期' })).toBeVisible()
+    await expect(page.locator('.cell-title', { hasText: '受限：值班安排调整' })).toBeVisible()
   })
 
-  test('列表点击进入事项详情', async ({ page }) => {
+  test('表格行点击进入事项详情（旧 URL tab=group 兼容重定向）', async ({ page }) => {
     await loginAsUser(page)
     await page.goto(`${BASE}/work?tab=group`)
-    await page.locator('.item-card', { hasText: '期中材料修订排期' }).click()
+    // tab=group → /work/items 重定向后表格就位
+    await expect(page).toHaveURL(new RegExp('/work/items'))
+    await page.locator('.cell-title', { hasText: '期中材料修订排期' }).click()
     await expect(page).toHaveURL(new RegExp('/work/items/101'))
     await expect(page.getByRole('heading', { name: '期中材料修订排期' })).toBeVisible()
   })
 })
 
-test.describe('组织架构页钻入与工作区入口', () => {
-  // 回归背景：进入工作区按钮曾引入 props 引用笔误，钻入层渲染崩溃且面包屑回退失效
-  // （组织页此前无 e2e 覆盖，此组用例补上）。
+test.describe('组织架构页树选择与工作区入口', () => {
+  // 主从分栏重构（工作台 III 同期）：树常驻+URL 选中态，替代钻入栈与面包屑。
+  // 回归背景：进入工作区按钮曾引入 props 引用笔误致整层空白（组织页 e2e 因此补上）。
   const ORG_TREE = {
     code: 200, message: 'ok',
     data: {
@@ -223,49 +225,75 @@ test.describe('组织架构页钻入与工作区入口', () => {
     await page.route('http://127.0.0.1:5001/**', (route) => {
       const url = route.request().url()
       if (url.includes('/organization')) return route.fulfill({ json: ORG_TREE })
+      if (url.includes('/work/me/todos')) {
+        return route.fulfill({ json: { code: 200, message: 'ok', data: {} } })
+      }
       if (url.includes('/work/me')) return route.fulfill({ json: meData })
+      if (url.match(/\/work\/items\?/)) {
+        return route.fulfill({ json: { code: 200, message: 'ok', data: { items: [], total: 0 } } })
+      }
       return route.fulfill({ json: { code: 200, message: 'ok', data: {} } })
     })
   }
 
-  test('钻入组别有内容，面包屑可返回总览（渲染回归）', async ({ page }) => {
+  test('树选择组别：URL 选中态+详情渲染；子组树内可达；全社可回跳', async ({ page }) => {
     await mockOrgPage(page, ME_EMPTY)
     await page.goto(`${BASE}/organization`)
 
-    // 总览层：组令牌可见
-    await expect(page.locator('.token-name', { hasText: '软件组' })).toBeVisible()
-    // 钻入：组详情渲染（曾因 script 引用笔误整层空白）
-    await page.locator('.token', { hasText: '软件组' }).click()
+    // 全社态：树常驻 + 总览面板（社长行卡/组别一览）
+    await expect(page.locator('.org-root-item--active')).toBeVisible()
+    await expect(page.locator('.tree-node-name', { hasText: '软件组' })).toBeVisible()
+    await expect(page.locator('.officer-row--hero', { hasText: '社长' })).toBeVisible()
+    // 默认展开到二级：子组 前端小组 直接可见（不再需要钻入父组）
+    await expect(page.locator('.tree-node-name', { hasText: '前端小组' })).toBeVisible()
+    // 各组人数一览行
+    await expect(page.locator('.org-group-row', { hasText: '软件组' })).toBeVisible()
+
+    // 树选择：组态渲染（选中态进 URL）
+    await page.locator('.tree-node-name', { hasText: '软件组' }).click()
+    await expect(page).toHaveURL(new RegExp('group=3'))
     await expect(page.locator('.ogd-name', { hasText: '软件组' })).toBeVisible()
     await expect(page.getByText('成员名录')).toBeVisible()
-    // 继续钻入子组，面包屑出现两级
-    await page.locator('.token', { hasText: '前端小组' }).click()
+    // 树高亮跟随
+    await expect(page.locator('.el-tree-node.is-current', { hasText: '软件组' })).toBeVisible()
+
+    // 子组选择（树内直达，无需面包屑）
+    await page.locator('.tree-node-name', { hasText: '前端小组' }).click()
+    await expect(page).toHaveURL(new RegExp('group=31'))
     await expect(page.locator('.ogd-name', { hasText: '前端小组' })).toBeVisible()
-    // 面包屑回跳：点「社团」回总览（曾失效）
-    await page.locator('.crumb', { hasText: '社团' }).click()
-    await expect(page.locator('.token-name', { hasText: '软件组' })).toBeVisible()
-    // 面包屑回跳：钻入后点上级名回该级
-    await page.locator('.token', { hasText: '软件组' }).click()
-    await page.locator('.token', { hasText: '前端小组' }).click()
-    await page.locator('.crumb', { hasText: '软件组' }).click()
-    await expect(page.locator('.ogd-name', { hasText: '软件组' })).toBeVisible()
+
+    // 全社回跳：树顶「全社总览」
+    await page.locator('.org-root-item', { hasText: '全社总览' }).click()
+    await expect(page).toHaveURL(new RegExp(`${BASE}/organization$`))
+    await expect(page.locator('.org-group-row', { hasText: '软件组' })).toBeVisible()
   })
 
-  test('有权限：组头显示「进入工作区」并可直达小组工作', async ({ page }) => {
+  test('深链与无效回落：?group=31 直达子组并高亮；未知 id 回全社', async ({ page }) => {
+    await mockOrgPage(page, ME_EMPTY)
+    await page.goto(`${BASE}/organization?group=31`)
+    await expect(page.locator('.ogd-name', { hasText: '前端小组' })).toBeVisible()
+    await expect(page.locator('.el-tree-node.is-current', { hasText: '前端小组' })).toBeVisible()
+    // 无效 group：回落全社总览（不渲染组态）
+    await page.goto(`${BASE}/organization?group=999`)
+    await expect(page.locator('.org-root-item--active')).toBeVisible()
+    await expect(page.locator('.ogd-name')).toHaveCount(0)
+  })
+
+  test('有权限：组头显示「进入工作区」并直达小组事项（tab=group 兼容重定向）', async ({ page }) => {
     await mockOrgPage(page, ME_GRANTED)
     await page.goto(`${BASE}/organization`)
-    await page.locator('.token', { hasText: '软件组' }).click()
+    await page.locator('.tree-node-name', { hasText: '软件组' }).click()
     const btn = page.locator('.ogd-work-btn')
     await expect(btn).toBeVisible()
     await btn.click()
-    await expect(page).toHaveURL(new RegExp('ws=1'))
-    await expect(page).toHaveURL(new RegExp('tab=group'))
+    // 工作台 III：/work?ws=1&tab=group 重定向到 /work/items?ws=1
+    await expect(page).toHaveURL(new RegExp(`${BASE}/work/items\\?ws=1$`))
   })
 
   test('无权限：不显示「进入工作区」按钮（学员不可见）', async ({ page }) => {
     await mockOrgPage(page, ME_EMPTY)
     await page.goto(`${BASE}/organization`)
-    await page.locator('.token', { hasText: '软件组' }).click()
+    await page.locator('.tree-node-name', { hasText: '软件组' }).click()
     await expect(page.locator('.ogd-name', { hasText: '软件组' })).toBeVisible()
     await expect(page.locator('.ogd-work-btn')).toHaveCount(0)
   })

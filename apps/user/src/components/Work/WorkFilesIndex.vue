@@ -60,13 +60,13 @@ function openItem(f) {
     </div>
 
     <template v-if="loading && !files.length">
-      <DewCard v-for="i in 3" :key="i" size="md"><DewSkeleton variant="text" :lines="2" /></DewCard>
+      <DewCard v-for="i in 3" :key="i" size="md" variant="flat"><DewSkeleton variant="text" :lines="2" /></DewCard>
     </template>
-    <DewCard v-else-if="loadFailed" size="md">
+    <DewCard v-else-if="loadFailed" size="md" variant="flat">
       <p class="empty-text">加载失败</p>
       <DewButton size="sm" @click="load">重试</DewButton>
     </DewCard>
-    <DewCard v-else-if="!files.length" size="md">
+    <DewCard v-else-if="!files.length" size="md" variant="flat">
       <p class="empty-text">暂无附件；事项里上传的交付与资料会汇总在这里</p>
     </DewCard>
 

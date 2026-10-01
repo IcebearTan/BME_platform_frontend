@@ -137,15 +137,22 @@ test.describe('工作资料与工作记录（M4/M5）', () => {
 test.describe('移动端可用性（D02，375px）', () => {
   test.use({ viewport: { width: 375, height: 812 } })
 
-  test('工作台移动端：四 tab 可用、无横向溢出', async ({ page }) => {
+  test('工作台移动端：抽屉导航可用、无横向溢出', async ({ page }) => {
     await loginAsUser(page)
     await mockUserApi(page)
     await page.goto(`${BASE}/work`)
-    await expect(page.getByRole('heading', { name: '内部工作台' })).toBeVisible()
-    // tab 均可点
-    for (const tab of ['小组工作', '工作资料', '工作记录', '我的待办']) {
-      await page.getByRole('button', { name: tab }).click()
-      await expect(page).toHaveURL(new RegExp(`tab=`))
+    await expect(page.locator('.ws-crumb-root', { hasText: '内部工作台' })).toBeVisible()
+    // 侧栏收抽屉：汉堡开关逐项可达（URL 即导航）
+    const stops = [
+      ['小组事项', '/work/items'],
+      ['工作资料', '/work/files'],
+      ['工作记录', '/work/records'],
+      ['概览', '/work$'],
+    ]
+    for (const [label, path] of stops) {
+      await page.locator('.ws-icon-btn').click()
+      await page.locator('.ws-side--open .ws-nav-item', { hasText: label }).click()
+      await expect(page).toHaveURL(new RegExp(path))
     }
     // 无横向滚动（内容不溢出视口）
     const overflow = await page.evaluate(

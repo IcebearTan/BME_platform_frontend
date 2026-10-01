@@ -77,7 +77,7 @@ const rows = computed(() => props.files || [])
 </script>
 
 <template>
-  <DewCard size="md" class="files-card">
+  <DewCard size="md" variant="flat" class="files-card">
     <div class="files-head">
       <el-icon :size="15"><Paperclip /></el-icon>
       <span class="files-title">附件（{{ rows.length }}）</span>

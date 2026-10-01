@@ -129,11 +129,12 @@ test.describe('待办四桶', () => {
     await expect(page.locator('.bucket-title', { hasText: '待接手' })).toBeVisible()
     await expect(page.locator('.bucket-title', { hasText: '待回复' })).toBeVisible()
     await expect(page.locator('.bucket-title', { hasText: '待验收' })).toBeVisible()
-    await expect(page.locator('.bucket-title', { hasText: '到期任务' })).toBeVisible()
-    // 逾期红显（分桶行内的「（已逾期）」后缀，避开摘要条的同名标签）
+    // 工作台 III：到期任务移入概览「即将到期」信息卡（数字块锚点跳转目标）
+    await expect(page.locator('.info-title', { hasText: '即将到期' })).toBeVisible()
+    // 逾期红显（到期行内的「（已逾期）」后缀）
     await expect(page.getByText('（已逾期）')).toBeVisible()
-    // 接手转交
-    await page.getByRole('button', { name: '接手' }).click()
+    // 接手转交（exact：概览数字块「待接手」也是 button，避免子串撞名）
+    await page.getByRole('button', { name: '接手', exact: true }).click()
     await expect.poll(() => transfers.length).toBe(1)
     await expect(page.getByText('你现在是该任务的负责人')).toBeVisible()
   })

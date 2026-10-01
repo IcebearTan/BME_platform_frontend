@@ -55,20 +55,22 @@ test.describe('用户端 /work 工作台骨架', () => {
     await expect(page.getByText('我的工作区')).toHaveCount(0)
   })
 
-  test('有权限：待办摘要计数与 tab（M2 版工作台主页）', async ({ page }) => {
+  test('有权限：待办数字块与侧栏导航（工作台 III 概览）', async ({ page }) => {
     await loginAsUser(page)
     await mockUserApi(page, ME_GRANTED)
     await page.goto(`${USER_BASE}/work`)
 
-    await expect(page.getByRole('heading', { name: '内部工作台' })).toBeVisible()
-    // 待办摘要：待回复 2 / 待验收 1 / 即将到期 3（数值高亮区）
-    const chips = page.locator('.todo-chip')
-    await expect(chips).toHaveCount(5)
-    await expect(chips.filter({ hasText: '待回复' })).toContainText('2')
-    await expect(chips.filter({ hasText: '待验收' })).toContainText('1')
-    // 两个主 tab
-    await expect(page.getByRole('button', { name: '我的待办' })).toBeVisible()
-    await expect(page.getByRole('button', { name: '小组工作' })).toBeVisible()
+    // 外壳顶栏与侧栏
+    await expect(page.locator('.ws-crumb-root', { hasText: '内部工作台' })).toBeVisible()
+    await expect(page.locator('.ws-nav-item', { hasText: '概览' })).toBeVisible()
+    await expect(page.locator('.ws-nav-item', { hasText: '小组事项' })).toBeVisible()
+    // 待办数字块：待回复 2 / 待验收 1 / 即将到期 3（五桶计数）
+    const blocks = page.locator('.stat-block')
+    await expect(blocks).toHaveCount(5)
+    await expect(blocks.filter({ hasText: '待回复' })).toContainText('2')
+    await expect(blocks.filter({ hasText: '待验收' })).toContainText('1')
+    // 概览徽标 = 五桶之和（2+0+1+3+0=6）
+    await expect(page.locator('.ws-nav-badge', { hasText: '6' })).toBeVisible()
     // 无治理身份不出现治理提示
     await expect(page.getByText('协作治理身份')).toHaveCount(0)
   })
@@ -79,7 +81,7 @@ test.describe('用户端 /work 工作台骨架', () => {
     const errors = []
     page.on('pageerror', (e) => errors.push(e.message))
     await page.goto(`${USER_BASE}/work`)
-    await expect(page.getByRole('heading', { name: '内部工作台' })).toBeVisible()
+    await expect(page.locator('.ws-crumb-root', { hasText: '内部工作台' })).toBeVisible()
     await expect(errors).toEqual([])
   })
 })

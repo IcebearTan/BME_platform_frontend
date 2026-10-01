@@ -96,7 +96,9 @@ test.describe('看板 tab', () => {
       return route.fulfill({ json: { code: 200, message: 'ok', data: {} } })
     })
     await page.goto(`${BASE}/work`)
-    await page.getByRole('button', { name: '看板' }).click()
+    // 工作台 III：看板为侧栏导航项，点击进 /work/board
+    await page.locator('.ws-nav-item', { hasText: '看板' }).click()
+    await expect(page).toHaveURL(new RegExp('/work/board'))
 
     await expect(page.getByText('解剖学入门')).toBeVisible()
     await expect(page.getByText('已认领', { exact: true }).first()).toBeVisible()

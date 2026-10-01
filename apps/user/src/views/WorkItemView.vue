@@ -3,6 +3,7 @@
 // 主体=说明（Markdown）+ 单层回复时间线；操作记录独立区块区分「系统确认发生了什么」。
 // 回复按服务器序号游标增量轮询（§7.5 活动页 30s、隐藏页暂停）；打开即推进已读游标。
 // 撤权后的历史通知点击 → 404 → 统一「内容不可访问」空态（§10.2 不泄露）。
+// 工作台 III：chrome 由外壳 WorkShell 承载，此处只渲染内容区。
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useStore } from 'vuex'
@@ -11,10 +12,7 @@ import { MdPreview } from 'md-editor-v3'
 import 'md-editor-v3/lib/preview.css'
 import '@bme/editor/md-setup'
 import { DewCard, DewTag, DewSkeleton, DewDialog, DewInput, DewButton } from '@bme/dew-ui'
-import { ArrowLeft, Lock, Expand } from '@element-plus/icons-vue'
-import MenuComponent from '../components/MenuComponent.vue'
-import PageFooterComponent from '../components/PageFooterComponent.vue'
-import MobileMenuComponent from '../components/MobileMenuComponent.vue'
+import { ArrowLeft, Lock } from '@element-plus/icons-vue'
 import WorkReplyComposer from '../components/Work/WorkReplyComposer.vue'
 import WorkEventTrail from '../components/Work/WorkEventTrail.vue'
 import WorkParticipantDialog from '../components/Work/WorkParticipantDialog.vue'
@@ -30,16 +28,6 @@ const route = useRoute()
 const router = useRouter()
 const store = useStore()
 const isDarkMode = computed(() => store.getters.isDarkMode)
-
-const isMobile = ref(window.innerWidth <= 768)
-const isMobileMenuOpen = ref(false)
-const checkScreenSize = () => {
-  isMobile.value = window.innerWidth <= 768
-  if (!isMobile.value) isMobileMenuOpen.value = false
-}
-const toggleMobileMenu = () => { isMobileMenuOpen.value = !isMobileMenuOpen.value }
-onMounted(() => window.addEventListener('resize', checkScreenSize))
-onUnmounted(() => window.removeEventListener('resize', checkScreenSize))
 
 const itemId = computed(() => Number(route.params.id))
 const { me: workMe } = useWorkAccess()
@@ -252,152 +240,129 @@ onUnmounted(stopPolling)
 </script>
 
 <template>
-  <div :class="['work-item-container', { 'theme-dark': isDarkMode, 'theme-light': !isDarkMode }]">
-    <el-container class="common-layout">
-      <el-header class="header-container">
-        <div v-if="!isMobile" class="desktop-menu-container">
-          <MenuComponent />
+  <div class="work-item-view">
+    <!-- 骨架 -->
+    <template v-if="loading">
+      <DewSkeleton variant="rect" :height="26" :width="260" class="sk-block" />
+      <DewCard size="md" class="sk-block"><DewSkeleton variant="text" :lines="4" /></DewCard>
+      <DewCard size="md"><DewSkeleton variant="text" :lines="6" /></DewCard>
+    </template>
+
+    <!-- 不可访问（含撤权后的历史通知点击，§10.2） -->
+    <DewCard v-else-if="notAccessible" size="md" variant="flat" class="state-card">
+      <h3 class="state-title">内容不可访问</h3>
+      <p class="state-text">该事项不存在、已被移除，或你当前没有访问权限。</p>
+      <DewButton size="sm" @click="router.push('/work')">返回工作台</DewButton>
+    </DewCard>
+
+    <!-- 失败态 -->
+    <DewCard v-else-if="loadFailed" size="md" variant="flat" class="state-card">
+      <p class="state-text">加载失败，请稍后重试</p>
+      <DewButton size="sm" @click="loadAll">重试</DewButton>
+    </DewCard>
+
+    <template v-else-if="detail">
+      <!-- 头部：标题/元信息/动作区 -->
+      <DewCard size="md" variant="flat" class="head-card">
+        <div class="back-row">
+          <DewButton type="ghost" size="sm" @click="router.back()">
+            <el-icon :size="13"><ArrowLeft /></el-icon>
+            返回
+          </DewButton>
         </div>
-        <div v-else class="mobile-header">
-          <el-icon class="hamburger-icon" @click="router.back()"><ArrowLeft /></el-icon>
-          <span class="mobile-title">事项详情</span>
-          <el-icon class="hamburger-icon" @click="toggleMobileMenu"><Expand /></el-icon>
+        <div class="title-line">
+          <h1 class="item-title">{{ detail.title }}</h1>
+          <DewTag :type="ITEM_STATUS_TYPE[detail.status] || 'neutral'" size="sm" round>
+            {{ ITEM_STATUS_LABELS[detail.status] || detail.status }}
+          </DewTag>
         </div>
-      </el-header>
-
-      <MobileMenuComponent v-if="isMobile && isMobileMenuOpen" @close="toggleMobileMenu" />
-
-      <el-main class="main-content">
-        <div class="content-wrapper">
-          <!-- 骨架 -->
-          <template v-if="loading">
-            <DewSkeleton variant="rect" :height="26" :width="260" class="sk-block" />
-            <DewCard size="md" class="sk-block"><DewSkeleton variant="text" :lines="4" /></DewCard>
-            <DewCard size="md"><DewSkeleton variant="text" :lines="6" /></DewCard>
-          </template>
-
-          <!-- 不可访问（含撤权后的历史通知点击，§10.2） -->
-          <DewCard v-else-if="notAccessible" size="md" class="state-card">
-            <h3 class="state-title">内容不可访问</h3>
-            <p class="state-text">该事项不存在、已被移除，或你当前没有访问权限。</p>
-            <DewButton size="sm" @click="router.push('/work')">返回工作台</DewButton>
-          </DewCard>
-
-          <!-- 失败态 -->
-          <DewCard v-else-if="loadFailed" size="md" class="state-card">
-            <p class="state-text">加载失败，请稍后重试</p>
-            <DewButton size="sm" @click="loadAll">重试</DewButton>
-          </DewCard>
-
-          <template v-else-if="detail">
-            <!-- 头部：标题/元信息/动作区 -->
-            <DewCard size="md" class="head-card">
-              <div class="back-row">
-                <DewButton type="ghost" size="sm" @click="router.push('/work')">
-                  <el-icon :size="13"><ArrowLeft /></el-icon>
-                  返回工作台
-                </DewButton>
-              </div>
-              <div class="title-line">
-                <h1 class="item-title">{{ detail.title }}</h1>
-                <DewTag :type="ITEM_STATUS_TYPE[detail.status] || 'neutral'" size="sm" round>
-                  {{ ITEM_STATUS_LABELS[detail.status] || detail.status }}
-                </DewTag>
-              </div>
-              <div class="meta-line">
-                <span>{{ detail.group_name }}</span>
-                <span class="meta-visibility">
-                  <el-icon :size="12"><Lock /></el-icon>
-                  {{ VISIBILITY_LABELS[detail.visibility] || detail.visibility }}
-                </span>
-                <span>发起：{{ detail.created_by_name }}</span>
-                <span>{{ detail.created_at }}</span>
-                <span>回复 {{ detail.reply_count }}</span>
-              </div>
-              <!-- 动作区（allowed_actions 驱动；后端每次仍重新授权 §13） -->
-              <div v-if="allowed.length" class="action-line">
-                <DewButton v-if="allowed.includes('edit')" size="sm" @click="openEdit">编辑</DewButton>
-                <DewButton v-if="allowed.includes('invite')" size="sm" @click="inviteVisible = true">
-                  邀请参与者
-                </DewButton>
-              </div>
-              <WorkCommandBar :item-id="itemId" :kind="detail.kind" :version="detail.version"
-                              :allowed="allowed" :files="detail.files || []"
-                              :targets="workTargets" @done="refreshAll" />
-              <div v-if="detail.status === 'closed' && detail.closed_reason" class="closed-reason">
-                关闭说明：{{ detail.closed_reason }}
-              </div>
-            </DewCard>
-
-            <!-- 关联对象（X2 通用投影：盲渲染适配器字段） -->
-            <WorkBusinessCard :item-id="itemId" :links="detail.business_links || []"
-                              :can-manage="allowed.includes('edit') || allowed.includes('invite')"
-                              @changed="loadDetail" />
-
-            <!-- 任务属性与提交历史 -->
-            <WorkTaskPanel :detail="detail" />
-
-            <!-- 正文（flat：阅读场景纯色容器） -->
-            <DewCard v-if="detail.body" size="md" variant="flat" class="body-card">
-              <MdPreview :id="PREVIEW_ID" :model-value="detail.body" :theme="isDarkMode ? 'dark' : 'light'" />
-            </DewCard>
-
-            <!-- 附件区（文件属于事项；版本不可覆盖） -->
-            <WorkFileList :item-id="itemId" :files="detail.files || []"
-                          :can-upload="detail.status !== 'draft'" @changed="loadDetail" />
-
-            <!-- 回复时间线（单层 + 引用） -->
-            <DewCard size="md" variant="flat" class="replies-card">
-              <div class="replies-title">讨论（{{ replies.filter(r => !r.removed).length }}）</div>
-              <div class="reply-list">
-                <div v-for="r in replies" :key="r.id" :data-reply-id="r.id"
-                     class="reply-row" :class="{ 'reply-row--removed': r.removed }">
-                  <div v-if="r.removed" class="reply-removed">该回复已被撤回</div>
-                  <template v-else>
-                    <div class="reply-head">
-                      <span class="reply-author">{{ r.author_name }}</span>
-                      <span v-if="r.edited_at" class="reply-edited">已编辑</span>
-                      <span class="reply-time">#{{ r.seq }} · {{ r.created_at }}</span>
-                      <div class="spacer" />
-                      <DewButton v-if="canReply && r.author_id !== store.state.user?.User_Id"
-                                 type="ghost" size="sm" @click="replyTo = r">引用</DewButton>
-                    </div>
-                    <button v-if="r.reply_to_id" type="button" class="reply-quote"
-                            @click="scrollToReply(r.reply_to_id)">
-                      引用 #{{ quotedSeq(r.reply_to_id) }}
-                    </button>
-                    <p class="reply-body">{{ r.body }}</p>
-                  </template>
-                </div>
-                <p v-if="!replies.length" class="reply-empty">还没有回复</p>
-                <!-- 超过一页时分批加载（不自动拉全，控制首屏与请求量） -->
-                <DewButton v-if="repliesHasMore" size="sm" class="load-more-btn"
-                           :loading="loadingMore" @click="loadMoreReplies">
-                  加载更多回复
-                </DewButton>
-              </div>
-
-              <WorkReplyComposer v-if="canReply" :item-id="itemId" :responders="responders"
-                                 :reply-to="replyTo" :pending-request="pendingRequest"
-                                 @sent="onReplySent" @cancel-quote="replyTo = null" />
-              <p v-else-if="detail.status === 'closed'" class="reply-closed-hint">
-                话题已关闭，停止普通回复；如需继续讨论请协调员重新打开
-              </p>
-              <p v-else-if="detail.status === 'draft'" class="reply-closed-hint">
-                草稿发布后才能开始讨论
-              </p>
-            </DewCard>
-
-            <!-- 操作记录（与讨论区分呈现，§6.2） -->
-            <WorkEventTrail :item-id="itemId" />
-          </template>
+        <div class="meta-line">
+          <span>{{ detail.group_name }}</span>
+          <span class="meta-visibility">
+            <el-icon :size="12"><Lock /></el-icon>
+            {{ VISIBILITY_LABELS[detail.visibility] || detail.visibility }}
+          </span>
+          <span>发起：{{ detail.created_by_name }}</span>
+          <span>{{ detail.created_at }}</span>
+          <span>回复 {{ detail.reply_count }}</span>
         </div>
-      </el-main>
+        <!-- 动作区（allowed_actions 驱动；后端每次仍重新授权 §13） -->
+        <div v-if="allowed.length" class="action-line">
+          <DewButton v-if="allowed.includes('edit')" size="sm" @click="openEdit">编辑</DewButton>
+          <DewButton v-if="allowed.includes('invite')" size="sm" @click="inviteVisible = true">
+            邀请参与者
+          </DewButton>
+        </div>
+        <WorkCommandBar :item-id="itemId" :kind="detail.kind" :version="detail.version"
+                        :allowed="allowed" :files="detail.files || []"
+                        :targets="workTargets" @done="refreshAll" />
+        <div v-if="detail.status === 'closed' && detail.closed_reason" class="closed-reason">
+          关闭说明：{{ detail.closed_reason }}
+        </div>
+      </DewCard>
 
-      <el-footer class="page-footer">
-        <PageFooterComponent />
-      </el-footer>
-    </el-container>
+      <!-- 关联对象（X2 通用投影：盲渲染适配器字段） -->
+      <WorkBusinessCard :item-id="itemId" :links="detail.business_links || []"
+                        :can-manage="allowed.includes('edit') || allowed.includes('invite')"
+                        @changed="loadDetail" />
+
+      <!-- 任务属性与提交历史 -->
+      <WorkTaskPanel :detail="detail" />
+
+      <!-- 正文（flat：阅读场景纯色容器） -->
+      <DewCard v-if="detail.body" size="md" variant="flat" class="body-card">
+        <MdPreview :id="PREVIEW_ID" :model-value="detail.body" :theme="isDarkMode ? 'dark' : 'light'" />
+      </DewCard>
+
+      <!-- 附件区（文件属于事项；版本不可覆盖） -->
+      <WorkFileList :item-id="itemId" :files="detail.files || []"
+                    :can-upload="detail.status !== 'draft'" @changed="loadDetail" />
+
+      <!-- 回复时间线（单层 + 引用） -->
+      <DewCard size="md" variant="flat" class="replies-card">
+        <div class="replies-title">讨论（{{ replies.filter(r => !r.removed).length }}）</div>
+        <div class="reply-list">
+          <div v-for="r in replies" :key="r.id" :data-reply-id="r.id"
+               class="reply-row" :class="{ 'reply-row--removed': r.removed }">
+            <div v-if="r.removed" class="reply-removed">该回复已被撤回</div>
+            <template v-else>
+              <div class="reply-head">
+                <span class="reply-author">{{ r.author_name }}</span>
+                <span v-if="r.edited_at" class="reply-edited">已编辑</span>
+                <span class="reply-time">#{{ r.seq }} · {{ r.created_at }}</span>
+                <div class="spacer" />
+                <DewButton v-if="canReply && r.author_id !== store.state.user?.User_Id"
+                           type="ghost" size="sm" @click="replyTo = r">引用</DewButton>
+              </div>
+              <button v-if="r.reply_to_id" type="button" class="reply-quote"
+                      @click="scrollToReply(r.reply_to_id)">
+                引用 #{{ quotedSeq(r.reply_to_id) }}
+              </button>
+              <p class="reply-body">{{ r.body }}</p>
+            </template>
+          </div>
+          <p v-if="!replies.length" class="reply-empty">还没有回复</p>
+          <!-- 超过一页时分批加载（不自动拉全，控制首屏与请求量） -->
+          <DewButton v-if="repliesHasMore" size="sm" class="load-more-btn"
+                     :loading="loadingMore" @click="loadMoreReplies">
+            加载更多回复
+          </DewButton>
+        </div>
+
+        <WorkReplyComposer v-if="canReply" :item-id="itemId" :responders="responders"
+                           :reply-to="replyTo" :pending-request="pendingRequest"
+                           @sent="onReplySent" @cancel-quote="replyTo = null" />
+        <p v-else-if="detail.status === 'closed'" class="reply-closed-hint">
+          话题已关闭，停止普通回复；如需继续讨论请协调员重新打开
+        </p>
+        <p v-else-if="detail.status === 'draft'" class="reply-closed-hint">
+          草稿发布后才能开始讨论
+        </p>
+      </DewCard>
+
+      <!-- 操作记录（与讨论区分呈现，§6.2） -->
+      <WorkEventTrail :item-id="itemId" />
+    </template>
 
     <WorkParticipantDialog v-model="inviteVisible" :item-id="itemId"
                            :existing="(detail?.participants || []).map(p => p.user_id)"
@@ -426,28 +391,7 @@ onUnmounted(stopPolling)
 </template>
 
 <style scoped>
-.work-item-container {
-  min-height: 100vh; display: flex; flex-direction: column;
-  background-attachment: fixed;
-}
-.theme-light.work-item-container {
-  background:
-    radial-gradient(ellipse 60% 50% at 12% 18%, rgba(96, 165, 250, 0.22), transparent 60%),
-    radial-gradient(ellipse 55% 60% at 88% 12%, rgba(244, 114, 182, 0.20), transparent 55%),
-    linear-gradient(135deg, #f0f4ff 0%, #fdf2f8 50%, #f0fdf4 100%);
-  color: #303133;
-}
-.theme-dark.work-item-container {
-  background:
-    radial-gradient(ellipse 60% 50% at 12% 18%, rgba(59, 130, 246, 0.16), transparent 60%),
-    linear-gradient(160deg, #16161a 0%, #0f0f12 100%);
-  color: #E5EAF3;
-}
-
-.header-container { padding: 0; height: auto; z-index: 100; position: fixed; width: 100%; top: 0; left: 0; }
-.main-content { flex: 1; padding: 100px 20px 40px; display: flex; justify-content: center; overflow-x: hidden; }
-.page-footer { padding: 0; height: auto; }
-.content-wrapper { width: 100%; max-width: 860px; }
+.work-item-view { max-width: 860px; }
 
 .sk-block { margin-bottom: 14px; }
 
@@ -504,15 +448,4 @@ onUnmounted(stopPolling)
 .state-card { max-width: 480px; margin: 40px auto 0; text-align: center; }
 .state-title { margin: 0 0 8px; font-size: 17px; font-weight: 600; }
 .state-text { margin: 0 0 12px; font-size: 13px; color: var(--dew-text-muted); }
-
-.mobile-header {
-  display: flex; align-items: center; justify-content: space-between;
-  width: 100%; padding: 8px 14px;
-}
-.mobile-title { font-size: 15px; font-weight: 600; }
-.hamburger-icon { font-size: 20px; cursor: pointer; color: var(--el-text-color-primary); }
-
-@media (max-width: 768px) {
-  .main-content { padding: 68px 14px 32px; }
-}
 </style>

@@ -42,9 +42,16 @@ const loadQuestionBank = () => import('./views/QuestionBankView.vue')
 const loadServiceHall = () => import('./views/ServiceHallView.vue')
 const loadResourceCenter = () => import('./views/ResourceCenterView.vue')
 const loadOrganization = () => import('./views/OrganizationView.vue')
-// 内部工作台（feature/work-collab）：面向已开通授权的社团工作人员，入口按 /work/me 探测显隐
-const loadWork = () => import('./views/WorkView.vue')
+// 内部工作台（feature/work-collab）：面向已开通授权的社团工作人员，入口按 /work/me 探测显隐。
+// 工作台 III：独立应用外壳（WorkShell=唯一 chrome 持有者）+ 嵌套子视图，URL 即导航
+const loadWorkShell = () => import('./views/WorkShell.vue')
+const loadWorkOverview = () => import('./views/WorkOverview.vue')
 const loadWorkItem = () => import('./views/WorkItemView.vue')
+const loadWorkItemsTable = () => import('./views/WorkItemsTable.vue')
+const loadWorkBoardComp = () => import('./components/Work/WorkBoard.vue')
+const loadWorkSummaryComp = () => import('./components/Work/WorkSummaryBoard.vue')
+const loadWorkFilesComp = () => import('./components/Work/WorkFilesIndex.vue')
+const loadWorkRecordsComp = () => import('./components/Work/WorkRecordsIndex.vue')
 const loadLLMService = () => import('./views/LLMServiceView.vue')
 const loadCommunity = () => import('./views/CommunityView.vue')
 const loadCommunityThread = () => import('./views/CommunityThreadView.vue')
@@ -332,18 +339,67 @@ const router = createRouter({
             meta: { requiresAuth: true }
         },
         {
-            // 内部工作台（feature/work-collab）：tab=todo|group，ws=预选工作区
+            // 内部工作台（feature/work-collab，工作台 III 应用外壳）：嵌套子路由，URL 即导航。
+            // 旧 URL 兼容：/work?tab=todo|group|board|summary|files|records → 对应子路径（ws= 透传）
             path: '/work',
-            name: 'work',
-            component: loadWork,
-            meta: { requiresAuth: true }
-        },
-        {
-            // 事项详情（话题/任务同构）：通知深链 /work/items/{source_id} 直达
-            path: '/work/items/:id',
-            name: 'work-item',
-            component: loadWorkItem,
-            meta: { requiresAuth: true }
+            component: loadWorkShell,
+            meta: { requiresAuth: true },
+            children: [
+                {
+                    // 概览仪表盘（默认着陆，待办中心）
+                    path: '',
+                    name: 'work',
+                    component: loadWorkOverview,
+                    beforeEnter: (to) => {
+                        const map = {
+                            todo: '/work', group: '/work/items', board: '/work/board',
+                            summary: '/work/summary', files: '/work/files', records: '/work/records',
+                        }
+                        const target = map[to.query.tab]
+                        if (!target) return true
+                        const query = { ...to.query }
+                        delete query.tab
+                        // tab=todo 时目标即自身：去掉 tab 后原样停留，避免重定向环
+                        return { path: target, query, replace: true }
+                    }
+                },
+                {
+                    // 小组事项（表格视图，工作台 III）
+                    path: 'items',
+                    name: 'work-items',
+                    component: loadWorkItemsTable,
+                },
+                {
+                    // 对象看板（X2 通用投影）
+                    path: 'board',
+                    name: 'work-board',
+                    component: loadWorkBoardComp,
+                },
+                {
+                    // 子组汇总（X1 摘要层；路由常驻，侧栏项按 subtree 授权显隐）
+                    path: 'summary',
+                    name: 'work-summary',
+                    component: loadWorkSummaryComp,
+                },
+                {
+                    // 工作资料（M4 附件索引）
+                    path: 'files',
+                    name: 'work-files',
+                    component: loadWorkFilesComp,
+                },
+                {
+                    // 工作记录（M5 历史检索）
+                    path: 'records',
+                    name: 'work-records',
+                    component: loadWorkRecordsComp,
+                },
+                {
+                    // 事项详情（话题/任务同构）：通知深链 /work/items/{source_id} 直达
+                    path: 'items/:id',
+                    name: 'work-item',
+                    component: loadWorkItem,
+                },
+            ]
         },
         {
             path: '/community',

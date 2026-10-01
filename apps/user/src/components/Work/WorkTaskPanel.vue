@@ -31,7 +31,7 @@ const infoRows = computed(() => {
 </script>
 
 <template>
-  <DewCard v-if="task" size="md" class="task-panel">
+  <DewCard v-if="task" size="md" variant="flat" class="task-panel">
     <div class="panel-head">
       <el-icon :size="15"><Clock /></el-icon>
       <span class="panel-title">任务</span>

@@ -4,7 +4,7 @@
 // 点卡片提示「内容需该组邀请」——摘要层永远不进正文。
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { DewCard, DewTag, DewSkeleton } from '@bme/dew-ui'
+import { DewCard, DewTag, DewSkeleton, DewButton } from '@bme/dew-ui'
 import { Search, Lock } from '@element-plus/icons-vue'
 import { workService, ITEM_STATUS_LABELS, ITEM_STATUS_TYPE } from '../../services/workService'
 
@@ -59,18 +59,18 @@ onMounted(load)
     </div>
 
     <template v-if="loading && !items.length">
-      <DewCard v-for="i in 3" :key="i" size="md"><DewSkeleton variant="text" :lines="2" /></DewCard>
+      <DewCard v-for="i in 3" :key="i" size="md" variant="flat"><DewSkeleton variant="text" :lines="2" /></DewCard>
     </template>
-    <DewCard v-else-if="loadFailed" size="md">
+    <DewCard v-else-if="loadFailed" size="md" variant="flat">
       <p class="empty-text">汇总加载失败，请重试</p>
-      <el-button size="small" @click="load">重试</el-button>
+      <DewButton size="sm" :loading="loading" @click="load">重试</DewButton>
     </DewCard>
-    <DewCard v-else-if="!items.length" size="md">
+    <DewCard v-else-if="!items.length" size="md" variant="flat">
       <p class="empty-text">子组暂无可见事项</p>
     </DewCard>
 
     <template v-else>
-      <DewCard v-for="it in items" :key="it.id" size="md" interactive class="sum-card"
+      <DewCard v-for="it in items" :key="it.id" size="md" variant="flat" interactive class="sum-card"
                @click="onCardClick(it)">
         <div class="sum-row">
           <div class="sum-main">

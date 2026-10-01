@@ -69,6 +69,13 @@ onMounted(() => {
   else loading.value = false
 })
 watch(workspaceId, () => { if (workspaceId.value) load() })
+// 外壳工作区切换器写回 ?ws= 时联动（看板必须有具体工作区，空值回落第一个）
+watch(() => route.query.ws, () => {
+  const ws = Number(route.query.ws) || null
+  const next = workspaces.value.some(w => w.id === ws) ? ws
+    : (workspaces.value[0]?.id || null)
+  if (next !== workspaceId.value) workspaceId.value = next
+})
 </script>
 
 <template>
@@ -81,13 +88,13 @@ watch(workspaceId, () => { if (workspaceId.value) load() })
     </div>
 
     <template v-if="loading">
-      <DewCard v-for="i in 3" :key="i" size="md"><DewSkeleton variant="text" :lines="2" /></DewCard>
+      <DewCard v-for="i in 3" :key="i" size="md" variant="flat"><DewSkeleton variant="text" :lines="2" /></DewCard>
     </template>
-    <DewCard v-else-if="loadFailed" size="md">
+    <DewCard v-else-if="loadFailed" size="md" variant="flat">
       <p class="empty-text">看板加载失败，请重试</p>
       <DewButton size="sm" :loading="loading" @click="load">重试</DewButton>
     </DewCard>
-    <DewCard v-else-if="!board?.objects?.length" size="md">
+    <DewCard v-else-if="!board?.objects?.length" size="md" variant="flat">
       <p class="empty-text">
         还没有关联对象；在事项里「添加关联」（课程/营期/工单），或让协调员认领本组负责的对象后，这里会显示每个对象的工作态势
       </p>
