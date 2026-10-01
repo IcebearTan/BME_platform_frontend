@@ -1,6 +1,7 @@
 // 非营期域页面：组件文件留在 components/，只换路由路径 + meta（单一真相源）。
 // 旧路径以 redirect 记录兼容（函数式保留 query/params，focus 等深链参数透传）。
 const loadUserManage = () => import('../../components/UserManage.vue')
+const loadSecuritySettings = () => import('../../components/SecuritySettings.vue')
 const loadSeatManage = () => import('../../components/SeatManage.vue')
 const loadAttendanceReportManage = () => import('../../components/AttendanceReportManage.vue')
 const loadAuditLogManage = () => import('../../components/AuditLogManage.vue')
@@ -28,6 +29,12 @@ export const miscRoutes = [
     name: 'system_accounts',
     component: loadUserManage,
     meta: { title: '账号与权限', domain: 'system', navGroup: 'system', navOrder: 10, showInMenu: true, icon: 'User' },
+  },
+  {
+    path: '/system/security',
+    name: 'system_security',
+    component: loadSecuritySettings,
+    meta: { title: '安全设置', domain: 'system', navGroup: 'system', navOrder: 15, showInMenu: true, icon: 'Key', staffOnly: true },
   },
   {
     path: '/system/facilities/seats',
