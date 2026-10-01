@@ -1,6 +1,9 @@
 // 非营期域页面：组件文件留在 components/，只换路由路径 + meta（单一真相源）。
 // 旧路径以 redirect 记录兼容（函数式保留 query/params，focus 等深链参数透传）。
 const loadUserManage = () => import('../../components/UserManage.vue')
+const loadIdentityApplications = () => import('../../components/IdentityApplications.vue')
+const loadIdentityLinkCases = () => import('../../components/IdentityLinkCases.vue')
+const loadIdentitySchools = () => import('../../components/IdentitySchools.vue')
 const loadSecuritySettings = () => import('../../components/SecuritySettings.vue')
 const loadSeatManage = () => import('../../components/SeatManage.vue')
 const loadAttendanceReportManage = () => import('../../components/AttendanceReportManage.vue')
@@ -29,6 +32,24 @@ export const miscRoutes = [
     name: 'system_accounts',
     component: loadUserManage,
     meta: { title: '账号与权限', domain: 'system', navGroup: 'system', navOrder: 10, showInMenu: true, icon: 'User' },
+  },
+  {
+    path: '/system/identity/applications',
+    name: 'system_identity_applications',
+    component: loadIdentityApplications,
+    meta: { title: '身份核验审核', domain: 'system', navGroup: 'system', navOrder: 12, showInMenu: true, icon: 'Postcard', staffOnly: true },
+  },
+  {
+    path: '/system/identity/link-cases',
+    name: 'system_identity_link_cases',
+    component: loadIdentityLinkCases,
+    meta: { title: '关联案例审核', domain: 'system', navGroup: 'system', navOrder: 13, showInMenu: true, icon: 'Connection', staffOnly: true },
+  },
+  {
+    path: '/system/identity/schools',
+    name: 'system_identity_schools',
+    component: loadIdentitySchools,
+    meta: { title: '学校核验配置', domain: 'system', navGroup: 'system', navOrder: 14, showInMenu: true, icon: 'OfficeBuilding', staffOnly: true },
   },
   {
     path: '/system/security',
