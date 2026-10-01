@@ -42,6 +42,9 @@
             <router-link class="title" :to="{ path: '/about'}" target="_blank">
                 关于我们
             </router-link>
+            <router-link class="subtitle" :to="{ path: '/changelog'}" target="_blank">
+                更新日志
+            </router-link>
             <div class="subtitle_disabled">
                 加入我们
             </div>

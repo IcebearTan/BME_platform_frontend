@@ -33,6 +33,8 @@ const loadExam = () => import('./views/ExamView.vue')
 const loadRegister = () => import('./views/RegisterView.vue')
 const loadFindPassword = () => import('./views/FindPasswordView.vue')
 const loadAboutUs = () => import('./views/AboutUsView.vue')
+// 平台更新日志（v3.3 起）：版本发布说明页，入口在页脚「关于我们」栏
+const loadUpdateLog = () => import('./views/UpdateLogView.vue')
 const loadMedalView = () => import('./views/MedalView.vue')
 const loadMedalWall = () => import('./components/User/MedalWallComponent.vue')
 const loadNotifications = () => import('./views/NotificationView.vue')
@@ -127,6 +129,12 @@ const router = createRouter({
             path: '/about',
             name: 'about',
             component: loadAboutUs,
+        },
+        {
+            // 平台更新日志（v3.3 起）：版本发布说明，公开可读
+            path: '/changelog',
+            name: 'changelog',
+            component: loadUpdateLog,
         },
 
         // ── 需要登录的路由 ──
