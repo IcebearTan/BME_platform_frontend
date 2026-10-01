@@ -14,13 +14,14 @@ const props = defineProps({
   version: { type: Number, required: true },
   allowed: { type: Array, default: () => [] },
   files: { type: Array, default: () => [] },     // 事项附件（提交时绑定固定版本）
+  targets: { type: Array, default: () => [] },   // 跨组交付目标组（/work/me available_targets）
 })
 const emit = defineEmits(['done'])
 
 // 仅展示动作命令（reply 由输入器、edit/invite 由头部按钮承接）
 const VISIBLE = ['publish', 'promote', 'start', 'block', 'unblock', 'submit', 'complete',
                  'review_accept', 'review_return', 'close', 'reopen', 'reschedule',
-                 'reassign', 'cancel', 'transfer']
+                 'reassign', 'cancel', 'transfer', 'handoff']
 const shown = computed(() => props.allowed.filter(a => VISIBLE.includes(a)))
 
 // 命令定义表：label/tone（primary 推进 | default 调整 | danger 终止）/确认文案/参数字段
@@ -75,6 +76,14 @@ const COMMAND_DEFS = {
   ] },
   cancel: { label: '取消任务', tone: 'danger', title: '取消任务', fields: [
     { key: 'reason', label: '取消原因', type: 'text', required: true },
+  ] },
+  handoff: { label: '交付给其他组', tone: 'default',
+             title: '跨组交付（目标组接单后在本组生成关联任务）', handoff: true, fields: [
+    { key: 'to_workspace_id', label: '目标组', type: 'targets', required: true },
+    { key: 'kind', label: '用途', type: 'text', required: true, placeholder: '如：上架 / 审核 / 支援' },
+    { key: 'note', label: '交付说明', type: 'textarea', required: true },
+    { key: 'deadline', label: '期望完成', type: 'datetime' },
+    { key: 'file_version_ids', label: '交付文件', type: 'files' },
   ] },
   transfer: { label: '转交负责人', tone: 'default', title: '转交负责人（对方确认后生效）', transfer: true, fields: [
     { key: 'to_user_id', label: '转交给', type: 'candidates', required: true },
@@ -142,6 +151,8 @@ const canSubmitDialog = computed(() => {
     || (formValues[f.key] !== null && formValues[f.key] !== '' && formValues[f.key] !== undefined))
 })
 
+const targetOptions = computed(() => (props.targets || [])
+  .filter(t => t.ws_id && t.group_name))
 const fileOptions = computed(() => (props.files || [])
   .filter(f => f.status === 'active' && f.current_version)
   .map(f => ({ value: f.current_version.id,
@@ -176,7 +187,9 @@ async function run(command, values) {
   running.value = true
   try {
     let res
-    if (defOf(command)?.transfer) {
+    if (defOf(command)?.handoff) {
+      res = await workService.createHandoff(props.itemId, values)
+    } else if (defOf(command)?.transfer) {
       res = await workService.createTransfer(props.itemId, values)
       if (res.data?.transfer_id) {
         myPendingTransfer.value = { transferId: res.data.transfer_id, expiresAt: res.data.expires_at }
@@ -237,7 +250,13 @@ watch(dialogVisible, (v) => { if (!v) activeCommand.value = null })
         <el-select v-if="f.type === 'candidates'" v-model="formValues[f.key]" filterable
                    :loading="candidatesLoading" placeholder="搜索并选择（仅显示有资格者）"
                    style="width: 100%;">
-          <el-option v-for="c in candidates" :key="c.user_id" :label="c.username" :value="c.user_id" />
+          <el-option v-for="c in candidates" :key="c.user_id" :value="c.user_id"
+                     :label="c.username + (c.group_name ? '（' + c.group_name + '）' : '')" />
+        </el-select>
+        <el-select v-else-if="f.type === 'targets'" v-model="formValues[f.key]"
+                   placeholder="选择目标组（排除本组）" style="width: 100%;">
+          <el-option v-for="t in targetOptions" :key="t.ws_id"
+                     :label="t.group_name" :value="t.ws_id" />
         </el-select>
         <el-select v-else-if="f.type === 'static'" v-model="formValues[f.key]" style="width: 160px;">
           <el-option v-for="o in f.options()" :key="o.value" :label="o.label" :value="o.value" />
@@ -257,7 +276,8 @@ watch(dialogVisible, (v) => { if (!v) activeCommand.value = null })
         </template>
         <el-input v-else-if="f.type === 'textarea'" v-model="formValues[f.key]" type="textarea"
                   :rows="3" maxlength="2000" />
-        <el-input v-else v-model="formValues[f.key]" maxlength="200" />
+        <el-input v-else v-model="formValues[f.key]" maxlength="200"
+                  :placeholder="f.placeholder || ''" />
       </el-form-item>
     </el-form>
     <template #footer>

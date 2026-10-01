@@ -194,7 +194,7 @@ test.describe('管理端 协作授权治理页', () => {
     await expect.poll(() => posted.length).toBe(1)
     expect(posted[0]).toEqual({
       user_id: 21, role: 'member', grant_reason: '治理页值班开通', valid_until: null,
-      workspace_id: 1, source_type: 'officer', source_id: 8,
+      workspace_id: 1, source_type: 'officer', source_id: 8, subtree: false,
     })
   })
 

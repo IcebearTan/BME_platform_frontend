@@ -55,10 +55,22 @@ async function load() {
   }
 }
 
-const STATUS_OPTIONS = computed(() =>
-  kind.value === 'task'
+// 状态筛选：单一类型=精确状态；混合视图=统一显示组（话题/任务同词表，修复
+// 「进行中」只命中话题不命中任务的双词表泄漏）。value 为逗号分隔状态集。
+const STATUS_GROUPS = [
+  { label: '进行中', value: 'open,todo,in_progress' },
+  { label: '受阻', value: 'blocked' },
+  { label: '待验收', value: 'review' },
+  { label: '已完成', value: 'done,closed' },
+  { label: '已取消', value: 'cancelled' },
+  { label: '草稿', value: 'draft' },
+]
+const STATUS_OPTIONS = computed(() => {
+  if (!kind.value) return STATUS_GROUPS          // 全部类型：统一显示组
+  return kind.value === 'task'
     ? ['todo', 'in_progress', 'blocked', 'review', 'done', 'cancelled']
-    : ['draft', 'open', 'closed'])
+    : ['draft', 'open', 'closed']                // 单一类型：精确状态
+})
 
 function openItem(item) {
   router.push(`/work/items/${item.id}`)
@@ -74,7 +86,10 @@ onMounted(() => {
 
 // kind 切换联动：旧 kind 的状态值对新选项集无效时重置，避免「状态=todo+类型=话题」的误导性空列表
 watch(kind, () => {
-  if (status.value && !STATUS_OPTIONS.value.includes(status.value)) status.value = ''
+  // 组值（含逗号）按 value 匹配；切换类型时组值不适用则清空
+  const valid = (v) => STATUS_OPTIONS.value.some((o) =>
+    typeof o === 'string' ? o === v : o.value === v)
+  if (status.value && !valid(status.value)) status.value = ''
 })
 watch([workspaceId, kind, status], () => {
   page.value = 1
@@ -102,7 +117,9 @@ onUnmounted(() => clearTimeout(searchDebounce))
         <el-option label="任务" value="task" />
       </el-select>
       <el-select v-model="status" style="width: 110px;" placeholder="全部状态" clearable>
-        <el-option v-for="s in STATUS_OPTIONS" :key="s" :label="ITEM_STATUS_LABELS[s]" :value="s" />
+        <el-option v-for="s in STATUS_OPTIONS" :key="typeof s === 'string' ? s : s.value"
+                   :label="typeof s === 'string' ? ITEM_STATUS_LABELS[s] : s.label"
+                   :value="typeof s === 'string' ? s : s.value" />
       </el-select>
       <el-input v-model="keyword" :prefix-icon="Search" style="width: 200px;"
                 placeholder="搜索标题 / 正文" clearable />

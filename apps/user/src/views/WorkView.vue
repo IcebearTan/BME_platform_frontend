@@ -10,14 +10,16 @@ import MenuComponent from '../components/MenuComponent.vue'
 import PageFooterComponent from '../components/PageFooterComponent.vue'
 import MobileMenuComponent from '../components/MobileMenuComponent.vue'
 import { DewCard, DewTag, DewSkeleton, DewButton, DewButtonBar } from '@bme/dew-ui'
-import { Expand, Briefcase, Folder, Clock, ChatLineSquare, Bell } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import { Expand, Briefcase, Folder, Clock, ChatLineSquare, Bell, OfficeBuilding } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useWorkAccess } from '../composables/useWorkAccess'
 import { useWorkData } from '../composables/useWorkData'
 import { workService } from '../services/workService'
 import WorkGroupBoard from '../components/Work/WorkGroupBoard.vue'
 import WorkFilesIndex from '../components/Work/WorkFilesIndex.vue'
 import WorkRecordsIndex from '../components/Work/WorkRecordsIndex.vue'
+import WorkSummaryBoard from '../components/Work/WorkSummaryBoard.vue'
+import WorkBoard from '../components/Work/WorkBoard.vue'
 
 const store = useStore()
 const router = useRouter()
@@ -56,13 +58,20 @@ const todoBadgeTotal = computed(() =>
   + (todoCounts.value.to_review || 0)
   + (todoCounts.value.due_soon || 0)
   + (todoCounts.value.overdue || 0))
-const tabItems = computed(() => [
-  { value: 'todo', label: '我的待办', icon: Bell, badge: todoBadgeTotal.value || undefined },
-  { value: 'group', label: '小组工作', icon: ChatLineSquare },
-  { value: 'files', label: '工作资料', icon: Folder },
-  { value: 'records', label: '工作记录', icon: Clock },
-])
-const TAB_VALUES = ['todo', 'group', 'files', 'records']
+const hasSubtree = computed(() =>
+  (me.value?.workspaces || []).some(w => w.subtree))
+const tabItems = computed(() => {
+  const tabs = [
+    { value: 'todo', label: '我的待办', icon: Bell, badge: todoBadgeTotal.value || undefined },
+    { value: 'group', label: '小组工作', icon: ChatLineSquare },
+    { value: 'board', label: '看板', icon: Folder },
+  ]
+  if (hasSubtree.value) tabs.push({ value: 'summary', label: '子组汇总', icon: OfficeBuilding })
+  tabs.push({ value: 'files', label: '工作资料', icon: Folder },
+             { value: 'records', label: '工作记录', icon: Clock })
+  return tabs
+})
+const TAB_VALUES = ['todo', 'group', 'board', 'summary', 'files', 'records']
 const activeTab = ref(TAB_VALUES.includes(route.query.tab) ? route.query.tab : 'todo')
 watch(() => route.query.tab, (t) => {
   if (TAB_VALUES.includes(t)) activeTab.value = t
@@ -80,7 +89,7 @@ const todoChips = computed(() => [
 ])
 
 // ── 待办四桶（§6.1：待接手/待回复/待验收/到期；M3 全量点亮） ──
-const todos = ref({ pending_responses: [], pending_transfers: [], to_review: [], due: [] })
+const todos = ref({ pending_responses: [], pending_transfers: [], to_review: [], due: [], handoffs: [] })
 const todosLoading = ref(false)
 const todosFailed = ref(false)       // 失败与空态分开：干部不错过转交接手/待验收
 async function loadTodos() {
@@ -93,6 +102,7 @@ async function loadTodos() {
       pending_transfers: res.data?.pending_transfers || [],
       to_review: res.data?.to_review || [],
       due: res.data?.due || [],
+      handoffs: res.data?.handoffs || [],        // X1 待接单（跨组交付）
     }
   } catch {
     todosFailed.value = true
@@ -103,6 +113,52 @@ async function loadTodos() {
 
 // 转交决策按「转交 id + 动作」分键：多张卡互不齐转
 const deciding = reactive({})
+const decidingHandoff = ref(false)
+async function decideHandoff(handoffId, action) {
+  if (decidingHandoff.value) return
+  let declined = false
+  if (action === 'decline') {
+    let reason = ''
+    try {
+      const r = await ElMessageBox.prompt('拒绝原因（必填）', '拒绝跨组交付',
+        { confirmButtonText: '确认拒绝', cancelButtonText: '取消', inputPlaceholder: '如：本周发版窗口已满' })
+      reason = (r?.value || '').trim()
+    } catch {
+      return                                   // 用户取消
+    }
+    if (!reason) {
+      ElMessage.warning('拒绝原因必填')
+      return
+    }
+    decidingHandoff.value = true
+    try {
+      const res = await workService.decideHandoff(handoffId, 'decline', { reason })
+      ElMessage.success(res.message || '已拒绝')
+      declined = true
+    } catch (e) {
+      ElMessage.error(e.response?.data?.message || '操作失败')
+    } finally {
+      decidingHandoff.value = false
+    }
+  } else {
+    decidingHandoff.value = true
+    try {
+      const res = await workService.decideHandoff(handoffId, action)
+      ElMessage.success(res.message || '已处理')
+    } catch (e) {
+      ElMessage.error(e.response?.data?.message || '操作失败')
+    } finally {
+      decidingHandoff.value = false
+    }
+  }
+  if (declined || action === 'accept') {
+    await Promise.allSettled([loadTodos(), refreshSummary()])
+    if (action === 'accept') {
+      ElMessage.info('任务已建到本组「小组工作」，可改派给组员')
+    }
+  }
+}
+
 async function decideTransfer(transferId, action) {
   const key = `${transferId}:${action}`
   if (deciding[key]) return
@@ -211,10 +267,28 @@ const isSuperAdmin = computed(() => store.getters.role === 'super_admin')
                 <DewButton size="sm" :loading="todosLoading" @click="loadTodos">重试</DewButton>
               </DewCard>
               <DewCard v-else-if="!todos.pending_responses.length && !todos.pending_transfers.length
-                                   && !todos.to_review.length && !todos.due.length" size="md">
+                                   && !todos.to_review.length && !todos.due.length
+                                   && !todos.handoffs.length" size="md">
                 <p class="state-text">当前没有等待你行动的事项；待回复、待接手、待验收与到期任务会出现在这里</p>
               </DewCard>
               <template v-else>
+                <!-- 待接单：跨组交付（仅协调员出现此桶） -->
+                <div v-if="todos.handoffs.length" class="bucket-title">待接单</div>
+                <DewCard v-for="h in todos.handoffs" :key="h.id" size="md" class="todo-card">
+                  <div class="todo-row">
+                    <div class="todo-main">
+                      <div class="todo-title">[{{ h.kind }}] {{ h.item_title }}</div>
+                      <div class="todo-meta">
+                        <span>{{ h.from_group_name }} 交付给本组</span>
+                        <span class="todo-due" v-if="h.deadline">期望 {{ h.deadline }} 前</span>
+                      </div>
+                    </div>
+                    <DewButton size="sm" type="danger" plain :loading="decidingHandoff"
+                               @click="decideHandoff(h.id, 'decline')">拒绝</DewButton>
+                    <DewButton size="sm" active :loading="decidingHandoff"
+                               @click="decideHandoff(h.id, 'accept')">接单</DewButton>
+                  </div>
+                </DewCard>
                 <!-- 待接手：转交确认 -->
                 <div v-if="todos.pending_transfers.length" class="bucket-title">待接手</div>
                 <DewCard v-for="t in todos.pending_transfers" :key="t.transfer_id" size="md" class="todo-card">
@@ -283,7 +357,11 @@ const isSuperAdmin = computed(() => store.getters.role === 'super_admin')
 
             <!-- 小组工作 -->
             <WorkGroupBoard v-else-if="activeTab === 'group'" />
-            <!-- 工作资料：附件索引（M4） -->
+            <!-- 看板：按关联对象聚合本组事项态势（X2 通用投影） -->
+            <WorkBoard v-else-if="activeTab === 'board'" />
+            <!-- 子组汇总：摘要层态势（X1，仅 subtree 授权者） -->
+            <WorkSummaryBoard v-else-if="activeTab === 'summary'" />
+            <!-- 工作资料 -->
             <WorkFilesIndex v-else-if="activeTab === 'files'" />
             <!-- 工作记录：历史检索（M5） -->
             <WorkRecordsIndex v-else-if="activeTab === 'records'" />

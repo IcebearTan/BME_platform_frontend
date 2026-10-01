@@ -72,7 +72,9 @@ async function submit() {
                    :loading="loadingCandidates" placeholder="搜索并选择（仅显示有协作资格者）">
           <el-option v-for="c in candidates" :key="c.user_id" :label="c.username" :value="c.user_id">
             <span>{{ c.username }}</span>
-            <span class="option-id">#{{ c.user_id }}</span>
+            <span class="option-meta">
+              {{ [c.group_name, c.title].filter(Boolean).join(' · ') || '' }}
+            </span>
           </el-option>
         </el-select>
       </el-form-item>
@@ -91,5 +93,5 @@ async function submit() {
 </template>
 
 <style scoped>
-.option-id { float: right; color: var(--dew-text-muted); font-size: 12px; }
+.option-meta { float: right; color: var(--dew-text-muted); font-size: 12px; }
 </style>

@@ -24,6 +24,9 @@
           <div v-if="form.role === 'governance'" class="form-hint">
             全局治理岗位，仅超级管理员可授（治理人员不能再授予治理岗位）
           </div>
+          <div v-if="form.role === 'coordinator'" class="form-hint">
+            <el-checkbox v-model="form.subtree">含子组汇总（仅摘要级：子组事项的标题/状态/负责人/截止，不含正文）</el-checkbox>
+          </div>
         </el-form-item>
         <el-form-item v-if="form.role !== 'governance'" label="工作区" required>
           <el-select v-model="form.workspaceId" placeholder="选择组工作区" style="width: 100%;"
@@ -181,6 +184,7 @@ const SOURCE_LABELS = { officer: '在任任职', membership: '组归属', direct
 const form = reactive({
   userId: null, role: 'member', workspaceId: null,
   sourceKey: '', validUntil: null, grantReason: '',
+  subtree: false,
 })
 const officerRows = ref([])          // 在任任职（一次取前 100 条）
 const officersTotal = ref(0)
@@ -246,7 +250,7 @@ const submitGrant = async () => {
   saving.value = true
   try {
     const payload = {
-      user_id: form.userId, role: form.role, grant_reason: form.grantReason.trim(),
+      user_id: form.userId, role: form.role, subtree: !!form.subtree, grant_reason: form.grantReason.trim(),
       valid_until: form.validUntil || null,
     }
     if (form.role === 'governance') {

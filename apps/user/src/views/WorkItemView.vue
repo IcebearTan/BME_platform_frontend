@@ -20,7 +20,9 @@ import WorkEventTrail from '../components/Work/WorkEventTrail.vue'
 import WorkParticipantDialog from '../components/Work/WorkParticipantDialog.vue'
 import WorkTaskPanel from '../components/Work/WorkTaskPanel.vue'
 import WorkFileList from '../components/Work/WorkFileList.vue'
+import WorkBusinessCard from '../components/Work/WorkBusinessCard.vue'
 import WorkCommandBar from '../components/Work/WorkCommandBar.vue'
+import { useWorkAccess } from '../composables/useWorkAccess'
 import { workService, ITEM_STATUS_LABELS, ITEM_STATUS_TYPE, VISIBILITY_LABELS } from '../services/workService'
 
 const PREVIEW_ID = 'work-item-preview'
@@ -40,6 +42,8 @@ onMounted(() => window.addEventListener('resize', checkScreenSize))
 onUnmounted(() => window.removeEventListener('resize', checkScreenSize))
 
 const itemId = computed(() => Number(route.params.id))
+const { me: workMe } = useWorkAccess()
+const workTargets = computed(() => workMe.value?.available_targets || [])
 
 // ── 数据态（三段式） ──
 const detail = ref(null)
@@ -319,11 +323,16 @@ onUnmounted(stopPolling)
               </div>
               <WorkCommandBar :item-id="itemId" :kind="detail.kind" :version="detail.version"
                               :allowed="allowed" :files="detail.files || []"
-                              @done="refreshAll" />
+                              :targets="workTargets" @done="refreshAll" />
               <div v-if="detail.status === 'closed' && detail.closed_reason" class="closed-reason">
                 关闭说明：{{ detail.closed_reason }}
               </div>
             </DewCard>
+
+            <!-- 关联对象（X2 通用投影：盲渲染适配器字段） -->
+            <WorkBusinessCard :item-id="itemId" :links="detail.business_links || []"
+                              :can-manage="allowed.includes('edit') || allowed.includes('invite')"
+                              @changed="loadDetail" />
 
             <!-- 任务属性与提交历史 -->
             <WorkTaskPanel :detail="detail" />

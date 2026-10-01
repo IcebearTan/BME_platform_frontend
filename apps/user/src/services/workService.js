@@ -98,6 +98,43 @@ export const workService = {
     return api.post(`/work/items/${id}/commands`, payload).then(r => r.data)
   },
 
+  /** 移除业务关联 */
+  async removeLink(itemId, sourceType, sourceId) {
+    return api.delete('/work/items/' + itemId + '/links', {
+      data: { source_type: sourceType, source_id: sourceId },
+    }).then(r => r.data)
+  },
+
+  /** 工作区看板：按关联对象聚合本组事项态势（X2 通用投影） */
+  async fetchBoard(wsId) {
+    return api.get('/work/objects/board', { params: { ws: wsId } }).then(r => r.data)
+  },
+
+  /** 认领/取消认领对象维护责任（协调员；幂等） */
+  async claimObject(payload) {
+    return api.post('/work/objects/claim', payload).then(r => r.data)
+  },
+
+  /** 可关联类型目录（注册表驱动） */
+  async fetchObjectTypes() {
+    return api.get('/work/objects/types').then(r => r.data)
+  },
+
+  /** 发起跨组交付（X1：目标组接单后在本组生成关联任务） */
+  async createHandoff(itemId, payload) {
+    return api.post(`/work/items/${itemId}/handoffs`, payload).then(r => r.data)
+  },
+
+  /** 接单/拒绝/撤回跨组交付（accept|decline|withdraw） */
+  async decideHandoff(handoffId, action, payload = {}) {
+    return api.post(`/work/handoffs/${handoffId}/${action}`, payload).then(r => r.data)
+  },
+
+  /** 子组摘要列表（subtree 授权者；仅标题/状态/负责人/截止，无正文） */
+  async fetchSummaryItems(params = {}) {
+    return api.get('/work/items', { params: { ...params, rollup: 'subtree' } }).then(r => r.data)
+  },
+
   /** 发起负责人转交（§8.4：对方确认后才替换负责人） */
   async createTransfer(id, payload) {
     return api.post(`/work/items/${id}/transfers`, payload).then(r => r.data)
