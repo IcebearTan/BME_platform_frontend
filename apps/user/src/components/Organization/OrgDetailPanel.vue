@@ -1,15 +1,16 @@
 <script setup>
 // 组织详情面板（组织架构页重构，主从分栏的从侧）：合并原 OrgGroupDetail。
-// 全社态（node=null）：社长+管理层紧凑行卡 + 各组人数一览；
-// 组态（node）：组信息头（组长/分管/人数/进入工作区）+ 成员名录；子组在左侧树中可达，不再重复墙。
-// 「进入工作区」逻辑不动：单例探测 /work/me 按 club_group_id 匹配，跳 /work?ws=&tab=group
-// （工作台 III 重构后 tab=group 重定向到 /work/items）。
+// 全社态（node=null）：社长+管理层大卡（社团文化展示位）+ 各组人数一览；
+// 组态（node）：组信息头（组长/分管/人数/进入工作区）+ 小组介绍预留区 + 成员大卡名录；
+// 子组在左侧树中可达，不再重复墙。
+// 人员卡：大头像（默认首字随之放大）+ 姓名 + 身份标签 + **信息预留槽**（短横线锚位，
+// 后端补人员简介/口号字段后直接填充）；小组介绍同为预留（node.description 未来接后端列）。
+// 「进入工作区」逻辑不动：单例探测 /work/me 按 club_group_id 匹配，跳 /work?ws=&tab=group。
 import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { DewCard, DewTag, DewButton } from '@bme/dew-ui'
 import DewImage from '@bme/dew-ui/DewImage.vue'
 import { Right } from '@element-plus/icons-vue'
-import OrgMemberList from './OrgMemberList.vue'
 import { useWorkAccess } from '../../composables/useWorkAccess'
 import { assetUrl } from '../../services/campService'
 
@@ -29,6 +30,8 @@ const memberTotal = computed(() => {
   return (c.primary || 0) + (c.secondary || 0)
 })
 const children = computed(() => props.node?.children || [])
+// 小组介绍：后端 club_group 暂无介绍列，UI 先留展示位（node.description 未来接上即自动生效）
+const groupIntro = computed(() => props.node?.description || '')
 
 // 「进入工作区」按钮（设计方案 §6.1）：本组工作区且我有权时显示
 const { hasAccess: workAccess, workspaceForGroup, detect: detectWork } = useWorkAccess()
@@ -44,28 +47,36 @@ const goWorkspace = (ws) => {
   <div class="odp">
     <!-- ━━ 全社总览态 ━━ -->
     <template v-if="!node">
-      <!-- 社长 -->
+      <!-- 社长（主卡：最大号头像，社团门面） -->
       <section v-if="org?.president" class="odp-section">
         <div class="odp-section-title">社长</div>
-        <div class="officer-row officer-row--hero" @click="goProfile(org.president.id)">
-          <DewImage shape="circle" :size="44" :src="assetUrl(org.president.avatar) || null"
-                    :initial="org.president.username" class="officer-avatar" />
-          <span class="officer-name">{{ org.president.username }}</span>
-          <DewTag type="warning" size="sm" round>{{ org.president.title }}</DewTag>
+        <div class="officer-grid officer-grid--single">
+          <div class="officer-card officer-card--hero" @click="goProfile(org.president.id)">
+            <DewImage shape="circle" :size="76" :src="assetUrl(org.president.avatar) || null"
+                      :initial="org.president.username || '?'" class="officer-avatar officer-avatar--hero" />
+            <span class="officer-name officer-name--hero">{{ org.president.username }}</span>
+            <span class="officer-tags">
+              <DewTag type="warning" size="sm" round>{{ org.president.title }}</DewTag>
+            </span>
+            <span class="card-reserve"><span class="card-slot-line" /></span>
+          </div>
         </div>
       </section>
 
-      <!-- 管理层（紧凑行卡：头像+姓名+职位徽章一行一个） -->
+      <!-- 管理层（大卡横排：头像+姓名+职位徽章，各带信息预留槽） -->
       <section v-if="(org?.management || []).length" class="odp-section">
         <div class="odp-section-title">管理层</div>
-        <div class="officer-list">
-          <div v-for="m in org.management" :key="m.id" class="officer-row"
+        <div class="officer-grid">
+          <div v-for="m in org.management" :key="m.id" class="officer-card"
                @click="goProfile(m.id)">
-            <DewImage shape="circle" :size="32" :src="assetUrl(m.avatar) || null"
-                      :initial="m.username" class="officer-avatar" />
+            <DewImage shape="circle" :size="56" :src="assetUrl(m.avatar) || null"
+                      :initial="m.username || '?'" class="officer-avatar" />
             <span class="officer-name">{{ m.username }}</span>
-            <DewTag type="warning" size="sm" round>{{ m.title }}</DewTag>
-            <DewTag v-if="m.group" type="info" size="sm" round>{{ m.group }}</DewTag>
+            <span class="officer-tags">
+              <DewTag type="warning" size="sm" round>{{ m.title }}</DewTag>
+              <DewTag v-if="m.group" type="info" size="sm" round>{{ m.group }}</DewTag>
+            </span>
+            <span class="card-reserve"><span class="card-slot-line" /></span>
           </div>
         </div>
       </section>
@@ -118,15 +129,39 @@ const goWorkspace = (ws) => {
         </p>
       </header>
 
-      <!-- 成员名录（直挂；组长置顶、辅员带标，见 OrgMemberList） -->
+      <!-- 小组介绍（预留展示位：后端补介绍列后自动生效） -->
+      <section class="odp-section">
+        <div class="odp-section-title">小组介绍</div>
+        <DewCard variant="flat" size="md" class="odp-card">
+          <p v-if="groupIntro" class="group-intro">{{ groupIntro }}</p>
+          <p v-else class="group-intro group-intro--placeholder">
+            小组方向、日常与成果将在这里展示（介绍待填写）
+          </p>
+        </DewCard>
+      </section>
+
+      <!-- 成员名录（大卡：组长置顶、辅员带标；信息预留槽与干部卡同款） -->
       <section class="odp-section">
         <div class="odp-section-title">
           成员名录
           <span v-if="children.length" class="odp-section-hint">仅本组直挂成员</span>
         </div>
-        <DewCard variant="flat" size="md" class="odp-card">
-          <OrgMemberList :members="node.members" />
+        <DewCard v-if="node.members?.length" variant="flat" size="md" class="odp-card">
+          <div class="member-grid">
+            <div v-for="m in node.members" :key="m.id" class="member-card" @click="goProfile(m.id)">
+              <DewImage shape="circle" :size="56" :src="assetUrl(m.avatar) || null"
+                        :initial="m.username || '?'" class="member-avatar" />
+              <span class="member-name">{{ m.username }}</span>
+              <span class="member-tags">
+                <DewTag v-if="m.is_leader" type="primary" size="sm" round>组长</DewTag>
+                <DewTag v-else-if="m.title" type="neutral" size="sm" round>{{ m.title }}</DewTag>
+                <DewTag v-if="m.slot === 'secondary'" type="neutral" size="sm" round>辅</DewTag>
+              </span>
+              <span class="card-reserve"><span class="card-slot-line" /></span>
+            </div>
+          </div>
         </DewCard>
+        <p v-else class="odp-empty">本组暂无直挂成员 · 招新中</p>
       </section>
     </template>
   </div>
@@ -141,31 +176,62 @@ const goWorkspace = (ws) => {
 }
 .odp-section-hint { font-size: 12px; font-weight: 400; color: var(--dew-text-muted); }
 .odp-empty { margin: 0; font-size: 13px; color: var(--dew-text-muted); }
-.odp-card :deep(.oml) {
-  display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px 24px;
-}
-.odp-card :deep(.oml-empty) { grid-column: 1 / -1; }
+.odp-card { margin-bottom: 4px; }
 
-/* ── 干部紧凑行卡（替代 OfficerCard 玻璃卡） ── */
-.officer-row {
-  display: flex; align-items: center; gap: 10px;
-  padding: 8px 10px; border-radius: 8px; cursor: pointer;
+/* ━━ 干部大卡（替代原紧凑行卡）：大头像+姓名+职位徽章+信息预留槽 ━━ */
+.officer-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px;
+}
+.officer-grid--single { grid-template-columns: minmax(0, 260px); }
+.officer-card {
+  display: flex; flex-direction: column; align-items: center; gap: 7px;
+  padding: 20px 12px 14px; border-radius: 12px; cursor: pointer;
+  border: 1px solid var(--ws-border);
+  background: var(--ws-panel);
+  transition: transform 0.22s var(--dew-bounce, ease), border-color 0.2s ease;
+}
+.officer-card:hover { transform: translateY(-2px); border-color: var(--ws-border-strong); }
+.officer-card--hero { padding: 26px 16px 16px; }
+/* 首字大小由 DewImage 按直径锚定（size prop），无需外设字号 */
+.officer-avatar--hero {
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-primary) 12%, transparent);
+}
+.officer-name { font-size: 14.5px; font-weight: 600; color: var(--dew-text-heading); }
+.officer-name--hero { font-size: 16.5px; font-weight: 700; }
+.officer-tags { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; min-height: 22px; }
+
+/* ━━ 信息预留槽：短横线锚位，将来填人员简介/口号/成就 ━━ */
+.card-reserve {
+  margin-top: 8px; min-height: 26px;
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.card-slot-line {
+  width: 26px; height: 3px; border-radius: 2px;
+  background: var(--ws-border-strong);
+}
+
+/* ━━ 成员大卡（原双列行式名录升级：大头像+首字放大+预留槽） ━━ */
+.member-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px;
+}
+.member-card {
+  display: flex; flex-direction: column; align-items: center; gap: 7px;
+  padding: 18px 10px 12px; border-radius: 12px; cursor: pointer;
   transition: background 0.2s ease;
 }
-.officer-row:hover { background: var(--ws-hover); }
-.officer-row--hero {
-  padding: 12px 14px; border-radius: 10px;
-  border: 1px solid var(--ws-border); background: var(--ws-panel);
+.member-card:hover { background: var(--ws-hover); }
+/* 首字大小由 DewImage 按直径锚定（size prop），无需外设字号 */
+.member-name {
+  font-size: 14px; font-weight: 600; color: var(--dew-text-heading);
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.officer-row--hero .officer-name { font-size: 15.5px; font-weight: 700; }
-.officer-list { display: flex; flex-direction: column; }
-.officer-avatar {
-  flex: none; font-size: 12px; font-weight: 600;
-  background: var(--ws-hover); color: var(--dew-text-muted);
-}
-.officer-name { font-size: 13.5px; font-weight: 600; color: var(--dew-text-heading); }
+.member-tags { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; min-height: 22px; }
 
-/* ── 各组人数一览行 ── */
+/* ━━ 小组介绍预留区 ━━ */
+.group-intro { margin: 0; font-size: 13.5px; line-height: 1.8; color: var(--dew-text); }
+.group-intro--placeholder { color: var(--dew-text-faint); }
+
+/* ━━ 各组人数一览行 ━━ */
 .org-group-row {
   display: flex; align-items: center; gap: 10px;
   padding: 9px 6px; border-radius: 8px; cursor: pointer;
@@ -178,7 +244,7 @@ const goWorkspace = (ws) => {
 .org-group-meta { flex: none; font-size: 12px; color: var(--dew-text-muted); }
 .org-group-arrow { flex: none; color: var(--dew-text-faint); }
 
-/* ── 组头（类名延续 OrgGroupDetail，e2e 契约 .ogd-name/.ogd-work-btn） ── */
+/* ━━ 组头（类名延续 OrgGroupDetail，e2e 契约 .ogd-name/.ogd-work-btn） ━━ */
 .ogd-head { margin-bottom: 24px; }
 .ogd-title-row {
   display: flex; align-items: center; flex-wrap: wrap; gap: 10px;
@@ -204,6 +270,7 @@ const goWorkspace = (ws) => {
 
 @media (max-width: 768px) {
   .ogd-name { font-size: 19px; }
-  .odp-card :deep(.oml) { grid-template-columns: 1fr; }
+  .officer-grid { grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); }
+  .member-grid { grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); }
 }
 </style>

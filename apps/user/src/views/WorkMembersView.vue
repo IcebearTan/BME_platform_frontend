@@ -152,7 +152,7 @@ function goOrg(id) {
           <div class="member-grid">
             <div v-for="o in visibleOfficers" :key="o.id" class="member-chip"
                  @click="goProfile(o.id)">
-              <DewImage shape="circle" :size="42" :src="assetUrl(o.avatar) || null"
+              <DewImage shape="circle" :size="56" :src="assetUrl(o.avatar) || null"
                         :initial="o.username || '?'" class="member-avatar member-avatar--officer" />
               <span class="member-name">{{ o.username }}</span>
               <span class="member-tags">
@@ -176,7 +176,7 @@ function goOrg(id) {
         <DewCard size="md" variant="flat" class="sec-card">
           <div class="member-grid">
             <div v-for="m in s.members" :key="m.id" class="member-chip" @click="goProfile(m.id)">
-              <DewImage shape="circle" :size="38" :src="assetUrl(m.avatar) || null"
+              <DewImage shape="circle" :size="48" :src="assetUrl(m.avatar) || null"
                         :initial="m.username || '?'" class="member-avatar" />
               <span class="member-name">{{ m.username }}</span>
               <span class="member-tags">
@@ -225,20 +225,17 @@ function goOrg(id) {
 .sec-card { margin-bottom: 4px; }
 .sec-empty { margin: 0; padding: 4px 0; font-size: 12.5px; color: var(--dew-text-muted); }
 
-/* ── 成员块：头像居中 + 姓名 + 身份标签 ── */
+/* ── 成员块：头像居中 + 姓名 + 身份标签（首字随头像放大，保证默认头像大气） ── */
 .member-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(136px, 1fr)); gap: 8px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 10px;
 }
 .member-chip {
-  display: flex; flex-direction: column; align-items: center; gap: 6px;
-  padding: 12px 8px 10px; border-radius: 10px; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 7px;
+  padding: 14px 8px 10px; border-radius: 10px; cursor: pointer;
   transition: background 0.2s ease;
 }
 .member-chip:hover { background: var(--ws-hover); }
-.member-avatar {
-  font-size: 13px; font-weight: 600;
-  background: var(--ws-hover); color: var(--dew-text-muted);
-}
+/* 首字大小由 DewImage 按直径锚定（size prop），无需外设字号 */
 .member-avatar--officer { box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 14%, transparent); }
 .member-name {
   font-size: 13.5px; font-weight: 600; color: var(--dew-text-heading);
@@ -248,6 +245,6 @@ function goOrg(id) {
 
 @media (max-width: 768px) {
   .filter-bar :deep(.el-input), .filter-bar :deep(.el-select) { width: 140px !important; }
-  .member-grid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
+  .member-grid { grid-template-columns: repeat(auto-fill, minmax(116px, 1fr)); }
 }
 </style>

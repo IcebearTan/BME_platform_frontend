@@ -202,6 +202,7 @@ test.describe('组织架构页树选择与工作区入口', () => {
         {
           id: 3, name: '软件组', level: 1, leader: { id: 21, username: '陈干事' },
           oversee_by: null, counts: { primary: 2, secondary: 0 },
+          description: '负责平台软件方向：课程维护、工具链与内部系统开发。',
           members: [{ id: 21, username: '陈干事', slot: 'primary', is_leader: true }],
           children: [
             { id: 31, name: '前端小组', level: 2, leader: null, oversee_by: null,
@@ -243,7 +244,7 @@ test.describe('组织架构页树选择与工作区入口', () => {
     // 全社态：树常驻 + 总览面板（社长行卡/组别一览）
     await expect(page.locator('.org-root-item--active')).toBeVisible()
     await expect(page.locator('.tree-node-name', { hasText: '软件组' })).toBeVisible()
-    await expect(page.locator('.officer-row--hero', { hasText: '社长' })).toBeVisible()
+    await expect(page.locator('.officer-card--hero', { hasText: '社长' })).toBeVisible()
     // 默认展开到二级：子组 前端小组 直接可见（不再需要钻入父组）
     await expect(page.locator('.tree-node-name', { hasText: '前端小组' })).toBeVisible()
     // 各组人数一览行
@@ -254,6 +255,8 @@ test.describe('组织架构页树选择与工作区入口', () => {
     await expect(page).toHaveURL(new RegExp('group=3'))
     await expect(page.locator('.ogd-name', { hasText: '软件组' })).toBeVisible()
     await expect(page.getByText('成员名录')).toBeVisible()
+    // 小组介绍：有内容直接展示
+    await expect(page.locator('.group-intro')).toContainText('课程维护')
     // 树高亮跟随
     await expect(page.locator('.el-tree-node.is-current', { hasText: '软件组' })).toBeVisible()
 
@@ -261,6 +264,8 @@ test.describe('组织架构页树选择与工作区入口', () => {
     await page.locator('.tree-node-name', { hasText: '前端小组' }).click()
     await expect(page).toHaveURL(new RegExp('group=31'))
     await expect(page.locator('.ogd-name', { hasText: '前端小组' })).toBeVisible()
+    // 无介绍组：占位文案（mock 前端小组未带 description）
+    await expect(page.locator('.group-intro--placeholder')).toContainText('介绍待填写')
 
     // 全社回跳：树顶「全社总览」
     await page.locator('.org-root-item', { hasText: '全社总览' }).click()

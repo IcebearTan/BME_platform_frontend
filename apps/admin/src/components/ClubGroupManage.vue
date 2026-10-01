@@ -68,6 +68,11 @@
           <el-input-number v-model="dlg.form.sort_order" :min="0" :max="999" />
           <span class="form-hint">同父内小者在前</span>
         </el-form-item>
+        <el-form-item v-if="dlg.id" label="小组介绍">
+          <el-input v-model="dlg.form.description" type="textarea" :rows="4"
+                    maxlength="500" show-word-limit
+                    placeholder="组织页组态展示：小组方向、日常与成果（留空显示待填写占位）" />
+        </el-form-item>
       </el-form>
       <template #footer>
         <div class="dialog-footer">
@@ -133,7 +138,8 @@ const openCreate = (parent) => {
 const openEdit = (row) => {
   dlg.id = row.id
   dlg.originName = row.name
-  dlg.form = { name: row.name, parent_id: row.parent_id, sort_order: row.sort_order }
+  dlg.form = { name: row.name, parent_id: row.parent_id, sort_order: row.sort_order,
+               description: row.description || '' }
   dlg.visible = true
 }
 
@@ -143,6 +149,7 @@ const submit = async () => {
   dlg.submitting = true
   try {
     const data = { name: f.name.trim(), parent_id: f.parent_id ?? null, sort_order: f.sort_order ?? 0 }
+    if (dlg.id) data.description = (f.description || '').trim()
     const res = await api({
       url: dlg.id ? `/admin/club/groups/${dlg.id}` : '/admin/club/groups',
       method: dlg.id ? 'put' : 'post',
