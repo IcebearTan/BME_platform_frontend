@@ -25,6 +25,10 @@ export function notificationTarget(item) {
     }
     return { path: '/work' }
   }
+  // 平台发版公告（scripts/announce_release.py 扇出）：直达更新日志页
+  if (item.source_type === 'platform_release') {
+    return { path: '/changelog' }
+  }
   if (item.category !== 'camp') {
     return { path: '/notifications' }
   }

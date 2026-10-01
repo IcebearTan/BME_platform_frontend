@@ -270,6 +270,11 @@ function handleClick(item) {
   }
   // 系统通知：桌面端右栏展示详情，移动端（单栏）回退弹窗
   if (item.category === 'system') {
+    // 发版公告例外：点击直达更新日志页（深链映射与铃铛共用 notificationTarget）
+    if (item.source_type === 'platform_release') {
+      router.push(notificationTarget(item))
+      return
+    }
     if (isMobile.value) {
       selectedNotice.value = item
       detailVisible.value = true

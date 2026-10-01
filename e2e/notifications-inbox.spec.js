@@ -13,6 +13,7 @@ const NOTIFICATIONS = {
     notifications: [
       { id: 101, title: '系统维护通知', content: '今晚 22:00-23:00 系统维护，请提前保存。', category: 'system', source_type: 'admin', camp_session_id: null, is_read: false, is_important: false, created_at: NOW },
       { id: 102, title: '收到一封感谢信', content: '张三 寄来一封感谢信，点开看看吧', category: 'message', source_type: 'gratitude', source_id: 201, camp_session_id: 1, is_read: false, is_important: false, created_at: NOW },
+      { id: 104, title: '平台更新 v3.3', content: 'BME 平台 v3.3 已发布。点击查看本版本的完整更新日志。', category: 'system', source_type: 'platform_release', source_id: null, camp_session_id: null, is_read: false, is_important: false, created_at: NOW },
     ],
   },
 }
@@ -109,6 +110,11 @@ test('邮箱式收件箱：system 通知在右栏展开详情（桌面不弹窗�
   const rightPane = page.locator('.inbox-right')
   await expect(rightPane.getByText('今晚 22:00-23:00 系统维护，请提前保存。')).toBeVisible()
   await expect(rightPane.getByText('系统通知', { exact: true })).toBeVisible()
+
+  // 发版公告（platform_release）：列表点击深链直达 /changelog 更新日志页
+  await page.getByText('平台更新 v3.3').click()
+  await expect(page).toHaveURL(/\/changelog$/)
+  await expect(page.locator('.version-no', { hasText: 'v3.3' })).toBeVisible()
 
   // 桌面端不应弹出 DewDialog
   await expect(page.getByRole('heading', { name: '通知详情' })).toHaveCount(0)
