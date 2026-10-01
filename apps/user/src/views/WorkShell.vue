@@ -8,7 +8,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useStore } from 'vuex'
 import { DewCard, DewTag, DewSkeleton, DewButton } from '@bme/dew-ui'
 import { ArrowLeft, Fold, Briefcase, Odometer, ChatLineSquare, DataBoard,
-         OfficeBuilding, Folder, Clock } from '@element-plus/icons-vue'
+         OfficeBuilding, Folder, Clock, User } from '@element-plus/icons-vue'
 import NotificationBell from '../components/Notification/NotificationBell.vue'
 import '../styles/work-surface.css'
 import { useWorkAccess } from '../composables/useWorkAccess'
@@ -48,6 +48,7 @@ const navItems = computed(() => {
     { to: '/work', label: '概览', icon: Odometer, badge: todoBadgeTotal.value || null },
     { to: '/work/items', label: '小组事项', icon: ChatLineSquare },
     { to: '/work/board', label: '看板', icon: DataBoard },
+    { to: '/work/members', label: '成员', icon: User },
   ]
   if (hasSubtree.value) items.push({ to: '/work/summary', label: '子组汇总', icon: OfficeBuilding })
   items.push(

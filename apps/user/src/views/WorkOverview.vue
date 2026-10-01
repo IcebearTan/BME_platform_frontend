@@ -293,9 +293,9 @@ onMounted(() => {
 }
 .state-text { margin: 0 0 12px; font-size: 13px; color: var(--dew-text-muted); }
 
-/* ── 双列信息区 ── */
+/* ── 双列信息区（对称等宽：两侧行结构同构，标题超长各自省略） ── */
 .info-grid {
-  display: grid; grid-template-columns: 1.2fr 1fr; gap: 14px;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
   margin-top: 18px; align-items: start;
 }
 .info-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }

@@ -48,6 +48,7 @@ const loadWorkShell = () => import('./views/WorkShell.vue')
 const loadWorkOverview = () => import('./views/WorkOverview.vue')
 const loadWorkItem = () => import('./views/WorkItemView.vue')
 const loadWorkItemsTable = () => import('./views/WorkItemsTable.vue')
+const loadWorkMembers = () => import('./views/WorkMembersView.vue')
 const loadWorkBoardComp = () => import('./components/Work/WorkBoard.vue')
 const loadWorkSummaryComp = () => import('./components/Work/WorkSummaryBoard.vue')
 const loadWorkFilesComp = () => import('./components/Work/WorkFilesIndex.vue')
@@ -374,6 +375,12 @@ const router = createRouter({
                     path: 'board',
                     name: 'work-board',
                     component: loadWorkBoardComp,
+                },
+                {
+                    // 成员看板（全社名录，浏览+检索；与组织页同数据源）
+                    path: 'members',
+                    name: 'work-members',
+                    component: loadWorkMembers,
                 },
                 {
                     // 子组汇总（X1 摘要层；路由常驻，侧栏项按 subtree 授权显隐）

@@ -80,6 +80,27 @@ const REPLIES = {
   },
 }
 
+const ORG = {
+  code: 200, message: 'ok',
+  data: {
+    president: { id: 1, username: '社长', title: '社长' },
+    management: [{ id: 2, username: '副社长', title: '副社长' }],
+    tree: [
+      {
+        id: 3, name: '软件组', leader: { id: 21, username: '陈干事' }, oversee_by: null,
+        counts: { primary: 2, secondary: 0 },
+        members: [{ id: 21, username: '陈干事', slot: 'primary', is_leader: true }],
+        children: [
+          { id: 31, name: '前端小组', leader: null, oversee_by: null,
+            counts: { primary: 1, secondary: 0 }, members: [], children: [] },
+        ],
+      },
+      { id: 4, name: '硬件组', leader: null, oversee_by: null,
+        counts: { primary: 0, secondary: 0 }, members: [], children: [] },
+    ],
+  },
+}
+
 async function loginAsUser(page, meData = ME_GRANTED) {
   await page.addInitScript(() => {
     localStorage.setItem('bme-user-token', 'e2e-mock-token')
@@ -107,6 +128,7 @@ async function loginAsUser(page, meData = ME_GRANTED) {
     if (url.includes('/work/candidates')) {
       return route.fulfill({ json: { code: 200, data: { candidates: [] } } })
     }
+    if (url.includes('/organization')) return route.fulfill({ json: ORG })
     if (url.includes('/notification/')) {
       return route.fulfill({ json: { code: 200, data: {} } })
     }
@@ -125,6 +147,7 @@ test.describe('外壳与导航', () => {
     await expect(page.locator('.ws-nav-item', { hasText: '概览' })).toBeVisible()
     await expect(page.locator('.ws-nav-item', { hasText: '小组事项' })).toBeVisible()
     await expect(page.locator('.ws-nav-item', { hasText: '看板' })).toBeVisible()
+    await expect(page.locator('.ws-nav-item', { hasText: '成员' })).toBeVisible()
     await expect(page.locator('.ws-nav-item', { hasText: '工作资料' })).toBeVisible()
     await expect(page.locator('.ws-nav-item', { hasText: '工作记录' })).toBeVisible()
     await expect(page.locator('.ws-nav-item', { hasText: '子组汇总' })).toHaveCount(0)
@@ -177,6 +200,54 @@ test.describe('旧 URL 兼容重定向', () => {
     await page.goto(`${BASE}/work?tab=todo`)
     await expect(page).toHaveURL(new RegExp(`${BASE}/work$`))
     await expect(page.locator('.stat-block', { hasText: '待回复' })).toBeVisible()
+  })
+})
+
+test.describe('成员看板', () => {
+  test('全社名录：管理层+分组渲染，我的工作区置顶标记，点成员进主页', async ({ page }) => {
+    await loginAsUser(page)
+    await page.goto(`${BASE}/work/members`)
+    // 顶栏面包屑 + 工具栏计数（社长+副社长+陈干事=3）
+    await expect(page.locator('.ws-crumb-view', { hasText: '成员' })).toBeVisible()
+    await expect(page.locator('.total-hint')).toContainText('共 3 名成员')
+    // 管理层分区 + 成员卡
+    await expect(page.locator('.sec-title', { hasText: '社长与管理层' })).toBeVisible()
+    await expect(page.locator('.member-name', { hasText: '副社长' })).toBeVisible()
+    // 我的工作区（软件组 club_group_id=3 匹配 ME_GRANTED）：带标记，且在分组序列首位（置顶）；
+    // first：子组「软件组 / 前端小组」的父路径文本也含「软件组」
+    const swHead = page.locator('.sec-head', { hasText: '软件组' }).first()
+    await expect(swHead).toContainText('我的工作区')
+    const groupHeads = page.locator('.sec-title--link')
+    await expect(groupHeads.first()).toContainText('软件组')
+    await expect(page.locator('.member-name', { hasText: '陈干事' })).toBeVisible()
+    // 组长标签
+    await expect(page.locator('.member-chip', { hasText: '陈干事' }).first()).toContainText('组长')
+    // 点成员进个人主页
+    await page.locator('.member-chip', { hasText: '陈干事' }).first().click()
+    await expect(page).toHaveURL(new RegExp('/profile/21'))
+  })
+
+  test('检索与组筛选：关键词过滤成员与分区，无结果有提示', async ({ page }) => {
+    await loginAsUser(page)
+    await page.goto(`${BASE}/work/members`)
+    // 按姓名搜：只剩匹配成员所在分区
+    await page.locator('.filter-bar input').first().fill('陈干事')
+    await expect(page.locator('.member-name', { hasText: '陈干事' })).toBeVisible()
+    await expect(page.locator('.member-name', { hasText: '副社长' })).toHaveCount(0)
+    // 按组名搜：分区名匹配时整组保留（含空成员组提示）
+    await page.locator('.filter-bar input').first().fill('硬件')
+    await expect(page.locator('.sec-title--link', { hasText: '硬件组' })).toBeVisible()
+    await expect(page.locator('.sec-empty')).toContainText('本组暂无直挂成员')
+    // 无结果
+    await page.locator('.filter-bar input').first().fill('不存在的名字')
+    await expect(page.getByText('没有匹配「不存在的名字」的成员')).toBeVisible()
+  })
+
+  test('组名深链组织页；点组名跳转带 ?group=', async ({ page }) => {
+    await loginAsUser(page)
+    await page.goto(`${BASE}/work/members`)
+    await page.locator('.sec-title--link', { hasText: '硬件组' }).click()
+    await expect(page).toHaveURL(new RegExp('/organization\\?group=4'))
   })
 })
 
