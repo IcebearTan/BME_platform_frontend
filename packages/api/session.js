@@ -178,6 +178,15 @@ export function createSessionFacade({ baseURL, clientType, tokenKey }) {
     return (mode === 'compat' && compatGetToken()) || null
   }
 
+  // 敏感操作（归并/MFA 变更等）bump 安全版本后，服务端随响应换发的新 access
+  // 经此替换——cookie 模式仅内存；compat 模式同步 localStorage。旧 access 因
+  // 版本漂移已失效，不替换则后续请求全部 401。
+  function updateAccess(token) {
+    if (!token) return
+    accessToken = token
+    if (mode === 'compat') localStorage.setItem(tokenKey, token)
+  }
+
   function saveLogin(res) {
     const data = res || {}
     if (mode === 'cookie') {
@@ -228,6 +237,7 @@ export function createSessionFacade({ baseURL, clientType, tokenKey }) {
     bootstrap,
     ensureFresh,
     getToken,
+    updateAccess,
     saveLogin,
     logout,
     terminate,

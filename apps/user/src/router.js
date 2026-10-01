@@ -22,6 +22,7 @@ const loadUserInfo = () => import('./components/User/UserInfoComponent.vue')
 const loadUserSettings = () => import('./components/User/UserSettingsComponent.vue')
 const loadMyFeedbacks = () => import('./components/User/MyFeedbacksComponent.vue')
 const loadMyFavorites = () => import('./components/User/MyFavoritesComponent.vue')
+const loadIdentityCenter = () => import('./components/Identity/IdentityCenter.vue')
 const loadMyArticles = () => import('./components/User/MyArticlesComponent.vue')
 // 我的书架（courseShelf 收藏课程，2026-09-22）
 const loadMyShelf = () => import('./components/User/MyShelfComponent.vue')
@@ -212,6 +213,12 @@ const router = createRouter({
                     path: '/user-center/my-threads',
                     name: 'my-threads',
                     component: loadMyThreads,
+                },
+                {
+                    // 身份中心（D4）：核验状态/身份核验向导/账号认领（规格 12.1）
+                    path: '/user-center/identity',
+                    name: 'user-identity',
+                    component: loadIdentityCenter,
                 }
             ]
         },

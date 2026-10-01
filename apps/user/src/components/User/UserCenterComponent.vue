@@ -6,7 +6,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRouter, useRoute } from 'vue-router'
 import { useStore } from 'vuex';
-import { Message, User, Setting, Calendar, Collection, EditPen, Document, ChatDotRound, Notebook } from '@element-plus/icons-vue';
+import { Message, User, Setting, Calendar, Collection, EditPen, Document, ChatDotRound, Notebook, Postcard } from '@element-plus/icons-vue';
 import { Briefcase } from '@element-plus/icons-vue';
 import { useWorkAccess } from '../../composables/useWorkAccess';
 import { DewCard, DewSidebar } from '@bme/dew-ui'
@@ -30,6 +30,7 @@ const navItems = computed(() => {
   {
     label: '账户与反馈', children: [
       { value: '/user-center/user-info', label: '个人资料', icon: User },
+      { value: '/user-center/identity', label: '身份与账号', icon: Postcard },
       { value: '/user-center/settings', label: '偏好设置', icon: Setting },
       { value: '/user-center/my-feedbacks', label: '反馈记录', icon: Message },
     ],
@@ -133,6 +134,10 @@ const getActiveMenuIndex = (currentPath) => {
   // 处理my-feedbacks的子路由
   if (currentPath.startsWith('/user-center/my-feedbacks')) {
     return '/user-center/my-feedbacks'
+  }
+
+  if (currentPath.startsWith('/user-center/identity')) {
+    return '/user-center/identity'
   }
 
   if (currentPath.startsWith('/user-center/my-favorites')) {
