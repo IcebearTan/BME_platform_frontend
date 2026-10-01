@@ -17,7 +17,7 @@ import { DewCard, DewSkeleton, DewImage } from '@bme/dew-ui'
 import { MdPreview, MdCatalog } from 'md-editor-v3'
 import 'md-editor-v3/lib/preview.css'
 import '@bme/editor/md-setup' // 自托管 highlight.js（与编辑器共享）
-import api from '../../../api'
+import api, { authSession } from '../../../api'
 import { assetUrl } from '../../../services/campService'
 import ArticleCommentSection from '../ArticleCommentSection.vue'
 import OfficialHtmlContent from './OfficialHtmlContent.vue'
@@ -50,7 +50,7 @@ const {
   initCounts, ensureThread, fetchMe, recordView, toggleLike, toggleFav,
 } = useArticleReactions(articleId, 2)
 
-const isLoggedIn = () => !!localStorage.getItem('bme-user-token')
+const isLoggedIn = () => !!authSession.getToken()
 
 // 阅读页正文随页面流滚动 → 目录跟随 documentElement
 const scrollEl = typeof document !== 'undefined' ? document.documentElement : undefined

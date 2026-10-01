@@ -23,6 +23,18 @@ import '@vueup/vue-quill/dist/vue-quill.snow.css'
 // 后台改身份后旧客户端要重新登录才生效；挂上后 401 静默续期时自动拉平
 api.setOnRefreshed((identity) => store.commit('patchIdentity', identity))
 
+// D1 会话门面同步：cookie 模式刷新页后内存 token 丢失，bootstrap 恢复会话并
+// 回填 store.token（isLogin getter 据此判定）；状态迁移实时同步（登录/终态/退出）
+import { authSession } from './api'
+authSession.bootstrap().then(() => {
+  store.commit('setToken', authSession.getToken() || null)
+})
+authSession.onChange((state) => {
+  store.commit('setToken', state === 'authenticated' ? (authSession.getToken() || null) : null)
+})
+authSession.onIdentity((identity) => store.commit('patchIdentity', identity))
+
+
 const app = createApp(App)
 
 app.use(ElLoading)   // v-loading 指令 + 服务

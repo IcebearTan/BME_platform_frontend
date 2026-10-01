@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 
 import { routeProgressStart, routeProgressDone } from './utils/routeProgress';
+import { authSession } from './api';
 
 // ── 落地三页保持同步打包（登录前后首屏直达，不做异步分包）：门户 /、主应用 /home、登录页 ──
 import HomeView from './views/HomeView.vue'
@@ -445,11 +446,14 @@ const router = createRouter({
     ]
 })
 
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
     // 路由顶部进度条：分包 chunk 首载期遮羞（同步导航瞬时完成，进度条一闪而过）
     routeProgressStart()
 
-    const token = localStorage.getItem('bme-user-token')
+    // D1 会话门面：cookie 模式下页面刷新即失内存 token，必须先引导（兼容模式
+    // 引导幂等且不触网）；booting 期间不得误判未登录（规格 6.5）
+    await authSession.bootstrap()
+    const token = authSession.getToken()
 
     if (to.meta.requiresAuth && !token) {
         // 未登录，重定向到登录页，并记录原目标以便登录后跳回

@@ -828,9 +828,10 @@ test('退出登录：确认弹窗 → 清 token → 跳登录页', async ({ page
   await expect(page.locator('input[placeholder="输入密码"]')).toBeVisible()
   const token = await page.evaluate(() => localStorage.getItem('bme-admin-token'))
   const stateToken = await page.evaluate(
-    () => JSON.parse(localStorage.getItem('bme-admin-state') || '{}').token
+    () => JSON.parse(localStorage.getItem('bme-admin-state') || '{}').token ?? null
   )
   expect(token).toBeNull()
+  // D1 起 token 不再入持久化白名单：字段缺位（undefined）与显式 null 都视为已清
   expect(stateToken).toBeNull()
 
   // 退出后访问受保护页：应被 401 踢回登录。
@@ -1571,6 +1572,12 @@ test('开发测试账号面板：独立页分组卡片，点击一键登录（im
       posted.push(route.request().postDataJSON())
       return route.fulfill({ json: { code: 200, token: 'e2e-quick-token', refresh_token: 'e2e-quick-refresh',
         User_Name: '本地超管(测试)', User_Id: 1, role: 'super_admin', permissions: [] } })
+    }
+    // 仪表盘 onMounted 的 super_admin 校验：mock 住，否则本机 5001 在跑时该请求
+    // 走 fallback 撞真后端（CORS/401）被 HomeView 当登录失效踢回登录页——
+    // 用例对「后端是否在跑」敏感且带竞态（D1 异步守卫改变时序后必现）
+    if (url.endsWith('/user/user_index')) {
+      return route.fulfill({ json: { code: 200, role: 'super_admin', permissions: [], User_Name: '本地超管(测试)' } })
     }
     return route.fallback()
   })

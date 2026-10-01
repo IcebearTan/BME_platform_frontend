@@ -70,7 +70,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useStore } from 'vuex'
-import api from '../../api'
+import api, { authSession } from '../../api'
 import DewButton from '@bme/dew-ui/DewButton.vue'
 import DewIslandGroup from '@bme/dew-ui/DewIslandGroup.vue'
 import DewSkeleton from '@bme/dew-ui/DewSkeleton.vue'
@@ -173,7 +173,7 @@ const todayHoursNum = computed(() => {
 const todayProgress = computed(() => Math.min(100, Math.round((todayHoursNum.value / 4) * 100)))
 
 // 登录检查
-const checkLogin = () => !!localStorage.getItem('bme-user-token')
+const checkLogin = () => !!authSession.getToken()
 
 // 获取最新打卡状态
 async function getLatestCheckStatus() {

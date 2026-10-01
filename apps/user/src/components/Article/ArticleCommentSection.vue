@@ -56,7 +56,7 @@ import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Star, StarFilled } from '@element-plus/icons-vue'
 import { DewInput, DewButton } from '@bme/dew-ui'
-import api from '../../api'
+import api, { authSession } from '../../api'
 import { assetUrl } from '../../services/campService'
 
 const props = defineProps({
@@ -71,7 +71,7 @@ const newComment = ref('')
 const loading = ref(true)
 const submitting = ref(false)
 
-const isLoggedIn = () => !!localStorage.getItem('bme-user-token')
+const isLoggedIn = () => !!authSession.getToken()
 
 // 绝对时间 → 相对时间
 const formatTime = (t) => {

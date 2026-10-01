@@ -1,5 +1,6 @@
 <script>
 import { useStore } from 'vuex'
+import { authSession } from '../api';
 import { Sunny, Moon } from '@element-plus/icons-vue'
 import NotificationBell from './Notification/NotificationBell.vue'
 
@@ -68,7 +69,7 @@ import { useWorkAccess } from '../composables/useWorkAccess'
 import { useWorkData } from '../composables/useWorkData'
 const { hasAccess: workAccess, detect: detectWorkAccess } = useWorkAccess()
 const { todoCounts, refreshSummary } = useWorkData()
-if (!!localStorage.getItem('bme-user-token')) detectWorkAccess()
+if (!!authSession.getToken()) detectWorkAccess()
 watch(workAccess, (v) => { if (v) refreshSummary().catch(() => {}) })
 // 徽标口径 = 工作台摘要条五桶之和（待回复/待接手/待验收/即将到期/已逾期），与 /work 首页一致
 const workTodoTotal = computed(() =>
@@ -89,7 +90,7 @@ const goWorkbench = () => {
 const DEFAULT_AVATAR = 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png'
 
 // 登录态：直接读取本地 token（与 api 拦截器 / 路由守卫一致的真相源），同步判定，无闪烁
-const isLogin = !!localStorage.getItem('bme-user-token')
+const isLogin = !!authSession.getToken()
 // 鉴权类页面（登录 / 注册 / 找回密码）隐藏头像与登录注册入口，由路由 meta 驱动
 const isAuthRoute = computed(() => !!route.meta.authPage)
 // 头像：优先取持久化的 store 头像，同步渲染无闪烁

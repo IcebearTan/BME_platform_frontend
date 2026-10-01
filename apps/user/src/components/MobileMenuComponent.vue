@@ -1,5 +1,6 @@
 <script setup>
 import { defineEmits, onMounted, watch, computed } from 'vue';
+import { authSession } from '../api';
 import { Close } from '@element-plus/icons-vue';
 import { useWorkAccess } from '../composables/useWorkAccess';
 import { useWorkData } from '../composables/useWorkData';
@@ -11,7 +12,7 @@ const emit = defineEmits(['close']);
 const { hasAccess: workAccess, detect: detectWorkAccess } = useWorkAccess();
 const { todoCounts, refreshSummary } = useWorkData();
 onMounted(() => {
-  if (localStorage.getItem('bme-user-token')) detectWorkAccess();
+  if (authSession.getToken()) detectWorkAccess();
 });
 // 有资格即取一次待办计数：抽屉入口与桌面头像下拉同口径（五桶之和）；
 // immediate 兜底探测早已完成（单例）的挂载场景

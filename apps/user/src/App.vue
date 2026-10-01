@@ -1,5 +1,6 @@
 <script>
 import { mapGetters } from 'vuex';
+import { authSession } from './api';
 import { watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useWorkAccess } from './composables/useWorkAccess';
@@ -13,7 +14,7 @@ export default {
     const route = useRoute();
     const { detect: detectWorkAccess } = useWorkAccess();
     watch(() => route.path, () => {
-      if (localStorage.getItem('bme-user-token')) detectWorkAccess();
+      if (authSession.getToken()) detectWorkAccess();
     });
   },
   computed: {

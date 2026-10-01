@@ -2,6 +2,14 @@ import Vuex from 'vuex';
 import VuexPersist from 'vuex-persistedstate';
 import { useRouter } from 'vue-router';
 
+// D1 安全地基：登录响应整体入 store 前剔除令牌字段（token 只经 facade/兼容键
+// 存管，杜绝 Vuex 持久化副本泄露；refresh 迁 HttpOnly cookie 后本地无任何令牌）
+const sanitizeUser = (user) => {
+    if (!user || typeof user !== 'object') return user;
+    const { token, refresh_token, ...rest } = user;
+    return rest;
+};
+
 // 用户等级（LV1-4 整数，1 为默认）归一：非整数/越界一律回退 1
 const normalizeLevel = (value) => {
     const n = Number(value);
@@ -37,7 +45,7 @@ export default new Vuex.Store({
             state.token = null;
         },
         setUser(state, user) {
-            state.user = user
+            state.user = sanitizeUser(user)
             // 登录响应整体入 store 时顺带提取等级（level 为 LV1-4 整数，1 为默认）
             if (user && user.level != null) state.level = normalizeLevel(user.level)
         },
@@ -126,8 +134,10 @@ export default new Vuex.Store({
     },
     plugins: [
         VuexPersist({
-            key: 'bme-user-state',  // 本地存储的键名
-            storage: window.localStorage,  // 使用 localStorage，也可以使用 sessionStorage
+            key: 'bme-user-state',
+            storage: window.localStorage,
+            // D1 白名单：token 不持久化（内存态，由 facade 引导恢复）；isLogin 是派生 getter 不落盘
+            paths: ['user', 'avatar', 'level', 'checkinInfo', 'isDarkMode'],
         })
     ]
 });

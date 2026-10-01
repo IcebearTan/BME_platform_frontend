@@ -2,6 +2,7 @@
 // /work/me 是探测端点：无资格回 200 空形；探测失败静默（仅失去入口，不影响页面主流程）。
 // 消费方：服务台入口卡 / 顶栏入口 / 组织架构页「进入工作区」按钮 / 通知中心「工作」tab。
 import { ref } from 'vue'
+import { authSession } from '../api';
 import { workService } from '../services/workService'
 
 // ── 模块级单例状态（所有 useWorkAccess() 实例共享） ──
@@ -18,7 +19,7 @@ export function useWorkAccess() {
   function detect(force = false) {
     const fresh = probe && Date.now() - probedAt < PROBE_TTL_MS
     if (!force && fresh) return probe
-    const token = localStorage.getItem('bme-user-token')
+    const token = authSession.getToken()
     if (!token) {                                 // 未登录：清空单例态，不发请求
       me.value = null
       hasAccess.value = false
