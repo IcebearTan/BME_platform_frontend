@@ -68,6 +68,10 @@
         <el-checkbox v-model="newWsAuto">入职自动授（建区即按现任归属/任职批量开通）</el-checkbox>
         <el-button type="primary" :disabled="!newWsGroup" :loading="wsSaving" @click="openWorkspace">开通工作区</el-button>
       </div>
+      <div v-if="!hasClubWs" class="open-ws-row" style="margin-top: 8px;">
+        <span class="open-ws-club-hint">社团工作区（全社公告与讨论，开通后自动授全部在任干事与各组组长）</span>
+        <el-button :loading="clubWsSaving" @click="openClubWorkspace">开通社团工作区</el-button>
+      </div>
     </DewCard>
 
     <!-- 开通授权 + 授权记录 + 撤销（拆分组件 GrantListSection） -->
@@ -142,6 +146,28 @@ const openableGroupOptions = computed(() => {
 const newWsGroup = ref(null)
 const newWsAuto = ref(true)
 const wsSaving = ref(false)
+const clubWsSaving = ref(false)
+const hasClubWs = computed(() => workspaces.value.some(w => w.scope === 'club'))
+
+const openClubWorkspace = async () => {
+  try {
+    await ElMessageBox.confirm(
+      '开通社团工作区？范围=全社公告与讨论，自动授权全部在任干事与各组组长（组长类为协调员）。',
+      '开通社团工作区', { confirmButtonText: '开通', cancelButtonText: '取消' })
+  } catch { return }
+  clubWsSaving.value = true
+  try {
+    const res = await api({ url: '/work/governance/workspaces', method: 'post',
+                            data: { scope: 'club', auto_grant: true } })
+    ElMessage.success(res.data?.message || '社团工作区已开通')
+    grantListRef.value?.fetchGrants()
+    await fetchWorkspaces()
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '开通失败')
+  } finally {
+    clubWsSaving.value = false
+  }
+}
 
 const openWorkspace = async () => {
   if (!newWsGroup.value) return
@@ -222,6 +248,11 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.open-ws-club-hint {
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+  margin-right: 12px;
+}
 .page-subtitle {
   margin: -12px 0 16px;
   font-size: 12.5px;
