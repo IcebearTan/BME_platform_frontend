@@ -44,6 +44,7 @@ const officerGroups = computed(() => {
     const g = map.get(o.title)
     if (o.department) g.departments.push(o.department)
     if (o.term_start && (!g.term_start || o.term_start < g.term_start)) g.term_start = o.term_start
+    if (o.scope_note) g.scope_note = o.scope_note   // 任职范围描述（管理端编辑，2026-10-02）
   }
   return [...map.values()]
 })
@@ -187,6 +188,7 @@ watch(() => props.userId, async () => {
           <div class="identity-meta">
             <span class="identity-dept">{{ g.departments.join(' / ') || '统筹全局' }}</span>
             <span class="identity-term" v-if="termLabel(g.term_start)">{{ termLabel(g.term_start) }} 起</span>
+            <div v-if="g.scope_note" class="identity-scope" :title="g.scope_note">{{ g.scope_note }}</div>
           </div>
         </div>
       </DewCard>
@@ -279,6 +281,15 @@ watch(() => props.userId, async () => {
 .identity-term {
   font-size: 12px;
   color: var(--dew-text-faint);
+}
+
+/* 任职范围描述：一行放不下时截断（完整内容由 title 悬停提示） */
+.identity-scope {
+  font-size: 12px;
+  color: var(--dew-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .profile-intro {
