@@ -43,8 +43,8 @@
         </div>
       </section>
 
-      <p v-if="!visibleGroups.length" class="dev-none">没有匹配「{{ keyword }}」的账号</p>
-      <p v-else-if="!groups.length" class="dev-none">测试账号服务不可用（检查后端 5001 与 DEV_TEST_ACCOUNTS 配置）</p>
+      <p v-if="!groups.length" class="dev-none">测试账号服务不可用（检查后端与 DEV_TEST_ACCOUNTS 配置；跨端口访问须在 CORS_ORIGINS 白名单）</p>
+      <p v-else-if="!visibleGroups.length" class="dev-none">没有匹配「{{ keyword }}」的账号</p>
     </div>
   </div>
 </template>
