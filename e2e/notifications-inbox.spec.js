@@ -460,3 +460,47 @@ test('无工作资格：「工作」tab 不浮出（学员不可见）', async (
 
   expect(errors).toEqual([])
 })
+
+test('社区互动深链：discussion_reply/discussion_like 直达帖子页（L2-1）', async ({ page }) => {
+  const errors = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  await loginAs(page, 'user')
+  // 复用闭环 mock（登录态/未读数/会话等基础端点），仅覆写通知列表为社区互动
+  await mockClosureBackend(page)
+  const NOW2 = new Date().toISOString()
+  await page.unroute('http://127.0.0.1:5001/**')
+  await page.route('http://127.0.0.1:5001/**', (route) => {
+    const url = route.request().url()
+    if (url.includes('/notification/unread_count')) {
+      return route.fulfill({ json: UNREAD })
+    }
+    if (url.includes('/notification/list')) {
+      return route.fulfill({ json: { code: 200, data: {
+        notifications: [
+          { id: 301, title: '你的内容有新回复', content: '李四 回复了你：同问', category: 'community',
+            source_type: 'discussion_reply', source_id: 88, camp_session_id: null,
+            is_read: false, is_important: false, created_at: NOW2 },
+          { id: 302, title: '你的内容获赞', content: '王五 赞了你的内容', category: 'community',
+            source_type: 'discussion_like', source_id: 88, camp_session_id: null,
+            is_read: false, is_important: false, created_at: NOW2 },
+        ],
+        total: 2, page: 1, pages: 1,
+      } } })
+    }
+    if (url.includes('/gratitude/received')) {
+      return route.fulfill({ json: { code: 200, data: { letters: [] } } })
+    }
+    if (url.includes('/camp/sessions') && !url.includes('/camp/ms')) {
+      return route.fulfill({ json: SESSIONS })
+    }
+    return route.fulfill({ json: { code: 200 } })
+  })
+
+  await page.goto(`${BASE}/notifications`, { waitUntil: 'domcontentloaded' })
+  await page.getByText('你的内容有新回复').click()
+  await expect(page).toHaveURL(/\/community\/thread\/88/)
+  await page.goto(`${BASE}/notifications`, { waitUntil: 'domcontentloaded' })
+  await page.getByText('你的内容获赞').click()
+  await expect(page).toHaveURL(/\/community\/thread\/88/)
+  expect(errors).toEqual([])
+})

@@ -33,6 +33,12 @@ export function notificationTarget(item) {
   if (item.source_type === 'identity_remind' || item.source_type === 'identity') {
     return { path: '/user-center/identity' }
   }
+  // 社区互动（回复/点赞，L2-1）：source_id=帖子 id，直达帖子页
+  if (item.source_type === 'discussion_reply' || item.source_type === 'discussion_like') {
+    return item.source_id
+      ? { path: `/community/thread/${item.source_id}` }
+      : { path: '/community' }
+  }
   if (item.category !== 'camp') {
     return { path: '/notifications' }
   }

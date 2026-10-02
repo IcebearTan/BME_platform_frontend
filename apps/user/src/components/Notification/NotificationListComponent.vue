@@ -283,8 +283,10 @@ function handleClick(item) {
     }
     return
   }
-  // 营期通知：按 source_type 深链直达业务对象（映射与铃铛共用 notificationTarget）
-  if (item.category === 'camp' || item.category === 'work') {
+  // 营期/工作台/社区互动通知：按 source_type 深链直达业务对象
+  // （映射与铃铛共用 notificationTarget；社区回复/点赞直达帖子页，L2-1）
+  if (item.category === 'camp' || item.category === 'work'
+      || item.category === 'community') {
     router.push(notificationTarget(item))
   }
 }
