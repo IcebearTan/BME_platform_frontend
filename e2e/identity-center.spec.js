@@ -68,12 +68,12 @@ test.describe('用户端身份中心', () => {
     })
     await page.goto('http://127.0.0.1:18081/AMEII/user-center/identity')
     await expect(page.getByText('人员档案', { exact: true })).toBeVisible()
-    await expect(page.getByText('已核验')).toBeVisible()
+    await expect(page.locator('.person-card').getByText('已核验')).toBeVisible()
     await expect(page.getByText('pa1b2c3d4e5f60718')).toBeVisible()
     await expect(page.getByText('张核验', { exact: true })).toBeVisible()
-    // 核验向导表单
+    // 核验区：已核验走固定展示块（无需再次发起），不再渲染草稿表单
     await expect(page.locator('.section-header', { hasText: '身份核验' })).toBeVisible()
-    await expect(page.getByPlaceholder('与名册一致的姓名')).toBeVisible()
+    await expect(page.getByText('本账号身份已核验通过，无需再次发起；如信息有误请联系管理员。')).toBeVisible()
     // 认领区：进行中案例与历史
     await expect(page.getByText('待确认执行')).toBeVisible()
     await expect(page.locator('.history .case-row', { hasText: '已完成' })).toBeVisible()
@@ -82,12 +82,36 @@ test.describe('用户端身份中心', () => {
     expect(errors).toEqual([])
   })
 
+  test('未核验且通道开放：核验向导表单渲染', async ({ page }) => {
+    await loginAsUser(page)
+    await page.route(`${API}/**`, (route) => {
+      const url = route.request().url()
+      if (url.includes('/identity/status')) {
+        return route.fulfill({ json: { ...MOCK_STATUS,
+          person: { ...MOCK_STATUS.person, verification_status: 'unverified',
+                    verified_name: null },
+          applications: [] } })
+      }
+      if (url.includes('/identity/link-cases')) return route.fulfill({ json: { code: 200, cases: [] } })
+      return route.fulfill({ json: { code: 200 } })
+    })
+    await page.goto('http://127.0.0.1:18081/AMEII/user-center/identity')
+    await expect(page.locator('.person-card').getByText('未核验')).toBeVisible()
+    await expect(page.getByPlaceholder('与名册一致的姓名')).toBeVisible()
+  })
+
   test('开关关闭：核验与认领显示暂未开放占位（状态卡仍可见）', async ({ page }) => {
     await loginAsUser(page)
     await page.route(`${API}/**`, (route) => {
       const url = route.request().url()
       if (url.includes('/identity/status')) {
-        return route.fulfill({ json: { ...MOCK_STATUS, applications: [],
+        // person 须为 unverified：verified 时向导固定展示已核验态（组件正确行为），
+        // 只有未核验且通道关闭才落 closed-block 占位
+        return route.fulfill({ json: { ...MOCK_STATUS,
+                                       person: { ...MOCK_STATUS.person,
+                                                 verification_status: 'unverified',
+                                                 verified_name: null },
+                                       applications: [],
                                        verification_enabled: false, ui_enabled: false } })
       }
       if (url.includes('/identity/link-cases')) return route.fulfill({ json: { code: 200, cases: [] } })
@@ -199,6 +223,86 @@ test.describe('管理端身份审核台', () => {
     await expect(page.getByText('mail2.sysu.edu.cn')).toBeVisible()
     await page.getByRole('button', { name: '编辑' }).click()
     await expect(page.getByText('个人邮箱域（每行一个，精确匹配；勿用通配符）')).toBeVisible()
-    await expect(page.getByText('核验负责人 user id（逗号分隔；至少 2 名才算运营就绪）')).toBeVisible()
+    await expect(page.getByText('核验负责人 user id（逗号分隔；须管理员账号；至少 2 名才算运营就绪）')).toBeVisible()
+  })
+})
+
+test.describe('R0 核验门槛（2026-10-02 收紧批）', () => {
+  test('未核验账号回首页：强弹核验提醒（不可关），按钮直达身份中心', async ({ page }) => {
+    await loginAsUser(page)
+    const errors = []
+    page.on('pageerror', (e) => errors.push(e.message))
+    await page.route(`${API}/**`, (route) => {
+      const url = route.request().url()
+      if (url.includes('/identity/status')) {
+        return route.fulfill({ json: { code: 200,
+          person: { public_id: 'pub1', verification_status: 'unverified' },
+          applications: [], schools: [],
+          verification_enabled: true, ui_enabled: true } })
+      }
+      if (url.includes('/user/user_index')) {
+        return route.fulfill({ json: { code: 200, User_Name: 'e2e_user',
+          verification_status: 'unverified' } })
+      }
+      return route.fulfill({ json: { code: 200 } })
+    })
+    await page.goto('http://127.0.0.1:18081/AMEII/home')
+    const dialog = page.locator('.el-dialog').filter({ hasText: '完成身份核验' })
+    await expect(dialog).toBeVisible()
+    await expect(page.locator('.el-dialog__headerbtn')).toHaveCount(0)   // 不可关：无 X
+    await dialog.getByRole('button', { name: '去核验' }).click()
+    await expect(page).toHaveURL(/\/AMEII\/user-center\/identity$/)
+    expect(errors).toEqual([])
+  })
+
+  test('社团职务任命：未核验目标被 403 拦截，成员下拉带未核验标识', async ({ page }) => {
+    await loginAsAdmin(page)
+    const errors = []
+    page.on('pageerror', (e) => errors.push(e.message))
+    await page.route(`${API}/**`, (route) => {
+      const url = route.request().url()
+      const method = route.request().method()
+      if (url.includes('/admin/officers') && method === 'POST') {
+        return route.fulfill({ status: 403, json: { code: 403,
+          machine: 'IDENTITY_VERIFICATION_REQUIRED', gate: 'appoint',
+          verification_status: 'unverified',
+          message: '苏晚晴：该账号尚未完成身份核验，不能被任命为 副社长——请先引导其在用户端「身份与账号」页完成实名核验' } })
+      }
+      if (url.includes('/admin/officers') && method === 'GET') {
+        return route.fulfill({ json: { code: 200, data: { officers: [], total: 0, page: 1, per_page: 20 } } })
+      }
+      if (url.includes('/admin/club/positions')) {
+        return route.fulfill({ json: { code: 200, data: { positions: [
+          { id: 2, name: '副社长', org_slot: 'club', sort_rank: 2, badge_tier: 1,
+            badge_with_group: true, group_rule: 'optional', per_group_limit: 1,
+            global_limit: 3, status: 'active', active_count: 0 },
+        ] } } })
+      }
+      if (url.includes('/admin/club/groups')) {
+        return route.fulfill({ json: { code: 200, data: { groups: [] } } })
+      }
+      if (url.includes('/user/user_list')) {
+        return route.fulfill({ json: [
+          { User_Id: 21, User_Name: '苏晚晴', verification_status: 'unverified' },
+          { User_Id: 22, User_Name: '顾亦深', verification_status: 'verified' },
+        ] })
+      }
+      if (url.includes('/user/user_index')) {
+        return route.fulfill({ json: { code: 200, User_Name: 'e2e_admin', role: 'super_admin' } })
+      }
+      return route.fulfill({ json: { code: 200 } })
+    })
+    await page.goto('http://127.0.0.1:15173/admin/organization/officers')
+    await page.getByRole('button', { name: '任命' }).click()
+    const dialog = page.locator('.el-dialog').filter({ hasText: '任命干事' })
+    await dialog.locator('.el-select').first().click()
+    const memberDropdown = page.locator('.el-select__popper:visible')
+    await expect(memberDropdown.locator('.option-warn', { hasText: '未核验' })).toHaveCount(1)
+    await memberDropdown.getByText('苏晚晴', { exact: true }).click()
+    await dialog.locator('.el-select').nth(1).click()
+    await page.locator('.el-select__popper:visible').getByText('副社长', { exact: true }).click()
+    await dialog.getByRole('button', { name: '确认' }).click()
+    await expect(page.locator('.el-message').filter({ hasText: '尚未完成身份核验' })).toBeVisible()
+    expect(errors).toEqual([])
   })
 })

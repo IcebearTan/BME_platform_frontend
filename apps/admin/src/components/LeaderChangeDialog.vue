@@ -10,6 +10,7 @@
           style="width: 100%;" :loading="usersLoading">
           <el-option v-for="u in users" :key="u.User_Id" :label="u.User_Name" :value="u.User_Id">
             <span>{{ u.User_Name }}</span>
+            <span v-if="u.verification_status && u.verification_status !== 'verified'" class="option-warn">未核验</span>
             <span class="option-id">#{{ u.User_Id }}</span>
           </el-option>
         </el-select>
@@ -185,5 +186,11 @@ async function submit() {
   float: right;
   color: var(--el-text-color-secondary);
   font-size: 12px;
+}
+
+.option-warn {
+  margin-left: 8px;
+  font-size: 12px;
+  color: var(--el-color-warning);
 }
 </style>

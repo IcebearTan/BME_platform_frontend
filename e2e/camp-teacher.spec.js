@@ -54,7 +54,7 @@ async function loginAs(page) {
     localStorage.setItem('bme-user-token', 'e2e-mock-token')
     localStorage.setItem('bme-user-state', JSON.stringify({
       token: 'e2e-mock-token', isLogin: true, isDarkMode: false,
-      user: { role: 'user' }, checkinInfo: {},
+      user: { role: 'user', verification_status: 'verified' }, checkinInfo: {},
     }))
   })
 }

@@ -2,6 +2,7 @@
 // 身份中心（D4，规格 12.1）：核验状态 + 身份核验向导 + 账号认领。
 // 路由 /user-center/identity（个人中心「账户与反馈」分组）。
 import { ref, computed, onMounted } from 'vue'
+import { useStore } from 'vuex'
 import { ElMessage } from 'element-plus'
 import { CircleCheck, Connection } from '@element-plus/icons-vue'
 import { DewCard } from '@bme/dew-ui'
@@ -10,6 +11,7 @@ import VerificationWizard from './VerificationWizard.vue'
 import RosterClaimCard from './RosterClaimCard.vue'
 import LinkCasePanel from './LinkCasePanel.vue'
 
+const store = useStore()
 const loading = ref(true)
 const status = ref({ person: null, applications: [], schools: [], })
 const cases = ref([])
@@ -30,7 +32,12 @@ const fetchAll = async () => {
       api({ url: '/identity/status', method: 'get' }),
       api({ url: '/identity/link-cases', method: 'get' }),
     ])
-    if (st.data.code === 200) status.value = st.data
+    if (st.data.code === 200) {
+      status.value = st.data
+      // R0 收紧批：核验态回写 store（首页强弹提醒据此停弹；旧会话免重登自愈）
+      const live = st.data?.data?.person?.verification_status
+      if (live) store.commit('patchIdentity', { verification_status: live })
+    }
     if (cs.data.code === 200) cases.value = cs.data.cases || []
   } catch (error) {
     // 状态页数据失败只提示一次，不打断布局

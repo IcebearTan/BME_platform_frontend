@@ -53,11 +53,12 @@ export default new Vuex.Store({
         // 旧客户端无须重新登录即自愈；未登录（state.user 为空）时忽略
         patchIdentity(state, identity) {
             if (!state.user || !identity) return
-            const { role, permissions, level } = identity
+            const { role, permissions, level, verification_status } = identity
             state.user = {
                 ...state.user,
                 ...(role !== undefined && { role }),
                 ...(permissions !== undefined && { permissions }),
+                ...(verification_status !== undefined && { verification_status }),
             }
             if (level != null) state.level = normalizeLevel(level)
         },
@@ -130,6 +131,9 @@ export default new Vuex.Store({
         permissions: (state) => state.user?.permissions || [],
         // 用户等级 LV1-4（写入时已归一；旧持久化态无该键时回退 1）
         level: (state) => state.level ?? 1,
+        // 人员核验态（R0 收紧批 2026-10-02）：登录/续期/身份中心回写；旧会话无该键回退 unverified
+        verificationStatus: (state) => state.user?.verification_status || 'unverified',
+        isVerified: (_state, getters) => getters.verificationStatus === 'verified',
         can: (_state, getters) => (perm) => getters.role === 'super_admin' || getters.permissions.includes(perm),
     },
     plugins: [

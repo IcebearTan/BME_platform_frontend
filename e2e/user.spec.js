@@ -30,7 +30,7 @@ test('顶部学期营入口直达当前主推营期', async ({ page }) => {
     localStorage.setItem('bme-user-token', 'e2e-mock-token')
     localStorage.setItem('bme-user-state', JSON.stringify({
       token: 'e2e-mock-token', isLogin: true, isDarkMode: false,
-      user: { username: 'test_user', role: 'user' }, checkinInfo: {},
+      user: { username: 'test_user', role: 'user', verification_status: 'verified' }, checkinInfo: {},
     }))
   })
   await page.route('http://127.0.0.1:5001/**', route => {
@@ -84,7 +84,7 @@ test('首页轮播 DB 驱动渲染 + 空态隐藏', async ({ page }) => {
     localStorage.setItem('bme-user-token', 'e2e-mock-token')
     localStorage.setItem('bme-user-state', JSON.stringify({
       token: 'e2e-mock-token', isLogin: true, isDarkMode: false,
-      user: { username: 'test_user', role: 'user' }, checkinInfo: {},
+      user: { username: 'test_user', role: 'user', verification_status: 'verified' }, checkinInfo: {},
     }))
   })
   await page.route('http://127.0.0.1:5001/**', route => (
@@ -128,7 +128,7 @@ test('首页卡片轮播：正反切换时环形侧卡不覆盖退出卡', async
     localStorage.setItem('bme-user-token', 'e2e-mock-token')
     localStorage.setItem('bme-user-state', JSON.stringify({
       token: 'e2e-mock-token', isLogin: true, isDarkMode: false,
-      user: { username: 'test_user', role: 'user' }, checkinInfo: {},
+      user: { username: 'test_user', role: 'user', verification_status: 'verified' }, checkinInfo: {},
     }))
   })
   await page.route('http://127.0.0.1:5001/**', route => (
@@ -168,7 +168,7 @@ test('课程列表封面：有缩略图出图、无封面回退色块', async ({
     localStorage.setItem('bme-user-token', 'e2e-mock-token')
     localStorage.setItem('bme-user-state', JSON.stringify({
       token: 'e2e-mock-token', isLogin: true, isDarkMode: false,
-      user: { username: 'test_user', role: 'user' }, checkinInfo: {},
+      user: { username: 'test_user', role: 'user', verification_status: 'verified' }, checkinInfo: {},
     }))
   })
   await page.route('http://127.0.0.1:5001/**', route => (
@@ -284,7 +284,7 @@ test('全站搜索用户域：导航回车进搜索页，点结果进个人主�
     localStorage.setItem('bme-user-token', 'e2e-mock-token')
     localStorage.setItem('bme-user-state', JSON.stringify({
       token: 'e2e-mock-token', isLogin: true, isDarkMode: false,
-      user: { username: 'test_user', role: 'user' }, checkinInfo: {},
+      user: { username: 'test_user', role: 'user', verification_status: 'verified' }, checkinInfo: {},
     }))
   })
   const pageErrors = []
@@ -343,7 +343,7 @@ test('开发测试账号面板：独立页分组卡片，点击一键登录（im
     if (route.request().method() === 'POST' && url.endsWith('/auth/login')) {
       posted.push(route.request().postDataJSON())
       return route.fulfill({ json: { code: 200, token: 'e2e-quick-token', refresh_token: 'e2e-quick-refresh',
-        User_Name: '学员小一', User_Id: 1, role: 'user' } })
+        User_Name: '学员小一', User_Id: 1, role: 'user', verification_status: 'verified' } })
     }
     if (url.includes('/user/user_avatars')) {
       return route.fulfill({ json: { code: 200, avatar_path: null } })

@@ -106,7 +106,7 @@ async function loginAsUser(page, meData = ME_GRANTED) {
     localStorage.setItem('bme-user-token', 'e2e-mock-token')
     localStorage.setItem('bme-user-state', JSON.stringify({
       token: 'e2e-mock-token', isLogin: true, isDarkMode: false,
-      user: { role: 'user', User_Id: 21, User_Name: '陈干事' }, checkinInfo: {},
+      user: { role: 'user', User_Id: 21, User_Name: '陈干事', verification_status: 'verified' }, checkinInfo: {},
     }))
   })
   await page.route('http://127.0.0.1:5001/**', (route) => {

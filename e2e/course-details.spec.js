@@ -50,7 +50,7 @@ async function mockDetailsPage(page, {
     localStorage.setItem('bme-user-token', 'e2e-mock-token')
     localStorage.setItem('bme-user-state', JSON.stringify({
       token: 'e2e-mock-token', isLogin: true, isDarkMode: false, level: 2,
-      user: { role: 'user' }, checkinInfo: {},
+      user: { role: 'user', verification_status: 'verified' }, checkinInfo: {},
     }))
   })
   await page.route('http://127.0.0.1:5001/**', (route) => {
@@ -371,7 +371,7 @@ test('暗色模式：详情页无 pageerror，操作区可见', async ({ page })
     localStorage.setItem('bme-user-token', 'e2e-mock-token')
     localStorage.setItem('bme-user-state', JSON.stringify({
       token: 'e2e-mock-token', isLogin: true, isDarkMode: true, level: 2,
-      user: { role: 'user' }, checkinInfo: {},
+      user: { role: 'user', verification_status: 'verified' }, checkinInfo: {},
     }))
   })
   await mockDetailsPage(page, { courseMode: 'open' })
