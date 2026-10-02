@@ -13,6 +13,9 @@ const canManage = computed(() => store.getters.can('system_management'));
 const formInline = reactive({
   key: ''
 });
+// 身份核验状态文案（与用户端身份中心 V_TEXT 同词表）
+const V_TEXT = { unverified: '未核验', pending: '核验中', verified: '已核验',
+                 disputed: '争议中', revoked: '已撤销' };
 const users = ref([]);
 const allUsers = ref([]);
 const filteredUsers = ref([]);
@@ -283,6 +286,18 @@ onMounted(() => {
               <el-tag :type="banned(row) ? 'danger' : 'success'" size="small" :effect="banned(row) ? 'dark' : 'light'">
                 {{ banned(row) ? '已封禁' : '正常' }}
               </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="核验" width="100" align="center">
+            <template #default="{ row }">
+              <el-tooltip v-if="row.verification_status === 'verified' && row.verified_name"
+                          :content="`核验姓名：${row.verified_name}`" placement="top">
+                <el-tag type="success" size="small" effect="dark">已核验</el-tag>
+              </el-tooltip>
+              <el-tag v-else-if="row.verification_status" type="info" size="small" effect="plain">
+                {{ V_TEXT[row.verification_status] || row.verification_status }}
+              </el-tag>
+              <span v-else>—</span>
             </template>
           </el-table-column>
           <el-table-column v-if="canManage" label="操作" width="150" align="center">

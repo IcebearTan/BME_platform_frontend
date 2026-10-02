@@ -84,6 +84,7 @@ onMounted(fetchAll)
       <VerificationWizard :schools="status.schools"
                           :applications="status.applications"
                           :enabled="verificationOpen"
+                          :verified="!!person && person.verification_status === 'verified'"
                           @refresh="fetchAll" />
     </DewCard>
 

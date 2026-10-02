@@ -3,12 +3,14 @@
 // 不写 localStorage/Vuex/URL（规格 12.1）。
 import { ref, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { CircleCheck } from '@element-plus/icons-vue'
 import api from '../../api'
 
 const props = defineProps({
   schools: { type: Array, default: () => [] },
   applications: { type: Array, default: () => [] },
   enabled: { type: Boolean, default: false },
+  verified: { type: Boolean, default: false },
 })
 const emit = defineEmits(['refresh'])
 
@@ -25,6 +27,15 @@ const activeDraft = computed(() =>
   props.applications.find(a => a.status === 'draft'))
 const reviewPending = computed(() =>
   props.applications.find(a => ['submitted', 'reviewing'].includes(a.status)))
+// 最近一次通过的申请（已核验态展示姓名/NetID 用；归并继承核验时可能没有）
+const approvedApp = computed(() => {
+  const list = props.applications.filter(a => a.status === 'approved')
+  return list.length ? list[list.length - 1] : null
+})
+const schoolName = (id) => {
+  const s = props.schools.find(x => x.school_id === id)
+  return (s && s.name) || id || '—'
+}
 
 const STATUS_TEXT = {
   draft: '草稿', submitted: '待审核', reviewing: '审核中',
@@ -168,12 +179,46 @@ const withdraw = async (row) => {
 
 <template>
   <div class="verify-wizard">
-    <!-- 待审核中：只读进度 -->
+    <!-- 审核中：固定展示已提交信息（不可再编辑） -->
     <div v-if="reviewPending" class="pending-block">
-      <el-tag type="warning" effect="plain">待核验负责人审核</el-tag>
-      <span class="pending-hint">提交于 {{ reviewPending.created_at }}，预计两个工作日内处理；
-        超时可经「反馈记录」联系负责人。</span>
-      <el-button link type="danger" @click="withdraw(reviewPending)">撤回申请</el-button>
+      <div class="fixed-grid">
+        <div class="fixed-item">
+          <div class="fixed-label">学校</div>
+          <div class="fixed-value">{{ schoolName(reviewPending.school_id) }}</div>
+        </div>
+        <div class="fixed-item">
+          <div class="fixed-label">姓名</div>
+          <div class="fixed-value">{{ reviewPending.claimed_name }}</div>
+        </div>
+        <div class="fixed-item">
+          <div class="fixed-label">NetID / 学号</div>
+          <div class="fixed-value mono">{{ reviewPending.claimed_identifier }}</div>
+        </div>
+        <div class="fixed-item">
+          <div class="fixed-label">邮箱</div>
+          <div class="fixed-value">{{ reviewPending.contact_email }}</div>
+        </div>
+      </div>
+      <div class="pending-line">
+        <el-tag type="warning" effect="plain">
+          {{ STATUS_TEXT[reviewPending.status] || reviewPending.status }}
+        </el-tag>
+        <span class="pending-hint">提交于 {{ reviewPending.created_at }}，预计两个工作日内处理；
+          超时可经「反馈记录」联系负责人。</span>
+        <el-button link type="danger" @click="withdraw(reviewPending)">撤回申请</el-button>
+      </div>
+    </div>
+
+    <!-- 已核验：固定样式，不可再发起 -->
+    <div v-else-if="verified" class="verified-block">
+      <div class="verified-line">
+        <el-icon class="verified-icon"><CircleCheck /></el-icon>
+        <el-tag type="success" effect="dark">已核验</el-tag>
+        <span v-if="approvedApp" class="verified-name">
+          {{ approvedApp.claimed_name }} · {{ approvedApp.claimed_identifier }}
+        </span>
+      </div>
+      <div class="verified-hint">本账号身份已核验通过，无需再次发起；如信息有误请联系管理员。</div>
     </div>
 
     <template v-else-if="enabled">
@@ -261,8 +306,18 @@ const withdraw = async (row) => {
 .submit-line { display: flex; align-items: center; gap: 12px; }
 .submit-hint { color: var(--dew-text-muted, #94a3b8); font-size: 13px; }
 .submit-hint.ok { color: var(--color-success, #10b981); }
-.pending-block { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.pending-block { display: flex; flex-direction: column; gap: 12px; }
+.pending-line { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .pending-hint { color: var(--dew-text-muted, #94a3b8); font-size: 13px; }
+.fixed-grid { display: flex; gap: 40px; flex-wrap: wrap; }
+.fixed-label { color: var(--dew-text-muted, #94a3b8); font-size: 12px; margin-bottom: 4px; }
+.fixed-value { font-weight: 600; }
+.fixed-value.mono { font-family: var(--dew-font-mono, monospace); letter-spacing: .5px; }
+.verified-block { display: flex; flex-direction: column; gap: 10px; padding: 4px 0; }
+.verified-line { display: flex; align-items: center; gap: 10px; }
+.verified-icon { color: var(--color-success, #10b981); font-size: 20px; }
+.verified-name { font-weight: 600; }
+.verified-hint { color: var(--dew-text-muted, #94a3b8); font-size: 13px; }
 .closed-block { color: var(--dew-text-muted, #94a3b8); padding: 12px 0; }
 .history { margin-top: 20px; border-top: 1px solid var(--dew-card-divider, rgba(148,163,184,.18)); padding-top: 12px; }
 .history-title { font-weight: 600; margin-bottom: 8px; }
