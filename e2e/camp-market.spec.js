@@ -376,8 +376,10 @@ test('导生工作台：谁报了我只读名单，无收人按钮', async ({ pa
   const bioInput = page.getByPlaceholder('介绍你的经历、擅长的方向、能带学员做什么，以及你期待怎样的伙伴。')
   const linkedBio = 'A[项目主页](https://example.com/mentor-profile)B'
   await bioInput.fill('AB')
-  await bioInput.press('Home')
-  await bioInput.press('ArrowRight')
+  // 光标定位到 A|B 中间：press('Home'/'ArrowRight') 在 DewInput textarea 上不移动
+  // 光标（10-02 实测 ss 停在末尾），改用 setSelectionRange 模拟用户点击中间——
+  // 失焦（弹窗打开）后 selection 保留，insertText 按 selectionStart 插入
+  await bioInput.evaluate(el => el.setSelectionRange(1, 1))
   await page.getByRole('button', { name: '插入链接', exact: true }).click()
   await page.getByPlaceholder('例如：项目资料').fill('项目主页')
   await page.getByPlaceholder('https://example.com').fill('https://example.com/mentor-profile')

@@ -21,6 +21,17 @@ const SESSIONS = {
   ],
 }
 
+// 相对日期帮手（10-02 教训：mock 写死日期会随时间漂移——会期一过，状态章从
+// 「待布置」变「待纪要」、认证横幅变「已逾期」，断言即挂。一律用未来相对日期）
+const plusDays = (n) => {
+  const d = new Date(Date.now() + n * 86400000)
+  const p = (x) => String(x).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+}
+const MTG_DATE = plusDays(7)                 // 新建组会：未来 → 待布置态
+const CH_MTG_DATE = plusDays(3)              // 课内组会：未来 → 进行中态
+const CH_DUE = `${plusDays(5)}T18:00`        // 课内认证截止：未来 → 未逾期
+
 const MEETING = {
   id: 11, scope: 'team', unit_id: null, mentor_id: 49,
   title: '第一周组会 · 方向讨论', meeting_date: '2026-09-16',
@@ -98,7 +109,7 @@ test('导生·发起组会：轻量创建（主题+日期）后直达布置编�
   const posted = { count: 0, body: '' }
   const meetings = []
   // 新流程：创建=主题+日期（无纪要/附件 → 待布置态），纪要第 3 步会后归档
-  const created = { ...MEETING, id: 12, title: '第二周组会 · 阶段小结', meeting_date: '2026-09-23',
+  const created = { ...MEETING, id: 12, title: '第二周组会 · 阶段小结', meeting_date: MTG_DATE,
     content: null, attachments: [], task_count: 0, chapter_count: 0 }
   await loginAsUser(page, [
     { url: '/team-meetings', resp: (route) => route.request().method() === 'POST'
@@ -124,7 +135,7 @@ test('导生·发起组会：轻量创建（主题+日期）后直达布置编�
   await expect(dlg.locator('.flow-steps')).toContainText('会后提交纪要')
   await expect(page.getByRole('button', { name: '创建并去布置' })).toBeDisabled()
   await page.getByPlaceholder('如：第一周组会 · 方向讨论').fill('第二周组会 · 阶段小结')
-  await dlg.locator('input[type="date"]').fill('2026-09-23')
+  await dlg.locator('input[type="date"]').fill(MTG_DATE)
   await expect(page.getByRole('button', { name: '创建并去布置' })).toBeEnabled()
   // 创建成功 → 直达独立「布置」弹窗（第 2 步引导条 + 任务编辑器；不经过详情）
   meetings.push(created)
@@ -142,7 +153,7 @@ test('导生·发起组会：轻量创建（主题+日期）后直达布置编�
   await expect(page.locator('.mtg-foot-acts').getByRole('button', { name: '提交纪要' })).toBeVisible()
   expect(posted.count).toBe(1)
   expect(posted.body).toContain('第二周组会 · 阶段小结')
-  expect(posted.body).toContain('2026-09-23')
+  expect(posted.body).toContain(MTG_DATE)
   expect(errors).toEqual([])
 })
 
@@ -236,9 +247,9 @@ const DETAIL_MEMBER = {
 
 // 纯课内布置（09-20 完成口径修正的核心场景）：0 任务 + 2 章未认证 + 认证截止
 const CH_ONLY_MEETING = {
-  ...MEETING, id: 13, title: '第二周组会 · 课内推进', meeting_date: '2026-09-22',
+  ...MEETING, id: 13, title: '第二周组会 · 课内推进', meeting_date: CH_MTG_DATE,
   content: '', attachments: [],
-  task_count: 0, chapter_count: 2, chapter_due_at: '2026-09-25T18:00:00',
+  task_count: 0, chapter_count: 2, chapter_due_at: `${CH_DUE}:00`,
   my_pending: 0, my_chapter_pending: 2, my_overdue: 0, my_chapter_overdue: 0,
 }
 const DETAIL_MEMBER_CH = {
@@ -301,7 +312,7 @@ test('导生·组会详情：布置编辑与审阅矩阵', async ({ page }) => {
   await expect(page.locator('.dew-dialog')).toHaveCount(1)
   await expect(page.locator('.dew-dialog')).toContainText('布置 ·')
   await page.locator('.ch-chip', { hasText: '第二章：材料' }).click()
-  await page.locator('.ch-life-row .life-due').fill('2026-09-25T18:00')
+  await page.locator('.ch-life-row .life-due').fill(CH_DUE)
   await page.locator('.dew-dialog').getByRole('button', { name: '添加任务' }).click()
   await page.getByPlaceholder('任务标题（如：读一篇方向综述并写笔记）').last().fill('翻译练习')
   await page.locator('.dew-dialog').getByRole('button', { name: '保存布置' }).click()
@@ -310,7 +321,7 @@ test('导生·组会详情：布置编辑与审阅矩阵', async ({ page }) => {
   expect(assignBody).toContain('翻译练习')
   const parsed = JSON.parse(assignBody || '{}')
   expect(parsed.chapters).toEqual(expect.arrayContaining([7, 8]))
-  expect(parsed.chapter_due_at).toBe('2026-09-25T18:00')
+  expect(parsed.chapter_due_at).toBe(CH_DUE)
   expect(parsed.tasks.length).toBe(3)
   expect(errors).toEqual([])
 })
@@ -390,7 +401,8 @@ test('组员·纯课内布置：待办计数与组会域内提交材料', async 
   await expect(dlg).toBeVisible()
   await expect(dlg.locator('.md-sec-meta', { hasText: '待完成 2' })).toBeVisible()
   await expect(dlg.locator('.cg-course')).toContainText('生物医学工程导论')
-  await expect(dlg.locator('.cg-due')).toContainText('需在 09-25 18:00 前完成认证')
+  await expect(dlg.locator('.cg-due'))
+    .toContainText(`需在 ${CH_DUE.slice(5).replace('T', ' ')} 前完成认证`)
   await expect(dlg.locator('.cg-cert', { hasText: '未认证' })).toHaveCount(2)
   await expect(dlg.getByRole('button', { name: '去学习' })).toBeVisible()
 
