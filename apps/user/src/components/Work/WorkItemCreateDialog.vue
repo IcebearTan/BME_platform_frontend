@@ -4,7 +4,10 @@
 // 执行 publish 命令并跳转详情。
 import { ref, reactive, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useStore } from 'vuex'
 import { ElMessage } from 'element-plus'
+import { MdEditor } from 'md-editor-v3'
+import 'md-editor-v3/lib/style.css'
 import { DewDialog, DewInput, DewButton } from '@bme/dew-ui'
 import { workService, VISIBILITY_LABELS } from '../../services/workService'
 
@@ -36,6 +39,15 @@ const idempotencyKey = ref('')
 const PRIORITY_OPTIONS = [
   { value: 'normal', label: '普通' }, { value: 'high', label: '高' }, { value: 'urgent', label: '紧急' },
 ]
+
+// 正文编辑器工具栏：保留基础排版与列表/引用/代码/链接/表格；排除重工具与图片
+// （弹窗内空间有限；图片走附件面板，无图床通道）
+const TOOLBAR_EXCLUDE = [
+  'mermaid', 'katex', 'github', 'htmlPreview', 'save', 'sub', 'sup',
+  'catalog', 'fullscreen', 'image', 'pdf', 'prettier', 'strike', 'preview',
+]
+const store = useStore()
+const isDarkMode = computed(() => store.getters.isDarkMode)
 
 async function loadCandidates() {
   if (candidates.value.length) return
@@ -127,7 +139,7 @@ function finishCreate(itemId) {
 </script>
 
 <template>
-  <DewDialog v-model="visible" title="发起工作事项" :width="540">
+  <DewDialog v-model="visible" title="发起工作事项" :width="660">
     <el-form label-width="84px">
       <el-form-item label="类型">
         <el-radio-group v-model="form.kind">
@@ -194,8 +206,18 @@ function finishCreate(itemId) {
       </template>
 
       <el-form-item label="正文">
-        <el-input v-model="form.body" type="textarea" :rows="4" maxlength="20000"
-                  placeholder="补充说明、背景与要解决的问题。支持 Markdown，详情页按格式渲染" />
+        <!-- L3-2：正文升级 md-editor（阅读端 MdPreview 早已按 md 渲染，编辑端此前
+             是裸源码 textarea）。图片不入工具栏——工作台图片走附件面板，无社区图床 -->
+        <MdEditor
+          v-model="form.body"
+          class="body-editor"
+          :theme="isDarkMode ? 'dark' : 'light'"
+          :toolbars-exclude="TOOLBAR_EXCLUDE"
+          :no-prettier="true"
+          :max-length="20000"
+          :style="{ height: '240px' }"
+          placeholder="补充说明、背景与要解决的问题。支持 Markdown，详情页按格式渲染"
+        />
       </el-form-item>
       <el-form-item label="发布">
         <el-checkbox v-model="form.publishNow">立即发布（取消则保存为仅自己可见的草稿）</el-checkbox>
@@ -218,4 +240,10 @@ function finishCreate(itemId) {
   line-height: 1.6;
 }
 .option-id { float: right; color: var(--dew-text-muted); font-size: 12px; }
+/* 正文 md-editor：撑满表单列；DewDialog 实色底上直接落编辑器自身配色 */
+.body-editor {
+  width: 100%;
+  border-radius: 10px;
+  overflow: hidden;
+}
 </style>
