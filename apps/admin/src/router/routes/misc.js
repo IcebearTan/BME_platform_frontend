@@ -6,6 +6,7 @@ const loadIdentityLinkCases = () => import('../../components/IdentityLinkCases.v
 const loadIdentitySchools = () => import('../../components/IdentitySchools.vue')
 const loadIdentityRoster = () => import('../../components/IdentityRoster.vue')
 const loadIdentityRecovery = () => import('../../components/IdentityRecovery.vue')
+const loadIdentityAuxiliary = () => import('../../components/IdentityAuxiliary.vue')
 const loadSecuritySettings = () => import('../../components/SecuritySettings.vue')
 const loadSeatManage = () => import('../../components/SeatManage.vue')
 const loadAttendanceReportManage = () => import('../../components/AttendanceReportManage.vue')
@@ -64,6 +65,12 @@ export const miscRoutes = [
     name: 'system_identity_recovery',
     component: loadIdentityRecovery,
     meta: { title: '恢复申诉', domain: 'system', navGroup: 'system', navOrder: 16, showInMenu: true, icon: 'Tickets', staffOnly: true },
+  },
+  {
+    path: '/system/identity/auxiliary',
+    name: 'system_identity_auxiliary',
+    component: loadIdentityAuxiliary,
+    meta: { title: '辅助账号', domain: 'system', navGroup: 'system', navOrder: 17, showInMenu: true, icon: 'Key', staffOnly: true },
   },
   {
     path: '/system/security',

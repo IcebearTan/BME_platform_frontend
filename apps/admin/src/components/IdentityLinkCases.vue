@@ -1,7 +1,7 @@
 <script setup>
 // 关联案例审核（D4）：队列 / 空壳扫描结果 / 批准 / 驳回（阻断项双人批准，规格 12.2）。
 import { ref, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { DewCard } from '@bme/dew-ui'
 import api from '../api'
 
@@ -84,6 +84,27 @@ const decide = async (decision) => {
   }
 }
 
+const freeze = async (row) => {
+  try {
+    await ElMessageBox.confirm(
+      '冻结后该账号转为「已合并」（撤登录会话与续办宽限）。请在确认其进行中的事项已交接完成后执行。',
+      '续办期满冻结', { type: 'warning', confirmButtonText: '确认冻结' })
+  } catch { return }
+  try {
+    const res = await api({
+      url: `/admin/identity/link-cases/${row.id}/freeze`, method: 'post' })
+    if (res.data.code === 200) {
+      ElMessage.success('已冻结')
+      fetchQueue()
+    } else {
+      ElMessage.error(res.data.message || '操作失败')
+    }
+  } catch (error) {
+    const m = error?.response?.data?.message
+    ElMessage.error((typeof m === 'string' && m) || '操作失败')
+  }
+}
+
 onMounted(fetchQueue)
 </script>
 
@@ -131,9 +152,11 @@ onMounted(fetchQueue)
           </template>
         </el-table-column>
         <el-table-column prop="created_at" label="创建时间" width="140" />
-        <el-table-column label="操作" width="90" fixed="right">
+        <el-table-column label="操作" width="150" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="openDetail(row)">审核</el-button>
+            <el-button v-if="row.state === 'applied' && row.b_lifecycle === 'active'"
+                       link type="warning" @click="freeze(row)">冻结</el-button>
           </template>
         </el-table-column>
       </el-table>
