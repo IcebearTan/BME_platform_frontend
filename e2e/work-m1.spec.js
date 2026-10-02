@@ -170,6 +170,9 @@ test.describe('管理端 协作授权治理页', () => {
     // 工作区表：软件组启用 / 硬件组停用；入职自动授开关列渲染（软件组开/硬件组关且停用禁用）
     await expect(page.getByText('软件组').first()).toBeVisible()
     await expect(page.locator('.el-switch').first()).toBeVisible()
+    // 选中态防回归（2026-10-03 修：治理列表曾漏 auto_grant 字段，开关恒显示关）
+    await expect(page.locator('.el-switch').first()).toHaveClass(/is-checked/)
+    await expect(page.locator('.el-switch').nth(1)).not.toHaveClass(/is-checked/)
     // 授权记录：失效原因 / 来源列（自动/手动）/ 否决状态与解除入口
     await expect(page.getByText('已失效：组归属已调整（授权绑定原组）')).toBeVisible()
     await expect(page.getByText('生效中').first()).toBeVisible()
