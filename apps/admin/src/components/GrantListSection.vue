@@ -338,7 +338,7 @@ const confirmRevoke = async () => {
   try {
     const res = await api({ url: `/work/governance/grants/${revokeTarget.value.id}/revoke`,
                             method: 'post',
-                            data: { reason: revokeReason.trim(), veto: revokeVeto.value } })
+                            data: { reason: revokeReason.value.trim(), veto: revokeVeto.value } })
     ElMessage.success(res.data?.message || '已撤销')
     revokeVisible.value = false
     emit('changed')          // 工作区有效授权计数需要刷新，由主页面处理

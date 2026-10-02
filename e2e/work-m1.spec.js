@@ -212,12 +212,14 @@ test.describe('管理端 协作授权治理页', () => {
     })
   })
 
-  // fixme 记录（2026-09-30）：e2e 环境下该弹窗内 el-button 的点击不产生任何事件/网络活动
-  //（30+ 轮排查：编译产物/组件实例/setupState/DOM/事件机制/裸 fetch 拦截逐层验证均正常，
-  // 同模式任命弹窗正常，唯此组件的 dialog 内按钮点击零反应，根因未定位）。撤销接口契约
-  // 由后端 dev_smoke_work_collab.py 冒烟覆盖；组件逻辑已用 setupState 直调验证可通。
-  // 下方用例保留完整断言结构，修复后去掉 .fixme 即可复用。
-  test.fixme('撤销授权：弹窗含对象摘要且原因为必填', async ({ page }) => {
+  // 根因修（2026-10-02，L4-2）：confirmRevoke 里 revokeReason.trim() 漏了 .value
+  //（ref 上 .trim 为 undefined → TypeError）。async 同步段 reject 被 catch 吞掉，弹
+  // 「撤销失败」toast（e.response 空走 fallback 文案）、revoking 同帧 true→false 复位
+  // ——DOM 零痕迹、console 零报错、零网络活动，伪装成「点击零反应」（09-30 排查 30+
+  // 轮被 catch 吞错/同帧复位/toast 不进 console 三层假象误导；事件链 invoker→
+  // handleClick→emit→confirmRevoke 逐层验证其实全通）。教训：async 处理器「看似没执行」
+  // 先查页面 .el-message 错误 toast，再查同帧状态复位。
+  test('撤销授权：弹窗含对象摘要且原因为必填', async ({ page }) => {
     await loginAsStaff(page)
     const revoked = []
     await page.goto(`${ADMIN_BASE}/organization/work-grants`)
@@ -250,7 +252,7 @@ test.describe('管理端 协作授权治理页', () => {
     await submit.click()
     await expect.poll(() => revoked.length).toBe(1)
     expect(revoked[0].url).toContain('/work/governance/grants/11/revoke')
-    expect(revoked[0].body).toEqual({ reason: '岗位调整' })
+    expect(revoked[0].body).toEqual({ reason: '岗位调整', veto: false })
   })
 
   test('工作区启停：确认框文案且取消不发请求', async ({ page }) => {
