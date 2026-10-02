@@ -15,7 +15,7 @@ const props = defineProps({
 })
 const emit = defineEmits(['changed'])
 
-const ALLOW_HINT = 'pdf / png / jpg / txt / md，单文件 ≤25MB'
+const ALLOW_HINT = 'pdf / 图片 / txt / md / docx / xlsx / pptx，单文件 ≤25MB'
 const uploading = ref(false)
 const versionsVisible = ref(false)
 const versionsLoading = ref(false)
