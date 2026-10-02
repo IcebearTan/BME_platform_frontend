@@ -4,6 +4,8 @@ const loadUserManage = () => import('../../components/UserManage.vue')
 const loadIdentityApplications = () => import('../../components/IdentityApplications.vue')
 const loadIdentityLinkCases = () => import('../../components/IdentityLinkCases.vue')
 const loadIdentitySchools = () => import('../../components/IdentitySchools.vue')
+const loadIdentityRoster = () => import('../../components/IdentityRoster.vue')
+const loadIdentityRecovery = () => import('../../components/IdentityRecovery.vue')
 const loadSecuritySettings = () => import('../../components/SecuritySettings.vue')
 const loadSeatManage = () => import('../../components/SeatManage.vue')
 const loadAttendanceReportManage = () => import('../../components/AttendanceReportManage.vue')
@@ -50,6 +52,18 @@ export const miscRoutes = [
     name: 'system_identity_schools',
     component: loadIdentitySchools,
     meta: { title: '学校核验配置', domain: 'system', navGroup: 'system', navOrder: 14, showInMenu: true, icon: 'OfficeBuilding', staffOnly: true },
+  },
+  {
+    path: '/system/identity/roster',
+    name: 'system_identity_roster',
+    component: loadIdentityRoster,
+    meta: { title: '外校名册', domain: 'system', navGroup: 'system', navOrder: 15, showInMenu: true, icon: 'List', staffOnly: true },
+  },
+  {
+    path: '/system/identity/recovery',
+    name: 'system_identity_recovery',
+    component: loadIdentityRecovery,
+    meta: { title: '恢复申诉', domain: 'system', navGroup: 'system', navOrder: 16, showInMenu: true, icon: 'Tickets', staffOnly: true },
   },
   {
     path: '/system/security',

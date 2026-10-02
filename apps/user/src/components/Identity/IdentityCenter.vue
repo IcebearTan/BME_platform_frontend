@@ -7,6 +7,7 @@ import { CircleCheck, Connection } from '@element-plus/icons-vue'
 import { DewCard } from '@bme/dew-ui'
 import api from '../../api'
 import VerificationWizard from './VerificationWizard.vue'
+import RosterClaimCard from './RosterClaimCard.vue'
 import LinkCasePanel from './LinkCasePanel.vue'
 
 const loading = ref(true)
@@ -71,6 +72,9 @@ onMounted(fetchAll)
       </div>
       <p v-else class="person-empty">暂无人员档案信息。</p>
     </DewCard>
+
+    <!-- 外校名册认领（邀请令牌驱动，无邀请不渲染） -->
+    <RosterClaimCard @refresh="fetchAll" />
 
     <!-- 身份核验 -->
     <DewCard class="section-card">

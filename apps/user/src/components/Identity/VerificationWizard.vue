@@ -15,6 +15,11 @@ const props = defineProps({
 const emit = defineEmits(['refresh'])
 
 const form = ref({ school_id: '', claimed_name: '', claimed_identifier: '', contact_email: '' })
+
+// 外校学校（无个人域配置）：学号选填、任意联系邮箱、无 NetID-邮箱映射（规格 5.2）
+const selectedSchool = computed(() =>
+  props.schools.find(s => s.school_id === form.value.school_id))
+const isExternal = computed(() => !!selectedSchool.value?.external)
 const code = ref('')
 const sending = ref(false)
 const verifying = ref(false)
@@ -74,9 +79,11 @@ const errMsg = (error, fallback) => {
 }
 
 const sendCode = async () => {
-  if (!form.value.school_id || !form.value.claimed_name
-      || !form.value.claimed_identifier || !form.value.contact_email) {
-    ElMessage.warning('请先完整填写学校、姓名、NetID 与个人邮箱')
+  if (!form.value.school_id || !form.value.claimed_name || !form.value.contact_email
+      || (!isExternal.value && !form.value.claimed_identifier)) {
+    ElMessage.warning(isExternal.value
+      ? '请先完整填写学校、姓名与联系邮箱'
+      : '请先完整填写学校、姓名、NetID 与个人邮箱')
     return
   }
   sending.value = true
@@ -237,13 +244,14 @@ const withdraw = async (row) => {
           </el-form-item>
         </div>
         <div class="form-row">
-          <el-form-item label="NetID / 学号">
-            <el-input v-model="form.claimed_identifier" placeholder="如 zhangsan01"
+          <el-form-item :label="isExternal ? '学号（选填）' : 'NetID / 学号'">
+            <el-input v-model="form.claimed_identifier"
+                      :placeholder="isExternal ? '如有可填写，便于名册核对' : '如 zhangsan01'"
                       :disabled="!!activeDraft" />
           </el-form-item>
-          <el-form-item label="个人学生邮箱">
+          <el-form-item :label="isExternal ? '联系邮箱' : '个人学生邮箱'">
             <el-input v-model="form.contact_email"
-                      placeholder="NetID@mail2.sysu.edu.cn（须与 NetID 一致）"
+                      :placeholder="isExternal ? '常用个人邮箱（接收验证码与后续联系）' : 'NetID@mail2.sysu.edu.cn（须与 NetID 一致）'"
                       :disabled="!!activeDraft" />
           </el-form-item>
         </div>
