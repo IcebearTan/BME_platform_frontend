@@ -10,8 +10,8 @@
       </div>
     </div>
     <p class="page-subtitle">
-      职位与组别解耦：挂组规则 / 编制限额都是职位自身字段，任命校验全部读这里。
-      限额 0 = 不限；徽标层级 tier 1 强调 / 2 次强调 / 3 中性；有任职记录（含历史）只能退役不能删除。
+      职位分两类：社团职务（社长/副社长/团支书等全社治理头衔，进组织页管理层区）与组内职位（组长类，落组内组长位）。
+      挂组规则 / 编制限额都是职位自身字段，任命校验全部读这里；限额 0 = 不限；有任职记录（含历史）只能退役不能删除。
     </p>
 
     <DewCard no-hover class="table-card">
@@ -21,6 +21,13 @@
             <span class="pos-name">{{ row.name }}</span>
             <el-tag v-if="row.status !== 'active'" size="small" type="info" effect="plain" class="status-tag">
               已退役
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="类别" width="110" align="center">
+          <template #default="{ row }">
+            <el-tag :type="row.org_slot === 'club' ? 'warning' : 'success'" size="small" effect="plain">
+              {{ row.org_slot === 'club' ? '社团职务' : '组内职位' }}
             </el-tag>
           </template>
         </el-table-column>
@@ -61,6 +68,15 @@
         <el-form-item label="职位名" required>
           <el-input v-model="dlg.form.name" maxlength="30" show-word-limit placeholder="如：导师 / 顾问" />
         </el-form-item>
+        <el-form-item label="类别" required>
+          <el-radio-group v-model="dlg.form.org_slot">
+            <el-radio-button value="club">社团职务</el-radio-button>
+            <el-radio-button value="group">组内职位</el-radio-button>
+          </el-radio-group>
+          <div class="form-hint form-hint-block">
+            社团职务进组织页管理层区（可分管组）；组内职位即组长类，落组内组长位并派工作区协调权
+          </div>
+        </el-form-item>
         <el-form-item label="排序 rank">
           <el-input-number v-model="dlg.form.sort_rank" :min="0" :max="999" />
           <span class="form-hint">小 = 靠前 / 徽标优先级高</span>
@@ -78,10 +94,15 @@
         </el-form-item>
         <el-form-item label="挂组规则">
           <el-radio-group v-model="dlg.form.group_rule">
-            <el-radio-button value="forbidden">禁止挂组</el-radio-button>
+            <el-radio-button value="forbidden" :disabled="dlg.form.org_slot === 'group'">
+              禁止挂组
+            </el-radio-button>
             <el-radio-button value="optional">可选</el-radio-button>
             <el-radio-button value="required">必须挂组</el-radio-button>
           </el-radio-group>
+          <div v-if="dlg.form.org_slot === 'group'" class="form-hint form-hint-block">
+            组内职位天然挂在组上，不能选「禁止挂组」
+          </div>
         </el-form-item>
         <el-form-item label="同组限额">
           <el-input-number v-model="dlg.form.per_group_limit" :min="0" :max="99" />
@@ -103,7 +124,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, watch, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { DewCard } from '@bme/dew-ui'
@@ -114,6 +135,9 @@ const loading = ref(false)
 
 const ruleText = (rule) => ({ forbidden: '禁止挂组', optional: '可选', required: '必须挂组' }[rule] || rule)
 const tierTagType = (tier) => ({ 1: 'warning', 2: 'success', 3: 'info' }[tier] || 'info')
+
+// rank 兜底口径与后端 club_rules 一致：<=9 社团职务 / >=10 组内职位
+const slotByRank = (rank) => (rank <= 9 ? 'club' : 'group')
 
 async function fetchPositions() {
   loading.value = true
@@ -134,8 +158,8 @@ const openCreate = () => {
   dlg.id = null
   dlg.originName = ''
   dlg.form = {
-    name: '', sort_rank: 99, badge_tier: 3, badge_with_group: false,
-    group_rule: 'optional', per_group_limit: 0, global_limit: 0,
+    name: '', org_slot: 'group', sort_rank: 99, badge_tier: 3, badge_with_group: false,
+    group_rule: 'required', per_group_limit: 0, global_limit: 0,
   }
   dlg.visible = true
 }
@@ -144,12 +168,18 @@ const openEdit = (row) => {
   dlg.id = row.id
   dlg.originName = row.name
   dlg.form = {
-    name: row.name, sort_rank: row.sort_rank, badge_tier: row.badge_tier,
+    name: row.name, org_slot: row.org_slot || slotByRank(row.sort_rank),
+    sort_rank: row.sort_rank, badge_tier: row.badge_tier,
     badge_with_group: !!row.badge_with_group, group_rule: row.group_rule,
     per_group_limit: row.per_group_limit, global_limit: row.global_limit,
   }
   dlg.visible = true
 }
+
+// 组内职位切「禁止挂组」被禁选，但存量数据切换类别时仍可能撞上——自动纠到 required
+watch(() => dlg.form.org_slot, (slot) => {
+  if (slot === 'group' && dlg.form.group_rule === 'forbidden') dlg.form.group_rule = 'required'
+})
 
 const submit = async () => {
   const f = dlg.form
@@ -234,5 +264,11 @@ onMounted(fetchPositions)
   margin-left: 10px;
   font-size: 12px;
   color: var(--el-text-color-secondary);
+}
+
+.form-hint-block {
+  display: block;
+  margin: 4px 0 0;
+  line-height: 1.5;
 }
 </style>

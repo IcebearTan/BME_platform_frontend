@@ -660,13 +660,14 @@ test('营期申请批量通过：学员多选 + 导生一键通过（逐项回�
   expect(pageErrors).toEqual([])
 })
 
-// 社团配置 mock（Phase C 起任命弹窗读 /admin/club/*，提交走 id 轨道）
+// 社团配置 mock（Phase C 起任命弹窗读 /admin/club/*，提交走 id 轨道；
+// org_slot 类别（2026-10-02 改版）：club=社团职务 / group=组内职位）
 async function mockClubMeta(page) {
   await page.route('http://127.0.0.1:5001/admin/club/positions', (route) => route.fulfill({
     json: { code: 200, message: 'ok', data: { positions: [
-      { id: 1, name: '社长', sort_rank: 1, badge_tier: 1, badge_with_group: false, group_rule: 'forbidden', per_group_limit: 0, global_limit: 1, status: 'active', active_count: 0 },
-      { id: 2, name: '副社长', sort_rank: 2, badge_tier: 1, badge_with_group: true, group_rule: 'optional', per_group_limit: 1, global_limit: 3, status: 'active', active_count: 0 },
-      { id: 3, name: '组长', sort_rank: 5, badge_tier: 2, badge_with_group: true, group_rule: 'required', per_group_limit: 1, global_limit: 0, status: 'active', active_count: 0 },
+      { id: 1, name: '社长', org_slot: 'club', sort_rank: 1, badge_tier: 1, badge_with_group: false, group_rule: 'forbidden', per_group_limit: 0, global_limit: 1, status: 'active', active_count: 0 },
+      { id: 2, name: '副社长', org_slot: 'club', sort_rank: 2, badge_tier: 1, badge_with_group: true, group_rule: 'optional', per_group_limit: 1, global_limit: 3, status: 'active', active_count: 0 },
+      { id: 3, name: '组长', org_slot: 'group', sort_rank: 5, badge_tier: 2, badge_with_group: true, group_rule: 'required', per_group_limit: 1, global_limit: 0, status: 'active', active_count: 0 },
     ] } },
   }))
   await page.route('http://127.0.0.1:5001/admin/club/groups', (route) => route.fulfill({
@@ -678,19 +679,19 @@ async function mockClubMeta(page) {
   }))
 }
 
-test('社团干事管理页：列表渲染 + 任命提交 + 卸任弹窗', async ({ page }) => {
+test('社团职务页：列表渲染 + 任命只列社团职务 + 卸任弹窗', async ({ page }) => {
   await loginAsStaff(page)
   const pageErrors = []
   page.on('pageerror', (e) => pageErrors.push(e.message))
 
-  // 任职列表（默认在任视图）+ 用户名单；任命/卸任捕获请求体
+  // 任职列表（默认在任视图，slot=club 过滤）+ 用户名单；任命/卸任捕获请求体
   await page.route('http://127.0.0.1:5001/admin/officers**', (route) => {
     if (route.request().method() === 'GET') {
       return route.fulfill({ json: { code: 200, message: 'ok', data: {
         officers: [
-          { id: 1, user_id: 11, username: '陈嘉树', avatar: '', title: '社长', department: null,
-            term_start: '2026-09-01', term_end: null, status: 'active', end_reason: null,
-            created_at: '2026-09-12T10:00:00' },
+          { id: 1, user_id: 11, username: '陈嘉树', avatar: '', title: '社长', org_slot: 'club',
+            department: null, term_start: '2026-09-01', term_end: null, status: 'active',
+            end_reason: null, created_at: '2026-09-12T10:00:00' },
         ], total: 1, page: 1, per_page: 20 } } })
     }
     return route.fulfill({ json: { code: 200, message: 'ok', data: { id: 9 } } })
@@ -700,11 +701,11 @@ test('社团干事管理页：列表渲染 + 任命提交 + 卸任弹窗', async
   await mockClubMeta(page)
 
   await page.goto(`${BASE}/organization/officers`)
-  await expect(page.locator('.page-title', { hasText: '任职管理' })).toBeVisible()
+  await expect(page.locator('.page-title', { hasText: '社团职务' })).toBeVisible()
   await expect(page.getByRole('cell', { name: '陈嘉树' })).toBeVisible()
   await expect(page.getByRole('cell', { name: '在任', exact: true })).toBeVisible()
 
-  // 任命：选成员 + 选职位（下拉读 /admin/club/positions）→ 提交体走 id 轨道 user_id/title_id
+  // 任命：选成员 + 选职位（下拉读 /admin/club/positions，只列社团职务）→ 提交体走 id 轨道
   await page.getByRole('button', { name: '任命' }).click()
   const dialog = page.locator('.el-dialog').filter({ hasText: '任命干事' })
   await expect(dialog).toBeVisible()
@@ -713,6 +714,7 @@ test('社团干事管理页：列表渲染 + 任命提交 + 卸任弹窗', async
   await memberDropdown.getByText('苏晚晴', { exact: true }).click()
   await dialog.locator('.el-select').nth(1).click()
   const titleDropdown = page.locator('.el-select__popper:visible')
+  await expect(titleDropdown.getByText('组长')).toHaveCount(0)   // 组内职位不在本页任命
   await titleDropdown.getByText('副社长', { exact: true }).click()
   const appointRequest = page.waitForRequest((request) =>
     request.url() === 'http://127.0.0.1:5001/admin/officers' && request.method() === 'POST')
@@ -734,41 +736,116 @@ test('社团干事管理页：列表渲染 + 任命提交 + 卸任弹窗', async
   expect(pageErrors).toEqual([])
 })
 
-test('社团干事管理页：挂组职位任命走三级级联选组（id 轨道）', async ({ page }) => {
+// 小组工作台 mock：组详情聚合（组长槽/分管/成员表）+ 组长任命/归属写入捕获
+async function mockGroupDetail(page, { members = [], leaderOfficers = [], overseers = [] } = {}) {
+  await page.route('http://127.0.0.1:5001/admin/club/groups/12/detail', (route) => route.fulfill({
+    json: { code: 200, message: 'ok', data: {
+      group: { id: 12, name: '硬件组', parent_id: 11, sort_order: 1, status: 'active',
+        description: '', refs: { children: 0, officers: leaderOfficers.length, members: members.length } },
+      leader_slots: [
+        { position: { id: 3, name: '组长', org_slot: 'group', sort_rank: 5, badge_tier: 2, per_group_limit: 1 },
+          officers: leaderOfficers, vacant: leaderOfficers.length === 0 },
+      ],
+      overseers,
+      members,
+      counts: { primary: members.filter(m => m.slot === 'primary').length,
+        secondary: members.filter(m => m.slot === 'secondary').length, total: members.length },
+      default_position_id: 3,
+    } },
+  }))
+}
+
+test('小组管理页：组树选组 → 详情渲染 → 添加成员 → 组内设组长（原子端点）', async ({ page }) => {
   await loginAsStaff(page)
   const pageErrors = []
   page.on('pageerror', (e) => pageErrors.push(e.message))
 
-  await page.route('http://127.0.0.1:5001/admin/officers**', (route) => {
-    if (route.request().method() === 'GET') {
-      return route.fulfill({ json: { code: 200, message: 'ok', data: { officers: [], total: 0, page: 1, per_page: 20 } } })
-    }
-    return route.fulfill({ json: { code: 200, message: 'ok', data: { id: 9 } } })
+  await page.route('http://127.0.0.1:5001/user/user_list', (route) =>
+    route.fulfill({ json: [{ User_Id: 21, User_Name: '苏晚晴' }, { User_Id: 22, User_Name: '顾亦深' }] }))
+  await mockClubMeta(page)
+  await mockGroupDetail(page, {
+    members: [
+      { user_id: 22, username: '顾亦深', avatar: '', slot: 'primary', title: null,
+        is_leader: false, officer_id: 0, joined_at: '2026-09-20' },
+    ],
+    overseers: [
+      { id: 7, user_id: 31, username: '周分管', avatar: '', title: '副社长', title_id: 2,
+        org_slot: 'club', group_id: 12, department: '硬件组', term_start: '2026-09-01',
+        term_end: null, status: 'active', end_reason: null, created_at: '2026-09-12T10:00:00' },
+    ],
   })
+  const membershipRequest = page.waitForRequest((request) =>
+    request.url() === 'http://127.0.0.1:5001/admin/club/membership/21' && request.method() === 'PUT')
+  const leaderRequest = page.waitForRequest((request) =>
+    request.url() === 'http://127.0.0.1:5001/admin/club/groups/12/leader' && request.method() === 'POST')
+
+  await page.goto(`${BASE}/organization/groups`)
+  await expect(page.locator('.page-title', { hasText: '小组管理' })).toBeVisible()
+
+  // 左树选组（硬件组）→ 右侧详情：空缺组长槽 + 分管 + 成员行
+  await page.locator('.tree-card').getByText('硬件组', { exact: true }).click()
+  await expect(page.locator('.slot-item.vacant')).toBeVisible()
+  await expect(page.getByText('周分管')).toBeVisible()
+  await expect(page.getByRole('cell', { name: '顾亦深' })).toBeVisible()
+
+  // 添加成员：多选 + 槽位，循环单人 PUT（id 轨道）
+  await page.getByRole('button', { name: '添加成员' }).click()
+  const addDialog = page.locator('.el-dialog').filter({ hasText: '添加成员' })
+  await addDialog.locator('.el-select').click()
+  await page.locator('.el-select__popper:visible').getByText('苏晚晴', { exact: true }).click()
+  await page.keyboard.press('Escape')   // 收起多选下拉
+  await addDialog.getByRole('button', { name: '确认添加' }).click()
+  const membershipBody = (await membershipRequest).postDataJSON()
+  expect(membershipBody).toEqual({ primary: 12 })
+
+  // 组内设组长：成员行入口 → 弹窗预填人选与缺省职位 → 确认弹窗 → 原子端点
+  await page.getByRole('button', { name: '设为组长' }).first().click()
+  const leaderDialog = page.locator('.el-dialog').filter({ hasText: '任命组长' })
+  await expect(leaderDialog).toBeVisible()
+  await expect(leaderDialog.locator('.el-dialog__body')).toContainText('顾亦深')   // 人选预填
+  await leaderDialog.getByRole('button', { name: '确认任命' }).click()
+  const confirmBox = page.locator('.el-message-box').filter({ hasText: '任命 顾亦深 为 组长' })
+  await expect(confirmBox).toBeVisible()
+  await confirmBox.getByRole('button', { name: '确定' }).click()
+  const leaderBody = (await leaderRequest).postDataJSON()
+  expect(leaderBody.user_id).toBe(22)
+  expect(leaderBody.position_id).toBe(3)
+  expect(leaderBody.sync_primary).toBe(true)
+
+  expect(pageErrors).toEqual([])
+})
+
+test('小组管理页：一人一职 409 引导前往社团职务处理（带关键词预填）', async ({ page }) => {
+  await loginAsStaff(page)
+  const pageErrors = []
+  page.on('pageerror', (e) => pageErrors.push(e.message))
+
   await page.route('http://127.0.0.1:5001/user/user_list', (route) =>
     route.fulfill({ json: [{ User_Id: 22, User_Name: '顾亦深' }] }))
   await mockClubMeta(page)
+  await mockGroupDetail(page, {
+    members: [
+      { user_id: 22, username: '顾亦深', avatar: '', slot: 'primary', title: '副社长',
+        is_leader: false, officer_id: 8, joined_at: '2026-09-20' },
+    ],
+  })
+  await page.route('http://127.0.0.1:5001/admin/club/groups/12/leader', (route) =>
+    route.fulfill({ json: { code: 409, message: '该成员已有在任职位（副社长，一人至多一职）' }, status: 409 }))
 
-  await page.goto(`${BASE}/organization/officers`)
-  await page.getByRole('button', { name: '任命' }).click()
-  const dialog = page.locator('.el-dialog').filter({ hasText: '任命干事' })
-  await dialog.locator('.el-select').first().click()
-  await page.locator('.el-select__popper:visible').getByText('顾亦深', { exact: true }).click()
-  await dialog.locator('.el-select').nth(1).click()
-  await page.locator('.el-select__popper:visible').getByText('组长', { exact: true }).click()
-  // 组树三级路径：项目运营组 → 培训组 → 硬件组（级联选项读 /admin/club/groups，checkStrictly 任一节点可选，group_id 只存所选节点）
-  await dialog.locator('.el-cascader').click()
-  await page.locator('.el-cascader-menu:visible').first().getByText('项目运营组', { exact: true }).click()
-  await page.locator('.el-cascader-menu:visible').nth(1).getByText('培训组', { exact: true }).click()
-  await page.locator('.el-cascader-menu:visible').nth(2).getByText('硬件组', { exact: true }).click()
-  await page.keyboard.press('Escape')   // checkStrictly 面板不自动收起，Escape 关闭保留所选
-  const appointRequest = page.waitForRequest((request) =>
-    request.url() === 'http://127.0.0.1:5001/admin/officers' && request.method() === 'POST')
-  await dialog.getByRole('button', { name: '确认' }).click()
-  const body = (await appointRequest).postDataJSON()
-  expect(body.user_id).toBe(22)
-  expect(body.title_id).toBe(3)
-  expect(body.group_id).toBe(12)
+  await page.goto(`${BASE}/organization/groups`)
+  await page.locator('.tree-card').getByText('硬件组', { exact: true }).click()
+  await page.getByRole('button', { name: '设为组长' }).first().click()
+  const leaderDialog = page.locator('.el-dialog').filter({ hasText: '任命组长' })
+  await leaderDialog.getByRole('button', { name: '确认任命' }).click()
+  const confirmBox = page.locator('.el-message-box').filter({ hasText: '任命 顾亦深' })
+  await expect(confirmBox).toBeVisible()
+  await confirmBox.getByRole('button', { name: '确定' }).click()
+  // 409 拦截 → 引导弹窗 → 跳社团职务页并预填搜索
+  const guideBox = page.locator('.el-message-box').filter({ hasText: '该成员已有在任职位' })
+  await expect(guideBox).toBeVisible()
+  await guideBox.getByRole('button', { name: '前往社团职务处理' }).click()
+  await expect(page).toHaveURL(new RegExp('/organization/officers\\?q='))
+  await expect(page.locator('.page-title', { hasText: '社团职务' })).toBeVisible()
 
   expect(pageErrors).toEqual([])
 })
@@ -1129,7 +1206,7 @@ test('旧路由重定向到新信息架构路径（兼容层）', async ({ page 
     ['/officer/manage', '/organization/officers'],
     ['/club/groups', '/organization/groups'],
     ['/club/positions', '/organization/positions'],
-    ['/club/membership', '/organization/memberships'],
+    ['/club/membership', '/organization/groups'],   // 成员归属子页并入小组管理（2026-10-02）
     ['/article/manage', '/content/articles'],
     ['/course/manage', '/content/courses'],
     ['/course/create', '/content/courses/new'],

@@ -45,8 +45,8 @@
 /* ── 密度：卡内距统一 14px（压过 DewCard 尺寸档默认；flat 容器为主） ── */
 .work-surface .dew-card .dew-card__body { padding: 14px; }
 
-/* ── 内容区画布：1280 上限居中（子视图共用，避免各自带宽） ── */
-.ws-content { width: 100%; max-width: 1280px; margin: 0 auto; }
+/* ── 内容区画布：铺满可用宽度（子视图共用；2026-10-02 用户拍板撤 1280 上限） ── */
+.ws-content { width: 100%; }
 
 /* ── 数字/徽标一律表格数字（计数不对齐跳动是工作面大忌） ── */
 .ws-num { font-variant-numeric: tabular-nums; }

@@ -39,7 +39,8 @@
         <el-table-column label="组长" min-width="120">
           <template #default="{ row }">
             <span v-if="row.leader">{{ row.leader.username }}</span>
-            <el-tag v-else type="info" size="small">组长空缺</el-tag>
+            <el-tag v-else type="info" size="small" class="vacant-tag"
+              @click="gotoGroup(row.id)">组长空缺</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="分管干事" min-width="120">
@@ -55,8 +56,16 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { DewCard } from '@bme/dew-ui'
 import api from '../../../api'
+
+const router = useRouter()
+
+// 行动闭环：空缺组直达小组管理页定位该组就地任命
+function gotoGroup(gid) {
+  router.push({ name: 'org.groups', query: { group: gid } })
+}
 
 const loading = ref(false)
 const president = ref(null)
@@ -157,5 +166,9 @@ onMounted(async () => {
 
 .text-muted {
   color: var(--text-secondary);
+}
+
+.vacant-tag {
+  cursor: pointer;
 }
 </style>

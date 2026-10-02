@@ -1,7 +1,7 @@
 <template>
   <div class="selectable">
     <div class="page-header">
-      <div class="page-title">任职管理</div>
+      <div class="page-title">社团职务</div>
       <div class="header-actions">
         <el-form :inline="true" class="form-inline" :model="query" @submit.prevent>
           <el-form-item>
@@ -21,6 +21,9 @@
             </el-button>
           </el-form-item>
           <el-form-item>
+            <el-checkbox v-model="query.showGroup" @change="handleSearch">显示组内职位</el-checkbox>
+          </el-form-item>
+          <el-form-item>
             <el-button type="primary" plain @click="openAppoint">
               <el-icon><Plus /></el-icon>任命
             </el-button>
@@ -28,6 +31,10 @@
         </el-form>
       </div>
     </div>
+    <p class="page-subtitle">
+      只管全社治理头衔（社长/副社长/团支书等社团职务）的任命与卸任，挂组即分管该组；
+      组长等组内职位在「小组管理」页的组内设置，勾选「显示组内职位」可在此审计全部任职。
+    </p>
 
     <DewCard no-hover class="table-card">
       <el-table :data="rows" v-loading="loading">
@@ -92,7 +99,7 @@
         </el-form-item>
         <el-form-item label="职位" required>
           <el-select v-model="dlg.form.title_id" placeholder="选择职位" style="width: 100%;">
-            <el-option v-for="p in activePositions" :key="p.id" :label="p.name" :value="p.id">
+            <el-option v-for="p in positionOptions" :key="p.id" :label="p.name" :value="p.id">
               <span>{{ p.name }}</span>
               <span class="option-id">{{ ruleText(p.group_rule) }}</span>
             </el-option>
@@ -158,19 +165,31 @@
 
 <script setup>
 import { ref, reactive, computed, watch, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Search, Plus } from '@element-plus/icons-vue'
 import { DewCard } from '@bme/dew-ui'
 import api, { assetUrl } from '../api'
 import { buildGroupCascaderOptions } from '../utils/club'
 
+const route = useRoute()
+
 // ── 职位与组树：后台可配数据（/admin/club/*），不再前端硬编码（设计方案 §0.1 双源漂移清账）──
 const positions = ref([])
 const positionsById = computed(() => Object.fromEntries(positions.value.map(p => [p.id, p])))
-const activePositions = computed(() => positions.value.filter(p => p.status === 'active'))
 const groupOptions = ref([])
 
 const ruleText = (rule) => ({ forbidden: '不挂组', optional: '组可选', required: '须挂组' }[rule] || '')
+
+// 本页只任命社团职务（org_slot=club）；编辑组内职位行时把行自身职位追加进选项兜底显示
+const positionOptions = computed(() => {
+  const list = positions.value.filter(p => p.status === 'active' && p.org_slot === 'club')
+  if (dlg.id && dlg.form.title_id) {
+    const cur = positionsById.value[dlg.form.title_id]
+    if (cur && !list.some(p => p.id === cur.id)) list.push(cur)
+  }
+  return list
+})
 
 async function fetchClubMeta() {
   try {
@@ -191,7 +210,7 @@ const loading = ref(false)
 const total = ref(0)
 const page = ref(1)
 const perPage = 20
-const query = reactive({ status: 'active', q: '' })
+const query = reactive({ status: 'active', q: '', showGroup: false })
 
 const fetchOfficers = async () => {
   loading.value = true
@@ -199,7 +218,11 @@ const fetchOfficers = async () => {
     const res = await api({
       url: '/admin/officers',
       method: 'get',
-      params: { page: page.value, per_page: perPage, status: query.status, q: query.q || undefined },
+      params: {
+        page: page.value, per_page: perPage, status: query.status,
+        slot: query.showGroup ? 'all' : 'club',
+        q: query.q || undefined,
+      },
     })
     const data = res.data?.data
     rows.value = data?.officers || []
@@ -332,14 +355,31 @@ const submitFix = async () => {
 }
 
 onMounted(() => {
+  // 深链预填：小组管理页「前往社团职务处理」带 ?q=<关键词> 跳入
+  if (route.query.q) query.q = String(route.query.q)
   fetchOfficers()
   fetchUsers()
   fetchClubMeta()
+})
+
+// 同页复用（仅 query 变化）时跟随刷新
+watch(() => route.query.q, (q) => {
+  if (q !== undefined && q !== query.q) {
+    query.q = String(q || '')
+    handleSearch()
+  }
 })
 </script>
 
 <style scoped>
 .table-card :deep(.dew-card__body) { padding: 0; }
+
+.page-subtitle {
+  margin: -12px 0 16px;
+  font-size: 12.5px;
+  color: var(--el-text-color-secondary);
+  line-height: 1.6;
+}
 
 .member-cell {
   display: flex;

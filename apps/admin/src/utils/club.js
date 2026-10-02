@@ -1,6 +1,30 @@
-// 社团组树前端工具：/admin/club/groups 平铺行 → el-cascader 选项
+// 社团组树前端工具：/admin/club/groups 平铺行 → el-cascader 选项 / el-tree 数据
 // 仅收 active 组；excludeId 用于「编辑组挪父」场景——整棵子树排除，防选到自己的子孙成环
 // （环与深度兜底校验在后端，这里只是 UX 层先挡一道）
+
+// 平铺行 → el-tree 节点（小组管理页左栏）：含归档组（打标置灰供管理），带引用计数徽标
+export function buildGroupTreeData(rows) {
+  const nodes = new Map()
+  rows.forEach(r => {
+    nodes.set(r.id, {
+      id: r.id,
+      label: r.name,
+      status: r.status,
+      memberCount: r.refs?.members ?? 0,
+      parentId: r.parent_id,
+      children: [],
+    })
+  })
+  const roots = []
+  nodes.forEach(n => {
+    if (n.parentId && nodes.has(n.parentId)) nodes.get(n.parentId).children.push(n)
+    else roots.push(n)
+  })
+  const strip = n => (n.children.length ? n.children.forEach(strip) : delete n.children)
+  roots.forEach(strip)
+  return roots
+}
+
 export function buildGroupCascaderOptions(rows, excludeId = null) {
   const banned = new Set()
   if (excludeId) {

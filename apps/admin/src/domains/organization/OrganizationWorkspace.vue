@@ -3,7 +3,7 @@
     <div class="page-header">
       <div>
         <div class="page-title">组织架构</div>
-        <div class="org-subtitle">组树、职位、任职、归属四个正交概念的工作区</div>
+        <div class="org-subtitle">以组为中心：小组管名单与组长，社团职务管全社头衔，职位定义管类别与编制</div>
       </div>
     </div>
 
@@ -26,10 +26,9 @@ const router = useRouter()
 
 const sections = [
   { name: 'org.overview', label: '组织总览' },
-  { name: 'org.groups', label: '组树' },
+  { name: 'org.groups', label: '小组管理' },
   { name: 'org.positions', label: '职位定义' },
-  { name: 'org.officers', label: '任职管理' },
-  { name: 'org.memberships', label: '成员归属' },
+  { name: 'org.officers', label: '社团职务' },
   { name: 'org.workGrants', label: '协作授权' },
 ]
 
