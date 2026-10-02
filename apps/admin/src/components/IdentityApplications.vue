@@ -56,8 +56,10 @@ const decide = async (decision) => {
   }
   d.busy = true
   try {
+    // 后端路由是动词 /approve、/reject（admin_identity.py），decision 是状态名词
+    const act = decision === 'approved' ? 'approve' : 'reject'
     const res = await api({
-      url: `/admin/identity/applications/${d.row.id}/${decision}`,
+      url: `/admin/identity/applications/${d.row.id}/${act}`,
       method: 'post',
       data: decision === 'approved' ? { note: d.note } : { reason: d.reason },
     })
