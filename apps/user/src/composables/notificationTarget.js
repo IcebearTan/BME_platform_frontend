@@ -29,6 +29,10 @@ export function notificationTarget(item) {
   if (item.source_type === 'platform_release') {
     return { path: '/changelog' }
   }
+  // 身份域（登录一次性核验提醒 / outbox 投递的归并结果通知）：直达身份中心
+  if (item.source_type === 'identity_remind' || item.source_type === 'identity') {
+    return { path: '/user-center/identity' }
+  }
   if (item.category !== 'camp') {
     return { path: '/notifications' }
   }

@@ -93,7 +93,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useStore } from 'vuex'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import api, { session } from '../../api'
 import { assetUrl } from '../../services/campService'
 import md5 from 'js-md5'
@@ -105,6 +105,18 @@ import DewInput from '@bme/dew-ui/DewInput.vue'
 
 const store = useStore()
 const router = useRouter()
+const route = useRoute()
+
+// return_to 白名单（规格 12.1）：仅允许应用内单斜杠开头的路径回跳——拒绝外部
+// URL、协议相对（//evil.com）与任何带 scheme 的值，防开放重定向
+const safeRedirect = () => {
+  const raw = route.query.redirect
+  if (typeof raw !== 'string' || !raw.startsWith('/') || raw.startsWith('//')) return '/home'
+  if (/:\/\//.test(raw)) return '/home'
+  return raw
+}
+
+
 
 const loginFormRef = ref(null)
 
@@ -174,7 +186,7 @@ async function submitMfa() {
       session.save(res.data)
       store.commit('setUser', res.data)
       await fetchAvatar()
-      router.push('/home')
+      router.push(safeRedirect())
       ElMessage.success('登录成功')
     } else {
       ElMessage.error(res.data.message || '验证码错误')
@@ -219,7 +231,7 @@ async function submitForm() {
       session.save(res.data)
       store.commit('setUser', res.data)
       await fetchAvatar()
-      router.push('/home')
+      router.push(safeRedirect())
       ElMessage.success('登录成功')
     }
   } catch (err) {
