@@ -11,7 +11,8 @@ const store = useStore();
 const canManage = computed(() => store.getters.can('system_management'));
 
 const formInline = reactive({
-  key: ''
+  key: '',
+  verify: ''
 });
 // 身份核验状态文案（与用户端身份中心 V_TEXT 同词表）
 const V_TEXT = { unverified: '未核验', pending: '核验中', verified: '已核验',
@@ -23,19 +24,24 @@ const currentPage = ref(1);
 const pageSize = ref(16);
 const totalItems = ref(0);
 
+// 核验口径与列展示一致：已并入（merged）的退休账号不算「已核验」
+const isVerifiedShown = (user) =>
+  user.lifecycle !== 'merged' && user.verification_status === 'verified';
+
 const handleSearch = () => {
   const keyword = formInline.key.trim();
+  const verify = formInline.verify;
   currentPage.value = 1;
-  if (!keyword) {
-    filteredUsers.value = allUsers.value;
-  } else {
-    filteredUsers.value = allUsers.value.filter(user => {
-      const name = user.User_Name ? String(user.User_Name) : '';
-      const role = user.role ? String(user.role) : '';
-      const id = user.User_Id ? String(user.User_Id) : '';
-      return name.includes(keyword) || role.includes(keyword) || id.includes(keyword);
-    });
-  }
+  filteredUsers.value = allUsers.value.filter(user => {
+    const name = user.User_Name ? String(user.User_Name) : '';
+    const role = user.role ? String(user.role) : '';
+    const id = user.User_Id ? String(user.User_Id) : '';
+    const hitKeyword = !keyword
+      || name.includes(keyword) || role.includes(keyword) || id.includes(keyword);
+    const hitVerify = !verify
+      || (verify === 'verified' ? isVerifiedShown(user) : !isVerifiedShown(user));
+    return hitKeyword && hitVerify;
+  });
   totalItems.value = filteredUsers.value.length;
   updatePagedUsers();
 };
@@ -237,6 +243,19 @@ onMounted(() => {
             ></el-input>
           </el-form-item>
 
+          <el-form-item label="核验">
+            <el-select
+              v-model="formInline.verify"
+              placeholder="全部"
+              style="width: 110px"
+              @change="handleSearch"
+              clearable
+            >
+              <el-option label="已核验" value="verified" />
+              <el-option label="未核验" value="unverified" />
+            </el-select>
+          </el-form-item>
+
           <el-form-item>
             <el-button type="primary" @click="handleSearch">
               <el-icon>
@@ -283,18 +302,19 @@ onMounted(() => {
           </el-table-column>
           <el-table-column label="状态" width="100" align="center">
             <template #default="{ row }">
-              <el-tag :type="banned(row) ? 'danger' : 'success'" size="small" :effect="banned(row) ? 'dark' : 'light'">
-                {{ banned(row) ? '已封禁' : '正常' }}
-              </el-tag>
+              <el-tag v-if="banned(row)" type="danger" size="small" effect="dark">已封禁</el-tag>
+              <el-tag v-else-if="row.lifecycle === 'merged'" type="info" size="small" effect="plain">已并入</el-tag>
+              <el-tag v-else type="success" size="small" effect="light">正常</el-tag>
             </template>
           </el-table-column>
           <el-table-column label="核验" width="100" align="center">
             <template #default="{ row }">
-              <el-tooltip v-if="row.verification_status === 'verified' && row.verified_name"
+              <!-- 已并入的退休账号不显示人员级核验态（核验属于存续主账号，避免「没审过却已核验」的误读） -->
+              <el-tooltip v-if="row.lifecycle !== 'merged' && row.verification_status === 'verified' && row.verified_name"
                           :content="`核验姓名：${row.verified_name}`" placement="top">
                 <el-tag type="success" size="small" effect="dark">已核验</el-tag>
               </el-tooltip>
-              <el-tag v-else-if="row.verification_status" type="info" size="small" effect="plain">
+              <el-tag v-else-if="row.lifecycle !== 'merged' && row.verification_status" type="info" size="small" effect="plain">
                 {{ V_TEXT[row.verification_status] || row.verification_status }}
               </el-tag>
               <span v-else>—</span>
