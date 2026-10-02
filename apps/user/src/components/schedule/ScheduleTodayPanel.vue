@@ -8,7 +8,6 @@ import { Plus, Clock, WarningFilled, CircleCheck, Calendar } from '@element-plus
 import { DewCard, DewTag, DewButton, DewSkeleton } from '@bme/dew-ui'
 import { scheduleService } from '../../services/scheduleService'
 import ScheduleQuickInput from './ScheduleQuickInput.vue'
-import ScheduleCaptureResultCard from './ScheduleCaptureResultCard.vue'
 
 const props = defineProps({
   refreshKey: { type: Number, default: 0 }
@@ -149,17 +148,27 @@ async function postpone(block) {
           <el-icon><Plus /></el-icon>新建
         </DewButton>
         <div v-if="newMenuOpen" class="new-menu" @click="newMenuOpen = false">
-          <button class="new-menu-item" @click="emit('create-task')">任务</button>
-          <button class="new-menu-item" @click="emit('create-event')">日程</button>
-          <button class="new-menu-item" @click="emit('create-block', {})">时间块</button>
+          <button class="new-menu-item" @click="emit('create-task')">
+            <span class="nm-label">任务</span>
+            <span class="nm-desc">要做完的事，只有截止；时间可让 AI 安排</span>
+          </button>
+          <button class="new-menu-item" @click="emit('create-event')">
+            <span class="nm-label">日程</span>
+            <span class="nm-desc">固定占用一段时间（会议/实验），默认不让 AI 挪</span>
+          </button>
+          <button class="new-menu-item" @click="emit('create-block', {})">
+            <span class="nm-label">时间块</span>
+            <span class="nm-desc">任务落到日历上的执行时段，可拆成多段</span>
+          </button>
         </div>
       </div>
     </div>
     <div v-if="newMenuOpen" class="new-menu-mask" @click="newMenuOpen = false"></div>
 
-    <!-- 说一句，帮我安排（Phase 2 文字意图；语音入口位预留） -->
+    <!-- 说一句，帮我安排（Phase 2 文字意图；语音入口位预留）。
+         W1 起结果卡/澄清卡统一进 AI 助手抽屉（提交后自动展开），
+         页面只保留快捷输入入口——单处渲染避免双挂载。 -->
     <ScheduleQuickInput />
-    <ScheduleCaptureResultCard @edit-task="(t) => emit('edit-task', t)" @settled="fetchAll" />
 
     <DewSkeleton v-if="loading" variant="text" :lines="6" />
     <template v-else>
@@ -337,7 +346,16 @@ async function postpone(block) {
   text-align: left;
   font-size: var(--text-sm);
   color: var(--dew-text);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   cursor: pointer;
+}
+
+.nm-desc {
+  font-size: var(--text-xs, 12px);
+  color: var(--dew-text-muted);
+  font-weight: 400;
 }
 
 .new-menu-item:hover {

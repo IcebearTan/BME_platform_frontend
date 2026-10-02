@@ -6,7 +6,7 @@ import MenuComponent from "../components/MenuComponent.vue";
 import PageFooterComponent from "../components/PageFooterComponent.vue";
 import MobileMenuComponent from "../components/MobileMenuComponent.vue";
 import { DewCard, DewTag } from '@bme/dew-ui';
-import { Menu as Expand, Printer, Monitor, MagicStick, ArrowRight, OfficeBuilding, EditPen, Select, Files } from '@element-plus/icons-vue';
+import { Menu as Expand, Printer, Monitor, MagicStick, ArrowRight, OfficeBuilding, EditPen, Select, Files, Calendar } from '@element-plus/icons-vue';
 
 const store = useStore();
 const router = useRouter();
@@ -73,6 +73,8 @@ const pendingSections = [
 const selfServices = [
   { title: '3D打印农场', desc: '在线预约，一站式 3D 打印服务', icon: Printer, color: '#06b6d4', action: open3DFarm },
   { title: 'AI 大模型服务', desc: '创建 API Key、查看用量与申请额度', icon: MagicStick, color: '#409EFF', action: handleAIServiceClick },
+  // 我的日程（10-02 入口收敛：工作台化后从顶栏导航迁到服务台卡）
+  { title: '我的日程', desc: '任务、固定日程与提醒的个人闭环，说一句帮我安排', icon: Calendar, color: '#4f46e5', action: () => router.push('/schedule') },
 ];
 
 // 社团服务：组织架构页（设计方案 docs/社团身份体系-设计方案.md §5.1）

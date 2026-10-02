@@ -126,11 +126,17 @@ test('页签切换 URL 即状态，直链可恢复', async ({ page }) => {
   await mockScheduleBackend(page)
 
   await page.goto(`${BASE}/schedule`)
-  await page.getByRole('button', { name: '周历' }).click()
-  await expect(page).toHaveURL(/tab=week/)
-  await page.getByRole('button', { name: '待安排' }).click()
-  await expect(page).toHaveURL(/tab=backlog/)
+  await page.getByRole('button', { name: '日历' }).click()
+  await expect(page).toHaveURL(/tab=calendar/)
+  await page.getByRole('button', { name: '任务' }).click()
+  await expect(page).toHaveURL(/tab=tasks/)
   await expect(page.locator('.backlog-panel').getByText('写实验报告')).toBeVisible()
+
+  // 旧链接兼容（W1）：tab=week → calendar&view=week；tab=backlog → tasks&filter=unscheduled
+  await page.goto(`${BASE}/schedule?tab=week`)
+  await expect(page).toHaveURL(/tab=calendar&view=week/)
+  await page.goto(`${BASE}/schedule?tab=backlog`)
+  await expect(page).toHaveURL(/tab=tasks&filter=unscheduled/)
 
   // 直链恢复 + 设置页签渲染
   await page.goto(`${BASE}/schedule?tab=settings`)
@@ -155,7 +161,7 @@ test('新建任务闭环：弹窗提交打到 /schedule/tasks', async ({ page })
   await page.goto(`${BASE}/schedule`)
 
   await page.getByRole('button', { name: '新建' }).click()
-  await page.getByRole('button', { name: '任务' }).click()
+  await page.locator('.new-menu-item .nm-label', { hasText: '任务' }).click()
   await expect(page.getByText('新建任务')).toBeVisible()
   await page.fill('input[placeholder="要做什么"]', '买笔记本电池')
   await page.getByRole('button', { name: '创建' }).click()
@@ -465,7 +471,7 @@ test('manual 偏好：新建任务出方案卡并可应用', async ({ page }) =>
   await page.goto(`${BASE}/schedule`)
 
   await page.getByRole('button', { name: '新建' }).click()
-  await page.getByRole('button', { name: '任务', exact: true }).click()
+  await page.locator('.new-menu-item .nm-label', { hasText: '任务' }).click()
   await page.fill('input[placeholder="要做什么"]', '方案卡任务')
   await page.getByRole('button', { name: '创建', exact: true }).click()
 

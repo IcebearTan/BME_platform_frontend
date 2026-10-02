@@ -1,0 +1,430 @@
+/* ============================================================
+   日程工作台局部样式（W1 · BMEMate 风格融入，2026-10-02）
+   范围纪律：--schedule-* tokens 与 sw-* 类名仅作用于 .sw-workspace
+   子树，不触碰全局 DewUI tokens（营期/社区/管理端皮肤不受影响）。
+   风格口径：Mate 中性实心面板、细边框、紧凑密度；亮暗双极。
+   ============================================================ */
+
+.sw-workspace {
+  --sw-bg: #f5f6f8;
+  --sw-panel: #ffffff;
+  --sw-panel-soft: #fafbfd;
+  --sw-border: #e4e7ec;
+  --sw-border-strong: #d0d5dd;
+  --sw-text: #1f242d;
+  --sw-text-muted: #667085;
+  --sw-text-faint: #98a2b3;
+  --sw-accent: var(--color-primary, #4f46e5);
+  --sw-accent-soft: rgba(79, 70, 229, 0.09);
+  --sw-event-bg: #3f4a5a;        /* 固定日程：中性深灰蓝实心 */
+  --sw-event-text: #ffffff;
+  --sw-block-bg: #e8f7f0;        /* 执行块：浅绿底 */
+  --sw-block-border: #79c2a4;
+  --sw-block-text: #1d6b4c;
+  --sw-danger: #d92d20;
+  --sw-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+}
+
+.sw-workspace.theme-dark {
+  --sw-bg: #101216;
+  --sw-panel: #171a20;
+  --sw-panel-soft: #1b1f26;
+  --sw-border: #262b34;
+  --sw-border-strong: #333a46;
+  --sw-text: #e6e8ec;
+  --sw-text-muted: #9aa3b2;
+  --sw-text-faint: #6b7484;
+  --sw-accent-soft: rgba(129, 140, 248, 0.14);
+  --sw-event-bg: #46536a;
+  --sw-event-text: #f2f4f8;
+  --sw-block-bg: #173429;
+  --sw-block-border: #2c6a51;
+  --sw-block-text: #8fd4b5;
+  --sw-shadow: none;
+}
+
+/* ── 工作台骨架：100vh 三段（侧栏 / 顶栏 / 内容独立滚动） ── */
+.sw-workspace {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--sw-bg);
+  color: var(--sw-text);
+}
+
+.sw-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.sw-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 20px 24px 40px;
+}
+
+.sw-content-inner {
+  max-width: 1080px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ── 侧栏 ── */
+.sw-sidebar {
+  width: 224px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--sw-border);
+  background: var(--sw-panel);
+  display: flex;
+  flex-direction: column;
+  padding: 14px 10px;
+  gap: 2px;
+}
+
+.sw-sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px 16px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--sw-text);
+}
+
+.sw-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  font-size: 14px;
+  color: var(--sw-text-muted);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.sw-nav-item:hover {
+  background: var(--sw-panel-soft);
+  color: var(--sw-text);
+}
+
+.sw-nav-item.is-active {
+  background: var(--sw-accent-soft);
+  /* 文字用正文色保证对比度（10-02 修复：此前用平台 primary 蓝，白底对比
+     仅 2.0 不可读）；强调语义交给左侧色条 */
+  color: var(--sw-text);
+  font-weight: 600;
+  box-shadow: inset 3px 0 0 var(--sw-accent);
+}
+
+.sw-sidebar-foot {
+  margin-top: auto;
+  padding: 10px 10px 2px;
+  border-top: 1px solid var(--sw-border);
+  font-size: 12px;
+  color: var(--sw-text-faint);
+}
+
+/* ── 顶栏 ── */
+.sw-header {
+  height: 54px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--sw-border);
+  background: var(--sw-panel);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 16px;
+}
+
+.sw-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--sw-border);
+  border-radius: 8px;
+  background: var(--sw-panel-soft);
+  color: var(--sw-text-muted);
+  font-size: 13px;
+  padding: 5px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.sw-back:hover {
+  color: var(--sw-text);
+  border-color: var(--sw-border-strong);
+}
+
+.sw-header-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.sw-header-sub {
+  font-size: 12px;
+  color: var(--sw-text-faint);
+}
+
+.sw-header-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sw-assistant-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--sw-border);
+  border-radius: 8px;
+  background: var(--sw-panel-soft);
+  color: var(--sw-text);
+  font-size: 13px;
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.sw-assistant-btn:hover { border-color: var(--sw-accent); }
+
+.sw-assistant-btn.is-live::after {
+  content: '';
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--sw-accent);
+}
+
+/* ── 通用面板卡（实心，Mate 密度） ── */
+.sw-panel {
+  background: var(--sw-panel);
+  border: 1px solid var(--sw-border);
+  border-radius: 10px;
+  box-shadow: var(--sw-shadow);
+}
+
+.sw-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--sw-border);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.sw-panel-body { padding: 4px 0; }
+
+.sw-empty {
+  padding: 44px 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--sw-text-muted);
+}
+
+.sw-error {
+  padding: 24px 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--sw-danger);
+}
+
+/* ── 日历面板 ── */
+/* 高度锚点链：内容区可滚动，但日历面板自身占满可视高度（顶栏 54 + 内容
+   上下 padding 60 + 余量 12），画布 flex:1 让 FC 的 height:100% 有确定
+   父高度可解——否则百分比高度塌成一条（W1 首版踩坑）。 */
+.sw-cal-wrap {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 126px);
+  min-height: 500px;
+}
+
+.sw-cal-canvas {
+  flex: 1;
+  min-height: 420px;
+  display: flex;
+  flex-direction: column;
+}
+
+.sw-cal-canvas .fc {
+  flex: 1;
+  min-height: 0;
+}
+
+.sw-cal-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 2px 4px 12px;
+}
+
+.sw-cal-title {
+  font-size: 15px;
+  font-weight: 700;
+  min-width: 190px;
+}
+
+.sw-cal-btn {
+  border: 1px solid var(--sw-border);
+  background: var(--sw-panel);
+  color: var(--sw-text-muted);
+  border-radius: 7px;
+  font-size: 13px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.sw-cal-btn:hover { color: var(--sw-text); border-color: var(--sw-border-strong); }
+
+.sw-cal-views {
+  margin-left: auto;
+  display: inline-flex;
+  border: 1px solid var(--sw-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.sw-cal-view {
+  border: none;
+  background: var(--sw-panel);
+  color: var(--sw-text-muted);
+  font-size: 13px;
+  padding: 4px 12px;
+  cursor: pointer;
+}
+
+.sw-cal-view.is-active {
+  background: var(--sw-accent-soft);
+  color: var(--sw-text);          /* 同导航激活态：深字+色条，不用浅强调色当文字 */
+  font-weight: 600;
+  box-shadow: inset 0 -2px 0 var(--sw-accent);
+}
+
+.sw-cal-legend {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  padding: 0 4px 8px;
+  font-size: 12px;
+  color: var(--sw-text-muted);
+}
+
+.sw-legend-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  margin-right: 5px;
+  vertical-align: -1px;
+}
+
+/* FullCalendar 覆盖：中性皮肤（v6 自动注入基础样式，这里重定义观感） */
+.sw-workspace .fc {
+  --fc-border-color: var(--sw-border);
+  --fc-page-bg-color: var(--sw-panel);
+  --fc-neutral-bg-color: var(--sw-panel-soft);
+  --fc-today-bg-color: var(--sw-accent-soft);
+  font-size: 13px;
+}
+
+.sw-workspace .fc .fc-scrollgrid { border-radius: 8px; overflow: hidden; }
+
+.sw-workspace .fc .fc-col-header-cell {
+  background: var(--sw-panel-soft);
+  padding: 6px 0;
+  font-weight: 600;
+  color: var(--sw-text-muted);
+}
+
+.sw-workspace .fc-theme-standard td,
+.sw-workspace .fc-theme-standard th { border-color: var(--sw-border); }
+
+.sw-workspace .fc .fc-timegrid-slot { height: 1.9em; }
+
+.sw-workspace .fc .fc-timegrid-slot-label,
+.sw-workspace .fc .fc-daygrid-day-number,
+.sw-workspace .fc .fc-list-day-text,
+.sw-workspace .fc .fc-list-day-side-text {
+  color: var(--sw-text-muted);
+  font-size: 12px;
+  text-decoration: none;
+}
+
+/* 事件着色以类名驱动（覆盖 FC 内联/默认底色） */
+.sw-workspace .fc .fc-event.sw-ev-event {
+  background-color: var(--sw-event-bg) !important;
+  border-color: var(--sw-event-bg) !important;
+  color: var(--sw-event-text) !important;
+}
+
+.sw-workspace .fc .fc-event.sw-ev-block {
+  background-color: var(--sw-block-bg) !important;
+  border: 1px solid var(--sw-block-border) !important;
+  color: var(--sw-block-text) !important;
+}
+
+.sw-workspace .fc .fc-event { cursor: pointer; border-radius: 5px; font-size: 12px; }
+
+.sw-workspace .fc .fc-list-event:hover td,
+.sw-workspace .fc .fc-daygrid-event:hover { background: var(--sw-panel-soft); }
+
+.sw-workspace .fc .fc-list-table td { border-color: var(--sw-border); }
+
+/* ── 助手抽屉（实底，遵循弹窗不透明纪律） ── */
+.sw-assistant-drawer {
+  background: var(--sw-bg) !important;
+}
+
+.sw-assistant-drawer .el-drawer__body {
+  padding: 16px;
+}
+
+.sw-assistant-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ── 移动端：侧栏转横滑条，内容留 16px 边距 ── */
+@media (max-width: 768px) {
+  .sw-workspace { flex-direction: column; }
+  .sw-sidebar {
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    gap: 4px;
+    border-right: none;
+    border-bottom: 1px solid var(--sw-border);
+    padding: 8px 12px;
+    overflow-x: auto;
+  }
+  .sw-sidebar-brand { padding: 0 8px 0 0; }
+  .sw-sidebar-foot { display: none; }
+  .sw-nav-item { width: auto; padding: 6px 12px; white-space: nowrap; }
+  .sw-content { padding: 14px 16px 32px; }
+  .sw-header { padding: 0 12px; gap: 8px; }
+  .sw-header-sub { display: none; }
+  .sw-cal-wrap { height: calc(100vh - 180px); min-height: 420px; }
+}
