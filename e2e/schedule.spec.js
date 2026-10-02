@@ -10,6 +10,10 @@ const pad = (n) => String(n).padStart(2, '0')
 const d = new Date()
 const TODAY = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 const NOW = `${TODAY} 10:00`
+// 追问选择器禁选过去日期（disablePastDays），作答值必须动态取未来日
+// （原硬编码 2026-09-26 在 09-27 起全红——时间断言一律由构造值推导）
+const t = new Date(Date.now() + 24 * 3600 * 1000)
+const TOMORROW = `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}`
 
 const AGENDA = {
   code: 200,
@@ -311,7 +315,7 @@ test('待补充：时间追问用选择器作答，不手输格式', async ({ pa
       result: { ...CAPTURE_CLARIFY_PICKER.data.result,
         items: [{ ...CAPTURE_CLARIFY_PICKER.data.result.items[0], status: 'scheduled',
           ambiguities: [], result: { task_id: null, event_id: 42, block_ids: [], plan_id: 71,
-            message: '已创建日程：09-26 15:00–16:00' } }] } } } })
+            message: `已创建日程：${TOMORROW.slice(5)} 15:00–16:00` } }] } } } })
   })
   await page.goto(`${BASE}/schedule`)
 
@@ -321,12 +325,12 @@ test('待补充：时间追问用选择器作答，不手输格式', async ({ pa
   await expect(page.locator('.q-picker')).toHaveCount(1)
 
   const pickerInput = page.locator('.q-picker input')
-  await pickerInput.fill('2026-09-26 15:00')
+  await pickerInput.fill(`${TOMORROW} 15:00`)
   await pickerInput.press('Enter')
   await page.getByRole('button', { name: '提交补充' }).click()
 
-  await expect(page.getByText('已创建日程：09-26 15:00–16:00')).toBeVisible({ timeout: 8000 })
-  expect(resolved?.answers?.['0']?.start_at).toBe('2026-09-26 15:00')
+  await expect(page.getByText(`已创建日程：${TOMORROW.slice(5)} 15:00–16:00`)).toBeVisible({ timeout: 8000 })
+  expect(resolved?.answers?.['0']?.start_at).toBe(`${TOMORROW} 15:00`)
   expect(errors).toEqual([])
 })
 

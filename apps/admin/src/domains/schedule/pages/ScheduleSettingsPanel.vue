@@ -58,7 +58,11 @@ function normalize(item, raw) {
 
 function effectiveText(item) {
   if (item.type === 'secret') return item.effective_value      // 已是脱敏描述串
-  if (item.type === 'bool') return item.effective_value ? '开启' : '关闭'
+  if (item.type === 'bool') {
+    // S08：环境熔断时运行值=关闭，标注覆盖来源，避免与平台覆盖值混淆
+    if (item.effective_source === 'env_off') return '关闭（环境变量强制）'
+    return item.effective_value ? '开启' : '关闭'
+  }
   const unit = item.unit ? ` ${item.unit}` : ''
   return String(item.effective_value ?? '（回退链默认）') + unit
 }

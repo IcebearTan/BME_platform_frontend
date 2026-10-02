@@ -45,7 +45,7 @@ const metrics = computed(() => {
     { key: 'backlog', label: '到期未生成通知',
       ...cell('reminder_backlog', backlog.total ?? 0, ' 条'),
       detail: unavailable('reminder_backlog') ? null
-        : `待处理 ${backlog.pending ?? 0} · 可自动重试 ${backlog.retryable ?? 0} · 重试耗尽 ${backlog.exhausted ?? 0}` },
+        : `待处理 ${backlog.pending ?? 0} · 等待重试 ${backlog.retry_wait ?? 0} · 可自动重试 ${backlog.retryable ?? 0} · 重试耗尽 ${backlog.exhausted ?? 0}` },
     { key: 'manual', label: '需人工排查',
       ...cell('manual_review', manual.total ?? 0, ' 项'),
       detail: unavailable('manual_review') ? null
