@@ -11,12 +11,16 @@ test.beforeEach(async ({ page }) => {
 })
 
 test.describe('更新日志页', () => {
-  test('渲染 v3.3 条目与当前版本标记；页脚两入口可见', async ({ page }) => {
+  test('渲染版本条目；首卡带当前版本标记；页脚两入口可见', async ({ page }) => {
     await page.goto(`${BASE}/changelog`)
     await expect(page.locator('.page-title', { hasText: '更新日志' })).toBeVisible()
-    await expect(page.locator('.version-no', { hasText: 'v3.3' })).toBeVisible()
-    await expect(page.locator('.version-card').first()).toContainText('内部工作台')
-    await expect(page.getByText('当前版本')).toBeVisible()
+    // 版本无关断言：至少一条版本卡，且首卡（最新）带「当前版本」标记——
+    // 曾写死 v3.3，v3.4 上线即挂（10-02 实测教训）
+    const cards = page.locator('.version-card')
+    await expect(cards.first()).toBeVisible()
+    expect(await cards.count()).toBeGreaterThanOrEqual(1)
+    await expect(cards.first()).toContainText('当前版本')
+    await expect(page.locator('.version-no').first()).toContainText('v')
     // 页脚：「关于我们」栏下「更新日志」入口
     await expect(page.locator('footer').getByText('更新日志').first()).toBeVisible()
     await expect(page.locator('footer').getByText('关于我们').first()).toBeVisible()
