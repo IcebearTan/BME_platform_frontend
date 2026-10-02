@@ -204,9 +204,11 @@ const withdraw = async (row) => {
         </div>
       </el-form>
 
-      <div v-if="activeDraft && !activeDraft.challenge_verified" class="code-line">
+      <!-- 无草稿时也要渲染本行：sendCode 内部会先 ensureDraft 建草稿，
+           若以 activeDraft 为渲染条件则新用户永远到不了发码步骤（鸡生蛋） -->
+      <div v-if="!activeDraft || !activeDraft.challenge_verified" class="code-line">
         <el-button type="primary" :loading="sending"
-                   :disabled="countdown > 0 || !!activeDraft === false"
+                   :disabled="countdown > 0"
                    @click="sendCode">
           {{ countdown > 0 ? `${countdown}s 后可重发` : '发送验证码' }}
         </el-button>
