@@ -132,7 +132,7 @@ onMounted(fetchSchools)
           <el-switch v-model="edit.localMatches" />
           <span class="muted switch-note">开启时要求验证邮箱的 @ 前部分与申报 NetID 完全一致</span>
         </el-form-item>
-        <el-form-item label="核验负责人 user id（逗号分隔；至少 2 名才算运营就绪）">
+        <el-form-item label="核验负责人 user id（逗号分隔；须管理员账号；至少 2 名才算运营就绪）">
           <el-input v-model="edit.reviewerIds" placeholder="74, 75" />
         </el-form-item>
       </el-form>
