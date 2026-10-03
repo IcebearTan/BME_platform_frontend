@@ -35,7 +35,8 @@ const fetchAll = async () => {
     if (st.data.code === 200) {
       status.value = st.data
       // R0 收紧批：核验态回写 store（首页强弹提醒据此停弹；旧会话免重登自愈）
-      const live = st.data?.data?.person?.verification_status
+      // 回包平铺：person 与 code 同级（无 data 包装层）
+      const live = st.data?.person?.verification_status
       if (live) store.commit('patchIdentity', { verification_status: live })
     }
     if (cs.data.code === 200) cases.value = cs.data.cases || []

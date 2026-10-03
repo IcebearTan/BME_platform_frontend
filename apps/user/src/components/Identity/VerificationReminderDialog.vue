@@ -71,13 +71,13 @@ async function probe() {
     const res = await api({ url: '/identity/status', method: 'get' })
     const data = res.data || {}
     if (data.code !== 200) return
-    const payload = data.data || {}
-    const live = payload.person?.verification_status
+    // 回包为平铺信封：person/verification_enabled/ui_enabled 与 code 同级（无 data 包装层）
+    const live = data.person?.verification_status
     if (live && live !== status.value) {
       store.commit('patchIdentity', { verification_status: live })
     }
     if (live === 'verified'
-        || payload.verification_enabled === false || payload.ui_enabled === false) {
+        || data.verification_enabled === false || data.ui_enabled === false) {
       emit('update:modelValue', false)
     }
   } catch {

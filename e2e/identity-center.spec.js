@@ -255,6 +255,41 @@ test.describe('R0 核验门槛（2026-10-02 收紧批）', () => {
     expect(errors).toEqual([])
   })
 
+  test('已核验但本地态未拉平：回首页探测后强弹自动收起（信封平铺回归）', async ({ page }) => {
+    await loginAsUser(page)
+    const errors = []
+    page.on('pageerror', (e) => errors.push(e.message))
+    const statusProbed = page.waitForRequest((r) => r.url().includes('/identity/status'))
+    await page.route(`${API}/**`, (route) => {
+      const url = route.request().url()
+      if (url.includes('/identity/status')) {
+        // 与后端一致的平铺信封：真实态已核验
+        return route.fulfill({ json: { code: 200,
+          person: { public_id: 'pub1', verification_status: 'verified',
+                    verified_name: '张核验', record_status: 'active' },
+          applications: [], schools: [],
+          verification_enabled: true, ui_enabled: true } })
+      }
+      if (url.includes('/user/user_index')) {
+        // 登录会话仍是核验前的旧值（未重登未续期）
+        return route.fulfill({ json: { code: 200, User_Name: 'e2e_user',
+          verification_status: 'unverified' } })
+      }
+      return route.fulfill({ json: { code: 200 } })
+    })
+    await page.goto('http://127.0.0.1:18081/AMEII/home')
+    await statusProbed   // 强弹已挂载并发出探测请求
+    const dialog = page.locator('.el-dialog').filter({ hasText: '完成身份核验' })
+    await expect(dialog).toBeHidden({ timeout: 5000 })
+    // 探测结果已回写 store：进身份中心（覆盖其回写路径）再回首页，不再弹
+    const probedAgain = page.waitForRequest((r) => r.url().includes('/identity/status'))
+    await page.goto('http://127.0.0.1:18081/AMEII/user-center/identity')
+    await probedAgain
+    await page.goto('http://127.0.0.1:18081/AMEII/home')
+    await expect(dialog).toHaveCount(0)
+    expect(errors).toEqual([])
+  })
+
   test('社团职务任命：未核验目标被 403 拦截，成员下拉带未核验标识', async ({ page }) => {
     await loginAsAdmin(page)
     const errors = []
