@@ -367,14 +367,18 @@ test('约 400px 移动端：无横向溢出，操作区自然换行可点击', a
 test('暗色模式：详情页无 pageerror，操作区可见', async ({ page }) => {
   const errors = []
   page.on('pageerror', (e) => errors.push(e.message))
+  await mockDetailsPage(page, { courseMode: 'open' })
+  // dark 注入必须注册在 mockDetailsPage 之后（addInitScript 按注册序执行，后写者赢——
+  // 其共享注入带 isDarkMode:false，先注会被覆写）；themeInitialized 阻断
+  // checkTimeTheme 的"首次访问按墙钟定主题"（本用例曾只在夜间靠墙钟侥幸通过）
   await page.addInitScript(() => {
     localStorage.setItem('bme-user-token', 'e2e-mock-token')
+    localStorage.setItem('themeInitialized', 'true')
     localStorage.setItem('bme-user-state', JSON.stringify({
       token: 'e2e-mock-token', isLogin: true, isDarkMode: true, level: 2,
       user: { role: 'user', verification_status: 'verified' }, checkinInfo: {},
     }))
   })
-  await mockDetailsPage(page, { courseMode: 'open' })
 
   await page.goto(`${BASE}/study/details?id=${COURSE_ID}`, { waitUntil: 'domcontentloaded' })
   await expect(startBtn(page)).toBeVisible()
