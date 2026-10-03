@@ -371,3 +371,37 @@ test('开发测试账号面板：独立页分组卡片，点击一键登录（im
   expect(posted).toHaveLength(1)
   expect(posted[0]).toEqual({ User_Email: 'stu1@seed.dev', User_Password: '25d55ad283aa400af464c76d713c07ad' })
 })
+
+// 反馈浮钮叠层回归（2026-10-03）：09-22 把 .feedback-float 压到 z-index:1 后，
+// 首页右侧栏（z-index:2）整块挡住浮钮——滚到页脚才可点。现修为 10（高于内容、低于弹层）。
+// 用 elementFromPoint 验证按钮中心点的命中元素就是自己（初始滚动位置，不滚动）。
+test('反馈浮钮不被内容区叠层挡住（z-index 回归）', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('bme-user-token', 'e2e-mock-token')
+    localStorage.setItem('bme-user-state', JSON.stringify({
+      token: 'e2e-mock-token', isLogin: true, isDarkMode: false,
+      user: { username: 'test_user', role: 'user', verification_status: 'verified' }, checkinInfo: {},
+    }))
+  })
+  await page.route('http://127.0.0.1:5001/**', route => {
+    const url = route.request().url()
+    if (url.endsWith('/banner/list')) {
+      return route.fulfill({ json: { code: 200, data: [
+        { Banner_Id: 1, title: '帧一', image: '/media/x.jpg', image_focus_y: 50,
+          display_ratio: null, link_type: 'route', link_value: '/course',
+          is_camp_frame: 0, visible: true, sort_order: 1 },
+      ] } })
+    }
+    return route.fulfill({ json: { code: 200 } })
+  })
+
+  await page.goto(`${BASE}/home`)
+  const bubble = page.getByRole('button', { name: '报个Bug' })
+  await expect(bubble).toBeVisible()
+  const hit = await bubble.evaluate((btn) => {
+    const r = btn.getBoundingClientRect()
+    const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+    return !!top && (btn.contains(top) || top.contains(btn))
+  })
+  expect(hit).toBe(true)
+})
