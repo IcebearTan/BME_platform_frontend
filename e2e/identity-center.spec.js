@@ -100,6 +100,46 @@ test.describe('用户端身份中心', () => {
     await expect(page.getByPlaceholder('与名册一致的姓名')).toBeVisible()
   })
 
+  test('核验向导：学号与邮箱前缀不一致前置提示并拦下发码（学号事故回归）', async ({ page }) => {
+    await loginAsUser(page)
+    const errors = []
+    page.on('pageerror', (e) => errors.push(e.message))
+    let draftPosted = 0
+    await page.route(`${API}/**`, (route) => {
+      const url = route.request().url()
+      if (url.includes('/identity/applications') && route.request().method() === 'POST') {
+        draftPosted += 1
+        return route.fulfill({ json: { code: 200, application: { id: 9, status: 'draft' } } })
+      }
+      if (url.includes('/identity/status')) {
+        return route.fulfill({ json: { ...MOCK_STATUS,
+          person: { ...MOCK_STATUS.person, verification_status: 'unverified', verified_name: null },
+          applications: [] } })
+      }
+      if (url.includes('/identity/link-cases')) return route.fulfill({ json: { code: 200, cases: [] } })
+      return route.fulfill({ json: { code: 200 } })
+    })
+    await page.goto('http://127.0.0.1:18081/AMEII/user-center/identity')
+
+    // 选本校（中山大学），填学号 + NetID 邮箱：不一致提示出现，发码被拦且零草稿请求
+    await page.locator('.el-select').first().click()
+    await page.locator('.el-select__popper:visible')
+      .locator('.el-select-dropdown__item', { hasText: '中山大学' }).click()
+    await page.getByPlaceholder('与名册一致的姓名').fill('王学号')
+    await page.getByPlaceholder('学生邮箱 @ 前面的部分，如 zhangsan01').fill('23330000')
+    await page.getByPlaceholder(/NetID@mail2\.sysu\.edu\.cn/).fill('lihr235@mail2.sysu.edu.cn')
+    await expect(page.locator('.mismatch-alert')).toBeVisible()
+    await page.getByRole('button', { name: '发送验证码' }).click()
+    await expect(page.getByText('NetID/学号须与学生邮箱 @ 前面的部分一致，请按表单下方提示修正'))
+      .toBeVisible()
+    expect(draftPosted).toBe(0)
+
+    // 改成一致：提示消失
+    await page.getByPlaceholder('学生邮箱 @ 前面的部分，如 zhangsan01').fill('lihr235')
+    await expect(page.locator('.mismatch-alert')).toHaveCount(0)
+    expect(errors).toEqual([])
+  })
+
   test('开关关闭：核验与认领显示暂未开放占位（状态卡仍可见）', async ({ page }) => {
     await loginAsUser(page)
     await page.route(`${API}/**`, (route) => {

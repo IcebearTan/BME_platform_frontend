@@ -20,6 +20,16 @@ const form = ref({ school_id: '', claimed_name: '', claimed_identifier: '', cont
 const selectedSchool = computed(() =>
   props.schools.find(s => s.school_id === form.value.school_id))
 const isExternal = computed(() => !!selectedSchool.value?.external)
+// 本校：identifier 须与邮箱前缀一致（后端硬校验 email_local_matches_identifier）。
+// 学生常误填学号而邮箱前缀是 NetID，保存草稿即 400 且报错文案说不出差别在哪
+// （2026-10-03：开放两日 8 个 IP 撞 96 次）——前端先把规则讲明白再放行。
+const identifierEmailMismatch = computed(() => {
+  if (isExternal.value) return false
+  const ident = (form.value.claimed_identifier || '').trim()
+  const email = (form.value.contact_email || '').trim()
+  const local = email.includes('@') ? email.split('@')[0] : ''
+  return !!ident && !!local && ident !== local
+})
 const code = ref('')
 const sending = ref(false)
 const verifying = ref(false)
@@ -84,6 +94,11 @@ const sendCode = async () => {
     ElMessage.warning(isExternal.value
       ? '请先完整填写学校、姓名与联系邮箱'
       : '请先完整填写学校、姓名、NetID 与个人邮箱')
+    return
+  }
+  // 规则前置：不一致直接拦下并指路（省一次必败的后端往返）
+  if (identifierEmailMismatch.value) {
+    ElMessage.warning('NetID/学号须与学生邮箱 @ 前面的部分一致，请按表单下方提示修正')
     return
   }
   sending.value = true
@@ -246,15 +261,20 @@ const withdraw = async (row) => {
         <div class="form-row">
           <el-form-item :label="isExternal ? '学号（选填）' : 'NetID / 学号'">
             <el-input v-model="form.claimed_identifier"
-                      :placeholder="isExternal ? '如有可填写，便于名册核对' : '如 zhangsan01'"
+                      :placeholder="isExternal ? '如有可填写，便于名册核对' : '学生邮箱 @ 前面的部分，如 zhangsan01'"
                       :disabled="!!activeDraft" />
           </el-form-item>
           <el-form-item :label="isExternal ? '联系邮箱' : '个人学生邮箱'">
             <el-input v-model="form.contact_email"
-                      :placeholder="isExternal ? '常用个人邮箱（接收验证码与后续联系）' : 'NetID@mail2.sysu.edu.cn（须与 NetID 一致）'"
+                      :placeholder="isExternal ? '常用个人邮箱（接收验证码与后续联系）' : 'NetID@mail2.sysu.edu.cn（@ 前与上一格一致）'"
                       :disabled="!!activeDraft" />
           </el-form-item>
         </div>
+
+        <el-alert v-if="identifierEmailMismatch" type="warning" :closable="false" show-icon
+          class="mismatch-alert"
+          title="所填 NetID/学号与邮箱 @ 前的部分不一致，暂时无法保存或发送验证码"
+          description="请填写学生邮箱地址中 @ 前面的那串字符：多数同学是 NetID（如 lihr235，即学校邮箱的账号名）；若你的邮箱前缀本身就是纯学号，则填学号。两栏一致后才能继续。" />
       </el-form>
 
       <!-- 无草稿时也要渲染本行：sendCode 内部会先 ensureDraft 建草稿，
@@ -308,6 +328,7 @@ const withdraw = async (row) => {
 <style scoped>
 .verify-form { margin-top: 4px; }
 .form-row { display: flex; gap: 16px; }
+.mismatch-alert { margin-bottom: 16px; }
 .form-row .el-form-item { flex: 1; }
 .code-line { display: flex; align-items: center; gap: 12px; margin: 4px 0 16px; }
 .code-input { width: 140px; }
