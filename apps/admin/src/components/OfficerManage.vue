@@ -115,6 +115,10 @@
           <el-date-picker v-model="dlg.form.term_start" type="date" value-format="YYYY-MM-DD"
             placeholder="选择日期" style="width: 100%;" />
         </el-form-item>
+        <el-form-item label="任职范围">
+          <el-input v-model="dlg.form.scope_note" maxlength="200" show-word-limit
+            placeholder="选填（展示在个人主页社团身份卡，如：统筹硬件组日常培训与器材管理）" />
+        </el-form-item>
       </el-form>
       <template #footer>
         <div class="dialog-footer">
@@ -253,7 +257,7 @@ const dlg = reactive({ visible: false, id: null, submitting: false, form: {} })
 
 const openAppoint = () => {
   dlg.id = null
-  dlg.form = { user_id: null, title_id: null, group_id: null, term_start: today() }
+  dlg.form = { user_id: null, title_id: null, group_id: null, term_start: today(), scope_note: '' }
   dlg.visible = true
   if (!users.value.length) fetchUsers()
 }
@@ -271,6 +275,7 @@ const openEdit = (row) => {
     title_id: row.title_id,
     group_id: row.group_id ?? null,
     term_start: row.term_start,
+    scope_note: row.scope_note || '',
   }
   dlg.visible = true
 }
@@ -300,8 +305,9 @@ const submitAppointOrEdit = async () => {
 
   dlg.submitting = true
   try {
-    // id 轨道入参（名/id 双轨的后端已兼容）；group_id 显式 null = 清空挂组
-    const payload = { title_id: f.title_id, group_id: f.group_id ?? null, term_start: f.term_start }
+    // id 轨道入参（名/id 双轨的后端已兼容）；group_id 显式 null = 清空挂组；scope_note 空串归一 null
+    const payload = { title_id: f.title_id, group_id: f.group_id ?? null, term_start: f.term_start,
+                      scope_note: (f.scope_note || '').trim() || null }
     if (dlg.id) {
       await api({ url: `/admin/officers/${dlg.id}`, method: 'put', data: payload })
       ElMessage.success('任职信息已更新')
