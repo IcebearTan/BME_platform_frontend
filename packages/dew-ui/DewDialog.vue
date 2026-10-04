@@ -9,7 +9,8 @@
     <!-- 弹窗面板：居中容器 + 点击空白关闭 -->
     <Transition name="dew-dialog-panel" :duration="320">
       <div v-if="modelValue" class="dew-dialog-panel" @click.self="onBackdropClick">
-        <div class="dew-dialog" role="dialog" aria-modal="true" :class="{ 'dew-dialog--glass': glass }" :style="dialogStyle">
+        <div class="dew-dialog" role="dialog" aria-modal="true" ref="dialogRef" tabindex="-1"
+             :class="{ 'dew-dialog--glass': glass }" :style="dialogStyle">
           <!-- 标题栏 -->
           <div class="dew-dialog__header">
             <slot name="header">
@@ -36,7 +37,7 @@
 </template>
 
 <script setup>
-import { computed, watch, onBeforeUnmount } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { Close } from '@element-plus/icons-vue'
 
 const props = defineProps({
@@ -59,6 +60,9 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'close'])
 
+const dialogRef = ref(null)
+const restoreFocusEl = ref(null)
+
 const dialogStyle = computed(() => ({
   width: typeof props.width === 'number' ? `${props.width}px` : props.width,
 }))
@@ -72,20 +76,74 @@ function onBackdropClick() {
   if (props.closeOnClickModal) close()
 }
 
-function onKeydown(e) {
-  if (e.key === 'Escape' && props.closeOnPressEscape) close()
+// ── 焦点圈定（a11y：aria-modal 的语义兑现）──────────────────────
+// 弹窗内可聚焦元素（可见且未禁用）；Tab/Shift+Tab 在其中循环不跑出弹窗；
+// 打开时聚焦正文区首个控件（无则面板自身），关闭时焦点还原触发元素。
+const FOCUSABLE_SEL = [
+  'button:not([disabled])', '[href]', 'input:not([disabled])',
+  'select:not([disabled])', 'textarea:not([disabled])',
+  '[contenteditable="true"]', '[tabindex]:not([tabindex="-1"])',
+].join(', ')
+
+function focusableIn(el) {
+  if (!el) return []
+  return [...el.querySelectorAll(FOCUSABLE_SEL)].filter(
+    (n) => !n.disabled && !n.getAttribute('aria-hidden') && n.getClientRects().length > 0
+  )
 }
 
-// 打开时锁 body 滚动 + 监听 Esc
+// 多弹窗同开时只有最顶层（DOM 顺序最后）的实例响应键盘圈定，
+// 避免嵌套弹窗的两个 keydown 处理器互相抢焦点
+function isTopDialog() {
+  const panels = document.querySelectorAll('.dew-dialog')
+  return panels.length === 0 || panels[panels.length - 1] === dialogRef.value
+}
+
+function onKeydown(e) {
+  if (!isTopDialog()) return
+  if (e.key === 'Escape' && props.closeOnPressEscape) {
+    close()
+    return
+  }
+  if (e.key !== 'Tab') return
+  const items = focusableIn(dialogRef.value)
+  if (!items.length) return
+  const first = items[0]
+  const last = items[items.length - 1]
+  const active = document.activeElement
+  if (e.shiftKey) {
+    if (active === first || !dialogRef.value.contains(active)) {
+      e.preventDefault()
+      last.focus()
+    }
+  } else if (active === last || !dialogRef.value.contains(active)) {
+    e.preventDefault()
+    first.focus()
+  }
+}
+
+// 打开：锁 body 滚动 + 键盘圈定 + 初始聚焦；关闭：焦点还原
 watch(
   () => props.modelValue,
   (val) => {
     if (val) {
+      restoreFocusEl.value = document.activeElement
       document.body.style.overflow = 'hidden'
-      document.addEventListener('keydown', onKeydown)
+      document.addEventListener('keydown', onKeydown, true)
+      nextTick(() => {
+        if (!dialogRef.value) return
+        const body = dialogRef.value.querySelector('.dew-dialog__body')
+        const target = focusableIn(body)[0] || dialogRef.value
+        target.focus({ preventScroll: true })
+      })
     } else {
       document.body.style.overflow = ''
-      document.removeEventListener('keydown', onKeydown)
+      document.removeEventListener('keydown', onKeydown, true)
+      const el = restoreFocusEl.value
+      restoreFocusEl.value = null
+      if (el && typeof el.focus === 'function' && document.contains(el)) {
+        el.focus({ preventScroll: true })
+      }
     }
   }
 )
@@ -120,6 +178,7 @@ onBeforeUnmount(() => {
 
 /* 弹窗表面 */
 .dew-dialog {
+  outline: none; /* tabindex=-1 兜底聚焦容器不显焦点环（键盘导航仍走内部控件） */
   position: relative;
   display: flex;
   flex-direction: column;

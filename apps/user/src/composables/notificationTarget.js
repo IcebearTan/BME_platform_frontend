@@ -17,6 +17,28 @@ export function notificationTarget(item) {
   if (item.category === 'message' || item.category === 'gratitude') {
     return MESSAGE_TARGET
   }
+  // 内部工作台（feature/work-collab）：work_item 深链直达事项；撤权后事项 404
+  // 由详情页统一渲染「内容不可访问」空态（§10.2 信息零泄露）
+  if (item.category === 'work') {
+    if (item.source_type === 'work_item' && item.source_id) {
+      return { path: `/work/items/${item.source_id}` }
+    }
+    return { path: '/work' }
+  }
+  // 平台发版公告（scripts/announce_release.py 扇出）：直达更新日志页
+  if (item.source_type === 'platform_release') {
+    return { path: '/changelog' }
+  }
+  // 身份域（登录一次性核验提醒 / outbox 投递的归并结果通知）：直达身份中心
+  if (item.source_type === 'identity_remind' || item.source_type === 'identity') {
+    return { path: '/user-center/identity' }
+  }
+  // 社区互动（回复/点赞，L2-1）：source_id=帖子 id，直达帖子页
+  if (item.source_type === 'discussion_reply' || item.source_type === 'discussion_like') {
+    return item.source_id
+      ? { path: `/community/thread/${item.source_id}` }
+      : { path: '/community' }
+  }
   if (item.category !== 'camp') {
     return { path: '/notifications' }
   }

@@ -3,6 +3,13 @@ import VuexPersist from 'vuex-persistedstate';
 import { useRouter } from 'vue-router';
 import { session } from './api';
 
+// D1 安全地基：登录响应整体入 store 前剔除令牌字段（token 只经 facade/兼容键存管）
+const sanitizeUser = (user) => {
+    if (!user || typeof user !== 'object') return user;
+    const { token, refresh_token, ...rest } = user;
+    return rest;
+};
+
 
 export default new Vuex.Store({
     state: {
@@ -19,7 +26,7 @@ export default new Vuex.Store({
             state.token = null;
         },
         setUser(state, user) {
-            state.user = user
+            state.user = sanitizeUser(user)
         },
         // 401 静默续期时同步最新身份（2026-09-17）：后台改了 role/权限，
         // 旧客户端无须重新登录即自愈；未登录（state.user 为空）时忽略
@@ -67,8 +74,10 @@ export default new Vuex.Store({
     },
     plugins: [
         VuexPersist({
-            key: 'bme-admin-state',  // 本地存储的键名
-            storage: window.localStorage,  // 使用 localStorage，也可以使用 sessionStorage
+            key: 'bme-admin-state',
+            storage: window.localStorage,
+            // D1 白名单：token 不持久化（内存态，由 facade 引导恢复）；isLogin 是派生 getter 不落盘
+            paths: ['user', 'isDarkMode'],
         })
     ]
 });

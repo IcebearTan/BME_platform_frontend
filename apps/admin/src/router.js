@@ -4,6 +4,7 @@ import HomeView from './views/HomeView.vue'
 import { authRoutes } from './router/routes/auth'
 import { shellChildren } from './router/manifest'
 import store from './store';
+import { authSession } from './api';
 
 const router = createRouter({
     history: createWebHistory("/admin/"),
@@ -12,6 +13,7 @@ const router = createRouter({
             path: '/',
             name: 'home',
             component: HomeView,
+            meta: { staffOnly: true },
             children: shellChildren,
         },
         ...authRoutes,
@@ -21,13 +23,16 @@ const router = createRouter({
 // 登录守卫 + RBAC 路由守卫：
 // 无 token 直跳登录页（2026-09-16 加固）——原先依赖接口 401 兜底踢回，
 // 退出后直访受保护页会先渲染整壳再闪退；staffOnly 防手输 URL 绕菜单
-router.beforeEach((to) => {
-    const publicPages = to.path === '/login' || to.path === '/register';
-    if (!publicPages && !localStorage.getItem('bme-admin-token')) {
+router.beforeEach(async (to) => {
+    const publicPages = to.path === '/login' || to.path === '/register'
+        || (import.meta.env.DEV && to.path === '/dev/accounts');
+    // D1 会话门面：先引导再判定（cookie 模式刷新页恢复会话；booting 不误判）
+    if (!publicPages) await authSession.bootstrap()
+    if (!publicPages && !authSession.getToken()) {
         return { path: '/login' };
     }
     if (to.meta.staffOnly && !store.getters.isStaff) {
-        return { name: 'home_default' };
+        return { name: 'login' };
     }
 });
 

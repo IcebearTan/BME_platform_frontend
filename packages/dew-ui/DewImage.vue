@@ -81,6 +81,9 @@ const boxStyle = computed(() => {
   if (props.size != null) {
     s.width = toPx(props.size)
     s.height = toPx(props.size)
+    // 首字兜底按直径缩放：__initial 用 0.42em，根字号锚定直径后随头像大小走
+    // （此前根字号靠页面继承 ≈13px，任何头像下首字都只有 ~5px）
+    s.fontSize = toPx(props.size)
   }
   if (props.width != null) s.width = toPx(props.width)
   if (props.height != null) s.height = toPx(props.height)

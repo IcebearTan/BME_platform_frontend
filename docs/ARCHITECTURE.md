@@ -150,14 +150,21 @@ EP 是结构层,不做逐个替换;通过全局 CSS 把 EP 拉进设计系统:
 
 ```js
 // apps/<x>/src/api.js —— 薄壳,仅装配
+const authSession = createSessionFacade({   // D1 安全地基:登录态单一权威源
+  baseURL: import.meta.env.VITE_API_BASE_URL,
+  clientType: 'user',                       // 'user' | 'admin',双端 cookie/会话隔离
+  tokenKey: 'bme-<user|admin>-token',
+})
 const api = createApiClient({
   baseURL: import.meta.env.VITE_API_BASE_URL,
   tokenKey: 'bme-<user|admin>-token',
-  onUnauthorized: createUnauthorizedHandler({ tokenKey }),
+  auth: authSession,
+  onUnauthorized: createUnauthorizedHandler({ tokenKey, auth: authSession }),
 })
 ```
 
-- 请求拦截自动注 `Authorization: Bearer <token>`;401 时防重弹窗 + 清 token + 按 BASE_URL 跳登录;
+- 请求拦截自动注 `Authorization: Bearer <token>`(token 取自 facade);401 按 machine 语义细分——终态(SESSION_REVOKED/ACCOUNT_MERGED 等)直接终止该端会话,仅 ACCESS_TOKEN_EXPIRED/无 machine 走静默续期重放一次;
+- **会话门面(2026-10-01 D1)**:状态机 booting/authenticated/anonymous/unavailable,双模式——cookie 模式(后端 `AUTH_REFRESH_COOKIE_ENABLED=true`,经 `GET /auth/session/config` 探测)access 仅内存、refresh 走 HttpOnly cookie、刷新页由 bootstrap 恢复;compat 模式沿用 localStorage 双键。**守卫必须 `await authSession.bootstrap()` 再判定**,组件不得直读 localStorage token(收口 `authSession.getToken()`);跨标签页续期经 Web Locks 互斥,服务端一次性消费兜底;
 - 包内 ElMessage 为动态 import(element-plus 是 peerDependency),包本身可在任意端复用;
 - **业务错误处理约定**:catch 里解析 `error.response.data.message`(string 或 `{字段:[错误]}` 对象,取第一条),兜底友好文案。范式见 `apps/*/src/components/Auth/LoginComponent.vue`。
 

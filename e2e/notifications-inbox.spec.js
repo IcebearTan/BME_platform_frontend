@@ -13,6 +13,7 @@ const NOTIFICATIONS = {
     notifications: [
       { id: 101, title: '系统维护通知', content: '今晚 22:00-23:00 系统维护，请提前保存。', category: 'system', source_type: 'admin', camp_session_id: null, is_read: false, is_important: false, created_at: NOW },
       { id: 102, title: '收到一封感谢信', content: '张三 寄来一封感谢信，点开看看吧', category: 'message', source_type: 'gratitude', source_id: 201, camp_session_id: 1, is_read: false, is_important: false, created_at: NOW },
+      { id: 104, title: '平台更新 v3.3', content: 'BME 平台 v3.3 已发布。点击查看本版本的完整更新日志。', category: 'system', source_type: 'platform_release', source_id: null, camp_session_id: null, is_read: false, is_important: false, created_at: NOW },
     ],
   },
 }
@@ -109,6 +110,11 @@ test('邮箱式收件箱：system 通知在右栏展开详情（桌面不弹窗�
   const rightPane = page.locator('.inbox-right')
   await expect(rightPane.getByText('今晚 22:00-23:00 系统维护，请提前保存。')).toBeVisible()
   await expect(rightPane.getByText('系统通知', { exact: true })).toBeVisible()
+
+  // 发版公告（platform_release）：列表点击深链直达 /changelog 更新日志页
+  await page.getByText('平台更新 v3.3').click()
+  await expect(page).toHaveURL(/\/changelog$/)
+  await expect(page.locator('.version-no', { hasText: 'v3.3' })).toBeVisible()
 
   // 桌面端不应弹出 DewDialog
   await expect(page.getByRole('heading', { name: '通知详情' })).toHaveCount(0)
@@ -371,5 +377,130 @@ test('分类全部已读：只标记当前分类，请求带 category', async ({
   const sysCard = page.locator('.dew-card', { hasText: '系统维护通知' })
   await expect(sysCard.locator('.unread-dot')).toHaveCount(1)
 
+  expect(errors).toEqual([])
+})
+
+// ── 内部工作台通知（feature/work-collab）：tab 浮出 + work_item 深链 ──
+
+// /work/me 探测形（有资格）：workspaces 非空即浮出「工作」tab
+const ME_WORK_GRANTED = {
+  code: 200, message: 'ok',
+  data: {
+    eligibility: { kind: 'member', group_ids: [3] }, is_governance: false,
+    workspaces: [{ id: 1, club_group_id: 3, group_name: '软件组', status: 'active', role: 'member' }],
+    todo: { pending_responses: 0, pending_transfers: 0, to_review: 0, due_soon: 0, overdue: 0 },
+  },
+}
+
+const ME_WORK_EMPTY = {
+  code: 200, message: 'ok',
+  data: { eligibility: null, is_governance: false, workspaces: [],
+          todo: { pending_responses: 0, pending_transfers: 0, to_review: 0, due_soon: 0, overdue: 0 } },
+}
+
+const WORK_NOTIFICATIONS = {
+  code: 200,
+  data: {
+    notifications: [
+      { id: 401, title: '设备检修转交给你', content: '陈干事 把「设备检修排期」转交给你，请确认接手。', category: 'work', source_type: 'work_item', source_id: 101, camp_session_id: null, is_read: false, is_important: false, created_at: NOW },
+    ],
+  },
+}
+
+async function mockWorkNotifBackend(page, meData) {
+  // work 域通知 + /work/me 探测给真形数据，其余统一 200 空数据
+  await page.route('http://127.0.0.1:5001/**', (route) => {
+    const url = route.request().url()
+    if (url.includes('/notification/list')) {
+      return route.fulfill({ json: WORK_NOTIFICATIONS })
+    }
+    if (url.includes('/gratitude/received')) {
+      return route.fulfill({ json: { code: 200, data: { letters: [] } } })
+    }
+    if (url.includes('/work/me/todos')) {
+      return route.fulfill({ json: { code: 200, data: { pending_responses: [], pending_transfers: [], to_review: [], due: [] } } })
+    }
+    if (url.includes('/work/me')) {
+      return route.fulfill({ json: meData })
+    }
+    if (url.includes('/camp/sessions') && !url.includes('/camp/ms')) {
+      return route.fulfill({ json: SESSIONS })
+    }
+    return route.fulfill({ json: { code: 200, message: 'ok', data: {} } })
+  })
+}
+
+test('工作通知：tab 随资格浮出，点击深链直达事项页', async ({ page }) => {
+  const errors = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  await loginAs(page, 'user')
+  await mockWorkNotifBackend(page, ME_WORK_GRANTED)
+
+  await page.goto(`${BASE}/notifications`, { waitUntil: 'domcontentloaded' })
+  // 「工作」tab 仅已开通工作人员可见（/work/me 探测通过）
+  await page.getByRole('button', { name: '工作' }).click()
+  await expect(page).toHaveURL(/tab=work/)
+  await expect(page.getByText('设备检修转交给你')).toBeVisible()
+
+  // work_item 通知点击 → /work/items/:source_id 深链
+  await page.getByText('设备检修转交给你').click()
+  await expect(page).toHaveURL(/\/work\/items\/101$/)
+
+  expect(errors).toEqual([])
+})
+
+test('无工作资格：「工作」tab 不浮出（学员不可见）', async ({ page }) => {
+  const errors = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  await loginAs(page, 'user')
+  await mockWorkNotifBackend(page, ME_WORK_EMPTY)
+
+  await page.goto(`${BASE}/notifications`, { waitUntil: 'domcontentloaded' })
+  await expect(page.getByRole('button', { name: '工作' })).toHaveCount(0)
+
+  expect(errors).toEqual([])
+})
+
+test('社区互动深链：discussion_reply/discussion_like 直达帖子页（L2-1）', async ({ page }) => {
+  const errors = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  await loginAs(page, 'user')
+  // 复用闭环 mock（登录态/未读数/会话等基础端点），仅覆写通知列表为社区互动
+  await mockClosureBackend(page)
+  const NOW2 = new Date().toISOString()
+  await page.unroute('http://127.0.0.1:5001/**')
+  await page.route('http://127.0.0.1:5001/**', (route) => {
+    const url = route.request().url()
+    if (url.includes('/notification/unread_count')) {
+      return route.fulfill({ json: UNREAD })
+    }
+    if (url.includes('/notification/list')) {
+      return route.fulfill({ json: { code: 200, data: {
+        notifications: [
+          { id: 301, title: '你的内容有新回复', content: '李四 回复了你：同问', category: 'community',
+            source_type: 'discussion_reply', source_id: 88, camp_session_id: null,
+            is_read: false, is_important: false, created_at: NOW2 },
+          { id: 302, title: '你的内容获赞', content: '王五 赞了你的内容', category: 'community',
+            source_type: 'discussion_like', source_id: 88, camp_session_id: null,
+            is_read: false, is_important: false, created_at: NOW2 },
+        ],
+        total: 2, page: 1, pages: 1,
+      } } })
+    }
+    if (url.includes('/gratitude/received')) {
+      return route.fulfill({ json: { code: 200, data: { letters: [] } } })
+    }
+    if (url.includes('/camp/sessions') && !url.includes('/camp/ms')) {
+      return route.fulfill({ json: SESSIONS })
+    }
+    return route.fulfill({ json: { code: 200 } })
+  })
+
+  await page.goto(`${BASE}/notifications`, { waitUntil: 'domcontentloaded' })
+  await page.getByText('你的内容有新回复').click()
+  await expect(page).toHaveURL(/\/community\/thread\/88/)
+  await page.goto(`${BASE}/notifications`, { waitUntil: 'domcontentloaded' })
+  await page.getByText('你的内容获赞').click()
+  await expect(page).toHaveURL(/\/community\/thread\/88/)
   expect(errors).toEqual([])
 })

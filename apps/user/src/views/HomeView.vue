@@ -14,12 +14,18 @@ import StudyHub from "../components/Home/StudyHub.vue";
 import MobileMenuComponent from "../components/MobileMenuComponent.vue";//添加这个竖屏版本的菜单
 import { Menu as Expand } from '@element-plus/icons-vue'; // 确保导入了 Rank
 import { ref, onMounted, onUnmounted, computed } from 'vue';//添加computed用于主题
+import VerificationReminderDialog from "../components/Identity/VerificationReminderDialog.vue";
 
 const store = useStore();
 const router = useRouter();
 
 // 获取主题状态
 const isDarkMode = computed(() => store.getters.isDarkMode);
+
+// 未核验首页强提醒（R0 收紧批 2026-10-02，用户拍板强弹不可关）：
+// /home 为路由级组件，每次回到首页都会重挂载 → 每次都弹，核验完成自然消失。
+// 超管跳过（管理员不核验）；组件内自探通道，通道关闭不弹。
+const showVerifyRemind = ref(false);
 
 ////////新增竖屏检测和组件初始化以及非竖屏销毁//////////////////////////////////////////////////
 const isMobile = ref(window.innerWidth <= 768); // 初始检测
@@ -36,6 +42,10 @@ const checkScreenSize = () => {
 onMounted(() => {
   checkScreenSize();
   window.addEventListener('resize', checkScreenSize);
+  if (store.getters.isLogin && !store.getters.isVerified
+      && store.getters.role !== 'super_admin') {
+    showVerifyRemind.value = true;
+  }
 });
 
 onUnmounted(() => {
@@ -61,6 +71,7 @@ const handleEntryClick = (entry) => {
 
 <template>
   <div :class="['home-container', { 'theme-dark': isDarkMode, 'theme-light': !isDarkMode }]">
+    <VerificationReminderDialog v-if="showVerifyRemind" v-model="showVerifyRemind" />
     <el-container class="common-layout">
       <el-header class="header-container">
         <!-- 桌面菜单 -->

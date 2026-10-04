@@ -1,9 +1,28 @@
 <script setup>
-import { defineEmits } from 'vue';
+import { defineEmits, onMounted, watch, computed } from 'vue';
+import { authSession } from '../api';
 import { Close } from '@element-plus/icons-vue';
+import { useWorkAccess } from '../composables/useWorkAccess';
+import { useWorkData } from '../composables/useWorkData';
 
 // 定义可以触发的事件
 const emit = defineEmits(['close']);
+
+// 内部工作台入口（仅已开通工作人员可见；与个人中心同组的个人域入口）
+const { hasAccess: workAccess, detect: detectWorkAccess } = useWorkAccess();
+const { todoCounts, refreshSummary } = useWorkData();
+onMounted(() => {
+  if (authSession.getToken()) detectWorkAccess();
+});
+// 有资格即取一次待办计数：抽屉入口与桌面头像下拉同口径（五桶之和）；
+// immediate 兜底探测早已完成（单例）的挂载场景
+watch(workAccess, (v) => { if (v) refreshSummary().catch(() => {}) }, { immediate: true });
+const workTodoCount = computed(() =>
+  (todoCounts.value.pending_responses || 0)
+  + (todoCounts.value.pending_transfers || 0)
+  + (todoCounts.value.to_review || 0)
+  + (todoCounts.value.due_soon || 0)
+  + (todoCounts.value.overdue || 0));
 
 // 关闭菜单的方法
 const closeMenu = () => {
@@ -27,6 +46,7 @@ const closeMenu = () => {
         <li><router-link to="/community" @click="closeMenu">社区广场</router-link></li>
         <!-- 可以添加登录/注册/用户中心链接 -->
          <li><router-link to="/user-center/user-info" @click="closeMenu">个人中心</router-link></li>
+         <li v-if="workAccess"><router-link to="/work" @click="closeMenu">内部工作台<span v-if="workTodoCount > 0" class="work-todo-badge">{{ workTodoCount }} 项待办</span></router-link></li>
       </ul>
     </div>
   </div>
@@ -107,5 +127,13 @@ const closeMenu = () => {
   color: #c0c4cc;
   pointer-events: none; /* 禁止点击 */
   cursor: not-allowed;
+}
+
+/* 工作台待办徽标：行尾弱提醒，与桌面头像下拉同口径 */
+.work-todo-badge {
+  float: right;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--el-color-danger, #f56c6c);
 }
 </style>

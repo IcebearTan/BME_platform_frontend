@@ -105,7 +105,85 @@
       </template>
     </section>
 
-    <!-- ── 区块三：选导生流程（仅 learning）：draft/upcoming 可编辑，开跑后锁定只读 ── -->
+    <!-- ── 区块三：学习方向（仅 learning，09-28 与选导生流程解耦）：方向定义+课程绑定，
+         不开选导生的营也独立配置；draft/upcoming 全可编辑，running 方向名锁定仅绑定可改
+         （导生名片按名挂方向，改名脱钩），archived 只读 ── -->
+    <section v-if="!isProjectCamp" class="set-card">
+      <header class="set-card__head">
+        <span class="set-card__title-row">
+          <h4 class="set-card__title">学习方向</h4>
+          <el-popover placement="bottom-start" :width="360" trigger="click" popper-class="ms-help-popover">
+            <template #reference>
+              <button type="button" class="att-help-trigger" aria-label="查看学习方向说明" @click.stop>
+                <el-icon><InfoFilled /></el-icon>
+              </button>
+            </template>
+            <div class="ms-help-content">
+              <div class="ms-help-title">学习方向说明</div>
+              <ul>
+                <li>方向是营期的教学分组配置：每个方向绑定一门或多门课程，与本页「选导生流程」相互独立。</li>
+                <li>导生带方向（名片自选，或由管理员在成员管理中指定），学员随归属导生继承方向全部课程。</li>
+                <li>导生逐课按章认证学员学习进度（0-100 评分）；开营后新增/换绑课程会自动为该方向学员加选。</li>
+              </ul>
+            </div>
+          </el-popover>
+        </span>
+        <span v-if="!manageWritable" class="hint">已结营只读</span>
+        <span v-else-if="dirNameLocked" class="hint">开营后方向名锁定（导生名片按名挂方向），课程绑定仍可改（换新课自动为该方向学员加选）</span>
+      </header>
+
+      <!-- draft/upcoming：完整编辑（方向名 + 课程绑定 + 增删行） -->
+      <template v-if="manageWritable && !dirNameLocked">
+        <div class="ms-cfg-dirs" style="margin-top:10px;">
+          <div v-for="(d, i) in dirCfg.directions" :key="i" class="ms-cfg-dir-row">
+            <el-input v-model="d.name" placeholder="方向名（如 硬件组）" style="flex:1" />
+            <el-select v-model="d.course_ids" multiple filterable collapse-tags collapse-tags-tooltip
+              placeholder="关联课程（至少一门）" style="flex:1.6">
+              <el-option v-for="c in allCourses" :key="c.Course_Id" :label="c.Course_title" :value="Number(c.Course_Id)" />
+            </el-select>
+            <el-button size="small" type="danger" link
+              @click="dirCfg.directions.splice(i, 1)">删除</el-button>
+          </div>
+          <el-button size="small" @click="dirCfg.directions.push({ name: '', course_ids: [] })">+ 添加方向</el-button>
+          <div class="hint">每个方向至少绑定一门课程（可多门）；导生只选一个方向，学员随归属导生继承方向全部课程</div>
+        </div>
+        <div style="margin-top:6px;">
+          <el-button type="primary" size="small" :loading="dirCfg.saving" @click="saveDirections">保存方向</el-button>
+        </div>
+      </template>
+
+      <!-- running：方向名锁定，仅课程绑定可改（同前口径：只加不减，旧课保留学习历史） -->
+      <template v-else-if="manageWritable">
+        <div class="ms-cfg-readonly">
+          <div v-for="d in dirCfg.directions" :key="d.name" class="ms-cfg-dir-row">
+            <el-input :model-value="d.name" disabled style="flex:1" />
+            <el-select v-model="d.course_ids" multiple filterable collapse-tags collapse-tags-tooltip
+              placeholder="关联课程（至少一门）" style="flex:1.6">
+              <el-option v-for="c in allCourses" :key="c.Course_Id" :label="c.Course_title" :value="Number(c.Course_Id)" />
+            </el-select>
+          </div>
+          <div v-if="!dirCfg.directions.length" class="hint">尚未配置方向</div>
+          <div v-if="dirCfg.directions.length" style="margin-top:6px;">
+            <el-button type="primary" size="small" :loading="dirCfg.saving" @click="saveDirections">保存课程绑定</el-button>
+            <span class="hint" style="margin-left:8px;">换绑新课将自动为该方向全部学员加选新课程并通知</span>
+          </div>
+        </div>
+      </template>
+
+      <!-- archived 只读态 -->
+      <template v-else>
+        <div class="ms-cfg-readonly">
+          <div v-for="d in sessionDirections" :key="d.name" class="ms-cfg-dir-view">
+            <span class="dir-name">{{ d.name }}</span>
+            <span class="dir-course">{{ d.course_ids.map(courseTitle).filter(Boolean).join('、') || '未绑定课程' }}</span>
+          </div>
+          <div v-if="!sessionDirections.length" class="hint">尚未配置方向</div>
+        </div>
+      </template>
+    </section>
+
+    <!-- ── 区块四：选导生流程（仅 learning，可选）：开关 + 志愿时间窗；draft/upcoming 可编辑，
+         开跑后锁定只读（开营即收官，时间窗自动压缩到开营时刻） ── -->
     <section v-if="!isProjectCamp" class="set-card">
       <header class="set-card__head">
         <span class="set-card__title-row">
@@ -119,77 +197,47 @@
             <div class="ms-help-content">
               <div class="ms-help-title">配置说明</div>
               <ul>
-                <li>导生发布名片并选择一个方向，学员提交 1-3 个志愿，双方互选后开营。</li>
+                <li>选导生是可选的开营前置流程：导生发布名片并选择方向，学员提交 1-3 个志愿，双方互选后开营。</li>
+                <li>不开选导生也能走方向制：先在「学习方向」配置方向，再在成员管理中给导生分配方向。</li>
                 <li>志愿截止后不再线上提交，后续情况由工作人员线下协调。</li>
-                <li>每个方向至少关联一门课程；学员继承归属导生方向的全部课程。</li>
+                <li>启用时要求已配置至少一个完整方向（见上方「学习方向」区块）。</li>
               </ul>
             </div>
           </el-popover>
         </span>
-        <span v-if="!msCfgEditable" class="hint">选导生已开跑（{{ statusLabel(session.status) }}），时间窗锁定；方向课程绑定仍可改（换新课自动为该方向学员加选）</span>
+        <span v-if="!msFlowEditable" class="hint">选导生已开跑（{{ statusLabel(session.status) }}），时间窗锁定</span>
       </header>
 
-      <template v-if="msCfgEditable">
+      <template v-if="msFlowEditable">
         <el-form label-width="90px" size="small" style="margin-top:10px;">
           <el-form-item label="启用选导生">
-            <el-switch v-model="msCfg.enabled" />
-            <span class="hint" style="margin-left:8px;">导生发名片选方向，学员交 1-3 志愿，双方互选后开营</span>
+            <el-switch v-model="msFlow.enabled" />
+            <span class="hint" style="margin-left:8px;">导生发名片选方向，学员交 1-3 志愿，双方互选后开营；关闭则走管理员直接分配</span>
           </el-form-item>
-          <template v-if="msCfg.enabled">
+          <template v-if="msFlow.enabled">
             <el-form-item label="志愿起止" required>
-              <el-date-picker v-model="msCfg.start" type="datetime" value-format="YYYY-MM-DD HH:mm"
+              <el-date-picker v-model="msFlow.start" type="datetime" value-format="YYYY-MM-DD HH:mm"
                 format="MM-DD HH:mm" placeholder="开始" style="width:46%" />
               <span style="margin:0 4px;">至</span>
-              <el-date-picker v-model="msCfg.deadline" type="datetime" value-format="YYYY-MM-DD HH:mm"
+              <el-date-picker v-model="msFlow.deadline" type="datetime" value-format="YYYY-MM-DD HH:mm"
                 format="MM-DD HH:mm" placeholder="截止（后进线下协调）" style="width:46%" />
               <div class="hint" style="line-height:1.6;">
                 开放报名后学员即可浏览市集、收藏导生（只读浏览期）；到「开始」时间才能提交/修改志愿，到「截止」时间锁定待协调指派。浏览期长度 = 开放报名时刻至志愿开始时间
               </div>
             </el-form-item>
-            <el-form-item label="分类方向" required>
-              <div class="ms-cfg-dirs">
-                <div v-for="(d, i) in msCfg.directions" :key="i" class="ms-cfg-dir-row">
-                  <el-input v-model="d.name" placeholder="方向名（如 硬件组）" style="flex:1" />
-                  <el-select v-model="d.course_ids" multiple filterable collapse-tags collapse-tags-tooltip
-                    placeholder="关联课程（至少一门）" style="flex:1.6">
-                    <el-option v-for="c in allCourses" :key="c.Course_Id" :label="c.Course_title" :value="Number(c.Course_Id)" />
-                  </el-select>
-                  <el-button size="small" type="danger" link :disabled="msCfg.directions.length <= 1"
-                    @click="msCfg.directions.splice(i, 1)">删除</el-button>
-                </div>
-                <el-button size="small" @click="msCfg.directions.push({ name: '', course_ids: [] })">+ 添加方向</el-button>
-                <div class="hint">每个方向至少绑定一门课程（可多门）；导生只选一个方向，学员随归属导生继承方向全部课程，导生逐课按章认证进度（0-100 评分）</div>
-              </div>
-            </el-form-item>
           </template>
         </el-form>
         <div style="margin-top:6px;">
-          <el-button type="primary" size="small" :loading="msCfg.saving" @click="saveMsConfig">保存配置</el-button>
+          <el-button type="primary" size="small" :loading="msFlow.saving" @click="saveMsFlow">保存配置</el-button>
         </div>
       </template>
 
-      <!-- 开跑后只读态：时间窗锁死；方向名锁定（导生名片按名挂方向，改名会脱钩），
-           仅课程绑定可改——新增/换绑课程会自动为该方向学员加选（旧课保留学习历史） -->
       <template v-else-if="session.mentor_selection_enabled">
-        <div class="ms-cfg-readonly">
-          <div v-for="d in msCfg.directions" :key="d.name" class="ms-cfg-dir-row">
-            <el-input :model-value="d.name" disabled style="flex:1" />
-            <el-select v-model="d.course_ids" multiple filterable collapse-tags collapse-tags-tooltip
-                       :disabled="!manageWritable" placeholder="关联课程（至少一门）" style="flex:1.6">
-              <el-option v-for="c in allCourses" :key="c.Course_Id" :label="c.Course_title" :value="Number(c.Course_Id)" />
-            </el-select>
-          </div>
-          <div v-if="!msCfg.directions.length" class="hint">尚未配置方向</div>
-          <div v-if="manageWritable" style="margin-top:6px;">
-            <el-button type="primary" size="small" :loading="msCfg.saving" @click="saveMsTags">保存课程绑定</el-button>
-            <span class="hint" style="margin-left:8px;">换绑新课将自动为该方向全部学员加选新课程并通知</span>
-          </div>
-          <div class="hint" style="margin-top:6px;">
-            志愿窗口：{{ session.ms_preference_start || '—' }} ~ {{ session.ms_preference_deadline || '—' }}（开始前学员仅可浏览收藏）
-          </div>
+        <div class="hint" style="margin-top:8px;">
+          志愿窗口：{{ session.ms_preference_start || '—' }} ~ {{ session.ms_preference_deadline || '—' }}（开始前学员仅可浏览收藏；开营即截止）
         </div>
       </template>
-      <div v-else class="hint" style="margin-top:8px;">未启用选导生（草稿/待开放阶段可开启并配置方向）</div>
+      <div v-else class="hint" style="margin-top:8px;">未启用选导生（开营前可开启；不开也可在「学习方向」+成员管理直接组织方向制）</div>
     </section>
   </div>
 </template>
@@ -293,91 +341,96 @@ async function saveAttMode() {
   }
 }
 
-// ── 选导生与方向配置（09-12 定稿）：draft/upcoming 可编辑，开跑后锁定 ──
-const msCfg = reactive({
-  enabled: false, start: null, deadline: null,
-  directions: [{ name: '', course_ids: [] }],
-  saving: false, loaded: false,
-});
-const msCfgEditable = computed(() => props.manageWritable
+// ── 学习方向 + 选导生流程（09-12 定稿；09-28 解耦拆两个独立区块）：
+// 方向定义（ms_tags）是教学配置——不开选导生也能配，running 期课程绑定仍可改；
+// 选导生流程（开关/志愿时间窗）是流程配置——仅 draft/upcoming 可改 ──
+const msFlow = reactive({ enabled: false, start: null, deadline: null, saving: false });
+const dirCfg = reactive({ directions: [{ name: '', course_ids: [] }], saving: false });
+const cfgLoaded = { done: false };   // 一次性回填标记；保存成功后置 false 触发重填
+const msFlowEditable = computed(() => props.manageWritable
   && ['draft', 'upcoming'].includes(props.session.status));
+const dirNameLocked = computed(() => props.session.status === 'running');
 const sessionDirections = computed(() => props.session.ms_directions || []);
 const courseTitle = (cid) => {
   const c = props.allCourses.find((x) => Number(x.Course_Id) === Number(cid));
   return c?.Course_title || '';
 };
-// session 加载后回填配置卡（一次；父 fetchAll 整体替换 session → prop 引用变化重燃本 watch）
+// session 加载后回填两块配置卡（一次；父 fetchAll 整体替换 session → prop 引用变化重燃本 watch）
 watch(() => props.session, (s) => {
-  if (!msCfg.loaded && s?.id) {
-    msCfg.loaded = true;
-    msCfg.enabled = !!s.mentor_selection_enabled;
-    msCfg.start = s.ms_preference_start || null;
-    msCfg.deadline = s.ms_preference_deadline || null;
+  if (!cfgLoaded.done && s?.id) {
+    cfgLoaded.done = true;
+    msFlow.enabled = !!s.mentor_selection_enabled;
+    msFlow.start = s.ms_preference_start || null;
+    msFlow.deadline = s.ms_preference_deadline || null;
     const dirs = (s.ms_directions && s.ms_directions.length)
       ? s.ms_directions : [];
     // 09-13 多课制：course_ids 数组；旧单课回显标量兜底为单元素数组
-    msCfg.directions = dirs.length
+    dirCfg.directions = dirs.length
       ? dirs.map((d) => ({ name: d.name || '',
         course_ids: Array.isArray(d.course_ids) ? [...d.course_ids]
           : (d.course_id != null ? [Number(d.course_id)] : []) }))
       : [{ name: '', course_ids: [] }];
   }
 }, { immediate: true });
-async function saveMsConfig() {
-  if (msCfg.enabled && (!msCfg.start || !msCfg.deadline)) {
+// 当前编辑态方向的清洗+校验（过滤空行；allowEmpty=未启用选导生的营允许清空全部方向）
+function validatedTags({ allowEmpty }) {
+  const tags = dirCfg.directions
+    .map((d) => ({ name: (d.name || '').trim(), course_ids: d.course_ids || [] }))
+    .filter((d) => d.name || d.course_ids.length);
+  if (!tags.length && !allowEmpty) {
+    ElMessage.warning('请至少配置一个完整方向（启用选导生时必须有方向）');
+    return null;
+  }
+  if (tags.some((d) => !d.name || !d.course_ids.length)) {
+    ElMessage.warning('请完整填写每个方向（方向名 + 至少一门关联课程）');
+    return null;
+  }
+  if (new Set(tags.map((d) => d.name)).size !== tags.length) {
+    ElMessage.warning('方向名称不能重复');
+    return null;
+  }
+  return tags;
+}
+// 保存学习方向（draft/upcoming=完整编辑；running=仅课程绑定，后端
+// _propagate_direction_courses 按新增差集自动为该方向学员加选，只加不减）
+async function saveDirections() {
+  const tags = validatedTags({ allowEmpty: !msFlow.enabled });
+  if (tags === null) return;
+  dirCfg.saving = true;
+  try {
+    await api.put(`/camp/sessions/${props.campId}`, { ms_tags: tags });
+    ElMessage.success(props.session.status === 'running'
+      ? '课程绑定已保存（新增课程已为学员加选）' : '学习方向已保存');
+    emit('saved');
+    cfgLoaded.done = false;   // 让 watch 重新回填最新 session
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '保存失败');
+  } finally {
+    dirCfg.saving = false;
+  }
+}
+// 保存选导生流程配置（开关+时间窗；不携带 ms_tags——方向归「学习方向」区块）
+async function saveMsFlow() {
+  if (msFlow.enabled && (!msFlow.start || !msFlow.deadline)) {
     ElMessage.warning('启用选导生需设置志愿开始 / 截止时间');
     return;
   }
-  const tags = msCfg.enabled
-    ? msCfg.directions.map((d) => ({ name: (d.name || '').trim(), course_ids: d.course_ids || [] }))
-    : null;
-  if (tags) {
-    if (!tags.length || tags.some((d) => !d.name || !d.course_ids.length)) {
-      ElMessage.warning('请完整填写每个分类方向（方向名 + 至少一门关联课程）');
-      return;
-    }
-    if (new Set(tags.map((d) => d.name)).size !== tags.length) {
-      ElMessage.warning('分类方向名称不能重复');
-      return;
-    }
-  }
-  msCfg.saving = true;
+  // 前端预检：启用时当前编辑态须已有完整方向（最终以后端库态校验为准）
+  if (msFlow.enabled && validatedTags({ allowEmpty: false }) === null) return;
+  msFlow.saving = true;
   try {
-    const body = {
-      mentor_selection_enabled: msCfg.enabled,
-      ms_preference_start: msCfg.enabled ? msCfg.start : null,
-      ms_preference_deadline: msCfg.enabled ? msCfg.deadline : null,
-      ...(tags ? { ms_tags: tags } : {}),
-    };
-    await api.put(`/camp/sessions/${props.campId}`, body);
+    await api.put(`/camp/sessions/${props.campId}`, {
+      mentor_selection_enabled: msFlow.enabled,
+      ms_preference_start: msFlow.enabled ? msFlow.start : null,
+      ms_preference_deadline: msFlow.enabled ? msFlow.deadline : null,
+    });
     ElMessage.success('配置已保存');
     emit('saved');
-    msCfg.loaded = false;   // 让 watch 重新回填最新 session
+    cfgLoaded.done = false;
   } catch (e) {
     ElMessage.error(e.response?.data?.message || '保存失败');
   } finally {
-    msCfg.saving = false;
-  }
-}
-
-// 开跑后单独保存方向课程绑定（时间窗/开关不动）：后端 _propagate_direction_courses
-// 按新增差集自动为该方向学员加选新课程；方向名在此态不可改（名片按名挂方向）
-async function saveMsTags() {
-  const tags = msCfg.directions.map((d) => ({ name: (d.name || '').trim(), course_ids: d.course_ids || [] }));
-  if (!tags.length || tags.some((d) => !d.name || !d.course_ids.length)) {
-    ElMessage.warning('每个分类方向需至少绑定一门课程');
-    return;
-  }
-  msCfg.saving = true;
-  try {
-    await api.put(`/camp/sessions/${props.campId}`, { ms_tags: tags });
-    ElMessage.success('课程绑定已保存（新增课程已为学员加选）');
-    emit('saved');
-    msCfg.loaded = false;   // 触发 watch 回填最新 session
-  } catch (e) {
-    ElMessage.error(e.response?.data?.message || '保存失败');
-  } finally {
-    msCfg.saving = false;
+    msFlow.saving = false;
   }
 }
 </script>

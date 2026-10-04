@@ -227,7 +227,7 @@ const currentUnread = computed(() => (activeFilter.value === 'message' ? letterU
 const emptyText = computed(() => (activeFilter.value === 'message' ? '暂无私信' : '暂无通知'))
 
 // 详情弹窗分类文案（查表，新业务域只加一行）
-const CATEGORY_LABELS = { system: '系统通知', camp: '营期通知', community: '社区通知', message: '私信' }
+const CATEGORY_LABELS = { system: '系统通知', camp: '营期通知', community: '社区通知', work: '工作通知', message: '私信' }
 const categoryLabel = (c) => CATEGORY_LABELS[c] || '系统通知'
 
 // 筛选 + 分页（message tab 数据源切换为信件表——私信是富内容+独立已读态，不走通知过滤）
@@ -240,6 +240,8 @@ const filteredList = computed(() => {
     list = list.filter(n => n.category === 'camp')
   } else if (activeFilter.value === 'community') {
     list = list.filter(n => n.category === 'community')
+  } else if (activeFilter.value === 'work') {
+    list = list.filter(n => n.category === 'work')
   }
   // 重要通知置顶（09-22 修复）：版本更新公告等被日常通知冲到分页第 2 页「丢失」；
   // sort 稳定，组内保持服务端 created_at 倒序
@@ -268,6 +270,11 @@ function handleClick(item) {
   }
   // 系统通知：桌面端右栏展示详情，移动端（单栏）回退弹窗
   if (item.category === 'system') {
+    // 发版公告例外：点击直达更新日志页（深链映射与铃铛共用 notificationTarget）
+    if (item.source_type === 'platform_release') {
+      router.push(notificationTarget(item))
+      return
+    }
     if (isMobile.value) {
       selectedNotice.value = item
       detailVisible.value = true
@@ -276,8 +283,10 @@ function handleClick(item) {
     }
     return
   }
-  // 营期通知：按 source_type 深链直达业务对象（映射与铃铛共用 notificationTarget）
-  if (item.category === 'camp') {
+  // 营期/工作台/社区互动通知：按 source_type 深链直达业务对象
+  // （映射与铃铛共用 notificationTarget；社区回复/点赞直达帖子页，L2-1）
+  if (item.category === 'camp' || item.category === 'work'
+      || item.category === 'community') {
     router.push(notificationTarget(item))
   }
 }

@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 
 import { routeProgressStart, routeProgressDone } from './utils/routeProgress';
+import { authSession } from './api';
 
 // ── 落地三页保持同步打包（登录前后首屏直达，不做异步分包）：门户 /、主应用 /home、登录页 ──
 import HomeView from './views/HomeView.vue'
@@ -21,6 +22,7 @@ const loadUserInfo = () => import('./components/User/UserInfoComponent.vue')
 const loadUserSettings = () => import('./components/User/UserSettingsComponent.vue')
 const loadMyFeedbacks = () => import('./components/User/MyFeedbacksComponent.vue')
 const loadMyFavorites = () => import('./components/User/MyFavoritesComponent.vue')
+const loadIdentityCenter = () => import('./components/Identity/IdentityCenter.vue')
 const loadMyArticles = () => import('./components/User/MyArticlesComponent.vue')
 // 我的书架（courseShelf 收藏课程，2026-09-22）
 const loadMyShelf = () => import('./components/User/MyShelfComponent.vue')
@@ -33,6 +35,8 @@ const loadExam = () => import('./views/ExamView.vue')
 const loadRegister = () => import('./views/RegisterView.vue')
 const loadFindPassword = () => import('./views/FindPasswordView.vue')
 const loadAboutUs = () => import('./views/AboutUsView.vue')
+// 平台更新日志（v3.3 起）：版本发布说明页，入口在页脚「关于我们」栏
+const loadUpdateLog = () => import('./views/UpdateLogView.vue')
 const loadMedalView = () => import('./views/MedalView.vue')
 const loadMedalWall = () => import('./components/User/MedalWallComponent.vue')
 const loadNotifications = () => import('./views/NotificationView.vue')
@@ -42,6 +46,17 @@ const loadQuestionBank = () => import('./views/QuestionBankView.vue')
 const loadServiceHall = () => import('./views/ServiceHallView.vue')
 const loadResourceCenter = () => import('./views/ResourceCenterView.vue')
 const loadOrganization = () => import('./views/OrganizationView.vue')
+// 内部工作台（feature/work-collab）：面向已开通授权的社团工作人员，入口按 /work/me 探测显隐。
+// 工作台 III：独立应用外壳（WorkShell=唯一 chrome 持有者）+ 嵌套子视图，URL 即导航
+const loadWorkShell = () => import('./views/WorkShell.vue')
+const loadWorkOverview = () => import('./views/WorkOverview.vue')
+const loadWorkItem = () => import('./views/WorkItemView.vue')
+const loadWorkItemsTable = () => import('./views/WorkItemsTable.vue')
+const loadWorkMembers = () => import('./views/WorkMembersView.vue')
+const loadWorkBoardComp = () => import('./components/Work/WorkBoard.vue')
+const loadWorkSummaryComp = () => import('./components/Work/WorkSummaryBoard.vue')
+const loadWorkFilesComp = () => import('./components/Work/WorkFilesIndex.vue')
+const loadWorkRecordsComp = () => import('./components/Work/WorkRecordsIndex.vue')
 const loadLLMService = () => import('./views/LLMServiceView.vue')
 const loadCommunity = () => import('./views/CommunityView.vue')
 const loadCommunityThread = () => import('./views/CommunityThreadView.vue')
@@ -94,6 +109,13 @@ const router = createRouter({
             component: LoginView,
             meta: { authPage: true }
         },
+        // 开发测试账号面板：仅 dev 构建注册（生产构建路由不存在，页面代码亦不进产物）
+        ...(import.meta.env.DEV ? [{
+            path: '/dev/accounts',
+            name: 'dev-accounts',
+            component: () => import('./views/DevAccountsView.vue'),
+            meta: { authPage: true }
+        }] : []),
         {
             path: '/register',
             name: 'register',
@@ -110,6 +132,12 @@ const router = createRouter({
             path: '/about',
             name: 'about',
             component: loadAboutUs,
+        },
+        {
+            // 平台更新日志（v3.3 起）：版本发布说明，公开可读
+            path: '/changelog',
+            name: 'changelog',
+            component: loadUpdateLog,
         },
 
         // ── 需要登录的路由 ──
@@ -186,6 +214,12 @@ const router = createRouter({
                     path: '/user-center/my-threads',
                     name: 'my-threads',
                     component: loadMyThreads,
+                },
+                {
+                    // 身份中心（D4）：核验状态/身份核验向导/账号认领（规格 12.1）
+                    path: '/user-center/identity',
+                    name: 'user-identity',
+                    component: loadIdentityCenter,
                 }
             ]
         },
@@ -323,6 +357,75 @@ const router = createRouter({
             meta: { requiresAuth: true }
         },
         {
+            // 内部工作台（feature/work-collab，工作台 III 应用外壳）：嵌套子路由，URL 即导航。
+            // 旧 URL 兼容：/work?tab=todo|group|board|summary|files|records → 对应子路径（ws= 透传）
+            path: '/work',
+            component: loadWorkShell,
+            meta: { requiresAuth: true },
+            children: [
+                {
+                    // 概览仪表盘（默认着陆，待办中心）
+                    path: '',
+                    name: 'work',
+                    component: loadWorkOverview,
+                    beforeEnter: (to) => {
+                        const map = {
+                            todo: '/work', group: '/work/items', board: '/work/board',
+                            summary: '/work/summary', files: '/work/files', records: '/work/records',
+                        }
+                        const target = map[to.query.tab]
+                        if (!target) return true
+                        const query = { ...to.query }
+                        delete query.tab
+                        // tab=todo 时目标即自身：去掉 tab 后原样停留，避免重定向环
+                        return { path: target, query, replace: true }
+                    }
+                },
+                {
+                    // 小组事项（表格视图，工作台 III）
+                    path: 'items',
+                    name: 'work-items',
+                    component: loadWorkItemsTable,
+                },
+                {
+                    // 对象看板（X2 通用投影）
+                    path: 'board',
+                    name: 'work-board',
+                    component: loadWorkBoardComp,
+                },
+                {
+                    // 成员看板（全社名录，浏览+检索；与组织页同数据源）
+                    path: 'members',
+                    name: 'work-members',
+                    component: loadWorkMembers,
+                },
+                {
+                    // 子组汇总（X1 摘要层；路由常驻，侧栏项按 subtree 授权显隐）
+                    path: 'summary',
+                    name: 'work-summary',
+                    component: loadWorkSummaryComp,
+                },
+                {
+                    // 工作资料（M4 附件索引）
+                    path: 'files',
+                    name: 'work-files',
+                    component: loadWorkFilesComp,
+                },
+                {
+                    // 工作记录（M5 历史检索）
+                    path: 'records',
+                    name: 'work-records',
+                    component: loadWorkRecordsComp,
+                },
+                {
+                    // 事项详情（话题/任务同构）：通知深链 /work/items/{source_id} 直达
+                    path: 'items/:id',
+                    name: 'work-item',
+                    component: loadWorkItem,
+                },
+            ]
+        },
+        {
             path: '/community',
             name: 'community',
             component: loadCommunity,
@@ -369,11 +472,14 @@ const router = createRouter({
     ]
 })
 
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
     // 路由顶部进度条：分包 chunk 首载期遮羞（同步导航瞬时完成，进度条一闪而过）
     routeProgressStart()
 
-    const token = localStorage.getItem('bme-user-token')
+    // D1 会话门面：cookie 模式下页面刷新即失内存 token，必须先引导（兼容模式
+    // 引导幂等且不触网）；booting 期间不得误判未登录（规格 6.5）
+    await authSession.bootstrap()
+    const token = authSession.getToken()
 
     if (to.meta.requiresAuth && !token) {
         // 未登录，重定向到登录页，并记录原目标以便登录后跳回

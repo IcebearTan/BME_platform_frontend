@@ -240,8 +240,9 @@ const submitFeedback = async () => {
   position: fixed;
   bottom: 60px;
   right: 60px;
-  /* 内容卡片优先于浮钮：避免它压住首页轮播或右侧信息栏。 */
-  z-index: 1;
+  /* 高于内容区（.right-section 等为 z-index:2），低于弹层/弹出（Element 系 2000+）。
+     2026-10-03 修：此前压到 1 被右侧信息栏整块盖住，只有滚到页脚才可点。 */
+  z-index: 10;
 }
 
 /* 中小屏信息密度高，反馈入口进入正常文档流，不能遮住轮播或信息卡。 */

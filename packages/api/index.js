@@ -9,7 +9,7 @@ import axios from 'axios'
 // onRefreshed：续期响应若带身份字段（role/permissions/level，2026-09-17 起）回调给
 // 消费 app 同步 store——否则 store 里的 role 只在登录时写一次，后台改身份后旧客户端
 // 要到重新登录才生效（降级用户营期页 isStaff 假真）。
-export function createApiClient({ baseURL, tokenKey, onUnauthorized, onRefreshed }) {
+export function createApiClient({ baseURL, tokenKey, onUnauthorized, onRefreshed, auth }) {
   const refreshKey = `${tokenKey}-refresh`
   // 运行期可换的引用：main.js 里 api.setOnRefreshed(store 回调)，
   // 避免 api.js ↔ store.js 静态循环依赖（admin 的 store 已反向 import api）
@@ -23,6 +23,10 @@ export function createApiClient({ baseURL, tokenKey, onUnauthorized, onRefreshed
   })
 
   api.interceptors.request.use((config) => {
+    // cookie 会话模式：凭据随行（登录/续期的 Set-Cookie 才能落住；facade 引导后开启）
+    if (auth && auth.mode === 'cookie') {
+      config.withCredentials = true
+    }
     // FormData 上传必须摘掉实例默认的 application/json：axios 1.x 的 transformRequest
     // 见 JSON 头会把 FormData 整体序列化成 JSON（字段变字符串、File 变空对象），
     // 后端 request.form/files 全空——课程资料 402「没有发送课程 ID」、图床 400「缺少
@@ -31,7 +35,8 @@ export function createApiClient({ baseURL, tokenKey, onUnauthorized, onRefreshed
       if (typeof config.headers?.delete === 'function') config.headers.delete('Content-Type')
       else if (config.headers) delete config.headers['Content-Type']
     }
-    const token = localStorage.getItem(tokenKey)
+    // auth facade 优先（booting 期间 getToken() 为 null，不带头——守卫先 await bootstrap）
+    const token = auth ? auth.getToken() : localStorage.getItem(tokenKey)
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`
     }
@@ -41,6 +46,7 @@ export function createApiClient({ baseURL, tokenKey, onUnauthorized, onRefreshed
   // 单飞刷新：并发 401 只发一次 refresh，其余等同一 Promise
   let refreshing = null
   function refreshAccessToken() {
+    if (auth) return auth.ensureFresh().catch(() => null)
     const rt = localStorage.getItem(refreshKey)
     if (!rt) return Promise.resolve(null)
     refreshing ??= axios
@@ -72,8 +78,16 @@ export function createApiClient({ baseURL, tokenKey, onUnauthorized, onRefreshed
     async (error) => {
       const status = error.response?.status
       const config = error.config
+      const machine = error.response?.data?.machine
       // /auth/* 自身（登录/刷新）的 401 不重试不续期，直接走失效流程
       const isAuthCall = typeof config?.url === 'string' && config.url.includes('/auth/')
+      // D1 错误契约（规格第 11 章）：终态 machine 直接结束该端会话，不触发续期；
+      // 仅 ACCESS_TOKEN_EXPIRED（或无 machine 的存量端点）走静默续期后重放一次。
+      if (auth && status === 401 && auth.isTerminalMachine(machine)) {
+        auth.terminate(machine)
+        if (onUnauthorized) onUnauthorized(error)
+        return Promise.reject(error)
+      }
       if (status === 401 && config && !config.__retried && !isAuthCall) {
         const newToken = await refreshAccessToken()
         if (newToken) {
@@ -125,8 +139,8 @@ export function createSession({ baseURL, tokenKey }) {
 }
 
 // 标准 401 处理器（两 app 行为对齐后抽取）：
-// 防重弹窗 + 动态 import ElMessage + 清 token + 按 BASE_URL 相对跳转登录页
-export function createUnauthorizedHandler({ tokenKey, message = '登录失效，请重新登录' }) {
+// 防重弹窗 + 动态 import ElMessage + 清会话（facade 优先）+ 按 BASE_URL 相对跳转登录页
+export function createUnauthorizedHandler({ tokenKey, message = '登录失效，请重新登录', auth }) {
   return () => {
     // 避免多次弹窗
     if (window.__hasShownLoginExpire) return
@@ -134,8 +148,11 @@ export function createUnauthorizedHandler({ tokenKey, message = '登录失效，
     import('element-plus').then(({ ElMessage }) => {
       ElMessage.error(message)
     })
-    localStorage.removeItem(tokenKey)
-    localStorage.removeItem(`${tokenKey}-refresh`)
+    if (auth) auth.markUnauthorized()
+    else {
+      localStorage.removeItem(tokenKey)
+      localStorage.removeItem(`${tokenKey}-refresh`)
+    }
     // 延迟跳转，保证提示能完整显示
     setTimeout(() => {
       // base 相对：user 的 BASE_URL 为 /AMEII/ 时跳 /AMEII/login；admin 为 /admin/login
@@ -155,3 +172,6 @@ export function createAssetUrl({ baseURL }) {
   const base = (baseURL || '').replace(/\/$/, '')
   return (path) => (path ? base + path : '')
 }
+
+// 会话门面（D1）：见 ./session.js。createApiClient 的 auth 参数即其产物。
+export { createSessionFacade } from './session.js'

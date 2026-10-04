@@ -41,6 +41,23 @@ echo "VITE_API_BASE_URL=http://127.0.0.1:5001" > apps/admin/.env.development
 `5002`，不得把 `.env.development` 改到预览 API；真实开发始终使用 `5001`。
 Playwright 使用 `.env.test` 和独立端口，不会复用正在操作的开发/预览页面。
 
+## 开发测试账号
+
+本地开发库（BME_platform_flask 的 dev MySQL）固定测试账号，密码统一 `12345678`：
+
+| 用途 | 账号 | 角色 |
+| --- | --- | --- |
+| 管理端·超管 | `admin@seed.dev` | super_admin |
+| 管理端·老师视角 | `teacher@seed.dev` | super_admin（admin_tag=teacher） |
+| 用户端·学员 | `stu1@seed.dev` ~ `stu4@seed.dev` | user |
+
+dev server 下两端登录页有「测试账号面板」入口（仅 dev 构建显示），进入独立面板页
+（`/dev/accounts`）：账号按角色分组（超管/老师/导生/学员），每个账号一张卡片
+（昵称 + 邮箱 + 角色色标），支持搜索过滤，点击卡片即以约定密码登录并跳转首页。
+面板页与路由由 `import.meta.env.DEV` 门控，**生产构建中页面与路由不存在、凭据零
+泄漏**；数据端点 `GET /auth/dev_accounts` 由后端 debug 模式 / `DEV_TEST_ACCOUNTS=on`
+门禁，生产一律 404。营期老师预览账号见 stu4（camp84 owner）。
+
 ## Windows 开发机
 
 合并后请重新 clone 本仓库（旧两仓已封存）：

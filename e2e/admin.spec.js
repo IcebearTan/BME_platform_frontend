@@ -26,7 +26,7 @@ async function loginAsStaff(page) {
   await page.route('http://127.0.0.1:5001/**', (route) => {
     if (route.request().url().includes('/user/user_index')) {
       return route.fulfill({
-        json: { code: 200, role: 'super_admin', permissions: [], data: { username: 'e2e' } },
+        json: { code: 200, role: 'super_admin', permissions: [], User_Name: 'e2e', data: { username: 'e2e' } },
       })
     }
     return route.fulfill({ json: { code: 200, message: 'ok', data: {} } })
@@ -39,6 +39,7 @@ async function mockCampSessionDetail(page) {
     username: ['林泽宇', '周启航', '陈思涵', '沈知行', '王嘉仪', '唐予安', '许一诺', '程知远'][index],
     role: 'mentor',
     team_mentor_id: null,
+    direction: index % 2 === 0 ? '硬件组' : '软件组',
     joined_at: '2026-08-20T09:00:00',
   }))
   const students = Array.from({ length: 20 }, (_, index) => ({
@@ -240,6 +241,18 @@ test('管理布局壳挂载（侧边栏 + 主区域）', async ({ page }) => {
   await expect(page.locator('.sidebar-container')).toBeVisible()
 })
 
+test('普通账号即使拥有业务权限也不能进入管理端', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('bme-admin-token', 'legacy-token')
+    localStorage.setItem('bme-admin-state', JSON.stringify({
+      token: 'legacy-token', user: { role: 'user', permissions: ['course_management'] },
+    }))
+  })
+  await page.goto(`${BASE}/`)
+  await expect(page).toHaveURL(`${BASE}/login`)
+  await expect(page.locator('.admin-layout')).toHaveCount(0)
+})
+
 test('用户管理页：角色/状态列 + 搜索 + 编辑 + 封禁', async ({ page }) => {
   await loginAsStaff(page)
   // mock 用户列表（loginAsStaff 统一拦截返回空 data，这里覆盖；level LV1-4、status active/banned）
@@ -424,18 +437,18 @@ test('营期工作区保留选导生与成员添加能力', async ({ page }) => 
   expect(pageErrors).toEqual([])
 })
 
-// 营期设置（09-17 集中管理）：三区块分区渲染 + 叶子路由直达/切换跟随
-test('营期设置：三区块分区渲染 + 叶子路由直达', async ({ page }) => {
+// 营期设置（09-17 集中管理；09-28 方向解耦拆四区块）：分区渲染 + 叶子路由直达/切换跟随
+test('营期设置：四区块分区渲染 + 叶子路由直达', async ({ page }) => {
   await loginAsStaff(page)
   await mockCampSessionDetail(page)
   const pageErrors = []
   page.on('pageerror', (e) => pageErrors.push(e.message))
-  // 叶子路由直达（mock 营 running/learning → 三区块齐备）
+  // 叶子路由直达（mock 营 running/learning → 四区块齐备）
   await page.goto(`${BASE}/camps/1/settings`)
 
   await expect(page.locator('.page-title', { hasText: '营期设置' })).toBeVisible()
-  // 三区块标题齐备（learning 营：准入门槛/考勤模式/选导生流程）
-  for (const title of ['准入门槛', '考勤模式', '选导生流程']) {
+  // 四区块标题齐备（learning 营：准入门槛/考勤模式/学习方向/选导生流程）
+  for (const title of ['准入门槛', '考勤模式', '学习方向', '选导生流程']) {
     await expect(page.locator('.set-card__title', { hasText: title })).toBeVisible()
   }
   // 准入门槛：导生报名门槛开关（回退默认开）
@@ -443,12 +456,95 @@ test('营期设置：三区块分区渲染 + 叶子路由直达', async ({ page 
   // 考勤模式：三模式选项卡回退 daily（09-18 并自 jiayuanpush 布局改版，参数内联 daily 卡）
   await expect(page.getByText('假期营', { exact: true })).toBeVisible()
   await expect(page.locator('.att-daily-panel')).toBeVisible()
-  // 选导生流程：mock status=running → 时间窗锁定（方向课程绑定仍可改，1750de5 起语义放宽）
+  // 选导生流程：mock status=running → 时间窗锁定（流程键仅开营前可改）
   await expect(page.getByText(/时间窗锁定/)).toBeVisible()
+  // 学习方向（09-28 解耦独立区块）：running → 方向名锁定、课程绑定仍可改
+  await expect(page.getByText(/方向名锁定/)).toBeVisible()
 
   // 路由切换跟随：切到成员名单叶子 URL 同步
   await page.getByRole('menuitem', { name: '成员名单' }).click()
   await expect(page).toHaveURL(/people\/members/)
+  expect(pageErrors).toEqual([])
+})
+
+// 方向解耦（09-28）：未启用选导生的营独立配方向；成员页方向代设 + 调整课程
+test('方向解耦：未启用选导生可配方向 + 成员页代设方向与调整课程', async ({ page }) => {
+  await loginAsStaff(page)
+  const pageErrors = []
+  page.on('pageerror', (e) => pageErrors.push(e.message))
+  const directions = [
+    { name: '硬件组', course_ids: [11] },
+    { name: '软件组', course_ids: [12, 13] },
+  ]
+  const members = [
+    { user_id: 101, username: '林泽宇', role: 'mentor', team_mentor_id: null, direction: '硬件组', joined_at: '2026-08-20T09:00:00', status: 'active' },
+    { user_id: 201, username: '测试学员01', role: 'student', team_mentor_id: 101, direction: null, joined_at: '2026-08-20T09:00:00', status: 'active' },
+  ]
+  await page.route('**/camp/sessions/1?**', (route) =>
+    route.fulfill({ json: { code: 200 } }))
+  await page.route('http://127.0.0.1:5001/camp/sessions/1', (route) => {
+    if (route.request().method() === 'GET') {
+      return route.fulfill({ json: { code: 200, session: {
+        id: 1, name: '方向解耦测试营', status: 'upcoming', category: 'learning',
+        mentor_selection_enabled: false, ms_directions: directions,
+        policy: { capabilities: {} },
+      } } })
+    }
+    return route.fulfill({ json: { code: 200, message: 'ok' } })
+  })
+  await page.route('**/camp/sessions/1/members**', (route) =>
+    route.fulfill({ json: { code: 200, members, total: members.length,
+      counts: { student: 1, mentor: 1, member: 0 } } }))
+  const directionCalls = []
+  await page.route('**/camp/sessions/1/mentor-direction', (route) => {
+    directionCalls.push(route.request().postDataJSON())
+    return route.fulfill({ json: { code: 200, message: '已设置', propagated: 1 } })
+  })
+  await page.route('**/camp/sessions/1/course-assign**', (route) => {
+    const method = route.request().method()
+    if (method === 'GET') {
+      return route.fulfill({ json: { code: 200, items: [
+        { course_id: 11, title: '嵌入式基础', source_type: 'direction', assigned_at: '2026-09-01T09:00:00' },
+      ] } })
+    }
+    return route.fulfill({ json: { code: 200, message: 'ok' } })
+  })
+  await page.route('**/camp/sessions/1/courses**', (route) =>
+    route.fulfill({ json: { code: 200, courses: [
+      { course_id: 11, title: '嵌入式基础', difficulty: '入门' },
+      { course_id: 12, title: 'Web 全栈', difficulty: '进阶' },
+      { course_id: 13, title: '数据结构', difficulty: '进阶' },
+    ] } }))
+
+  // 设置页：学习方向独立区块（未启用选导生也可编辑），选导生流程=开关表单（upcoming 可编辑）
+  await page.goto(`${BASE}/camps/1/settings`)
+  await expect(page.locator('.set-card__title', { hasText: '学习方向' })).toBeVisible()
+  await expect(page.getByText('+ 添加方向')).toBeVisible()
+  await expect(page.locator('.set-card__title', { hasText: '选导生流程' })).toBeVisible()
+  await expect(page.getByText('启用选导生')).toBeVisible()
+  await expect(page.locator('.el-switch').first()).toBeVisible()
+
+  // 成员页：方向列 + 导生行下拉代设
+  await page.goto(`${BASE}/camps/1/people/members`)
+  await expect(page.locator('.el-table__header', { hasText: '方向' })).toBeVisible()
+  await expect(page.getByText('硬件组').first()).toBeVisible()
+  await page.locator('.el-table__row').filter({ hasText: '林泽宇' })
+    .locator('.el-select').first().click()
+  await page.getByRole('option', { name: '软件组' }).click()
+  await expect.poll(() => directionCalls).toEqual([
+    { user_id: 101, direction: '软件组' },
+  ])
+  await expect(page.getByText(/方向已设置/)).toBeVisible()
+
+  // 学员行「课程」：调整课程对话框（现修 + 目录添加）
+  await page.locator('.el-table__row').filter({ hasText: '测试学员01' })
+    .getByRole('button', { name: '课程' }).click()
+  await expect(page.locator('.el-dialog').filter({ hasText: '调整课程' })).toBeVisible()
+  await expect(page.getByText('嵌入式基础')).toBeVisible()
+  await expect(page.getByText('方向', { exact: true }).first()).toBeVisible()
+  // 添加下拉只列目录中未修课程（嵌入式基础已被过滤）
+  await page.locator('.el-dialog').getByRole('combobox').click()
+  await expect(page.getByRole('option', { name: 'Web 全栈' })).toBeVisible()
   expect(pageErrors).toEqual([])
 })
 
@@ -564,13 +660,14 @@ test('营期申请批量通过：学员多选 + 导生一键通过（逐项回�
   expect(pageErrors).toEqual([])
 })
 
-// 社团配置 mock（Phase C 起任命弹窗读 /admin/club/*，提交走 id 轨道）
+// 社团配置 mock（Phase C 起任命弹窗读 /admin/club/*，提交走 id 轨道；
+// org_slot 类别（2026-10-02 改版）：club=社团职务 / group=组内职位）
 async function mockClubMeta(page) {
   await page.route('http://127.0.0.1:5001/admin/club/positions', (route) => route.fulfill({
     json: { code: 200, message: 'ok', data: { positions: [
-      { id: 1, name: '社长', sort_rank: 1, badge_tier: 1, badge_with_group: false, group_rule: 'forbidden', per_group_limit: 0, global_limit: 1, status: 'active', active_count: 0 },
-      { id: 2, name: '副社长', sort_rank: 2, badge_tier: 1, badge_with_group: true, group_rule: 'optional', per_group_limit: 1, global_limit: 3, status: 'active', active_count: 0 },
-      { id: 3, name: '组长', sort_rank: 5, badge_tier: 2, badge_with_group: true, group_rule: 'required', per_group_limit: 1, global_limit: 0, status: 'active', active_count: 0 },
+      { id: 1, name: '社长', org_slot: 'club', sort_rank: 1, badge_tier: 1, badge_with_group: false, group_rule: 'forbidden', per_group_limit: 0, global_limit: 1, status: 'active', active_count: 0 },
+      { id: 2, name: '副社长', org_slot: 'club', sort_rank: 2, badge_tier: 1, badge_with_group: true, group_rule: 'optional', per_group_limit: 1, global_limit: 3, status: 'active', active_count: 0 },
+      { id: 3, name: '组长', org_slot: 'group', sort_rank: 5, badge_tier: 2, badge_with_group: true, group_rule: 'required', per_group_limit: 1, global_limit: 0, status: 'active', active_count: 0 },
     ] } },
   }))
   await page.route('http://127.0.0.1:5001/admin/club/groups', (route) => route.fulfill({
@@ -582,19 +679,19 @@ async function mockClubMeta(page) {
   }))
 }
 
-test('社团干事管理页：列表渲染 + 任命提交 + 卸任弹窗', async ({ page }) => {
+test('社团职务页：列表渲染 + 任命只列社团职务 + 卸任弹窗', async ({ page }) => {
   await loginAsStaff(page)
   const pageErrors = []
   page.on('pageerror', (e) => pageErrors.push(e.message))
 
-  // 任职列表（默认在任视图）+ 用户名单；任命/卸任捕获请求体
+  // 任职列表（默认在任视图，slot=club 过滤）+ 用户名单；任命/卸任捕获请求体
   await page.route('http://127.0.0.1:5001/admin/officers**', (route) => {
     if (route.request().method() === 'GET') {
       return route.fulfill({ json: { code: 200, message: 'ok', data: {
         officers: [
-          { id: 1, user_id: 11, username: '陈嘉树', avatar: '', title: '社长', department: null,
-            term_start: '2026-09-01', term_end: null, status: 'active', end_reason: null,
-            created_at: '2026-09-12T10:00:00' },
+          { id: 1, user_id: 11, username: '陈嘉树', avatar: '', title: '社长', org_slot: 'club',
+            department: null, term_start: '2026-09-01', term_end: null, status: 'active',
+            end_reason: null, created_at: '2026-09-12T10:00:00' },
         ], total: 1, page: 1, per_page: 20 } } })
     }
     return route.fulfill({ json: { code: 200, message: 'ok', data: { id: 9 } } })
@@ -604,11 +701,11 @@ test('社团干事管理页：列表渲染 + 任命提交 + 卸任弹窗', async
   await mockClubMeta(page)
 
   await page.goto(`${BASE}/organization/officers`)
-  await expect(page.locator('.page-title', { hasText: '任职管理' })).toBeVisible()
+  await expect(page.locator('.page-title', { hasText: '社团职务' })).toBeVisible()
   await expect(page.getByRole('cell', { name: '陈嘉树' })).toBeVisible()
   await expect(page.getByRole('cell', { name: '在任', exact: true })).toBeVisible()
 
-  // 任命：选成员 + 选职位（下拉读 /admin/club/positions）→ 提交体走 id 轨道 user_id/title_id
+  // 任命：选成员 + 选职位（下拉读 /admin/club/positions，只列社团职务）→ 提交体走 id 轨道
   await page.getByRole('button', { name: '任命' }).click()
   const dialog = page.locator('.el-dialog').filter({ hasText: '任命干事' })
   await expect(dialog).toBeVisible()
@@ -617,6 +714,7 @@ test('社团干事管理页：列表渲染 + 任命提交 + 卸任弹窗', async
   await memberDropdown.getByText('苏晚晴', { exact: true }).click()
   await dialog.locator('.el-select').nth(1).click()
   const titleDropdown = page.locator('.el-select__popper:visible')
+  await expect(titleDropdown.getByText('组长')).toHaveCount(0)   // 组内职位不在本页任命
   await titleDropdown.getByText('副社长', { exact: true }).click()
   const appointRequest = page.waitForRequest((request) =>
     request.url() === 'http://127.0.0.1:5001/admin/officers' && request.method() === 'POST')
@@ -638,41 +736,116 @@ test('社团干事管理页：列表渲染 + 任命提交 + 卸任弹窗', async
   expect(pageErrors).toEqual([])
 })
 
-test('社团干事管理页：挂组职位任命走三级级联选组（id 轨道）', async ({ page }) => {
+// 小组工作台 mock：组详情聚合（组长槽/分管/成员表）+ 组长任命/归属写入捕获
+async function mockGroupDetail(page, { members = [], leaderOfficers = [], overseers = [] } = {}) {
+  await page.route('http://127.0.0.1:5001/admin/club/groups/12/detail', (route) => route.fulfill({
+    json: { code: 200, message: 'ok', data: {
+      group: { id: 12, name: '硬件组', parent_id: 11, sort_order: 1, status: 'active',
+        description: '', refs: { children: 0, officers: leaderOfficers.length, members: members.length } },
+      leader_slots: [
+        { position: { id: 3, name: '组长', org_slot: 'group', sort_rank: 5, badge_tier: 2, per_group_limit: 1 },
+          officers: leaderOfficers, vacant: leaderOfficers.length === 0 },
+      ],
+      overseers,
+      members,
+      counts: { primary: members.filter(m => m.slot === 'primary').length,
+        secondary: members.filter(m => m.slot === 'secondary').length, total: members.length },
+      default_position_id: 3,
+    } },
+  }))
+}
+
+test('小组管理页：组树选组 → 详情渲染 → 添加成员 → 组内设组长（原子端点）', async ({ page }) => {
   await loginAsStaff(page)
   const pageErrors = []
   page.on('pageerror', (e) => pageErrors.push(e.message))
 
-  await page.route('http://127.0.0.1:5001/admin/officers**', (route) => {
-    if (route.request().method() === 'GET') {
-      return route.fulfill({ json: { code: 200, message: 'ok', data: { officers: [], total: 0, page: 1, per_page: 20 } } })
-    }
-    return route.fulfill({ json: { code: 200, message: 'ok', data: { id: 9 } } })
+  await page.route('http://127.0.0.1:5001/user/user_list', (route) =>
+    route.fulfill({ json: [{ User_Id: 21, User_Name: '苏晚晴' }, { User_Id: 22, User_Name: '顾亦深' }] }))
+  await mockClubMeta(page)
+  await mockGroupDetail(page, {
+    members: [
+      { user_id: 22, username: '顾亦深', avatar: '', slot: 'primary', title: null,
+        is_leader: false, officer_id: 0, joined_at: '2026-09-20' },
+    ],
+    overseers: [
+      { id: 7, user_id: 31, username: '周分管', avatar: '', title: '副社长', title_id: 2,
+        org_slot: 'club', group_id: 12, department: '硬件组', term_start: '2026-09-01',
+        term_end: null, status: 'active', end_reason: null, created_at: '2026-09-12T10:00:00' },
+    ],
   })
+  const membershipRequest = page.waitForRequest((request) =>
+    request.url() === 'http://127.0.0.1:5001/admin/club/membership/21' && request.method() === 'PUT')
+  const leaderRequest = page.waitForRequest((request) =>
+    request.url() === 'http://127.0.0.1:5001/admin/club/groups/12/leader' && request.method() === 'POST')
+
+  await page.goto(`${BASE}/organization/groups`)
+  await expect(page.locator('.page-title', { hasText: '小组管理' })).toBeVisible()
+
+  // 左树选组（硬件组）→ 右侧详情：空缺组长槽 + 分管 + 成员行
+  await page.locator('.tree-card').getByText('硬件组', { exact: true }).click()
+  await expect(page.locator('.slot-item.vacant')).toBeVisible()
+  await expect(page.getByText('周分管')).toBeVisible()
+  await expect(page.getByRole('cell', { name: '顾亦深' })).toBeVisible()
+
+  // 添加成员：多选 + 槽位，循环单人 PUT（id 轨道）
+  await page.getByRole('button', { name: '添加成员' }).click()
+  const addDialog = page.locator('.el-dialog').filter({ hasText: '添加成员' })
+  await addDialog.locator('.el-select').click()
+  await page.locator('.el-select__popper:visible').getByText('苏晚晴', { exact: true }).click()
+  await page.keyboard.press('Escape')   // 收起多选下拉
+  await addDialog.getByRole('button', { name: '确认添加' }).click()
+  const membershipBody = (await membershipRequest).postDataJSON()
+  expect(membershipBody).toEqual({ primary: 12 })
+
+  // 组内设组长：成员行入口 → 弹窗预填人选与缺省职位 → 确认弹窗 → 原子端点
+  await page.getByRole('button', { name: '设为组长' }).first().click()
+  const leaderDialog = page.locator('.el-dialog').filter({ hasText: '任命组长' })
+  await expect(leaderDialog).toBeVisible()
+  await expect(leaderDialog.locator('.el-dialog__body')).toContainText('顾亦深')   // 人选预填
+  await leaderDialog.getByRole('button', { name: '确认任命' }).click()
+  const confirmBox = page.locator('.el-message-box').filter({ hasText: '任命 顾亦深 为 组长' })
+  await expect(confirmBox).toBeVisible()
+  await confirmBox.getByRole('button', { name: '确定' }).click()
+  const leaderBody = (await leaderRequest).postDataJSON()
+  expect(leaderBody.user_id).toBe(22)
+  expect(leaderBody.position_id).toBe(3)
+  expect(leaderBody.sync_primary).toBe(true)
+
+  expect(pageErrors).toEqual([])
+})
+
+test('小组管理页：一人一职 409 引导前往社团职务处理（带关键词预填）', async ({ page }) => {
+  await loginAsStaff(page)
+  const pageErrors = []
+  page.on('pageerror', (e) => pageErrors.push(e.message))
+
   await page.route('http://127.0.0.1:5001/user/user_list', (route) =>
     route.fulfill({ json: [{ User_Id: 22, User_Name: '顾亦深' }] }))
   await mockClubMeta(page)
+  await mockGroupDetail(page, {
+    members: [
+      { user_id: 22, username: '顾亦深', avatar: '', slot: 'primary', title: '副社长',
+        is_leader: false, officer_id: 8, joined_at: '2026-09-20' },
+    ],
+  })
+  await page.route('http://127.0.0.1:5001/admin/club/groups/12/leader', (route) =>
+    route.fulfill({ json: { code: 409, message: '该成员已有在任职位（副社长，一人至多一职）' }, status: 409 }))
 
-  await page.goto(`${BASE}/organization/officers`)
-  await page.getByRole('button', { name: '任命' }).click()
-  const dialog = page.locator('.el-dialog').filter({ hasText: '任命干事' })
-  await dialog.locator('.el-select').first().click()
-  await page.locator('.el-select__popper:visible').getByText('顾亦深', { exact: true }).click()
-  await dialog.locator('.el-select').nth(1).click()
-  await page.locator('.el-select__popper:visible').getByText('组长', { exact: true }).click()
-  // 组树三级路径：项目运营组 → 培训组 → 硬件组（级联选项读 /admin/club/groups，checkStrictly 任一节点可选，group_id 只存所选节点）
-  await dialog.locator('.el-cascader').click()
-  await page.locator('.el-cascader-menu:visible').first().getByText('项目运营组', { exact: true }).click()
-  await page.locator('.el-cascader-menu:visible').nth(1).getByText('培训组', { exact: true }).click()
-  await page.locator('.el-cascader-menu:visible').nth(2).getByText('硬件组', { exact: true }).click()
-  await page.keyboard.press('Escape')   // checkStrictly 面板不自动收起，Escape 关闭保留所选
-  const appointRequest = page.waitForRequest((request) =>
-    request.url() === 'http://127.0.0.1:5001/admin/officers' && request.method() === 'POST')
-  await dialog.getByRole('button', { name: '确认' }).click()
-  const body = (await appointRequest).postDataJSON()
-  expect(body.user_id).toBe(22)
-  expect(body.title_id).toBe(3)
-  expect(body.group_id).toBe(12)
+  await page.goto(`${BASE}/organization/groups`)
+  await page.locator('.tree-card').getByText('硬件组', { exact: true }).click()
+  await page.getByRole('button', { name: '设为组长' }).first().click()
+  const leaderDialog = page.locator('.el-dialog').filter({ hasText: '任命组长' })
+  await leaderDialog.getByRole('button', { name: '确认任命' }).click()
+  const confirmBox = page.locator('.el-message-box').filter({ hasText: '任命 顾亦深' })
+  await expect(confirmBox).toBeVisible()
+  await confirmBox.getByRole('button', { name: '确定' }).click()
+  // 409 拦截 → 引导弹窗 → 跳社团职务页并预填搜索
+  const guideBox = page.locator('.el-message-box').filter({ hasText: '该成员已有在任职位' })
+  await expect(guideBox).toBeVisible()
+  await guideBox.getByRole('button', { name: '前往社团职务处理' }).click()
+  await expect(page).toHaveURL(new RegExp('/organization/officers\\?q='))
+  await expect(page.locator('.page-title', { hasText: '社团职务' })).toBeVisible()
 
   expect(pageErrors).toEqual([])
 })
@@ -732,9 +905,10 @@ test('退出登录：确认弹窗 → 清 token → 跳登录页', async ({ page
   await expect(page.locator('input[placeholder="输入密码"]')).toBeVisible()
   const token = await page.evaluate(() => localStorage.getItem('bme-admin-token'))
   const stateToken = await page.evaluate(
-    () => JSON.parse(localStorage.getItem('bme-admin-state') || '{}').token
+    () => JSON.parse(localStorage.getItem('bme-admin-state') || '{}').token ?? null
   )
   expect(token).toBeNull()
+  // D1 起 token 不再入持久化白名单：字段缺位（undefined）与显式 null 都视为已清
   expect(stateToken).toBeNull()
 
   // 退出后访问受保护页：应被 401 踢回登录。
@@ -1032,7 +1206,7 @@ test('旧路由重定向到新信息架构路径（兼容层）', async ({ page 
     ['/officer/manage', '/organization/officers'],
     ['/club/groups', '/organization/groups'],
     ['/club/positions', '/organization/positions'],
-    ['/club/membership', '/organization/memberships'],
+    ['/club/membership', '/organization/groups'],   // 成员归属子页并入小组管理（2026-10-02）
     ['/article/manage', '/content/articles'],
     ['/course/manage', '/content/courses'],
     ['/course/create', '/content/courses/new'],
@@ -1331,18 +1505,27 @@ test('工单详情：内部备注标记 + 受理 + 公开回复 + 状态迁移�
   expect(pageErrors).toEqual([])
 })
 
-test('工作台：待办摘要 + 进行中营期 + 风险提示', async ({ page }) => {
+test('工作台：待办摘要、按营期下钻与风险提示', async ({ page }) => {
   await loginAsStaff(page)
   await page.route('http://127.0.0.1:5001/admin/workbench/summary', (route) =>
     route.fulfill({ json: { code: 200, data: {
       pending: { camp_join: 3, camp_leave: 7, project_application: 0, project_delivery: 2,
         quota_request: 1, feedback_ticket: 4 },
+      pending_by_camp: { camp_join: { 63: 3 }, camp_leave: { 63: 7 },
+        project_application: {}, project_delivery: { 64: 2 } },
+      pending_camps: [{ id: 63, name: '2026秋季培训营' }, { id: 64, name: '秋季项目营' }],
+      source_status: {}, section_status: { running_camps: 'ok', risks: 'ok' },
+      as_of: '2026-09-23T09:00:00',
       oldest_pending_at: { camp_join: null, camp_leave: '2026-09-20T12:40:10' },
       running_camps: [{ id: 63, name: '2026秋季培训营', category: 'learning', cycle_name: '2026 秋季',
         start_date: '2026-09-01', end_date: '2027-01-18', member_count: 28,
         pending_join: 3, pending_leave: 7, unmatched: 0 }],
-      risks: [{ camp_id: 63, camp_name: '2026秋季培训营', rule: 'attendance_not_configured',
-        detail: '已启用考勤但营内没有考勤计划（承诺出勤日未生成）' }],
+      risks: [
+        { camp_id: 63, camp_name: '2026秋季培训营', rule: 'attendance_not_configured',
+          detail: '已启用考勤但营内没有考勤计划（承诺出勤日未生成）' },
+        { camp_id: 63, camp_name: '2026秋季培训营', rule: 'owner_missing',
+          detail: '2026秋季培训营 尚未委任主负责人' },
+      ],
     } } }))
   await page.route('http://127.0.0.1:5001/admin/overview', (route) =>
     route.fulfill({ json: { code: 200, data: { user_new_today: 2, checkin_today: 15 } } }))
@@ -1353,14 +1536,138 @@ test('工作台：待办摘要 + 进行中营期 + 风险提示', async ({ page 
 
   await page.goto(`${BASE}/`)
   await expect(page.getByText('欢迎回来', { exact: false })).toBeVisible()
-  await expect(page.getByText('待我处理')).toBeVisible()
+  await expect(page.getByRole('heading', { name: '欢迎回来，e2e' })).toBeVisible()
+  await expect(page.getByText('平台待办')).toBeVisible()
+  await expect(page.getByText('需平台介入')).toBeVisible()
+  await expect(page.getByRole('button', { name: /负责人缺失/ })).toBeVisible()
   await expect(page.getByRole('row')).toHaveCount(0)
   // 待办分组按处理语义渲染，数量来自摘要
   await expect(page.locator('.todo-card', { hasText: '人员准入' }).locator('.todo-count')).toHaveText('3')
   await expect(page.locator('.todo-card', { hasText: '项目流程' }).locator('.todo-count')).toHaveText('2')
   await expect(page.locator('.todo-card', { hasText: '用户支持' }).locator('.todo-count')).toHaveText('4')
   // 进行中营期卡 + 风险
-  await expect(page.getByText('2026秋季培训营')).toBeVisible()
+  await expect(page.locator('.camp-card').getByText('2026秋季培训营', { exact: true })).toBeVisible()
   await expect(page.getByText('已启用考勤但营内没有考勤计划')).toBeVisible()
+  await page.locator('.todo-card', { hasText: '人员准入' }).click()
+  await expect(page.getByRole('button', { name: '2026秋季培训营 · 加入申请 3' })).toBeVisible()
+  await page.getByRole('button', { name: '2026秋季培训营 · 加入申请 3' }).click()
+  await expect(page).toHaveURL(`${BASE}/camps/63/people/applications`)
   expect(pageErrors).toEqual([])
+})
+
+test('工作台：来源故障显示不可用，不显示零待办', async ({ page }) => {
+  await loginAsStaff(page)
+  await page.route('http://127.0.0.1:5001/admin/workbench/summary', (route) =>
+    route.fulfill({ json: { code: 200, data: {
+      pending: { camp_join: null, camp_leave: 0, project_application: 0,
+        project_delivery: 0, quota_request: 0, feedback_ticket: 0 },
+      pending_by_camp: { camp_join: null, camp_leave: {}, project_application: {}, project_delivery: {} },
+      pending_camps: [], running_camps: [], risks: [],
+      source_status: { camp_join: 'unavailable' },
+      section_status: { running_camps: 'unavailable', risks: 'unavailable' },
+    } } }))
+  await page.goto(`${BASE}/`)
+  const card = page.locator('.todo-card', { hasText: '人员准入' })
+  await expect(card.locator('.todo-count')).toHaveText('—')
+  await expect(card).toContainText('数据暂不可用')
+  await expect(page.getByText('营期数据暂不可用')).toBeVisible()
+  await expect(page.getByText('风险数据暂不可用')).toBeVisible()
+})
+
+test('平台待办：按范围和营期筛选保留 URL，单条直达原业务', async ({ page }) => {
+  await loginAsStaff(page)
+  await page.route('http://127.0.0.1:5001/admin/workbench/summary', (route) =>
+    route.fulfill({ json: { code: 200, data: { pending_camps: [{ id: 63, name: '秋季培训营' }] } } }))
+  const seen = []
+  await page.route('http://127.0.0.1:5001/admin/workbench/items*', (route) => {
+    const url = new URL(route.request().url())
+    seen.push(url.searchParams.toString())
+    const ticket = { key: 'feedback_ticket:8', type: 'feedback_ticket', source_id: 8,
+      title: '登录问题', camp_name: null, responsible_name: '管理员', created_at: '2026-09-23T10:00:00',
+      target_route: '/operations/feedback-tickets/8', target_query: {} }
+    const join = { key: 'camp_join:42', type: 'camp_join', source_id: 42,
+      title: '营期加入申请', camp_name: '秋季培训营', responsible_name: '管理员',
+      created_at: '2026-09-23T09:00:00',
+      target_route: '/camps/63/people/applications', target_query: { focus: 42 } }
+    const rows = url.searchParams.get('camp_id') === '63' ? [join]
+      : url.searchParams.get('scope') === 'mine' ? [ticket] : [join, ticket]
+    return route.fulfill({ json: { code: 200, data: {
+      items: rows, total: rows.length, page: 1, page_size: 20,
+      as_of: '2026-09-23T10:01:00', due_policy: 'not_configured',
+    } } })
+  })
+  const pageErrors = []
+  page.on('pageerror', (e) => pageErrors.push(e.message))
+
+  await page.goto(`${BASE}/workbench/items`)
+  await expect(page.getByRole('row')).toHaveCount(3)
+  await page.getByText('我负责', { exact: true }).click()
+  await expect(page).toHaveURL(/scope=mine/)
+  await expect(page.getByText('登录问题')).toBeVisible()
+  await page.locator('.filter-bar .el-select').nth(1).click()
+  await page.getByRole('option', { name: '秋季培训营' }).click()
+  await expect(page).toHaveURL(/camp_id=63/)
+  await expect(page.locator('tbody').getByText('营期加入申请', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: '去处理' }).click()
+  await expect(page).toHaveURL(/\/camps\/63\/people\/applications\?focus=42/)
+  await page.goBack()
+  await expect(page).toHaveURL(/scope=mine/)
+  await expect(page).toHaveURL(/camp_id=63/)
+  await expect(page.locator('tbody').getByText('营期加入申请', { exact: true })).toBeVisible()
+  expect(seen.some((query) => query.includes('scope=mine') && query.includes('camp_id=63'))).toBe(true)
+  expect(pageErrors).toEqual([])
+})
+
+test('平台待办：接口失败显示错误并可重试', async ({ page }) => {
+  await loginAsStaff(page)
+  let attempts = 0
+  await page.route('http://127.0.0.1:5001/admin/workbench/items*', (route) => {
+    attempts += 1
+    return route.fulfill(attempts === 1
+      ? { status: 503, json: { code: 503, message: '暂不可用' } }
+      : { json: { code: 200, data: { items: [], total: 0, as_of: '2026-09-23T10:00:00' } } })
+  })
+  await page.goto(`${BASE}/workbench/items`)
+  await expect(page.getByText('待办数据暂不可用')).toBeVisible()
+  await page.getByRole('button', { name: '重试' }).click()
+  await expect(page.getByText('当前筛选下没有待处理事项')).toBeVisible()
+  expect(attempts).toBe(2)
+})
+
+test('开发测试账号面板：独立页分组卡片，点击一键登录（import.meta.env.DEV 门控）', async ({ page }) => {
+  const posted = []
+  await page.route('http://127.0.0.1:5001/**', (route) => {
+    const url = route.request().url()
+    if (route.request().method() === 'GET' && url.endsWith('/auth/dev_accounts')) {
+      return route.fulfill({ json: { code: 200, data: { accounts: [
+        { email: 'admin@seed.dev', username: '本地超管(测试)', role: 'super_admin', admin_tag: null },
+        { email: 'teacher@seed.dev', username: '本地老师(测试)', role: 'super_admin', admin_tag: 'teacher' },
+        { email: 'stu1@seed.dev', username: '学员小一', role: 'user', admin_tag: null },
+      ] } } })
+    }
+    if (route.request().method() === 'POST' && url.endsWith('/auth/admin_login')) {
+      posted.push(route.request().postDataJSON())
+      return route.fulfill({ json: { code: 200, token: 'e2e-quick-token', refresh_token: 'e2e-quick-refresh',
+        User_Name: '本地超管(测试)', User_Id: 1, role: 'super_admin', permissions: [] } })
+    }
+    // 仪表盘 onMounted 的 super_admin 校验：mock 住，否则本机 5001 在跑时该请求
+    // 走 fallback 撞真后端（CORS/401）被 HomeView 当登录失效踢回登录页——
+    // 用例对「后端是否在跑」敏感且带竞态（D1 异步守卫改变时序后必现）
+    if (url.endsWith('/user/user_index')) {
+      return route.fulfill({ json: { code: 200, role: 'super_admin', permissions: [], User_Name: '本地超管(测试)' } })
+    }
+    return route.fallback()
+  })
+
+  // 直达独立面板页：管理端只列 super_admin（学员被过滤），超管/老师两组各就位
+  await page.goto(`${BASE}/dev/accounts`)
+  await expect(page.locator('.dev-group-title', { hasText: '超级管理员' })).toBeVisible()
+  await expect(page.locator('.dev-group-title', { hasText: '老师' })).toBeVisible()
+  await expect(page.locator('.dev-card')).toHaveCount(2)
+
+  // 点击超管卡片即走完整登录链（md5 协议 payload 精确断言）
+  await page.locator('.dev-card', { hasText: '本地超管(测试)' }).click()
+  await expect(page).toHaveURL(/\/admin\/$/)
+  expect(posted).toHaveLength(1)
+  expect(posted[0]).toEqual({ User_Email: 'admin@seed.dev', User_Password: '25d55ad283aa400af464c76d713c07ad' })
 })

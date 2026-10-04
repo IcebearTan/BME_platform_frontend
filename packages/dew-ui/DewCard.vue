@@ -14,10 +14,13 @@
         [`dew-card--accent-${accent}`]: accent,
       }
     ]"
+    :tabindex="interactive ? 0 : undefined"
+    :role="interactive ? 'button' : undefined"
     @mouseenter="onEnter"
     @mousemove="onMove"
     @mouseleave="onLeave"
-    @click="interactive && $emit('click', $event)"
+    @keydown="onKeydown"
+    @click="interactive && emit('click', $event)"
   >
     <!-- 折射层 -->
     <span class="dew-card__refraction" :style="refractionStyle"></span>
@@ -64,10 +67,25 @@ const props = defineProps({
   divided: { type: Boolean, default: false },
 })
 
-defineEmits(['click'])
+const emit = defineEmits(['click'])
 
 const cardRef = ref(null)
 const state = reactive({ hovering: false, x: 0.5, y: 0.5 })
+
+/** 键盘可达：interactive 卡可 Tab 聚焦，Enter/Space 触发与点击同源的 click 事件 */
+function onKeydown(e) {
+  if (!props.interactive) return
+  if (e.key !== 'Enter' && e.key !== ' ') return
+  // 内嵌可交互元素（链接/按钮等）自带键盘语义：不代理触发卡片点击，
+  // 交还原生行为——否则焦点在卡内链接上按 Enter 会被劫持成整卡动作
+  // （2026-10-03 修：XLAB 引流卡键盘Enter开出帖子页而非项目页的根因）
+  if (e.target !== cardRef.value
+      && e.target.closest('a, button, input, select, textarea, [role="button"]')) {
+    return
+  }
+  e.preventDefault()
+  emit('click', e)
+}
 
 function onEnter() { state.hovering = true }
 function onMove(e) {

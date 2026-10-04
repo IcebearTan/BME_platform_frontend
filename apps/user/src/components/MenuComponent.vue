@@ -1,5 +1,6 @@
 <script>
 import { useStore } from 'vuex'
+import { authSession } from '../api';
 import { Sunny, Moon } from '@element-plus/icons-vue'
 import NotificationBell from './Notification/NotificationBell.vue'
 
@@ -60,10 +61,37 @@ const store = useStore()
 const router = useRouter()
 const route = useRoute()
 
+// 内部工作台快速入口（feature/work-collab）：位于头像下拉（与营期中心/个人资料
+// 同组，属个人域操作），仅已开通工作人员可见；待办徽标随探测与下拉打开（@show）刷新。
+// 单例探测 /work/me（与服务台卡/组织页按钮/个人中心分组/通知工作 tab 共用）
+import { watch } from 'vue'
+import { Briefcase } from '@element-plus/icons-vue'
+import { useWorkAccess } from '../composables/useWorkAccess'
+import { useWorkData } from '../composables/useWorkData'
+const { hasAccess: workAccess, detect: detectWorkAccess } = useWorkAccess()
+const { todoCounts, refreshSummary } = useWorkData()
+if (!!authSession.getToken()) detectWorkAccess()
+watch(workAccess, (v) => { if (v) refreshSummary().catch(() => {}) })
+// 徽标口径 = 工作台摘要条五桶之和（待回复/待接手/待验收/即将到期/已逾期），与 /work 首页一致
+const workTodoTotal = computed(() =>
+  (todoCounts.value.pending_responses || 0)
+  + (todoCounts.value.pending_transfers || 0)
+  + (todoCounts.value.to_review || 0)
+  + (todoCounts.value.due_soon || 0)
+  + (todoCounts.value.overdue || 0))
+// 下拉每次打开即刷新计数（挂机会话徽标不再长期陈旧）；无资格者不额外发请求
+const onAvatarPopShow = () => {
+  if (workAccess.value) refreshSummary().catch(() => {})
+}
+const goWorkbench = () => {
+  refreshSummary().catch(() => {})          // 打开下拉后的下一次计数保持新鲜
+  router.push('/work')
+}
+
 const DEFAULT_AVATAR = 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png'
 
 // 登录态：直接读取本地 token（与 api 拦截器 / 路由守卫一致的真相源），同步判定，无闪烁
-const isLogin = !!localStorage.getItem('bme-user-token')
+const isLogin = !!authSession.getToken()
 // 鉴权类页面（登录 / 注册 / 找回密码）隐藏头像与登录注册入口，由路由 meta 驱动
 const isAuthRoute = computed(() => !!route.meta.authPage)
 // 头像：优先取持久化的 store 头像，同步渲染无闪烁
@@ -258,7 +286,7 @@ const handleUserInfo = () => {
 
         <el-menu-item v-if="isLogin && !isAuthRoute" class="custom-menu-item theme-menu-item" :class="{ 'theme-dark': isDarkMode, 'theme-light': !isDarkMode }">
             <div class="user-avatar" style="cursor: pointer;">
-                <DewPopover trigger="click" placement="bottom" :width="260" :offset="6" :show-arrow="true">
+                <DewPopover trigger="click" placement="bottom" :width="260" :offset="6" :show-arrow="true" @show="onAvatarPopShow">
                     <template #trigger>
                         <el-avatar :src="User_Avatar" alt="头像" />
                     </template>
@@ -274,6 +302,13 @@ const handleUserInfo = () => {
                             </div>
                         </div>
                         <div class="avatar-pop__actions">
+                            <div v-if="workAccess" class="avatar-pop__action" @click="goWorkbench">
+                                <el-icon><Briefcase /></el-icon>
+                                <span>内部工作台</span>
+                                <span v-if="workTodoTotal > 0" class="avatar-pop__badge">
+                                    {{ workTodoTotal }} 项待办
+                                </span>
+                            </div>
                             <div class="avatar-pop__action" @click="goCamp">
                                 <el-icon><Calendar /></el-icon>
                                 <span>营期中心</span>
@@ -1066,6 +1101,15 @@ const handleUserInfo = () => {
   transition: background 0.2s ease, color 0.2s ease;
 }
 .avatar-pop__action:hover { background: var(--dew-ghost-hover-bg); }
+.avatar-pop__badge {
+    margin-left: auto;
+    padding: 2px 8px;
+    border-radius: var(--radius-full, 999px);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--el-color-danger, #f56c6c);
+    background: var(--el-color-danger-light-9, rgba(245, 108, 108, 0.1));
+}
 .avatar-pop__action .el-icon { font-size: 16px; color: var(--dew-text-muted); }
 .avatar-pop__action--danger { color: var(--color-danger); }
 .avatar-pop__action--danger:hover { background: var(--color-danger-light); }

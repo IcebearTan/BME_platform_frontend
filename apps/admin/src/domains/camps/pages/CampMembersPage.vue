@@ -43,6 +43,17 @@
             <span v-else>—</span>
           </template>
         </el-table-column>
+        <el-table-column v-if="!isProject" label="方向" min-width="130">
+          <template #default="{ row }">
+            <el-select v-if="row.role === 'mentor' && manageWritable" :model-value="row.direction"
+              size="small" placeholder="未设置" clearable @change="(v) => setDirection(row, v)">
+              <el-option v-for="d in sessionDirections" :key="d.name" :label="d.name" :value="d.name" />
+            </el-select>
+            <span v-else-if="row.role === 'mentor'">{{ row.direction || '未设置' }}</span>
+            <span v-else-if="row.role === 'student'">{{ mentorDirectionName(row.team_mentor_id) }}</span>
+            <span v-else>—</span>
+          </template>
+        </el-table-column>
         <el-table-column label="加入时间" width="120">
           <template #default="{ row }">{{ row.joined_at ? row.joined_at.slice(0, 10) : '' }}</template>
         </el-table-column>
@@ -57,11 +68,15 @@
             </template>
           </template>
         </el-table-column>
-        <el-table-column v-if="manageWritable" label="操作" width="90">
+        <el-table-column v-if="manageWritable" label="操作" :width="!isProject ? 140 : 90">
           <template #default="{ row }">
             <el-button v-if="row.status !== 'active'" size="small" type="success" link
               @click="reactivateMember(row)">重新加入</el-button>
-            <el-button v-else size="small" type="danger" link @click="removeMember(row)">移除</el-button>
+            <template v-else>
+              <el-button v-if="!isProject && row.role === 'student'" size="small" type="primary" link
+                @click="openCourseDlg(row)">课程</el-button>
+              <el-button size="small" type="danger" link @click="removeMember(row)">移除</el-button>
+            </template>
           </template>
         </el-table-column>
       </el-table>
@@ -111,6 +126,36 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- 调整课程（方向解耦补位）：现修课程即时增删；来源=方向继承/手动 -->
+    <el-dialog v-model="courseDlg.visible" :title="`调整课程 — ${courseDlg.username}`" width="520px">
+      <div v-loading="courseDlg.loading">
+        <div class="course-dlg-label">现修课程（{{ courseDlg.items.length }}）</div>
+        <div v-if="!courseDlg.items.length && !courseDlg.loading" class="dlg-hint">
+          尚未在本营修读任何课程（未归属导生或导生方向未设置时不会自动入课）
+        </div>
+        <div class="course-dlg-list">
+          <div v-for="it in courseDlg.items" :key="it.course_id" class="course-dlg-row">
+            <span class="course-dlg-title">{{ it.title }}</span>
+            <el-tag size="small" type="info">{{ it.source_type === 'manual' ? '手动' : '方向' }}</el-tag>
+            <el-button size="small" type="danger" link :loading="courseDlg.busy === `rm-${it.course_id}`"
+              @click="removeCourse(it)">移除</el-button>
+          </div>
+        </div>
+        <div class="course-dlg-label" style="margin-top:14px;">从营目录添加</div>
+        <el-select v-model="courseDlg.addId" filterable placeholder="选择课程（营目录 = 方向绑定课程并集）"
+          style="width: 100%;" no-data-text="营目录为空——请先在设置中配置方向并绑定课程">
+          <el-option v-for="c in catalogCandidates" :key="c.course_id"
+            :label="c.title" :value="c.course_id" />
+        </el-select>
+        <div class="dlg-hint">移除仅结束本营修读：学习历史保留；若无其他营在修则课程转为「已退课」状态</div>
+      </div>
+      <template #footer>
+        <el-button @click="courseDlg.visible = false">关闭</el-button>
+        <el-button type="primary" :disabled="!courseDlg.addId" :loading="courseDlg.busy === 'add'"
+          @click="addCourse">添加课程</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -122,7 +167,7 @@ import api from '../../../api'
 import { useCampContext } from '../context/campContext'
 
 const ctx = useCampContext()
-const { campId, isProject, manageWritable } = ctx
+const { campId, isProject, manageWritable, session } = ctx
 
 const members = ref([])
 const mentorMembers = ref([])
@@ -177,6 +222,91 @@ function changeMemberPageSize() {
 }
 
 const mentorName = (id) => (id ? mentorMembers.value.find((m) => m.user_id === id)?.username || '—' : '—')
+
+// ── 方向解耦（09-28）：导生方向代设 + 学员方向随导师展示 ──
+const sessionDirections = computed(() => session.value?.ms_directions || [])
+const mentorDirectionName = (id) => (id
+  ? mentorMembers.value.find((m) => m.user_id === id)?.direction || '—' : '—')
+
+async function setDirection(row, direction) {
+  if (!direction) return   // 清空暂不支持（方向语义必选）；关闭即恢复原值
+  try {
+    const res = await api.put(`/camp/sessions/${campId.value}/mentor-direction`, {
+      user_id: row.user_id, direction,
+    })
+    row.direction = direction
+    ElMessage.success(res.data?.propagated
+      ? `方向已设置，已为 ${res.data.propagated} 名学员加入新方向课程` : '方向已设置')
+    fetchMentors()   // 学员行方向随导师映射展示，刷新导生缓存
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '设置方向失败')
+  }
+}
+
+// ── 调整课程（手动入课/移除） ──
+const courseDlg = reactive({
+  visible: false, loading: false, busy: '',
+  userId: null, username: '', items: [], catalog: [], addId: null,
+})
+const catalogCandidates = computed(() => {
+  const taken = new Set(courseDlg.items.map((i) => i.course_id))
+  return courseDlg.catalog.filter((c) => !taken.has(c.course_id))
+})
+
+async function openCourseDlg(row) {
+  courseDlg.userId = row.user_id
+  courseDlg.username = row.username
+  courseDlg.items = []
+  courseDlg.catalog = []
+  courseDlg.addId = null
+  courseDlg.visible = true
+  courseDlg.loading = true
+  try {
+    const [assigned, catalog] = await Promise.all([
+      api.get(`/camp/sessions/${campId.value}/course-assign`, { params: { user_id: row.user_id } }),
+      api.get(`/camp/sessions/${campId.value}/courses`),
+    ])
+    courseDlg.items = assigned.data?.items || []
+    courseDlg.catalog = catalog.data?.courses || []
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '加载课程数据失败')
+  } finally {
+    courseDlg.loading = false
+  }
+}
+
+async function addCourse() {
+  if (!courseDlg.addId) return
+  courseDlg.busy = 'add'
+  try {
+    await api.post(`/camp/sessions/${campId.value}/course-assign`, {
+      user_id: courseDlg.userId, course_id: courseDlg.addId,
+    })
+    const c = courseDlg.catalog.find((x) => x.course_id === courseDlg.addId)
+    courseDlg.items.push({ course_id: courseDlg.addId, title: c?.title || `#${courseDlg.addId}`, source_type: 'manual' })
+    courseDlg.addId = null
+    ElMessage.success('已入课')
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '入课失败')
+  } finally {
+    courseDlg.busy = ''
+  }
+}
+
+async function removeCourse(it) {
+  courseDlg.busy = `rm-${it.course_id}`
+  try {
+    await api.delete(`/camp/sessions/${campId.value}/course-assign`, {
+      data: { user_id: courseDlg.userId, course_id: it.course_id },
+    })
+    courseDlg.items = courseDlg.items.filter((x) => x.course_id !== it.course_id)
+    ElMessage.success('已移除（学习历史保留）')
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '移除失败')
+  } finally {
+    courseDlg.busy = ''
+  }
+}
 
 // ── 加成员（多选批量） ──
 const memberDlg = reactive({ visible: false, form: { user_ids: [], role: 'student', team_mentor_id: null }, submitting: false })
@@ -324,5 +454,31 @@ onMounted(() => {
   color: var(--text-secondary);
   font-size: 12px;
   line-height: 1.5;
+}
+
+/* 调整课程对话框（09-28 方向解耦） */
+.course-dlg-label {
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+.course-dlg-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.course-dlg-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  background: var(--el-fill-color-light, #f5f7fa);
+}
+.course-dlg-title {
+  flex: 1;
+  font-size: 13px;
 }
 </style>

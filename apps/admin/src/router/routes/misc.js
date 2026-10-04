@@ -1,6 +1,13 @@
 // 非营期域页面：组件文件留在 components/，只换路由路径 + meta（单一真相源）。
 // 旧路径以 redirect 记录兼容（函数式保留 query/params，focus 等深链参数透传）。
 const loadUserManage = () => import('../../components/UserManage.vue')
+const loadIdentityApplications = () => import('../../components/IdentityApplications.vue')
+const loadIdentityLinkCases = () => import('../../components/IdentityLinkCases.vue')
+const loadIdentitySchools = () => import('../../components/IdentitySchools.vue')
+const loadIdentityRoster = () => import('../../components/IdentityRoster.vue')
+const loadIdentityRecovery = () => import('../../components/IdentityRecovery.vue')
+const loadIdentityAuxiliary = () => import('../../components/IdentityAuxiliary.vue')
+const loadSecuritySettings = () => import('../../components/SecuritySettings.vue')
 const loadSeatManage = () => import('../../components/SeatManage.vue')
 const loadAttendanceReportManage = () => import('../../components/AttendanceReportManage.vue')
 const loadAuditLogManage = () => import('../../components/AuditLogManage.vue')
@@ -28,6 +35,48 @@ export const miscRoutes = [
     name: 'system_accounts',
     component: loadUserManage,
     meta: { title: '账号与权限', domain: 'system', navGroup: 'system', navOrder: 10, showInMenu: true, icon: 'User' },
+  },
+  {
+    path: '/system/identity/applications',
+    name: 'system_identity_applications',
+    component: loadIdentityApplications,
+    meta: { title: '身份核验审核', domain: 'system', navGroup: 'system', navOrder: 12, showInMenu: true, icon: 'Postcard', staffOnly: true },
+  },
+  {
+    path: '/system/identity/link-cases',
+    name: 'system_identity_link_cases',
+    component: loadIdentityLinkCases,
+    meta: { title: '关联案例审核', domain: 'system', navGroup: 'system', navOrder: 13, showInMenu: true, icon: 'Connection', staffOnly: true },
+  },
+  {
+    path: '/system/identity/schools',
+    name: 'system_identity_schools',
+    component: loadIdentitySchools,
+    meta: { title: '学校核验配置', domain: 'system', navGroup: 'system', navOrder: 14, showInMenu: true, icon: 'OfficeBuilding', staffOnly: true },
+  },
+  {
+    path: '/system/identity/roster',
+    name: 'system_identity_roster',
+    component: loadIdentityRoster,
+    meta: { title: '外校名册', domain: 'system', navGroup: 'system', navOrder: 15, showInMenu: true, icon: 'List', staffOnly: true },
+  },
+  {
+    path: '/system/identity/recovery',
+    name: 'system_identity_recovery',
+    component: loadIdentityRecovery,
+    meta: { title: '恢复申诉', domain: 'system', navGroup: 'system', navOrder: 16, showInMenu: true, icon: 'Tickets', staffOnly: true },
+  },
+  {
+    path: '/system/identity/auxiliary',
+    name: 'system_identity_auxiliary',
+    component: loadIdentityAuxiliary,
+    meta: { title: '辅助账号', domain: 'system', navGroup: 'system', navOrder: 17, showInMenu: true, icon: 'Key', staffOnly: true },
+  },
+  {
+    path: '/system/security',
+    name: 'system_security',
+    component: loadSecuritySettings,
+    meta: { title: '安全设置', domain: 'system', navGroup: 'system', navOrder: 15, showInMenu: true, icon: 'Key', staffOnly: true },
   },
   {
     path: '/system/facilities/seats',
@@ -153,7 +202,7 @@ export const miscRedirects = [
   { path: '/officer/manage', name: 'legacy_officer_manage', redirect: (to) => keep(to, { name: 'org.officers' }) },
   { path: '/club/groups', name: 'legacy_club_groups', redirect: (to) => keep(to, { name: 'org.groups' }) },
   { path: '/club/positions', name: 'legacy_club_positions', redirect: (to) => keep(to, { name: 'org.positions' }) },
-  { path: '/club/membership', name: 'legacy_club_membership', redirect: (to) => keep(to, { name: 'org.memberships' }) },
+  { path: '/club/membership', name: 'legacy_club_membership', redirect: (to) => keep(to, { name: 'org.groups' }) },
   { path: '/article/manage', name: 'legacy_article_manage', redirect: (to) => keep(to, { path: '/content/articles' }) },
   { path: '/course/manage', name: 'legacy_course_manage', redirect: (to) => keep(to, { path: '/content/courses' }) },
   { path: '/course/create', name: 'legacy_course_create', redirect: (to) => keep(to, { path: '/content/courses/new' }) },

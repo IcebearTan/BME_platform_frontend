@@ -9,9 +9,7 @@
  * （2026-09-20 粘贴报「缺少 article_id」的根因）。fetch 发 FormData 由浏览器
  * 自动设置带 boundary 的 multipart 头。
  */
-import { API_URL } from '../api'
-
-const TOKEN_KEY = 'bme-admin-token'
+import { API_URL, authSession } from '../api'
 
 // 弱特征来源识别（仅提示与报告口径，安全由服务端清洗保证）
 export function detectSource(html) {
@@ -24,12 +22,13 @@ export function detectSource(html) {
 
 async function postForm(path, fd, timeoutMs = 180000) {
   const headers = {}
-  const token = localStorage.getItem(TOKEN_KEY)
+  const token = authSession.getToken()
   if (token) headers['Authorization'] = `Bearer ${token}`
   const resp = await fetch(`${API_URL}${path}`, {
     method: 'POST',
     headers,
     body: fd,
+    credentials: authSession.mode === 'cookie' ? 'include' : 'same-origin',
     signal: AbortSignal.timeout(timeoutMs),
   })
   const data = await resp.json().catch(() => ({}))

@@ -5,6 +5,7 @@ import {
   Monitor, Clock, Document, OfficeBuilding, Setting, Cpu, SetUp,
   User, Grid, Tickets, DataLine, Folder, Key, Collection, FolderOpened,
   Picture, Bell, Trophy, ChatDotRound, ChatLineRound, List, Plus,
+  Postcard, Connection,
 } from '@element-plus/icons-vue'
 
 export const ICONS = {
@@ -29,6 +30,8 @@ export const ICONS = {
   ChatDotRound: markRaw(ChatDotRound),
   ChatLineRound: markRaw(ChatLineRound),
   List: markRaw(List),
+  Postcard: markRaw(Postcard),
+  Connection: markRaw(Connection),
   Plus: markRaw(Plus),
 }
 

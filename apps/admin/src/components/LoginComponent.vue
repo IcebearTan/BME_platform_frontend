@@ -20,6 +20,14 @@ export default {
             User: markRaw(User),
             Lock: markRaw(Lock),
             isLoading: false,
+            // D1 MFA 二步验证态：第一步凭据通过且账号已绑 TOTP 时进入
+            mfaRequired: false,
+            mfaToken: '',
+            mfaCode: '',
+            useRecoveryCode: false,
+            recoveryCode: '',
+            // 开发测试账号面板入口：仅 dev 构建显示（面板本体在独立页 /dev/accounts）
+            isDevBuild: import.meta.env.DEV,
             rules: {
                 password: [
                     { required: true, message: "请输入用户密码", trigger: "blur" },
@@ -34,7 +42,10 @@ export default {
         }
     },
 
+
+
     methods: {
+
         async submitForm() {
             const valid = await this.$refs.loginFormRef.validate().catch(() => false);
             if (!valid) {
@@ -54,6 +65,12 @@ export default {
                     },
                 });
 
+                if (res.data.code == 200 && res.data.mfa_required) {
+                    // 已绑定动态口令：第一步只发 5 分钟票据，进入二步验证
+                    this.mfaRequired = true;
+                    this.mfaToken = res.data.mfa_token;
+                    return;
+                }
                 if (res.data.code == 200) {
                     // 存 token 对（access + refresh，静默续期用）
                     session.save(res.data)
@@ -82,7 +99,46 @@ export default {
             } finally {
                 this.isLoading = false;
             }
-        }
+        },
+
+        async submitMfa() {
+            const payload = { mfa_token: this.mfaToken };
+            if (this.useRecoveryCode) {
+                if (!this.recoveryCode) return;
+                payload.recovery_code = this.recoveryCode;
+            } else {
+                if (!this.mfaCode) return;
+                payload.code = this.mfaCode;
+            }
+            this.isLoading = true;
+            try {
+                const res = await api({
+                    url: "/auth/admin_login/mfa",
+                    method: "post",
+                    data: payload,
+                });
+                if (res.data.code == 200) {
+                    session.save(res.data)
+                    this.store.commit('setUser', res.data)
+                    ElMessage({ message: '登录成功', type: 'success' });
+                    this.$router.push('/')
+                } else {
+                    ElMessage.error(res.data.message || '验证码错误');
+                }
+            } catch (error) {
+                ElMessage.error(error.response?.data?.message || '验证失败，请重试');
+            } finally {
+                this.isLoading = false;
+            }
+        },
+
+        backToCredentials() {
+            this.mfaRequired = false;
+            this.mfaToken = '';
+            this.mfaCode = '';
+            this.recoveryCode = '';
+            this.useRecoveryCode = false;
+        },
     }
 };
 </script>
@@ -98,7 +154,43 @@ export default {
                 </div>
             </template>
 
+            <el-form v-if="mfaRequired" class="login-form" @submit.prevent @keyup.enter="submitMfa()">
+                <p class="mfa-tip">账号已启用动态口令保护，请输入验证器中的 6 位验证码</p>
+                <el-form-item v-if="!useRecoveryCode">
+                    <DewInput
+                        v-model="mfaCode"
+                        placeholder="6 位动态验证码"
+                        size="lg"
+                        maxlength="6"
+                        :prefix-icon="Lock"
+                    />
+                </el-form-item>
+                <template v-else>
+                    <p class="mfa-tip">输入任意一个未使用的恢复码（一次性，注意保存）</p>
+                    <el-form-item>
+                        <DewInput
+                            v-model="recoveryCode"
+                            placeholder="恢复码（8 位）"
+                            size="lg"
+                            :prefix-icon="Lock"
+                        />
+                    </el-form-item>
+                </template>
+                <el-form-item>
+                    <DewButton :block="true" size="lg" :disabled="isLoading" @click="submitMfa()">
+                        {{ isLoading ? '验证中...' : '验证并登录' }}
+                    </DewButton>
+                </el-form-item>
+                <div class="mfa-alt">
+                    <DewButton type="ghost" size="sm" @click="useRecoveryCode = !useRecoveryCode">
+                        {{ useRecoveryCode ? '使用动态验证码' : '使用恢复码' }}
+                    </DewButton>
+                    <DewButton type="ghost" size="sm" @click="backToCredentials">返回重输密码</DewButton>
+                </div>
+            </el-form>
+
             <el-form
+                v-else
                 ref="loginFormRef"
                 :model="loginForm"
                 status-icon
@@ -134,6 +226,13 @@ export default {
                     </DewButton>
                 </el-form-item>
             </el-form>
+
+            <!-- 开发测试账号面板入口（仅 dev 构建渲染；独立页面承载面板） -->
+            <div v-if="isDevBuild" class="dev-entry">
+                <DewButton type="ghost" size="sm" @click="$router.push('/dev/accounts')">
+                    测试账号面板
+                </DewButton>
+            </div>
 
             <template #footer>
                 <p class="login-footer-tip">登录代表着您是大佬，拥有更多的权限</p>
@@ -192,6 +291,24 @@ export default {
     text-align: center;
     font-size: 12px;
     color: var(--dew-text-faint);
+}
+
+.mfa-tip {
+    font-size: 13px;
+    color: var(--dew-text-faint);
+    margin: 0 0 16px;
+    line-height: 1.6;
+}
+
+.mfa-alt {
+    display: flex;
+    justify-content: space-between;
+    margin-top: -8px;
+}
+
+.dev-entry {
+    margin: -6px 0 14px;
+    text-align: center;
 }
 
 @keyframes fadeInUp {

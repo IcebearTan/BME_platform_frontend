@@ -17,7 +17,7 @@
     </div>
 
     <!-- ━━ 远程培训 · 不考勤（模式 B）：一张说明卡，不发任何考勤请求 ━━ -->
-    <DewCard v-if="!attEnabled" variant="default" size="lg" :no-hover="true" class="dashboard-card">
+    <DewCard v-if="!attEnabled" variant="default" size="lg" :no-hover="true" class="dashboard-card att-off-card">
       <div class="att-off-note">
         <div class="att-off-title">远程培训 · 不设考勤</div>
         <div class="att-off-sub">本营期不进行出勤考核，无需打卡——学习进度请看「学习方向」。</div>
@@ -291,7 +291,10 @@ watch(() => props.sid, () => { loadAnnouncements(); load(); }, { immediate: true
 .card-title-row h3 { margin: 0; font-size: 15px; }
 .card-hint { font-size: 12px; color: var(--dew-text-faint); }
 
-/* 远程不考勤说明卡（09-14 模式 B） */
+/* 远程不考勤说明卡（09-14 模式 B）。
+   att-off-card 显式顶部间隔（10-01 bug：说明卡与上方公告卡/看板切换栏贴死）——
+   兄弟间 margin 折叠取大值，与公告(margin-bottom:16px)相邻时仍是 16px 不会叠成 32 */
+.att-off-card { margin-top: 16px; }
 .att-off-note { padding: 28px 16px; text-align: center; }
 .att-off-title { font-size: 15px; font-weight: 650; color: var(--dew-text-heading); }
 .att-off-sub { font-size: 12.5px; color: var(--dew-text-muted); margin-top: 8px; line-height: 1.7; }

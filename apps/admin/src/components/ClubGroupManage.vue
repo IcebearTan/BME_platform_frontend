@@ -1,7 +1,7 @@
 <template>
   <div class="selectable">
     <div class="page-header">
-      <div class="page-title">组树</div>
+      <div class="page-title">小组管理</div>
       <div class="header-actions">
         <el-button type="primary" plain @click="openCreate(null)">
           <el-icon><Plus /></el-icon>新建一级组
@@ -10,59 +10,43 @@
       </div>
     </div>
     <p class="page-subtitle">
-      组名全树唯一（徽标消歧依赖）；层级上限 4 级；有子组 / 任职 / 归属引用的组只能归档不能删除——归档后在架构页与选择器隐藏，历史档案仍解析组名。
+      以组为中心管理：左侧选中小组，右侧即可查看组内名单、添加或移出成员、直接任命与更换组长；
+      组名全树唯一，层级上限 4 级，有引用的组只能归档不能删除。
     </p>
 
-    <DewCard no-hover class="table-card">
-      <el-table :data="tree" v-loading="loading" row-key="id" default-expand-all
-        :tree-props="{ children: 'children' }">
-        <el-table-column label="组别" min-width="240">
-          <template #default="{ row }">
-            <span class="group-name">{{ row.name }}</span>
-            <el-tag v-if="row.status !== 'active'" size="small" type="info" effect="plain" class="status-tag">
-              已归档
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="排序" width="70" align="center" prop="sort_order" />
-        <el-table-column label="在任干事" width="90" align="center">
-          <template #default="{ row }">{{ row.refs.officers }}</template>
-        </el-table-column>
-        <el-table-column label="归属成员" width="90" align="center">
-          <template #default="{ row }">{{ row.refs.members }}</template>
-        </el-table-column>
-        <el-table-column label="子组" width="70" align="center">
-          <template #default="{ row }">{{ row.refs.children }}</template>
-        </el-table-column>
-        <el-table-column label="操作" width="250" align="center">
-          <template #default="{ row }">
-            <el-button v-if="row.status === 'active'" size="small" link type="primary" @click="openCreate(row)">
-              加子组
-            </el-button>
-            <el-button size="small" link @click="openEdit(row)">编辑</el-button>
-            <el-button v-if="row.status === 'active'" size="small" link type="warning"
-              :disabled="row.refs.children > 0 || row.refs.members > 0" @click="confirmArchive(row)">
-              归档
-            </el-button>
-            <el-button size="small" link type="danger"
-              :disabled="row.refs.children > 0 || row.refs.officers > 0 || row.refs.members > 0"
-              @click="confirmDelete(row)">
-              删除
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-    </DewCard>
+    <div class="workspace-body">
+      <DewCard no-hover class="tree-card">
+        <el-scrollbar class="tree-scroll">
+          <el-tree ref="treeRef" :data="tree" node-key="id"
+            :props="{ label: 'label', children: 'children' }"
+            highlight-current default-expand-all
+            @current-change="onSelect">
+            <template #default="{ data }">
+              <span class="tree-node" :class="{ archived: data.status !== 'active' }">
+                <span class="tree-name">{{ data.label }}</span>
+                <span class="tree-count">{{ data.memberCount }}</span>
+              </span>
+            </template>
+          </el-tree>
+        </el-scrollbar>
+      </DewCard>
 
-    <!-- 新建 / 编辑（改名 / 挪父 / 调序共用） -->
-    <el-dialog v-model="dlg.visible" :title="dlg.id ? `编辑组「${dlg.originName}」` : '新建组'" width="520px">
+      <div class="panel-area">
+        <GroupDetailPanel :group-id="selectedId" :group-rows="rows"
+          @refresh="fetchGroups" @create-child="openCreate" />
+      </div>
+    </div>
+
+    <!-- 新建组（一级 / 子组共用） -->
+    <el-dialog v-model="dlg.visible" :title="dlg.parentName ? `在「${dlg.parentName}」下新建组` : '新建一级组'" width="520px">
       <el-form :model="dlg.form" label-width="90px">
         <el-form-item label="组名" required>
           <el-input v-model="dlg.form.name" maxlength="50" show-word-limit placeholder="全树唯一" />
         </el-form-item>
         <el-form-item label="父组">
           <el-cascader v-model="dlg.form.parent_id" :options="parentOptions" :props="cascaderProps"
-            placeholder="不选 / 清空 = 一级组" clearable style="width: 100%;" />
+            :disabled="!!dlg.parentId" :placeholder="dlg.parentId ? dlg.parentName : '不选 / 清空 = 一级组'"
+            clearable style="width: 100%;" />
         </el-form-item>
         <el-form-item label="排序">
           <el-input-number v-model="dlg.form.sort_order" :min="0" :max="999" />
@@ -81,33 +65,32 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { useRoute } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { DewCard } from '@bme/dew-ui'
 import api from '../api'
-import { buildGroupCascaderOptions } from '../utils/club'
+import { buildGroupCascaderOptions, buildGroupTreeData } from '../utils/club'
+import GroupDetailPanel from './GroupDetailPanel.vue'
 
-// ── 列表：接口平铺行 → 展示树（排序由后端 sort_order 保证，前端只组装）──
+const route = useRoute()
+
+// ── 组树 ──
 const rows = ref([])
 const loading = ref(false)
+const treeRef = ref(null)
+const selectedId = ref(null)
 
-const tree = computed(() => {
-  const nodes = new Map(rows.value.map(r => [r.id, { ...r, children: [] }]))
-  const roots = []
-  nodes.forEach(n => {
-    if (n.parent_id && nodes.has(n.parent_id)) nodes.get(n.parent_id).children.push(n)
-    else roots.push(n)
-  })
-  const strip = n => (n.children.length ? n.children.forEach(strip) : delete n.children)
-  roots.forEach(strip)
-  return roots
-})
+const tree = computed(() => buildGroupTreeData(rows.value))
 
 async function fetchGroups() {
   loading.value = true
   try {
     const res = await api({ url: '/admin/club/groups', method: 'get' })
     rows.value = res.data?.data?.groups || []
+    // 深链 / 刷新后保持选中；选中组已不存在（如删除）则清空
+    if (selectedId.value && !rows.value.some(r => r.id === selectedId.value)) selectedId.value = null
+    if (selectedId.value) treeRef.value?.setCurrentKey(selectedId.value)
   } catch (e) {
     ElMessage.error(e.response?.data?.message || '获取组树失败')
   } finally {
@@ -115,85 +98,113 @@ async function fetchGroups() {
   }
 }
 
-// ── 新建 / 编辑 ──
+function onSelect(data) {
+  selectedId.value = data?.id ?? null
+}
+
+// 深链：组织总览「组长空缺」等入口带 ?group=<id> 直达
+onMounted(async () => {
+  await fetchGroups()
+  const qid = Number(route.query.group)
+  if (qid && rows.value.some(r => r.id === qid)) {
+    selectedId.value = qid
+    treeRef.value?.setCurrentKey(qid)
+  }
+})
+
+// ── 新建组（一级 / 子组共用；父级来自详情面板「加子组」）──
 const cascaderProps = { checkStrictly: true, emitPath: false }
-const dlg = reactive({ visible: false, id: null, originName: '', submitting: false, form: {} })
+const dlg = reactive({ visible: false, parentId: null, parentName: '', submitting: false, form: {} })
 
-// 编辑时排除自身子树（防挪成环）；归档组不可作父
+// 新建时可选父级排除归档组；「加子组」进来时父级锁定不可改
 const parentOptions = computed(() =>
-  buildGroupCascaderOptions(rows.value, dlg.id))
+  buildGroupCascaderOptions(rows.value.filter(r => r.status === 'active')))
 
-const openCreate = (parent) => {
-  dlg.id = null
-  dlg.originName = ''
-  dlg.form = { name: '', parent_id: parent?.id ?? null, sort_order: 0 }
+function openCreate(parent) {
+  dlg.parentId = parent?.id ?? null
+  dlg.parentName = parent?.name || ''
+  dlg.form = { name: '', parent_id: dlg.parentId, sort_order: 0 }
   dlg.visible = true
 }
 
-const openEdit = (row) => {
-  dlg.id = row.id
-  dlg.originName = row.name
-  dlg.form = { name: row.name, parent_id: row.parent_id, sort_order: row.sort_order }
-  dlg.visible = true
-}
-
-const submit = async () => {
+async function submit() {
   const f = dlg.form
   if (!f.name?.trim()) return ElMessage.warning('请输入组名')
   dlg.submitting = true
   try {
-    const data = { name: f.name.trim(), parent_id: f.parent_id ?? null, sort_order: f.sort_order ?? 0 }
     const res = await api({
-      url: dlg.id ? `/admin/club/groups/${dlg.id}` : '/admin/club/groups',
-      method: dlg.id ? 'put' : 'post',
-      data,
+      url: '/admin/club/groups',
+      method: 'post',
+      data: { name: f.name.trim(), parent_id: f.parent_id ?? null, sort_order: f.sort_order ?? 0 },
     })
-    ElMessage.success(res.data?.message || '已保存')
+    ElMessage.success(res.data?.message || '已创建')
     dlg.visible = false
-    fetchGroups()
+    await fetchGroups()
+    const created = rows.value.find(r => r.name === f.name.trim())
+    if (created) {
+      selectedId.value = created.id
+      treeRef.value?.setCurrentKey(created.id)
+    }
   } catch (e) {
     ElMessage.error(e.response?.data?.message || '操作失败')
   } finally {
     dlg.submitting = false
   }
 }
-
-// ── 归档 / 删除（前置条件不满足时按钮已置灰，这里再确认一道）──
-const confirmArchive = (row) => {
-  ElMessageBox.confirm(
-    `归档后「${row.name}」将从组织架构页与所有选择器隐藏，历史徽标 / 档案仍解析组名。`,
-    `归档「${row.name}」`, { type: 'warning' },
-  ).then(async () => {
-    try {
-      const res = await api({ url: `/admin/club/groups/${row.id}/archive`, method: 'post' })
-      ElMessage.success(res.data?.message || '已归档')
-      fetchGroups()
-    } catch (e) {
-      ElMessage.error(e.response?.data?.message || '归档失败')
-    }
-  }).catch(() => {})
-}
-
-const confirmDelete = (row) => {
-  ElMessageBox.confirm(
-    `删除「${row.name}」不可恢复（当前零引用才可删）。`,
-    `删除「${row.name}」`, { type: 'warning' },
-  ).then(async () => {
-    try {
-      const res = await api({ url: `/admin/club/groups/${row.id}`, method: 'delete' })
-      ElMessage.success(res.data?.message || '已删除')
-      fetchGroups()
-    } catch (e) {
-      ElMessage.error(e.response?.data?.message || '删除失败')
-    }
-  }).catch(() => {})
-}
-
-onMounted(fetchGroups)
 </script>
 
 <style scoped>
-.table-card :deep(.dew-card__body) { padding: 0; }
+.workspace-body {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.tree-card {
+  width: 280px;
+  flex-shrink: 0;
+}
+
+/* 详情面板吃满剩余宽度：flex 行内子项默认按内容收缩，不给 flex 会右侧留白 */
+.panel-area {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.tree-card :deep(.dew-card__body) {
+  padding: 8px;
+}
+
+.tree-scroll {
+  height: calc(100vh - 230px);
+}
+
+.tree-node {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.tree-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tree-count {
+  margin-left: auto;
+  font-size: 11.5px;
+  color: var(--el-text-color-secondary);
+}
+
+.tree-node.archived .tree-name {
+  color: var(--el-text-color-secondary);
+  text-decoration: line-through;
+}
 
 .page-subtitle {
   margin: -12px 0 16px;
@@ -202,17 +213,23 @@ onMounted(fetchGroups)
   line-height: 1.6;
 }
 
-.group-name {
-  font-weight: 500;
-}
-
-.status-tag {
-  margin-left: 8px;
-}
-
 .form-hint {
   margin-left: 10px;
   font-size: 12px;
   color: var(--el-text-color-secondary);
+}
+
+@media (max-width: 900px) {
+  .workspace-body {
+    flex-direction: column;
+  }
+
+  .tree-card {
+    width: 100%;
+  }
+
+  .tree-scroll {
+    height: 240px;
+  }
 }
 </style>

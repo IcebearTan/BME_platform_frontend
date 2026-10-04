@@ -44,7 +44,7 @@ const User_Avatar = ref('');
                 <MenuComponent />
             </el-header>
             <el-main style="width: 1300px;">
-                <!-- <SeatLayoutComponent /> -->
+                <AboutUsComponent />
             </el-main>
             <el-footer class="page-footer">
                 <PageFooterComponent />

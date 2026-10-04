@@ -72,6 +72,7 @@ export default {
                     method: "post",
                     data: {
                         User_Email: this.registerForm.email,
+                        purpose: 'register',  // D1：验证码用途限定
                     },
                 })
                 if (res.data.code != 200) {

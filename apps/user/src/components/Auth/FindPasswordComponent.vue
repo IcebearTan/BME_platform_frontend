@@ -125,7 +125,7 @@ const submitEmail = async () => {
     const res = await api({
       url: '/auth/captcha/email',
       method: 'post',
-      data: { User_Email: findPasswordForm.email },
+      data: { User_Email: findPasswordForm.email, purpose: 'findpwd' },  // D1：验证码用途限定
     })
     if (res.data.code == 200) {
       session.save(res.data)

@@ -34,6 +34,7 @@
           <svg style="width:13px;height:13px;margin-right:4px;vertical-align:-2px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
           刷新
         </el-button>
+        <el-button v-if="focusId" size="small" link @click="clearFocus">查看全部申请</el-button>
       </div>
     </div>
 
@@ -127,11 +128,15 @@
 <script setup>
 import api from '../api';
 import { ref, reactive, computed, onMounted } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 
 const requests = ref([]);
+const route = useRoute();
+const router = useRouter();
+const focusId = ref(Number(route.query.focus) || null);
 const loading = ref(false);
-const statusFilter = ref('pending');
+const statusFilter = ref(['pending', 'approved', 'rejected'].includes(route.query.status) ? route.query.status : 'pending');
 const pagination = reactive({ page: 1, per_page: 20, total: 0 });
 
 const filterTabs = [
@@ -153,6 +158,7 @@ const fetchRequests = async () => {
   try {
     const params = { page: pagination.page, per_page: pagination.per_page };
     if (statusFilter.value) params.status = statusFilter.value;
+    if (focusId.value) params.id = focusId.value;
     const res = await api.get('/llm/admin/quota-requests', { params });
     const data = res.data.data;
     requests.value = data.requests || [];
@@ -167,6 +173,14 @@ const fetchRequests = async () => {
 const onFilterChange = (val) => {
   statusFilter.value = val;
   pagination.page = 1;
+  focusId.value = null;
+  router.replace({ query: { ...route.query, focus: undefined, status: val || undefined } });
+  fetchRequests();
+};
+
+const clearFocus = () => {
+  focusId.value = null;
+  router.replace({ query: { ...route.query, focus: undefined } });
   fetchRequests();
 };
 
@@ -186,6 +200,10 @@ const review = async (row, action) => {
   try {
     await api.post(`/llm/admin/quota-requests/${row.id}/review`, { action, review_comment: comment });
     ElMessage.success('审批完成');
+    if (focusId.value === row.id) {
+      focusId.value = null;
+      router.replace({ query: { ...route.query, focus: undefined } });
+    }
     fetchRequests();
   } catch (e) {
     ElMessage.error(e?.response?.data?.message || '操作失败');

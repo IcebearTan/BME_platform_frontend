@@ -44,6 +44,7 @@ const officerGroups = computed(() => {
     const g = map.get(o.title)
     if (o.department) g.departments.push(o.department)
     if (o.term_start && (!g.term_start || o.term_start < g.term_start)) g.term_start = o.term_start
+    if (o.scope_note) g.scope_note = o.scope_note   // 任职范围描述（管理端编辑，2026-10-02）
   }
   return [...map.values()]
 })
@@ -187,6 +188,7 @@ watch(() => props.userId, async () => {
           <div class="identity-meta">
             <span class="identity-dept">{{ g.departments.join(' / ') || '统筹全局' }}</span>
             <span class="identity-term" v-if="termLabel(g.term_start)">{{ termLabel(g.term_start) }} 起</span>
+            <div v-if="g.scope_note" class="identity-scope">{{ g.scope_note }}</div>
           </div>
         </div>
       </DewCard>
@@ -279,6 +281,15 @@ watch(() => props.userId, async () => {
 .identity-term {
   font-size: 12px;
   color: var(--dew-text-faint);
+}
+
+/* 任职范围描述：自然换行（nowrap 会把整栏撑出屏幕——长中文不可断行时
+   min-content 顶开左栏，2026-10-02 线上事故）；anywhere 兜底长 ASCII 串 */
+.identity-scope {
+  font-size: 12px;
+  color: var(--dew-text-muted);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
 }
 
 .profile-intro {

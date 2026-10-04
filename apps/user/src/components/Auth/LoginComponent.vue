@@ -9,7 +9,29 @@
         </div>
       </template>
 
+      <el-form v-if="mfaRequired" class="login-form" @submit.prevent @keyup.enter="submitMfa()">
+        <p class="mfa-tip">账号已启用动态口令保护，请输入验证器中的 6 位验证码</p>
+        <el-form-item v-if="!useRecoveryCode">
+          <DewInput v-model="mfaCode" placeholder="6 位动态验证码" size="lg" maxlength="6" :prefix-icon="Lock" />
+        </el-form-item>
+        <el-form-item v-else>
+          <DewInput v-model="recoveryCode" placeholder="恢复码（8 位）" size="lg" :prefix-icon="Lock" />
+        </el-form-item>
+        <el-form-item>
+          <DewButton :block="true" size="lg" :disabled="isLoading" @click="submitMfa()">
+            {{ isLoading ? '验证中...' : '验证并登录' }}
+          </DewButton>
+        </el-form-item>
+        <div class="mfa-alt">
+          <DewButton type="ghost" size="sm" @click="useRecoveryCode = !useRecoveryCode">
+            {{ useRecoveryCode ? '使用动态验证码' : '使用恢复码' }}
+          </DewButton>
+          <DewButton type="ghost" size="sm" @click="backToCredentials">返回重输密码</DewButton>
+        </div>
+      </el-form>
+
       <el-form
+        v-else
         ref="loginFormRef"
         :model="loginForm"
         :rules="rules"
@@ -47,6 +69,13 @@
         </el-form-item>
       </el-form>
 
+      <!-- 开发测试账号面板入口（仅 dev 构建渲染；独立页面承载面板） -->
+      <div v-if="isDev" class="dev-entry">
+        <DewButton type="ghost" size="sm" @click="router.push('/dev/accounts')">
+          测试账号面板
+        </DewButton>
+      </div>
+
       <p class="login-privacy">登录即表示您同意我们的服务条款和隐私政策</p>
 
       <div class="login-actions">
@@ -64,7 +93,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useStore } from 'vuex'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import api, { session } from '../../api'
 import { assetUrl } from '../../services/campService'
 import md5 from 'js-md5'
@@ -76,6 +105,18 @@ import DewInput from '@bme/dew-ui/DewInput.vue'
 
 const store = useStore()
 const router = useRouter()
+const route = useRoute()
+
+// return_to 白名单（规格 12.1）：仅允许应用内单斜杠开头的路径回跳——拒绝外部
+// URL、协议相对（//evil.com）与任何带 scheme 的值，防开放重定向
+const safeRedirect = () => {
+  const raw = route.query.redirect
+  if (typeof raw !== 'string' || !raw.startsWith('/') || raw.startsWith('//')) return '/home'
+  if (/:\/\//.test(raw)) return '/home'
+  return raw
+}
+
+
 
 const loginFormRef = ref(null)
 
@@ -84,8 +125,17 @@ const loginForm = ref({
   password: '',
 })
 
+// 开发测试账号面板入口：仅 dev 构建显示（面板本体在独立页 /dev/accounts）
+const isDev = import.meta.env.DEV
+
 const isLoading = ref(false)
 const isDarkMode = computed(() => store.state.isDarkMode)
+// D1 MFA 二步验证态：staff 账号绑定 TOTP 后从用户端登录同样要走二步
+const mfaRequired = ref(false)
+const mfaToken = ref('')
+const mfaCode = ref('')
+const useRecoveryCode = ref(false)
+const recoveryCode = ref('')
 
 const rules = {
   email: [
@@ -116,6 +166,46 @@ async function fetchAvatar() {
   }
 }
 
+async function submitMfa() {
+  const payload = { mfa_token: mfaToken.value }
+  if (useRecoveryCode.value) {
+    if (!recoveryCode.value) return
+    payload.recovery_code = recoveryCode.value
+  } else {
+    if (!mfaCode.value) return
+    payload.code = mfaCode.value
+  }
+  isLoading.value = true
+  try {
+    const res = await api({
+      url: '/auth/login/mfa',
+      method: 'post',
+      data: payload,
+    })
+    if (res.data.code === 200) {
+      session.save(res.data)
+      store.commit('setUser', res.data)
+      await fetchAvatar()
+      router.push(safeRedirect())
+      ElMessage.success('登录成功')
+    } else {
+      ElMessage.error(res.data.message || '验证码错误')
+    }
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '验证失败，请重试')
+  } finally {
+    isLoading.value = false
+  }
+}
+
+function backToCredentials() {
+  mfaRequired.value = false
+  mfaToken.value = ''
+  mfaCode.value = ''
+  recoveryCode.value = ''
+  useRecoveryCode.value = false
+}
+
 async function submitForm() {
   if (!loginFormRef.value) return
   const valid = await loginFormRef.value.validate().catch(() => false)
@@ -132,11 +222,16 @@ async function submitForm() {
         User_Password,
       },
     })
+    if (res.data.code === 200 && res.data.mfa_required) {
+      mfaRequired.value = true
+      mfaToken.value = res.data.mfa_token
+      return
+    }
     if (res.data.code === 200) {
       session.save(res.data)
       store.commit('setUser', res.data)
       await fetchAvatar()
-      router.push('/home')
+      router.push(safeRedirect())
       ElMessage.success('登录成功')
     }
   } catch (err) {
@@ -159,6 +254,19 @@ async function submitForm() {
 </script>
 
 <style scoped>
+.mfa-tip {
+  font-size: 13px;
+  color: var(--dew-text-faint);
+  margin: 0 0 16px;
+  line-height: 1.6;
+}
+
+.mfa-alt {
+  display: flex;
+  justify-content: space-between;
+  margin-top: -8px;
+}
+
 .login-container {
   display: flex;
   justify-content: center;
@@ -217,6 +325,11 @@ async function submitForm() {
   text-align: center;
   color: var(--dew-text-faint);
   line-height: 1.6;
+}
+
+.dev-entry {
+  margin: -6px 0 16px;
+  text-align: center;
 }
 
 .login-actions {

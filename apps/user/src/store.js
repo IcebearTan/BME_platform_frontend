@@ -2,6 +2,14 @@ import Vuex from 'vuex';
 import VuexPersist from 'vuex-persistedstate';
 import { useRouter } from 'vue-router';
 
+// D1 安全地基：登录响应整体入 store 前剔除令牌字段（token 只经 facade/兼容键
+// 存管，杜绝 Vuex 持久化副本泄露；refresh 迁 HttpOnly cookie 后本地无任何令牌）
+const sanitizeUser = (user) => {
+    if (!user || typeof user !== 'object') return user;
+    const { token, refresh_token, ...rest } = user;
+    return rest;
+};
+
 // 用户等级（LV1-4 整数，1 为默认）归一：非整数/越界一律回退 1
 const normalizeLevel = (value) => {
     const n = Number(value);
@@ -37,7 +45,7 @@ export default new Vuex.Store({
             state.token = null;
         },
         setUser(state, user) {
-            state.user = user
+            state.user = sanitizeUser(user)
             // 登录响应整体入 store 时顺带提取等级（level 为 LV1-4 整数，1 为默认）
             if (user && user.level != null) state.level = normalizeLevel(user.level)
         },
@@ -45,11 +53,12 @@ export default new Vuex.Store({
         // 旧客户端无须重新登录即自愈；未登录（state.user 为空）时忽略
         patchIdentity(state, identity) {
             if (!state.user || !identity) return
-            const { role, permissions, level } = identity
+            const { role, permissions, level, verification_status } = identity
             state.user = {
                 ...state.user,
                 ...(role !== undefined && { role }),
                 ...(permissions !== undefined && { permissions }),
+                ...(verification_status !== undefined && { verification_status }),
             }
             if (level != null) state.level = normalizeLevel(level)
         },
@@ -122,12 +131,17 @@ export default new Vuex.Store({
         permissions: (state) => state.user?.permissions || [],
         // 用户等级 LV1-4（写入时已归一；旧持久化态无该键时回退 1）
         level: (state) => state.level ?? 1,
+        // 人员核验态（R0 收紧批 2026-10-02）：登录/续期/身份中心回写；旧会话无该键回退 unverified
+        verificationStatus: (state) => state.user?.verification_status || 'unverified',
+        isVerified: (_state, getters) => getters.verificationStatus === 'verified',
         can: (_state, getters) => (perm) => getters.role === 'super_admin' || getters.permissions.includes(perm),
     },
     plugins: [
         VuexPersist({
-            key: 'bme-user-state',  // 本地存储的键名
-            storage: window.localStorage,  // 使用 localStorage，也可以使用 sessionStorage
+            key: 'bme-user-state',
+            storage: window.localStorage,
+            // D1 白名单：token 不持久化（内存态，由 facade 引导恢复）；isLogin 是派生 getter 不落盘
+            paths: ['user', 'avatar', 'level', 'checkinInfo', 'isDarkMode'],
         })
     ]
 });
