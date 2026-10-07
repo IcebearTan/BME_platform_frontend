@@ -44,7 +44,7 @@ const loadLLMService = () => import('./views/LLMServiceView.vue')
 const loadCommunity = () => import('./views/CommunityView.vue')
 const loadCommunityThread = () => import('./views/CommunityThreadView.vue')
 const loadProjectSquare = () => import('./views/ProjectSquareView.vue')
-const loadProjectDetail = () => import('./views/ProjectDetailView.vue')
+const loadProjectCreate = () => import('./views/ProjectCreateView.vue')
 const loadUiShowcase = () => import('./views/UiShowcaseView.vue')
 const loadCampHome = () => import('./views/CampHome.vue')
 const loadCamp = () => import('./views/CampView.vue')
@@ -327,16 +327,33 @@ const router = createRouter({
             meta: { requiresAuth: true }
         },
         {
-            // 项目广场（功能扩展轮 §五）：全站项目展示板块，双来源（营期发布投影+自由分享）
+            path: '/lab',
+            name: 'lab-home',
+            component: loadProjectSquare,
+            meta: { requiresAuth: true }
+        },
+        {
             path: '/projects',
             name: 'project-square',
-            component: loadProjectSquare,
+            redirect: (to) => ({ path: '/lab', query: to.query }),
+            meta: { requiresAuth: true }
+        },
+        {
+            path: '/lab/projects',
+            name: 'lab-projects',
+            redirect: (to) => ({ path: '/lab', query: to.query }),
+            meta: { requiresAuth: true }
+        },
+        {
+            path: '/lab/projects/new',
+            name: 'lab-project-new',
+            component: loadProjectCreate,
             meta: { requiresAuth: true }
         },
         {
             path: '/projects/:id',
             name: 'project-detail',
-            component: loadProjectDetail,
+            redirect: (to) => ({ path: '/lab', query: { project: String(to.params.id) } }),
             meta: { requiresAuth: true }
         },
     ]

@@ -6,7 +6,10 @@ import MenuComponent from "../components/MenuComponent.vue";
 import PageFooterComponent from "../components/PageFooterComponent.vue";
 import MobileMenuComponent from "../components/MobileMenuComponent.vue";
 import { DewCard, DewTag } from '@bme/dew-ui';
-import { Menu as Expand, Printer, Monitor, MagicStick, ArrowRight, OfficeBuilding, EditPen, Select, Files } from '@element-plus/icons-vue';
+import { Menu as Expand, Printer, Monitor, MagicStick, ArrowRight, OfficeBuilding, EditPen, Select, Files, Coin } from '@element-plus/icons-vue';
+
+import api from '../api';
+import { ElMessage } from 'element-plus';
 
 const store = useStore();
 const router = useRouter();
@@ -44,6 +47,51 @@ const open3DFarm = () => {
   window.open('/3dfarm/', '_blank');
 };
 
+// 积分商城 SSO：后端换 90 秒一次性 ticket → 顶层表单 POST 到商城 /sso/callback。
+// ticket 不缓存、不进 URL/localStorage；失败由用户重新点击换新票。401 交由共享
+// 客户端统一处理（跳登录/续期），此处不重复弹错。
+const pointsStoreLoading = ref(false);
+
+const openPointsStore = async () => {
+  if (pointsStoreLoading.value) return;
+  pointsStoreLoading.value = true;
+  let form = null;
+  try {
+    const { data } = await api({ url: '/points-sso/ticket', method: 'post' });
+    if (data?.code !== 200 || typeof data.ticket !== 'string' || !data.ticket.trim()) {
+      throw new Error('积分商城返回异常，请稍后重试');
+    }
+    // 商城地址来自后端受控配置；此处只挡格式异常（协议/凭据/查询串/路径）
+    if (typeof data.store_callback_url !== 'string') {
+      throw new Error('积分商城地址配置异常');
+    }
+    const callback = new URL(data.store_callback_url);
+    if (!['http:', 'https:'].includes(callback.protocol) || callback.username || callback.password ||
+        callback.pathname !== '/sso/callback' || callback.search || callback.hash) {
+      throw new Error('积分商城地址配置异常');
+    }
+    form = document.createElement('form');
+    form.method = 'POST';
+    form.action = callback.href;
+    form.target = '_self';
+    form.hidden = true;
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'ticket';
+    input.value = data.ticket;
+    form.appendChild(input);
+    document.body.appendChild(form);
+    form.submit();
+  } catch (e) {
+    if (e?.response?.status !== 401) {
+      ElMessage.error(e?.response?.data?.message || e.message || '跳转积分商城失败，请稍后重试');
+    }
+  } finally {
+    form?.remove();
+    pointsStoreLoading.value = false;
+  }
+};
+
 // 服务入口数据（图标底色用 inline color+'1a'，对齐 StudyHub 范式）
 const deviceServices = [
   { title: '实验室设备', desc: '各类实验器材与设备预约', icon: Monitor, color: '#909399', status: '建设中' },
@@ -73,7 +121,10 @@ const pendingSections = [
 const selfServices = [
   { title: '3D打印农场', desc: '在线预约，一站式 3D 打印服务', icon: Printer, color: '#06b6d4', action: open3DFarm },
   { title: 'AI 大模型服务', desc: '创建 API Key、查看用量与申请额度', icon: MagicStick, color: '#409EFF', action: handleAIServiceClick },
+  { title: '积分商城', desc: '使用积分兑换商城礼品', icon: Coin, color: '#f59e0b', action: openPointsStore },
 ];
+
+const serviceTitle = (s) => (s.title === '积分商城' && pointsStoreLoading.value ? '正在进入…' : s.title);
 
 // 社团服务：组织架构页（设计方案 docs/社团身份体系-设计方案.md §5.1）
 const goOrganization = () => {
@@ -138,7 +189,7 @@ const clubServices = [
                       <el-icon><component :is="s.icon" /></el-icon>
                     </div>
                     <div class="text-content">
-                      <h3>{{ s.title }}</h3>
+                      <h3>{{ serviceTitle(s) }}</h3>
                       <p>{{ s.desc }}</p>
                     </div>
                     <div class="card-action">
@@ -170,7 +221,7 @@ const clubServices = [
                       <el-icon><component :is="s.icon" /></el-icon>
                     </div>
                     <div class="text-content">
-                      <h3>{{ s.title }}</h3>
+                      <h3>{{ serviceTitle(s) }}</h3>
                       <p>{{ s.desc }}</p>
                     </div>
                     <DewTag type="neutral" size="sm" round>{{ s.status }}</DewTag>
@@ -200,7 +251,7 @@ const clubServices = [
                       <el-icon><component :is="s.icon" /></el-icon>
                     </div>
                     <div class="text-content">
-                      <h3>{{ s.title }}</h3>
+                      <h3>{{ serviceTitle(s) }}</h3>
                       <p>{{ s.desc }}</p>
                     </div>
                     <div class="card-action">
@@ -232,7 +283,7 @@ const clubServices = [
                       <el-icon><component :is="s.icon" /></el-icon>
                     </div>
                     <div class="text-content">
-                      <h3>{{ s.title }}</h3>
+                      <h3>{{ serviceTitle(s) }}</h3>
                       <p>{{ s.desc }}</p>
                     </div>
                     <div class="card-action">
