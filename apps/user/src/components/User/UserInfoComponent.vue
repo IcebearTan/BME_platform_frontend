@@ -11,6 +11,7 @@ import { DewCard, DewInput, DewButton, DewTag, DewButtonBar } from '@bme/dew-ui'
 const store = useStore()
 
 import AvatarUploadComponent from './AvatarUploadComponent.vue';
+import SsoAccountGuide from '../Auth/SsoAccountGuide.vue'
 
 const splitStringBySpace = (str) => {
   if (!str || typeof str !== 'string') return [];
@@ -192,6 +193,13 @@ const onSubmit = () => {
     >
       <template #header>个人资料</template>
 
+      <SsoAccountGuide
+        v-if="!loading"
+        show-account
+        :current-email="User_Info.User_Email || ''"
+        class="userinfo-sso-guide"
+      />
+
       <!-- 头像上传 -->
       <div class="avatar-block">
         <AvatarUploadComponent />
@@ -280,6 +288,10 @@ const onSubmit = () => {
 
 .userinfo-card {
   width: 100%;
+}
+
+.userinfo-sso-guide {
+  margin-bottom: 24px;
 }
 
 /* 头像上传区 */

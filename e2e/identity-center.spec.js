@@ -100,6 +100,46 @@ test.describe('用户端身份中心', () => {
     await expect(page.getByPlaceholder('与名册一致的姓名')).toBeVisible()
   })
 
+  test('核验向导：学号与邮箱前缀不一致前置提示并拦下发码（学号事故回归）', async ({ page }) => {
+    await loginAsUser(page)
+    const errors = []
+    page.on('pageerror', (e) => errors.push(e.message))
+    let draftPosted = 0
+    await page.route(`${API}/**`, (route) => {
+      const url = route.request().url()
+      if (url.includes('/identity/applications') && route.request().method() === 'POST') {
+        draftPosted += 1
+        return route.fulfill({ json: { code: 200, application: { id: 9, status: 'draft' } } })
+      }
+      if (url.includes('/identity/status')) {
+        return route.fulfill({ json: { ...MOCK_STATUS,
+          person: { ...MOCK_STATUS.person, verification_status: 'unverified', verified_name: null },
+          applications: [] } })
+      }
+      if (url.includes('/identity/link-cases')) return route.fulfill({ json: { code: 200, cases: [] } })
+      return route.fulfill({ json: { code: 200 } })
+    })
+    await page.goto('http://127.0.0.1:18081/AMEII/user-center/identity')
+
+    // 选本校（中山大学），填学号 + NetID 邮箱：不一致提示出现，发码被拦且零草稿请求
+    await page.locator('.el-select').first().click()
+    await page.locator('.el-select__popper:visible')
+      .locator('.el-select-dropdown__item', { hasText: '中山大学' }).click()
+    await page.getByPlaceholder('与名册一致的姓名').fill('王学号')
+    await page.getByPlaceholder('学生邮箱 @ 前面的部分，如 zhangsan01').fill('23330000')
+    await page.getByPlaceholder(/NetID@mail2\.sysu\.edu\.cn/).fill('lihr235@mail2.sysu.edu.cn')
+    await expect(page.locator('.mismatch-alert')).toBeVisible()
+    await page.getByRole('button', { name: '发送验证码' }).click()
+    await expect(page.getByText('NetID/学号须与学生邮箱 @ 前面的部分一致，请按表单下方提示修正'))
+      .toBeVisible()
+    expect(draftPosted).toBe(0)
+
+    // 改成一致：提示消失
+    await page.getByPlaceholder('学生邮箱 @ 前面的部分，如 zhangsan01').fill('lihr235')
+    await expect(page.locator('.mismatch-alert')).toHaveCount(0)
+    expect(errors).toEqual([])
+  })
+
   test('开关关闭：核验与认领显示暂未开放占位（状态卡仍可见）', async ({ page }) => {
     await loginAsUser(page)
     await page.route(`${API}/**`, (route) => {
@@ -252,6 +292,41 @@ test.describe('R0 核验门槛（2026-10-02 收紧批）', () => {
     await expect(page.locator('.el-dialog__headerbtn')).toHaveCount(0)   // 不可关：无 X
     await dialog.getByRole('button', { name: '去核验' }).click()
     await expect(page).toHaveURL(/\/AMEII\/user-center\/identity$/)
+    expect(errors).toEqual([])
+  })
+
+  test('已核验但本地态未拉平：回首页探测后强弹自动收起（信封平铺回归）', async ({ page }) => {
+    await loginAsUser(page)
+    const errors = []
+    page.on('pageerror', (e) => errors.push(e.message))
+    const statusProbed = page.waitForRequest((r) => r.url().includes('/identity/status'))
+    await page.route(`${API}/**`, (route) => {
+      const url = route.request().url()
+      if (url.includes('/identity/status')) {
+        // 与后端一致的平铺信封：真实态已核验
+        return route.fulfill({ json: { code: 200,
+          person: { public_id: 'pub1', verification_status: 'verified',
+                    verified_name: '张核验', record_status: 'active' },
+          applications: [], schools: [],
+          verification_enabled: true, ui_enabled: true } })
+      }
+      if (url.includes('/user/user_index')) {
+        // 登录会话仍是核验前的旧值（未重登未续期）
+        return route.fulfill({ json: { code: 200, User_Name: 'e2e_user',
+          verification_status: 'unverified' } })
+      }
+      return route.fulfill({ json: { code: 200 } })
+    })
+    await page.goto('http://127.0.0.1:18081/AMEII/home')
+    await statusProbed   // 强弹已挂载并发出探测请求
+    const dialog = page.locator('.el-dialog').filter({ hasText: '完成身份核验' })
+    await expect(dialog).toBeHidden({ timeout: 5000 })
+    // 探测结果已回写 store：进身份中心（覆盖其回写路径）再回首页，不再弹
+    const probedAgain = page.waitForRequest((r) => r.url().includes('/identity/status'))
+    await page.goto('http://127.0.0.1:18081/AMEII/user-center/identity')
+    await probedAgain
+    await page.goto('http://127.0.0.1:18081/AMEII/home')
+    await expect(dialog).toHaveCount(0)
     expect(errors).toEqual([])
   })
 

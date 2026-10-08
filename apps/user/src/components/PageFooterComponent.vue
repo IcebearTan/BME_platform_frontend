@@ -36,7 +36,8 @@
                 训练营运营项目
             </div>
             <a class="subtitle" href="http://172.25.56.83:8081/" target="_blank">BioMedAI 生医工智能平台</a>
-            
+            <a class="subtitle" href="http://172.25.56.83:722/" target="_blank" rel="noopener">BioNoteBooks 智能笔记平台</a>
+
         </div>
         <div class="links">
             <router-link class="title" :to="{ path: '/about'}" target="_blank">

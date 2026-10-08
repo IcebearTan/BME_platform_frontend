@@ -207,14 +207,14 @@ test('社区 XLAB 信号面板：主/次项目 + 排序切换 + 导流', async (
     page.waitForEvent('popup'),
     panel.locator('.cxp-main').click(),
   ])
-  await expect(projTab).toHaveURL(/\/projects\/802$/)
+  await expect(projTab).toHaveURL(/\/lab\?project=802$/)
   await projTab.close()
   await expect(page).toHaveURL(/\/community$/)
 
   // 切「最多浏览」：请求带 sort=popular + limit=3，主项目变为浏览量更高的 801
   const popularReq = page.waitForRequest((req) =>
     req.url().includes('/showcase/projects') && req.url().includes('sort=popular'))
-  await panel.getByRole('tab', { name: '最多浏览' }).click()
+  await panel.getByRole('button', { name: '最多浏览' }).click()
   const popularUrl = (await popularReq).url()
   expect(popularUrl).toContain('project_status=ongoing')
   expect(popularUrl).toContain('limit=3')
@@ -225,7 +225,7 @@ test('社区 XLAB 信号面板：主/次项目 + 排序切换 + 导流', async (
     page.waitForEvent('popup'),
     panel.locator('.cxp-brand').click(),
   ])
-  await expect(xlabTab).toHaveURL(/\/projects$/)
+  await expect(xlabTab).toHaveURL(/\/lab$/)
   await xlabTab.close()
 
   expect(errors).toEqual([])
@@ -244,17 +244,14 @@ test('社区 XLAB 信号面板：错误态重试 + reduced-motion', async ({ pag
   })
   await page.goto(`${BASE}/community`, { waitUntil: 'domcontentloaded' })
   const panel = page.locator('.community-xlab-panel')
-  await expect(panel.locator('.cxp-state')).toContainText('信号暂时中断')
+  await expect(panel.locator('.cxp-state')).toContainText('项目推荐暂时无法加载')
   await panel.getByRole('button', { name: '重试' }).click()
   await expect(panel.locator('.cxp-main')).toContainText('宿舍门锁')
 
   // reduced-motion：扫描线动画关停（骨架/装饰动画不出现在 reduce 环境）
   await page.emulateMedia({ reducedMotion: 'reduce' })
-  const scan = panel.locator('.cxp-scan')
-  await expect(scan).toBeVisible()
-  const anim = await scan.evaluate((el) => getComputedStyle(el).animationName)
-  expect(anim).toBe('none')
-
+  const dot = panel.locator('.cxp-brand__dot')
+  await expect(dot).toHaveCSS('animation-name', 'none')
   expect(errors).toEqual([])
 })
 
@@ -327,7 +324,7 @@ test('社区 Phase 2：帖子话题/项目 chip + 发帖选话题关联项目', 
     page.waitForEvent('popup'),
     lpc.click(),
   ])
-  await expect(cardTab).toHaveURL(/\/projects\/801$/)
+  await expect(cardTab).toHaveURL(/\/lab\?project=801$/)
   await cardTab.close()
 
   // 键盘访问（§12.2.11）：Enter 原生导航、Space 由组件接管，均新开标签页
@@ -336,14 +333,14 @@ test('社区 Phase 2：帖子话题/项目 chip + 发帖选话题关联项目', 
     page.waitForEvent('popup'),
     page.keyboard.press('Enter'),
   ])
-  await expect(enterTab).toHaveURL(/\/projects\/801$/)
+  await expect(enterTab).toHaveURL(/\/lab\?project=801$/)
   await enterTab.close()
   await lpc.focus()
   const [spaceTab] = await Promise.all([
     page.waitForEvent('popup'),
     page.keyboard.press('Space'),
   ])
-  await expect(spaceTab).toHaveURL(/\/projects\/801$/)
+  await expect(spaceTab).toHaveURL(/\/lab\?project=801$/)
   await spaceTab.close()
 
   // 话题筛选 chips 从 feed 聚合出现
