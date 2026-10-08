@@ -179,7 +179,7 @@
         <el-alert type="info" :closable="false" style="margin-bottom: 10px;"
           title="导入线下协调结果批量填充（也可逐行手选）；已分配、冲突、失败的行会就地标注结果" />
         <el-input v-model="batchDlg.raw" type="textarea" :rows="3"
-          placeholder="粘贴协调结果：CSV 每行「学员,导生」（可含表头行），或 JSON [{&quot;student&quot;:&quot;姓名&quot;,&quot;mentor&quot;:&quot;姓名&quot;}] / {&quot;学员&quot;:&quot;导生&quot;}；姓名与用户ID均可匹配" />
+          placeholder="粘贴协调结果：CSV 每行「学员,导生」（可含表头行），或 JSON [{&quot;student&quot;:&quot;姓名&quot;,&quot;mentor&quot;:&quot;姓名&quot;}] / {&quot;学员&quot;:&quot;导生&quot;}；填核验姓名或账号 ID 均可，系统按实名匹配并预填" />
         <div class="batch-import-bar">
           <el-button size="small" @click="importBatchText">解析填充</el-button>
           <el-button size="small" @click="batchFileRef?.click()">上传文件（.json / .csv / .txt）</el-button>
@@ -572,8 +572,16 @@ function parseBatchText(text) {
   return pairs
 }
 
-// 匹配并预填各行下拉；未匹配名单就地提示（不在营/已分配的学员、不存在的导生）
-function applyBatchImport(text) {
+// 匹配预填改走后端实名解析（A1，2026-10-04）：单元格纯数字按显式账号 ID、
+// 其余按当前核验姓名在本营对应角色范围精确匹配——唯一自动预填、重名/未入营/
+// 已分配就地提示，不再前端按昵称建 Map（昵称可改可重名，曾致错行错人）。
+function mapCell(v, prefix) {
+  const s = String(v ?? '').trim()
+  if (/^\d+$/.test(s)) return { [`${prefix}_user_id`]: Number(s) }
+  return { [`${prefix}_real_name`]: s }
+}
+
+async function applyBatchImport(text) {
   let pairs
   try {
     pairs = parseBatchText(text)
@@ -582,25 +590,37 @@ function applyBatchImport(text) {
     return
   }
   if (!pairs.length) { ElMessage.warning('没有解析到「学员,导生」数据对'); return }
-  const mentors = msOverview.value?.mentors || []
-  const mByName = new Map(mentors.map((m) => [m.username, m]))
-  const mById = new Map(mentors.map((m) => [String(m.user_id), m]))
-  const sByName = new Map(batchDlg.rows.map((r) => [r.username, r]))
-  const sById = new Map(batchDlg.rows.map((r) => [String(r.user_id), r]))
-  let filled = 0
-  const missStudent = [], missMentor = []
-  for (const { student, mentor } of pairs) {
-    const row = sByName.get(student) || sById.get(student)
-    const m = mByName.get(mentor) || mById.get(mentor)
-    if (!row) { missStudent.push(student); continue }
-    if (!m) { missMentor.push(mentor); continue }
-    if (!row._result) { row._mentor = m.user_id; filled += 1 }
+  const payload = pairs.map(({ student, mentor }) => ({
+    ...mapCell(student, 'student'), ...mapCell(mentor, 'mentor'),
+  }))
+  batchDlg.loading = true
+  let rows
+  try {
+    const res = await api.post(`/camp/ms/${campId.value}/assign/batch/preview`,
+      { pairs: payload })
+    rows = res.data?.rows || []
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '匹配预览失败')
+    return
+  } finally {
+    batchDlg.loading = false
   }
+  const bySid = new Map(batchDlg.rows.map((r) => [r.user_id, r]))
+  let filled = 0
   const notes = []
-  if (missStudent.length) notes.push(`未匹配学员：${missStudent.join('、')}（不在本营或已分配）`)
-  if (missMentor.length) notes.push(`未匹配导生：${missMentor.join('、')}`)
+  for (const row of rows) {
+    const label = pairs[row.index]?.student || ''
+    const { student, mentor, ready, reason } = row
+    if (ready && student?.resolved_user_id && mentor?.resolved_user_id) {
+      const target = bySid.get(student.resolved_user_id)
+      if (!target) { notes.push(`学员「${label}」不在待指派名单（可能已分配）`); continue }
+      if (!target._result) { target._mentor = mentor.resolved_user_id; filled += 1 }
+    } else {
+      notes.push(`「${label}」${reason || '需人工确认后手选'}`)
+    }
+  }
   batchDlg.importNote = notes.join('；') || null
-  ElMessage.success(`已填充 ${filled} 行`)
+  ElMessage.success(`已匹配 ${filled} 行` + (notes.length ? `，${notes.length} 行需处理` : ''))
 }
 
 function importBatchText() { applyBatchImport(batchDlg.raw) }
