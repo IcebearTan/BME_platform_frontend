@@ -187,3 +187,69 @@ textarea.xl-input { resize: vertical; line-height: 1.6; }
 @media (prefers-reduced-motion: reduce) {
   .xl-skel { animation: none; }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   XLAB 轻设计系统（2026-10-05 广场/详情/发布 三页统一）
+   方向：年轻、现代、轻科技的创意项目平台；灰白为主体，
+   绿/粉仅做语义强调（主CTA/active/进行中=绿；自由分享/已完成=粉），
+   黑只用于标题与强对比。历史深色 xl-* 规则保留给旧弹层，勿再扩展。
+   ═══════════════════════════════════════════════════════════════ */
+:root {
+  --xg-bg: #f6f6f9;             /* 页面背景（浅冷灰） */
+  --xg-surface: #ffffff;        /* 卡片/面板 */
+  --xg-surface-2: #f0f0f5;      /* 次级底/标签底 */
+  --xg-line: #e7e7ee;           /* 常规描边 */
+  --xg-line-soft: #f0f0f5;      /* 弱分隔线 */
+  --xg-ink: #17171c;            /* 主文字/标题 */
+  --xg-sub: #5f5f6b;            /* 次级文字 */
+  --xg-faint: #9a9aa6;          /* 弱文字 */
+  --xg-green: #00a876;          /* 品牌绿（主CTA/active/进行中） */
+  --xg-green-deep: #00785a;
+  --xg-green-soft: #e0f5ec;
+  --xg-pink: #e2137f;           /* 品牌粉（自由分享/已完成） */
+  --xg-pink-deep: #c40d6c;
+  --xg-pink-soft: #fde7f1;
+  --xg-radius: 12px;
+  --xg-radius-sm: 10px;
+  --xg-shadow: 0 10px 28px rgba(23, 23, 28, 0.1);
+  --xg-shadow-soft: 0 4px 14px rgba(23, 23, 28, 0.08);
+  --xg-focus-ring: 0 0 0 3px rgba(0, 168, 118, 0.12);
+}
+
+/* ── 共享胶囊按钮（详情抽屉/发布工作台/空态）── */
+.xg-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  min-height: 38px; padding: 0 16px; border-radius: var(--xg-radius-sm);
+  font-size: 13px; font-weight: 600; cursor: pointer; text-decoration: none;
+  transition: background 0.15s, box-shadow 0.15s, border-color 0.15s, color 0.15s;
+}
+.xg-btn.primary { color: #fff; background: var(--xg-green); border: 1px solid var(--xg-green); box-shadow: 0 4px 14px rgba(0, 168, 118, 0.22); }
+.xg-btn.primary:hover:not(:disabled), .xg-btn.primary:focus-visible:not(:disabled) { background: #009269; border-color: #009269; box-shadow: 0 6px 18px rgba(0, 168, 118, 0.3); outline: none; }
+.xg-btn.primary:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
+.xg-btn.ghost { color: var(--xg-ink); background: var(--xg-surface); border: 1px solid #e0e0e8; }
+.xg-btn.ghost:hover { border-color: #c9c9d4; }
+.xg-btn.soft { color: var(--xg-green-deep); background: var(--xg-green-soft); border: 1px solid transparent; }
+.xg-btn.soft:hover { background: #d4efe4; }
+.xg-btn.sm { min-height: 32px; padding: 0 13px; font-size: 12px; }
+
+/* ── 共享胶囊 chip（筛选/赛道/状态选择器）── */
+.xg-chip {
+  min-height: 32px; padding: 0 14px; border-radius: 999px;
+  color: var(--xg-sub); background: transparent; border: 1px solid transparent;
+  font-size: 13px; cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.xg-chip:hover { color: var(--xg-ink); background: var(--xg-surface-2); }
+.xg-chip.green { color: var(--xg-green-deep); background: var(--xg-green-soft); font-weight: 600; }
+.xg-chip.pink { color: var(--xg-pink-deep); background: var(--xg-pink-soft); font-weight: 600; }
+.xg-chip.ink { color: #fff; background: var(--xg-ink); font-weight: 600; }
+
+/* ── 共享状态点 + 来源徽标（三页卡片通用）── */
+.xg-dot { width: 6px; height: 6px; border-radius: 50%; background: #b6b6c2; display: inline-block; }
+.xg-dot.ongoing { background: var(--xg-green); box-shadow: 0 0 0 3px rgba(0, 168, 118, 0.15); }
+.xg-dot.done { background: var(--xg-pink); }
+.xg-src-badge {
+  display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px;
+  font-size: 11px; font-weight: 600; color: var(--xg-green-deep); background: rgba(255, 255, 255, 0.92);
+}
+.xg-src-badge.community { color: var(--xg-pink-deep); }
