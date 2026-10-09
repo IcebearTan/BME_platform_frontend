@@ -48,9 +48,12 @@ for (const email of ['demo@example.com', 'demo@mail2.sysu.edu.cn']) {
   })
 }
 
-for (const [email, label] of [
-  ['demo@mail2.sysu.edu.cn', 'SSO'], ['demo@mail.sysu.edu.cn', 'SSO'],
-  ['demo@example.com', '普通邮箱'], ['demo@mail2.sysu.edu.cn.example.com', '普通邮箱'],
+for (const [email, eligible, label] of [
+  ['demo@mail2.sysu.edu.cn', true, 'SSO'], ['demo@mail.sysu.edu.cn', true, 'SSO'],
+  ['verified@qq.com', true, 'SSO'], ['demo@example.com', false, '未开通 SSO'],
+  ['demo@mail2.sysu.edu.cn.example.com', false, '未开通 SSO'],
+  ['revoked@mail2.sysu.edu.cn', false, '未开通 SSO'],
+  ['unknown@mail2.sysu.edu.cn', null, 'SSO 状态待确认'],
 ]) {
   test(`个人资料：紧凑邮箱标识 ${email}，手机可打开说明`, async ({ page }) => {
     const errors = []
@@ -64,6 +67,10 @@ for (const [email, label] of [
       }))
     })
     await page.route('http://127.0.0.1:5001/**', route => {
+      if (route.request().url().includes('/points-sso/eligibility')) {
+        return route.fulfill(eligible === null ? { status: 404, json: { message: '旧后端' } }
+          : { json: { code: 200, eligible, source: 'verified_school_email', enabled: true } })
+      }
       if (route.request().url().includes('/user/user_index')) {
         return route.fulfill({ json: { code: 200, role: 'user', User_Id: 11,
           User_Name: '测试用户', User_Email: email, User_Tags: [] } })
@@ -80,6 +87,8 @@ for (const [email, label] of [
     await expect(details).toBeVisible()
     await expect(details).toContainText('首次进入时，系统自动创建或关联积分中心账号')
     await expect(details).toContainText('进入商城时仍需校验账号状态与关联关系')
+    await expect(details).toContainText('完成中大教育邮箱验证并通过审核')
+    await expect(details).toContainText('仍使用原来的邮箱和密码登录训练营')
     const popup = page.locator('.sso-account-popover')
     await expect(popup).toHaveCSS('backdrop-filter', 'blur(40px) saturate(1.8)')
     const box = await popup.boundingBox()

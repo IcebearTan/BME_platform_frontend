@@ -6,7 +6,6 @@ import MenuComponent from "../components/MenuComponent.vue";
 import PageFooterComponent from "../components/PageFooterComponent.vue";
 import MobileMenuComponent from "../components/MobileMenuComponent.vue";
 import { DewCard, DewTag, DewMessageBox } from '@bme/dew-ui';
-import { isEducationEmail } from '../services/accountEmail';
 import { Menu as Expand, Printer, Monitor, MagicStick, ArrowRight, OfficeBuilding, EditPen, Select, Files, Briefcase, Coin } from '@element-plus/icons-vue';
 import { useWorkAccess } from '../composables/useWorkAccess';
 
@@ -58,18 +57,9 @@ const openPointsStore = async () => {
   if (pointsStoreLoading.value) return;
   pointsStoreLoading.value = true;
   let form = null;
-  const restrictedMessage = '该功能仅对 SSO 用户开放，请使用已验证的中大教育邮箱账号登录。';
+  const restrictedMessage = '请先到「个人中心 → 身份中心」完成中大教育邮箱验证及审核，再进入积分商城。';
   try {
-    let email = store.state.user?.User_Email;
-    if (!email) {
-      const { data: account } = await api({ url: '/user/user_index', method: 'get' });
-      email = account?.User_Email;
-    }
-    if (!email) throw new Error('暂未获取到账户邮箱，请刷新后重试');
-    if (!isEducationEmail(email)) {
-      await DewMessageBox.alert(restrictedMessage, '积分商城', { confirmText: '我知道了' });
-      return;
-    }
+    // 普通登录邮箱也可能已完成教育邮箱核验，资格统一由后端实时判断。
     const { data } = await api({ url: '/points-sso/ticket', method: 'post' });
     if (data?.code !== 200 || typeof data.ticket !== 'string' || !data.ticket.trim()) {
       throw new Error('积分商城返回异常，请稍后重试');
@@ -98,6 +88,9 @@ const openPointsStore = async () => {
   } catch (e) {
     if (e?.response?.data?.error_code === 'EMAIL_DOMAIN') {
       await DewMessageBox.alert(restrictedMessage, '积分商城', { confirmText: '我知道了' });
+    } else if (['POINTS_ACCOUNT_UNAVAILABLE', 'POINTS_IDENTITY_UNAVAILABLE',
+      'POINTS_IDENTITY_AMBIGUOUS', 'POINTS_BINDING_CONFLICT'].includes(e?.response?.data?.error_code)) {
+      await DewMessageBox.alert(e.response.data.message || '账号关联异常，请联系管理员核对。', '积分商城', { confirmText: '我知道了' });
     } else if (e?.response?.data?.error_code === 'POINTS_DISABLED') {
       await DewMessageBox.alert('积分商城暂未开放，请稍后再试。', '积分商城', { confirmText: '我知道了' });
     } else if (e?.response?.status !== 401) {

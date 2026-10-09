@@ -170,6 +170,8 @@ const api = createApiClient({
 
 ## 6. user 端架构要点
 
+- **积分商城 SSO**：资格由后端 `/points-sso/eligibility` 判断，资料页只展示结果；服务台直接调用 `/points-sso/ticket`，由后端实时复核。注册邮箱后缀只用于注册输入校验，不能用于商城权限判断。普通邮箱注册后通过中大教育邮箱核验及审批的账号也可符合资格；仅有通用 `verification_status=verified` 不足以由前端判定。资格接口失败时显示待确认，不回退到邮箱后缀授权。
+
 - **组织**:`views/`(路由页)+ `components/`(按域分组:Article/Attendence/Camp/Course/Auth/Home/…) + `composables/`(useArticleReactions 等) + `services/`(campService 等纯逻辑);
 - **主题**:`store.isDarkMode` → body 与 `#app` 同步挂 `theme-dark/theme-light`(App.vue watch);
 - **路由守卫**:`meta.requiresAuth` 未登录跳登录页并带 `redirect` 回跳;已登录禁入 login/register;

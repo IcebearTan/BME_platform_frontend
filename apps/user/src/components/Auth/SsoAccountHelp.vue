@@ -15,11 +15,11 @@ const detailsOpen = ref(false)
     </template>
     <div class="sso-account-details" role="region" aria-label="SSO 与积分商城说明" @keydown.esc="detailsOpen = false">
       <h3>SSO 与积分商城</h3>
-      <p>使用以下中大教育邮箱完成注册后，账号会自动显示 SSO 标识：</p>
+      <p><strong>哪些账号可以进入商城？</strong><br>使用中大教育邮箱注册的账号，或使用 QQ 等普通邮箱注册、之后在「个人中心 → 身份中心」完成中大教育邮箱验证并通过审核的账号。</p>
       <ul aria-label="支持的教育邮箱后缀"><li v-for="domain in EDUCATION_EMAIL_DOMAINS" :key="domain">@{{ domain }}</li></ul>
       <p><strong>如何进入商城？</strong><br>从「服务台 → 积分商城」进入，无需重复输入商城密码。首次进入时，系统自动创建或关联积分中心账号。</p>
-      <p><strong>普通邮箱可以使用吗？</strong><br>普通邮箱可正常使用训练营，暂不支持通过 SSO 进入积分商城。</p>
-      <p class="sso-account-note">SSO 标识表示邮箱后缀符合要求，进入商城时仍需校验账号状态与关联关系。如遇账号关联冲突或账号停用，请联系管理员处理。</p>
+      <p><strong>需要重新注册吗？</strong><br>不需要。普通邮箱账号完成上述核验后，仍使用原来的邮箱和密码登录训练营。仅填写教育邮箱或等待审核时，尚不能进入商城。</p>
+      <p class="sso-account-note">SSO 标识表示账号符合本平台的商城准入条件，进入商城时仍需校验账号状态与关联关系。并非所有身份认证都包含中大教育邮箱核验；如遇关联冲突、核验撤销或账号停用，请联系管理员处理。</p>
     </div>
   </el-popover>
 </template>
