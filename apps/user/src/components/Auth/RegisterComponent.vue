@@ -17,12 +17,20 @@
         class="auth-form"
         @submit.prevent
       >
+        <div class="register-email-options" role="group" aria-label="注册邮箱类型">
+          <DewButton :active="emailType === 'ordinary'" :aria-pressed="emailType === 'ordinary'" :disabled="isLoading" @click="selectEmailType('ordinary')">普通邮箱</DewButton>
+          <DewButton :active="emailType === 'education'" :aria-pressed="emailType === 'education'" :disabled="isLoading" @click="selectEmailType('education')">中大教育邮箱</DewButton>
+        </div>
+        <div class="register-email-hint">
+          <span>{{ emailType === 'education' ? '使用中大教育邮箱注册，可按开放规则使用积分商城。' : '普通邮箱注册后，也可通过中大教育邮箱身份核验开通商城 SSO。' }}</span><SsoAccountHelp />
+          <span v-if="emailType === 'education'" class="register-email-domains">@mail2.sysu.edu.cn / @mail.sysu.edu.cn</span>
+        </div>
         <el-form-item prop="username">
           <DewInput v-model="registerForm.username" placeholder="请输入真实姓名" size="lg" :prefix-icon="User" @blur="registerFormRef?.validateField('username')" />
         </el-form-item>
 
         <el-form-item prop="email">
-          <DewInput v-model="registerForm.email" type="email" placeholder="请输入邮箱地址" size="lg" :prefix-icon="Message" @blur="registerFormRef?.validateField('email')" />
+          <DewInput v-model="registerForm.email" type="email" :placeholder="emailType === 'education' ? '请输入中大教育邮箱' : '请输入邮箱地址'" size="lg" :prefix-icon="Message" @blur="registerFormRef?.validateField('email')" />
         </el-form-item>
 
         <el-form-item prop="password">
@@ -36,7 +44,7 @@
         <el-form-item prop="code">
           <div class="code-row">
             <DewInput v-model="registerForm.code" placeholder="请输入验证码" size="lg" :prefix-icon="Timer" class="code-row__input" />
-            <DewButton size="lg" :disabled="disable" @click="submitEmail">
+            <DewButton size="lg" :disabled="disable || codePending || isLoading" @click="submitEmail">
               {{ getCode }}
             </DewButton>
           </div>
@@ -61,7 +69,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, watch, onBeforeUnmount } from 'vue'
 import api, { session } from '../../api'
 import md5 from 'js-md5'
 import { ElMessage } from 'element-plus'
@@ -71,6 +79,8 @@ import { User, Lock, Message, Key, Timer } from '@element-plus/icons-vue'
 import DewCard from '@bme/dew-ui/DewCard.vue'
 import DewButton from '@bme/dew-ui/DewButton.vue'
 import DewInput from '@bme/dew-ui/DewInput.vue'
+import SsoAccountHelp from './SsoAccountHelp.vue'
+import { isEducationEmail } from '../../services/accountEmail'
 
 const registerForm = reactive({
   username: '',
@@ -81,6 +91,11 @@ const registerForm = reactive({
 })
 
 const registerFormRef = ref(null)
+const emailType = ref('ordinary')
+const selectEmailType = (value) => {
+  emailType.value = value
+  registerFormRef.value?.clearValidate('email')
+}
 const router = useRouter()
 const store = useStore()
 
@@ -91,7 +106,20 @@ const getCode = ref('获取验证码')
 const isGeting = ref(false)
 const count = ref(60)
 const disable = ref(false)
+const codePending = ref(false)
+let emailVersion = 0
+let disposed = false
 let timer = null
+watch(() => registerForm.email, () => {
+  emailVersion++
+  registerForm.code = ''
+  if (timer) clearInterval(timer)
+  timer = null
+  disable.value = false
+  isGeting.value = false
+  getCode.value = '获取验证码'
+})
+onBeforeUnmount(() => { disposed = true; if (timer) clearInterval(timer) })
 
 const rules = reactive({
   username: [
@@ -130,6 +158,10 @@ const rules = reactive({
   email: [
     { required: true, message: '请输入邮箱', trigger: 'blur' },
     { type: 'email', message: '请输入正确的邮箱格式', trigger: ['blur', 'change'] },
+    { validator: (_rule, value, callback) => {
+      if (emailType.value === 'education' && value && !isEducationEmail(value)) callback(new Error('请使用 @mail2.sysu.edu.cn 或 @mail.sysu.edu.cn 邮箱'))
+      else callback()
+    }, trigger: 'blur' },
   ],
   code: [
     { required: true, message: '请输入验证码', trigger: 'submit' },
@@ -137,15 +169,20 @@ const rules = reactive({
 })
 
 const submitEmail = async () => {
-  if (!registerFormRef.value) return
-  const valid = await registerFormRef.value.validateField('email').catch(() => false)
-  if (!valid) return
+  if (!registerFormRef.value || codePending.value || disable.value || isLoading.value) return
+  codePending.value = true
+  const requestedEmail = registerForm.email
+  const requestedVersion = emailVersion
+  const isCurrentEmail = () => !disposed && requestedVersion === emailVersion && requestedEmail === registerForm.email
   try {
+    const valid = await registerFormRef.value.validateField('email').catch(() => false)
+    if (!valid || !isCurrentEmail()) return
     const res = await api({
       url: '/auth/captcha/email',
       method: 'post',
-      data: { User_Email: registerForm.email, purpose: 'register' },  // D1：验证码用途限定
+      data: { User_Email: requestedEmail, purpose: 'register' },
     })
+    if (!isCurrentEmail()) return
     if (res.data.code === 200) {
       session.save(res.data)
       ElMessage.success('验证码已发送到您的邮箱，请查收')
@@ -169,12 +206,14 @@ const submitEmail = async () => {
       ElMessage.error(res.data.msg || '验证码发送失败')
     }
   } catch (err) {
-    ElMessage.error('验证码发送失败')
+    if (isCurrentEmail()) ElMessage.error('验证码发送失败')
+  } finally {
+    codePending.value = false
   }
 }
 
 const submitForm = async () => {
-  if (!registerFormRef.value) return
+  if (!registerFormRef.value || isLoading.value) return
   const valid = await registerFormRef.value.validate().catch(() => false)
   if (!valid) return
 
@@ -253,6 +292,10 @@ const submitForm = async () => {
 .auth-form {
   width: 100%;
 }
+.register-email-options { display: flex; gap: 8px; margin-bottom: 16px; }
+.register-email-options > * { flex: 1; }
+.register-email-hint { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin-bottom: 18px; color: var(--dew-text-muted); font-size: 12px; line-height: 1.7; }
+.register-email-domains { width: 100%; overflow-wrap: anywhere; }
 
 .auth-form :deep(.el-form-item) {
   margin-bottom: 20px;

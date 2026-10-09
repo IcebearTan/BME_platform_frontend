@@ -34,6 +34,7 @@ export default {
             if (path.startsWith('/home')) {
                 return '/home'
             }
+            if (path.startsWith('/lab') || path.startsWith('/projects')) return '/lab'
             return path
         }
     },

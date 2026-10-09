@@ -88,6 +88,8 @@
               <span class="card-sub">主要 {{ detail?.counts?.primary ?? 0 }} · 次要 {{ detail?.counts?.secondary ?? 0 }}</span>
               <el-button v-if="detail?.group?.status === 'active'" size="small" type="primary" plain
                 class="add-btn" @click="openAddMember">添加成员</el-button>
+              <el-button v-if="detail?.group?.status === 'active'" size="small" plain
+                class="add-btn" @click="openBatchMember">批量导入</el-button>
             </div>
           </template>
           <el-table :data="detail?.members || []" max-height="calc(100vh - 430px)">
@@ -164,6 +166,74 @@
             <el-button @click="addDlg.visible = false">取消</el-button>
             <el-button type="primary" :loading="addDlg.submitting" :disabled="!addDlg.userIds.length"
               @click="submitAddMembers">确认添加</el-button>
+          </div>
+        </template>
+      </el-dialog>
+
+      <!-- 批量导入成员（实名名单：后端按核验姓名匹配 → 重名消歧 → 就绪行整表提交；A1 2026-10-04） -->
+      <el-dialog v-model="batchDlg.visible" title="批量导入成员（实名名单）" width="820px"
+        :close-on-click-modal="false">
+        <el-alert type="info" :closable="false" style="margin-bottom: 10px;"
+          :title="`粘贴一列实名姓名即可把人加入「${detail?.group?.name || '本组'}」，无需事先查账号 ID；重名行人工确认后按账号 ID 提交`" />
+        <el-form :inline="true" class="form-inline" @submit.prevent>
+          <el-form-item label="槽位">
+            <el-radio-group v-model="batchDlg.slot">
+              <el-radio-button value="primary">主要</el-radio-button>
+              <el-radio-button value="secondary">次要</el-radio-button>
+            </el-radio-group>
+            <span class="form-hint" style="margin-left: 8px;">设为主要组会同时移出其原主要组</span>
+          </el-form-item>
+        </el-form>
+        <el-input v-model="batchDlg.raw" type="textarea" :rows="3"
+          placeholder="每行一个实名姓名（可含表头；也支持粘贴含姓名列的表格文本，取每行第一列；账号 ID 列可直接粘贴，纯数字按 ID 解析）" />
+        <div class="batch-import-bar">
+          <el-button size="small" type="primary" plain :loading="batchDlg.loading" @click="runBatchPreview">
+            匹配预览
+          </el-button>
+          <el-button size="small" @click="batchFileRef?.click()">上传名单（.csv / .txt）</el-button>
+          <input ref="batchFileRef" type="file" accept=".csv,.txt" style="display:none" @change="onBatchFile" />
+        </div>
+        <el-table v-if="batchDlg.rows.length" :data="batchDlg.rows" border size="small" max-height="360">
+          <el-table-column label="#" width="46" align="center">
+            <template #default="{ row }">{{ row.index + 1 }}</template>
+          </el-table-column>
+          <el-table-column label="录入姓名" width="110">
+            <template #default="{ row }">{{ row.input }}</template>
+          </el-table-column>
+          <el-table-column label="匹配结果" min-width="250">
+            <template #default="{ row }">
+              <span v-if="resolvedUid(row)">{{ resolvedLabel(row) }}</span>
+              <el-select v-else-if="candidateOptions(row).length" v-model="row.chosen" size="small"
+                placeholder="同名多人，请选择" style="width: 100%;" @change="rePreviewRow(row)">
+                <el-option v-for="opt in candidateOptions(row)" :key="opt.value" :label="opt.label" :value="opt.value" />
+              </el-select>
+              <span v-else class="form-hint">无可选候选</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="预检" min-width="180">
+            <template #default="{ row }">
+              <span v-if="row.reason" class="batch-warn">{{ row.reason }}</span>
+              <el-tag v-else-if="resolvedUid(row) && !row.result" type="success" size="small" effect="plain">就绪</el-tag>
+              <span v-else class="form-hint">—</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="提交结果" min-width="160">
+            <template #default="{ row }">
+              <template v-if="row.result">
+                <el-tag :type="row.result.ok ? 'success' : 'danger'" size="small" effect="plain">
+                  {{ row.result.ok ? '已设置' : '拒绝' }}
+                </el-tag>
+                <span v-if="!row.result.ok" class="batch-warn">{{ row.result.reason }}</span>
+              </template>
+              <span v-else class="form-hint">—</span>
+            </template>
+          </el-table-column>
+        </el-table>
+        <template #footer>
+          <div class="dialog-footer">
+            <el-button @click="batchDlg.visible = false">关闭（未就绪行保留，重开可继续）</el-button>
+            <el-button type="primary" :loading="batchDlg.submitting" :disabled="!readyBatchRows.length"
+              @click="submitBatchMembers">提交已就绪 {{ readyBatchRows.length }} 行</el-button>
           </div>
         </template>
       </el-dialog>
@@ -334,6 +404,129 @@ async function submitAddMembers() {
   }
   addDlg.visible = false
   refreshAll()
+}
+
+// ── 批量导入成员（实名名单 → 后端核验姓名匹配预览 → 重名消歧 → 就绪行提交；A1）──
+const batchDlg = reactive({ visible: false, loading: false, submitting: false,
+  slot: 'primary', raw: '', rows: [] })
+const batchFileRef = ref(null)
+
+function openBatchMember() {
+  batchDlg.visible = true          // rows 保留：未处理完的名单重开可继续
+}
+
+// 名单文本 → 姓名数组（取每行第一个非空单元格；跳过表头；纯数字按账号 ID）
+function parseNameList(text) {
+  const out = []
+  for (const line of String(text || '').split(/\r?\n/)) {
+    const cell = line.split(/[,，;；\t]/).map((s) => s.trim()).filter(Boolean)[0]
+    if (!cell) continue
+    if (!out.length && /^(姓名|实名|名字|name)$/i.test(cell)) continue
+    out.push(cell)
+  }
+  return out
+}
+
+const batchItemOf = (index, cellOrUid) => ({
+  index,
+  ...(/^\d+$/.test(String(cellOrUid)) ? { user_id: Number(cellOrUid) } : { real_name: cellOrUid }),
+  [batchDlg.slot]: props.groupId,
+})
+
+async function runBatchPreview() {
+  const names = parseNameList(batchDlg.raw)
+  if (!names.length) return ElMessage.warning('没有解析到姓名行')
+  batchDlg.loading = true
+  try {
+    const res = await api({ url: '/admin/club/membership/batch/preview', method: 'post',
+      data: { items: names.map((n, i) => batchItemOf(i, n)) } })
+    const rows = res.data?.data?.rows || []
+    batchDlg.rows = rows.map((r) => ({
+      index: r.index, input: names[r.index] ?? '',
+      match: r.match, reason: r.reason, chosen: null, result: null,
+    }))
+    const ready = batchDlg.rows.filter((r) => resolvedUid(r) && !r.reason).length
+    ElMessage.success(`预览完成：${ready} 行就绪 / ${batchDlg.rows.length - ready} 行待处理`)
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '匹配预览失败')
+  } finally {
+    batchDlg.loading = false
+  }
+}
+
+// 重名/冲突行：候选人员 × 参与账号 展开为可选账号（主号优先；合并号不产生新业务不列）
+function candidateOptions(row) {
+  const opts = []
+  for (const p of row.match?.candidates || []) {
+    const school = p.schools?.length ? ` · ${p.schools.join('/')}` : ''
+    for (const a of p.accounts || []) {
+      if (a.lifecycle === 'merged') continue
+      opts.push({
+        value: a.user_id,
+        label: `${p.verified_name}（昵称 ${a.username} #${a.user_id}` +
+          `${a.is_primary ? ' · 主号' : ''}${school}）` +
+          (a.ineligible_reason ? ` · ${a.ineligible_reason}` : ''),
+      })
+    }
+  }
+  return opts
+}
+
+const resolvedUid = (row) => row.chosen || (
+  ['unique_matched', 'explicit_id'].includes(row.match?.status)
+    ? row.match?.resolved_user_id : null)
+
+const resolvedLabel = (row) => {
+  if (row.chosen) {
+    const opt = candidateOptions(row).find((o) => o.value === row.chosen)
+    return opt ? opt.label : `账号 #${row.chosen}`
+  }
+  const acc = row.match?.resolved_account
+  return acc ? `${acc.username} #${acc.user_id}` : '—'
+}
+
+// 消歧选定后按显式 ID 重跑单行预览，槽位互斥等预检由后端算
+async function rePreviewRow(row) {
+  if (!row.chosen) return
+  try {
+    const res = await api({ url: '/admin/club/membership/batch/preview', method: 'post',
+      data: { items: [batchItemOf(row.index, String(row.chosen))] } })
+    const r = res.data?.data?.rows?.[0]
+    if (r) { row.match = r.match; row.reason = r.reason }
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '单行预检失败')
+  }
+}
+
+const readyBatchRows = computed(() =>
+  batchDlg.rows.filter((r) => !r.result && resolvedUid(r) && !r.reason))
+
+async function submitBatchMembers() {
+  const rows = readyBatchRows.value
+  if (!rows.length) return
+  batchDlg.submitting = true
+  try {
+    const res = await api({ url: '/admin/club/membership/batch', method: 'post',
+      data: { items: rows.map((r) => ({ user_id: resolvedUid(r), [batchDlg.slot]: props.groupId })) } })
+    const results = res.data?.data?.results || []
+    rows.forEach((r, i) => { r.result = results[i] || { ok: false, reason: '无返回结果' } })
+    const ok = results.filter((x) => x.ok).length
+    ElMessage.success(`批量设置完成：${ok} 成功 / ${results.length - ok} 拒绝`)
+    refreshAll()
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '批量设置失败')
+  } finally {
+    batchDlg.submitting = false
+  }
+}
+
+function onBatchFile(ev) {
+  const f = ev.target.files?.[0]
+  if (!f) return
+  const reader = new FileReader()
+  reader.onload = () => { batchDlg.raw = String(reader.result || ''); runBatchPreview() }
+  reader.readAsText(f)
+  ev.target.value = ''
 }
 
 // ── 成员行操作 ──
@@ -648,5 +841,18 @@ async function confirmDelete() {
   margin-left: 10px;
   font-size: 12px;
   color: var(--el-text-color-secondary);
+}
+
+.batch-import-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 12px;
+}
+
+.batch-warn {
+  margin-left: 6px;
+  font-size: 12px;
+  color: var(--el-color-warning);
 }
 </style>

@@ -99,21 +99,30 @@ test('首页轮播 DB 驱动渲染 + 空态隐藏', async ({ page }) => {
   await page.goto(`${BASE}/home`)
   await expect(page.locator('.banner-image img[alt="营期中心"]')).toBeVisible()
   await expect(page.locator('.banner-image img[alt="营期中心"]')).toHaveCSS('object-position', '50% 30%')
+  await expect(page.locator('.banner-image img[alt="大模型服务中心"]')).toHaveCount(0)
+  await expect(page.locator('.el-carousel__item')).toHaveCount(2)
+  await expect(page.locator('.study-entries .entry-title', { hasText: '大模型' })).toHaveCount(0)
+  await expect(page.getByRole('link', { name: '大模型平台', exact: true })).toHaveCount(0)
 
-  // 首页轮播统一以秋季学期营静态图的 1983:793 比例展示。
-  const activeBanner = page.locator('.banner-slide.is-active .banner-item')
+  // 师父原始卡片轮播：主卡占舞台一半宽度，固定 160px 高，按后台焦点裁切。
+  const activeBanner = page.locator('.el-carousel__item.is-active .banner-item')
   await expect(activeBanner).toBeVisible()
-  const bannerRatio = async () => {
-    const box = await activeBanner.boundingBox()
-    return box.width / box.height
+  await expect(page.locator('.banner-image img[alt="营期中心"]')).toHaveCSS('object-fit', 'cover')
+  for (const width of [1920, 1564, 1200, 800, 375]) {
+    await page.setViewportSize({ width, height: 900 })
+    await expect(activeBanner).toHaveCSS('height', '160px')
+    const stageWidth = (await page.locator('.el-carousel__container').boundingBox()).width
+    await expect.poll(async () => Math.abs((await page.locator('.el-carousel__item.is-active').boundingBox()).width - stageWidth / 2)).toBeLessThan(1)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   }
 
+  // 单图同样保持条状，不因侧卡消失或长图比例变高。
+  await mockBanners(page, [MOCK_BANNER_FRAMES[0]])
+  await page.goto(`${BASE}/home`)
+  await expect(page.locator('.el-carousel__item')).toHaveCount(1)
+  await expect(activeBanner).toHaveCSS('height', '160px')
   await page.setViewportSize({ width: 1564, height: 900 })
-  await expect.poll(bannerRatio).toBeCloseTo(1983 / 793, 1)
-  await page.setViewportSize({ width: 1200, height: 800 })
-  await expect.poll(bannerRatio).toBeCloseTo(1983 / 793, 1)
-  await page.setViewportSize({ width: 375, height: 812 })
-  await expect.poll(bannerRatio).toBeCloseTo(1983 / 793, 1)
+  await expect(activeBanner).toHaveCSS('height', '160px')
 
   // 空态：/banner/list 回空数组 → 整区隐藏不阻塞首页
   await mockBanners(page, [])
@@ -134,31 +143,33 @@ test('首页卡片轮播：正反切换时环形侧卡不覆盖退出卡', async
   await page.route('http://127.0.0.1:5001/**', route => (
     route.fulfill({ json: { code: 200, data: [] } })
   ))
-  await mockBanners(page, MOCK_BANNER_FRAMES)
+  // 层级测试使用三张可见卡片；AI 入口隐藏另由 DB 渲染用例覆盖。
+  await mockBanners(page, MOCK_BANNER_FRAMES.map(frame => frame.Banner_Id === 2
+    ? { ...frame, title: '学习资源', link_value: '/resources' } : frame))
 
   await page.goto(`${BASE}/home`)
-  await page.locator('.carousel-indicators button').nth(0).click()
-  await page.locator('.carousel-arrow--next').click()
+  await page.locator('.el-carousel__indicator').nth(0).click()
+  await page.locator('.el-carousel__arrow--right').click()
 
-  const layers = await page.locator('.banner-slide').evaluateAll(items => (
+  const layers = await page.locator('.el-carousel__item').evaluateAll(items => (
     items.map(item => Number(getComputedStyle(item).zIndex))
   ))
-  expect(layers).toEqual([2, 3, 2])
+  expect(layers).toEqual([2, 3, 1])
 
-  await page.locator('.carousel-indicators button').nth(2).click()
+  await page.locator('.el-carousel__indicator').nth(2).click()
   await page.waitForTimeout(500)
-  await page.locator('.carousel-arrow--prev').click()
-  const reverseToSecondLayers = await page.locator('.banner-slide').evaluateAll(items => (
+  await page.locator('.el-carousel__arrow--left').click()
+  const reverseToSecondLayers = await page.locator('.el-carousel__item').evaluateAll(items => (
     items.map(item => Number(getComputedStyle(item).zIndex))
   ))
-  expect(reverseToSecondLayers).toEqual([2, 3, 2])
+  expect(reverseToSecondLayers).toEqual([1, 3, 2])
 
   await page.waitForTimeout(500)
-  await page.locator('.carousel-arrow--prev').click()
-  const reverseToFirstLayers = await page.locator('.banner-slide').evaluateAll(items => (
+  await page.locator('.el-carousel__arrow--left').click()
+  const reverseToFirstLayers = await page.locator('.el-carousel__item').evaluateAll(items => (
     items.map(item => Number(getComputedStyle(item).zIndex))
   ))
-  expect(reverseToFirstLayers).toEqual([3, 2, 2])
+  expect(reverseToFirstLayers).toEqual([3, 2, 1])
 })
 
 // ── 课程封面（09-15 链路）：有图出图、无图回退标题色块 ──

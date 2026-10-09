@@ -68,7 +68,7 @@
           </template>
         </el-table-column>
       </el-table>
-      <div class="table-footnote">底图规范：1600×800（2:1）、WebP/JPG ≤500KB、关键内容避开左下角 30% 区域（角标/文案位）。</div>
+      <div class="table-footnote">底图规格：1983×793（约 2.5:1，与首页显示一致、取景即所得）、系统自动转 WebP ≤500KB、关键内容避开左下角 30% 区域（角标/文案位）。</div>
     </DewCard>
 
     <!-- 新建/编辑弹窗 -->
@@ -122,12 +122,12 @@
       </template>
     </el-dialog>
 
-    <!-- 裁切对话框：2:1 取景（存储规格）；拖拽平移、滚轮/双指缩放 -->
-    <el-dialog v-model="cropDlg.visible" title="裁切底图（2:1）" width="720px" @closed="closeCropDialog">
+    <!-- 裁切对话框：2.5:1 取景（1983:793，与首页显示框一致）；拖拽平移、滚轮/双指缩放 -->
+    <el-dialog v-model="cropDlg.visible" title="裁切底图（约 2.5:1）" width="720px" @closed="closeCropDialog">
       <div class="crop-stage">
         <img ref="cropImgEl" :src="cropDlg.src" alt="待裁切底图" />
       </div>
-      <p class="form-hint">拖动平移、滚轮缩放取景框；首页主卡按设备在 2:1 / 16:7 / 16:9 间自适应取景，请把主体放在取景框<b>纵向中部</b>，再用「显示焦点」微调。</p>
+      <p class="form-hint">拖动平移、滚轮缩放取景框；取景比例与首页主卡显示一致（约 2.5:1），<b>所见即所得</b>——框内即最终画面。历史 2:1 存量底图仍由「显示焦点」控制纵向取景。</p>
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="closeCropDialog">取消</el-button>
@@ -205,7 +205,7 @@ const onCreateImageChange = (uploadFile) => {
     ElMessage.warning('底图仅支持 jpg/png/webp 格式');
     return;
   }
-  openCropDialog(raw, 'create');   // 选图先进裁切器（2:1 取景所见即所得），确认后才作为待传图
+  openCropDialog(raw, 'create');   // 选图先进裁切器（2.5:1 取景所见即所得），确认后才作为待传图
 };
 
 const submit = async () => {
@@ -254,7 +254,7 @@ const onSwapImage = (row, uploadFile) => {
   openCropDialog(raw, 'swap', row);
 };
 
-// ── 裁切器：2:1 取景（与存储规格一致），拖拽/滚轮缩放；确认后 create 存待传、swap 直传 ──
+// ── 裁切器：2.5:1（1983:793）取景，与首页显示框同源（2026-10-03 统一）；拖拽/滚轮缩放 ──
 const cropDlg = reactive({
   visible: false,
   mode: 'create',          // create | swap
@@ -273,7 +273,7 @@ const openCropDialog = (raw, mode, row = null) => {
   nextTick(() => {
     if (cropper) { cropper.destroy(); cropper = null; }
     cropper = new Cropper(cropImgEl.value, {
-      aspectRatio: 2 / 1,     // 存储规格 1600x800；显示条只取中带，取景时把主体放横向中部
+      aspectRatio: 1983 / 793,  // 与 StudyHub.PREFERRED_BANNER_RATIO 同源（≈2.5:1）——取景即最终显示
       viewMode: 1,
       autoCropArea: 1,
       background: false,
@@ -289,7 +289,7 @@ const closeCropDialog = () => {
 
 const confirmCrop = () => {
   if (!cropper) return;
-  const canvas = cropper.getCroppedCanvas({ imageSmoothingQuality: 'high' });
+  const canvas = cropper.getCroppedCanvas({ maxWidth: 1983, imageSmoothingQuality: 'high' });
   if (!canvas.width || !canvas.height) { ElMessage.warning('请先框选有效区域'); return; }
   canvas.toBlob(async (blob) => {
     if (!blob) { ElMessage.error('裁切导出失败'); return; }

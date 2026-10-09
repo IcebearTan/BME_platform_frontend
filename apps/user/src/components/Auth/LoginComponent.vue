@@ -5,7 +5,7 @@
         <div class="login-header">
           <div class="login-logo">✦</div>
           <h2 class="login-title">登录账户</h2>
-          <p class="login-subtitle">欢迎回来，请登录您的账户</p>
+          <p class="login-subtitle">欢迎回来，使用注册邮箱登录</p>
         </div>
       </template>
 
@@ -266,6 +266,7 @@ async function submitForm() {
   justify-content: space-between;
   margin-top: -8px;
 }
+
 
 .login-container {
   display: flex;

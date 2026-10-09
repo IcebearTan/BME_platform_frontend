@@ -8,14 +8,14 @@ const BASE = 'http://127.0.0.1:18081/AMEII'
 const STORE_CALLBACK = 'https://store.example.edu.cn/sso/callback'
 const TICKET = 'e2e-ticket-8c4f9a01e3b5d278491c36ef20718ad4'
 
-async function loginAsUser(page) {
-  await page.addInitScript(() => {
+async function loginAsUser(page, email = 'demo@mail2.sysu.edu.cn') {
+  await page.addInitScript((email) => {
     localStorage.setItem('bme-user-token', 'e2e-mock-token')
     localStorage.setItem('bme-user-state', JSON.stringify({
       token: 'e2e-mock-token', isLogin: true, isDarkMode: false,
-      user: { username: 'e2e_user', role: 'user', User_Id: '0000021' }, checkinInfo: {},
+      user: { username: 'e2e_user', role: 'user', User_Id: '0000021', User_Email: email }, checkinInfo: {},
     }))
-  })
+  }, email)
 }
 
 async function mockTicketEndpoint(page, handler) {
@@ -34,8 +34,9 @@ function storeCard(page) {
   return page.locator('.entry-card').filter({ hasText: '使用积分兑换商城礼品' }).first()
 }
 
-test('成功跳转：以表单 POST 携带 ticket 提交到商城回调', async ({ page }) => {
-  await loginAsUser(page)
+for (const email of ['demo@mail2.sysu.edu.cn', 'verified@qq.com', null]) {
+test(`后端准入成功：${email || '旧会话缺邮箱'} 以表单 POST 携带 ticket 到商城`, async ({ page }) => {
+  await loginAsUser(page, email)
   const pageErrors = []
   page.on('pageerror', (e) => pageErrors.push(e.message))
 
@@ -50,6 +51,7 @@ test('成功跳转：以表单 POST 携带 ticket 提交到商城回调', async 
   })
 
   await page.goto(`${BASE}/service-hall`)
+  await expect(page.locator('.entry-card', { hasText: 'AI 大模型服务' })).toHaveCount(0)
   await storeCard(page).click()
 
   // 浏览器已导航到商城回调的 mock 响应
@@ -60,6 +62,7 @@ test('成功跳转：以表单 POST 携带 ticket 提交到商城回调', async 
   expect(storeRequest.postData()).toBe(`ticket=${TICKET}`)
   expect(pageErrors).toEqual([])
 })
+}
 
 test('防重复点击：请求期间二次点击不产生并发 ticket 请求', async ({ page }) => {
   await loginAsUser(page)
@@ -111,7 +114,7 @@ test('后端可读错误（非校园邮箱）透出文案且不导航', async ({
   await page.goto(`${BASE}/service-hall`)
   await storeCard(page).click()
 
-  await expect(page.locator('.el-message').first()).toContainText('中大校园邮箱')
+  await expect(page.getByRole('dialog')).toContainText('完成中大教育邮箱验证及审核')
   expect(storeHit).toBe(0)
   expect(page.url()).toContain('/service-hall')
   expect(pageErrors).toEqual([])
@@ -139,3 +142,48 @@ test('响应缺 ticket：提示异常且不导航', async ({ page }) => {
   expect(storeHit).toBe(0)
   expect(pageErrors).toEqual([])
 })
+
+
+test('普通邮箱未完成核验：后端拒绝后提示身份中心，不跳转商城', async ({ page }) => {
+  await loginAsUser(page, 'student@seed.dev')
+  let ticketCalls = 0
+  await mockTicketEndpoint(page, route => { ticketCalls++; return route.fulfill({ status: 400,
+    json: { code: 400, error_code: 'EMAIL_DOMAIN' } }) })
+  await page.goto(`${BASE}/service-hall`)
+  await storeCard(page).click()
+  await expect(page.getByRole('dialog')).toContainText('完成中大教育邮箱验证及审核')
+  expect(ticketCalls).toBe(1)
+  await page.getByRole('button', { name: '我知道了' }).click()
+  await expect(storeCard(page)).toContainText('积分商城')
+  expect(page.url()).toContain('/service-hall')
+})
+
+test('教育邮箱：商城尚未开放时提示状态', async ({ page }) => {
+  await loginAsUser(page)
+  await mockTicketEndpoint(page, route => route.fulfill({ status: 503,
+    json: { code: 503, error_code: 'POINTS_DISABLED', message: 'disabled' } }))
+  await page.goto(`${BASE}/service-hall`)
+  await storeCard(page).click()
+  await expect(page.getByRole('dialog')).toContainText('积分商城暂未开放，请稍后再试')
+  expect(page.url()).toContain('/service-hall')
+})
+
+
+for (const [errorCode, message, status] of [
+  ['POINTS_BINDING_CONFLICT', '该账号在积分中心已绑定其他邮箱，请联系管理员处理', 409],
+  ['POINTS_IDENTITY_UNAVAILABLE', '当前身份核验状态异常，请到身份中心查看或联系管理员', 403],
+  ['POINTS_IDENTITY_AMBIGUOUS', '存在多份不同的教育邮箱核验记录，请联系管理员核对后进入商城', 409],
+]) {
+test(`已核验 QQ 账号异常 ${errorCode}：展示后端原因且不跳转`, async ({ page }) => {
+  await loginAsUser(page, 'verified@qq.com')
+  await mockTicketEndpoint(page, route => route.fulfill({ status,
+    json: { code: status, error_code: errorCode, message } }))
+  let storeCalls = 0
+  await page.route(STORE_CALLBACK, route => { storeCalls++; return route.fulfill({ body: '' }) })
+  await page.goto(`${BASE}/service-hall`)
+  await storeCard(page).click()
+  await expect(page.getByRole('dialog')).toContainText(message)
+  expect(storeCalls).toBe(0)
+  expect(page.url()).toContain('/service-hall')
+})
+}

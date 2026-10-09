@@ -5,9 +5,10 @@ import { useRouter } from 'vue-router';
 import MenuComponent from "../components/MenuComponent.vue";
 import PageFooterComponent from "../components/PageFooterComponent.vue";
 import MobileMenuComponent from "../components/MobileMenuComponent.vue";
-import { DewCard, DewTag } from '@bme/dew-ui';
-import { Menu as Expand, Printer, Monitor, MagicStick, ArrowRight, OfficeBuilding, EditPen, Select, Files, Briefcase, Coin } from '@element-plus/icons-vue';
+import { DewCard, DewTag, DewMessageBox } from '@bme/dew-ui';
+import { Menu as Expand, Printer, Monitor, ArrowRight, OfficeBuilding, EditPen, Select, Files, Briefcase, Coin } from '@element-plus/icons-vue';
 import { useWorkAccess } from '../composables/useWorkAccess';
+
 import api from '../api';
 import { ElMessage } from 'element-plus';
 
@@ -39,10 +40,6 @@ const toggleMobileMenu = () => {
   isMobileMenuOpen.value = !isMobileMenuOpen.value;
 };
 
-const handleAIServiceClick = () => {
-  router.push('/ai-service');
-};
-
 const open3DFarm = () => {
   window.open('/3dfarm/', '_blank');
 };
@@ -56,7 +53,9 @@ const openPointsStore = async () => {
   if (pointsStoreLoading.value) return;
   pointsStoreLoading.value = true;
   let form = null;
+  const restrictedMessage = '请先到「个人中心 → 身份中心」完成中大教育邮箱验证及审核，再进入积分商城。';
   try {
+    // 普通登录邮箱也可能已完成教育邮箱核验，资格统一由后端实时判断。
     const { data } = await api({ url: '/points-sso/ticket', method: 'post' });
     if (data?.code !== 200 || typeof data.ticket !== 'string' || !data.ticket.trim()) {
       throw new Error('积分商城返回异常，请稍后重试');
@@ -83,7 +82,14 @@ const openPointsStore = async () => {
     document.body.appendChild(form);
     form.submit();
   } catch (e) {
-    if (e?.response?.status !== 401) {
+    if (e?.response?.data?.error_code === 'EMAIL_DOMAIN') {
+      await DewMessageBox.alert(restrictedMessage, '积分商城', { confirmText: '我知道了' });
+    } else if (['POINTS_ACCOUNT_UNAVAILABLE', 'POINTS_IDENTITY_UNAVAILABLE',
+      'POINTS_IDENTITY_AMBIGUOUS', 'POINTS_BINDING_CONFLICT'].includes(e?.response?.data?.error_code)) {
+      await DewMessageBox.alert(e.response.data.message || '账号关联异常，请联系管理员核对。', '积分商城', { confirmText: '我知道了' });
+    } else if (e?.response?.data?.error_code === 'POINTS_DISABLED') {
+      await DewMessageBox.alert('积分商城暂未开放，请稍后再试。', '积分商城', { confirmText: '我知道了' });
+    } else if (e?.response?.status !== 401) {
       ElMessage.error(e?.response?.data?.message || e.message || '跳转积分商城失败，请稍后重试');
     }
   } finally {
@@ -120,18 +126,17 @@ const pendingSections = [
 
 const selfServices = [
   { title: '3D打印农场', desc: '在线预约，一站式 3D 打印服务', icon: Printer, color: '#06b6d4', action: open3DFarm },
-  { title: 'AI 大模型服务', desc: '创建 API Key、查看用量与申请额度', icon: MagicStick, color: '#409EFF', action: handleAIServiceClick },
   { title: '积分商城', desc: '使用积分兑换商城礼品', icon: Coin, color: '#f59e0b', action: openPointsStore },
 ];
-
-// 积分商城跳转请求期间，卡片标题切换为「正在进入…」（防重复点击的视觉反馈）
-const serviceTitle = (s) => (s.title === '积分商城' && pointsStoreLoading.value ? '正在进入…' : s.title);
 
 // 图标底色派生：主色 10% 透明混合（等价原 hex+'1a'，但兼容 CSS token）
 const iconBoxStyle = (color) => ({
   background: `color-mix(in srgb, ${color} 10%, transparent)`,
   color,
 });
+
+// 积分商城卡：换票期间标题提示（ticket 流程见上 openPointsStore）
+const serviceTitle = (s) => (s.title === '积分商城' && pointsStoreLoading.value ? '正在进入…' : s.title);
 
 // 社团服务：组织架构页（设计方案 docs/社团身份体系-设计方案.md §5.1）；
 // 内部工作台（feature/work-collab）：仅对 /work/me 探测通过的工作人员渲染，学员不可见
@@ -210,7 +215,7 @@ const clubServices = computed(() => {
                       <el-icon><component :is="s.icon" /></el-icon>
                     </div>
                     <div class="text-content">
-                      <h3>{{ s.title }}</h3>
+                      <h3>{{ serviceTitle(s) }}</h3>
                       <p>{{ s.desc }}</p>
                     </div>
                     <div class="card-action">
@@ -242,7 +247,7 @@ const clubServices = computed(() => {
                       <el-icon><component :is="s.icon" /></el-icon>
                     </div>
                     <div class="text-content">
-                      <h3>{{ s.title }}</h3>
+                      <h3>{{ serviceTitle(s) }}</h3>
                       <p>{{ s.desc }}</p>
                     </div>
                     <DewTag type="neutral" size="sm" round>{{ s.status }}</DewTag>
@@ -304,7 +309,7 @@ const clubServices = computed(() => {
                       <el-icon><component :is="s.icon" /></el-icon>
                     </div>
                     <div class="text-content">
-                      <h3>{{ s.title }}</h3>
+                      <h3>{{ serviceTitle(s) }}</h3>
                       <p>{{ s.desc }}</p>
                     </div>
                     <div class="card-action">
