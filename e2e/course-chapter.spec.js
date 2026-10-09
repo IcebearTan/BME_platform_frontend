@@ -46,6 +46,22 @@ const RESOURCES = {
     content_type: 'application/pdf', sort_order: 1, created_at: '2026-09-01 10:00' }]
 }
 
+test('课程正文：相对图片与附件使用 API 地址，绝对链接保持原地址', async ({ page }) => {
+  const lessons = [{ Chapter_Id: 11, lessons: [lesson(102, 11, '资源正文', 'text', {
+    content: '<p>资源说明</p><img src="/media/inline.png" alt="课程配图"><a href="/media/handout.pdf">正文讲义</a><a href="https://example.com/reference">外部参考</a>',
+  })] }]
+  await mockLearningPage(page, { lessons, completed: [] })
+  await page.route('http://127.0.0.1:5001/media/inline.png', route => route.fulfill({
+    contentType: 'image/png',
+    body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aHVcAAAAASUVORK5CYII=', 'base64'),
+  }))
+  await page.goto(`${BASE}/course/chapter/${COURSE_ID}?lessonId=102`)
+  const body = page.locator('.lesson-body')
+  await expect(body.getByRole('img', { name: '课程配图' })).toHaveAttribute('src', 'http://127.0.0.1:5001/media/inline.png')
+  await expect(body.getByRole('link', { name: '正文讲义' })).toHaveAttribute('href', 'http://127.0.0.1:5001/media/handout.pdf')
+  await expect(body.getByRole('link', { name: '外部参考' })).toHaveAttribute('href', 'https://example.com/reference')
+})
+
 // 完成打点捕获（断言请求体用）
 let lastUpdateBody = null
 

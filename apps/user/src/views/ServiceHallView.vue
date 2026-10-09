@@ -5,7 +5,8 @@ import { useRouter } from 'vue-router';
 import MenuComponent from "../components/MenuComponent.vue";
 import PageFooterComponent from "../components/PageFooterComponent.vue";
 import MobileMenuComponent from "../components/MobileMenuComponent.vue";
-import { DewCard, DewTag } from '@bme/dew-ui';
+import { DewCard, DewTag, DewMessageBox } from '@bme/dew-ui';
+import { isEducationEmail } from '../services/accountEmail';
 import { Menu as Expand, Printer, Monitor, MagicStick, ArrowRight, OfficeBuilding, EditPen, Select, Files, Briefcase, Coin } from '@element-plus/icons-vue';
 import { useWorkAccess } from '../composables/useWorkAccess';
 
@@ -57,7 +58,18 @@ const openPointsStore = async () => {
   if (pointsStoreLoading.value) return;
   pointsStoreLoading.value = true;
   let form = null;
+  const restrictedMessage = '该功能仅对 SSO 用户开放，请使用已验证的中大教育邮箱账号登录。';
   try {
+    let email = store.state.user?.User_Email;
+    if (!email) {
+      const { data: account } = await api({ url: '/user/user_index', method: 'get' });
+      email = account?.User_Email;
+    }
+    if (!email) throw new Error('暂未获取到账户邮箱，请刷新后重试');
+    if (!isEducationEmail(email)) {
+      await DewMessageBox.alert(restrictedMessage, '积分商城', { confirmText: '我知道了' });
+      return;
+    }
     const { data } = await api({ url: '/points-sso/ticket', method: 'post' });
     if (data?.code !== 200 || typeof data.ticket !== 'string' || !data.ticket.trim()) {
       throw new Error('积分商城返回异常，请稍后重试');
@@ -84,7 +96,11 @@ const openPointsStore = async () => {
     document.body.appendChild(form);
     form.submit();
   } catch (e) {
-    if (e?.response?.status !== 401) {
+    if (e?.response?.data?.error_code === 'EMAIL_DOMAIN') {
+      await DewMessageBox.alert(restrictedMessage, '积分商城', { confirmText: '我知道了' });
+    } else if (e?.response?.data?.error_code === 'POINTS_DISABLED') {
+      await DewMessageBox.alert('积分商城暂未开放，请稍后再试。', '积分商城', { confirmText: '我知道了' });
+    } else if (e?.response?.status !== 401) {
       ElMessage.error(e?.response?.data?.message || e.message || '跳转积分商城失败，请稍后重试');
     }
   } finally {

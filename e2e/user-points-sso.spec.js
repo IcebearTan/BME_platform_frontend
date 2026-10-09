@@ -8,14 +8,14 @@ const BASE = 'http://127.0.0.1:18081/AMEII'
 const STORE_CALLBACK = 'https://store.example.edu.cn/sso/callback'
 const TICKET = 'e2e-ticket-8c4f9a01e3b5d278491c36ef20718ad4'
 
-async function loginAsUser(page) {
-  await page.addInitScript(() => {
+async function loginAsUser(page, email = 'demo@mail2.sysu.edu.cn') {
+  await page.addInitScript((email) => {
     localStorage.setItem('bme-user-token', 'e2e-mock-token')
     localStorage.setItem('bme-user-state', JSON.stringify({
       token: 'e2e-mock-token', isLogin: true, isDarkMode: false,
-      user: { username: 'e2e_user', role: 'user', User_Id: '0000021' }, checkinInfo: {},
+      user: { username: 'e2e_user', role: 'user', User_Id: '0000021', User_Email: email }, checkinInfo: {},
     }))
-  })
+  }, email)
 }
 
 async function mockTicketEndpoint(page, handler) {
@@ -111,7 +111,7 @@ test('后端可读错误（非校园邮箱）透出文案且不导航', async ({
   await page.goto(`${BASE}/service-hall`)
   await storeCard(page).click()
 
-  await expect(page.locator('.el-message').first()).toContainText('中大校园邮箱')
+  await expect(page.getByRole('dialog')).toContainText('该功能仅对 SSO 用户开放')
   expect(storeHit).toBe(0)
   expect(page.url()).toContain('/service-hall')
   expect(pageErrors).toEqual([])
@@ -138,4 +138,41 @@ test('响应缺 ticket：提示异常且不导航', async ({ page }) => {
   await expect(page.locator('.el-message').first()).toContainText('积分商城返回异常')
   expect(storeHit).toBe(0)
   expect(pageErrors).toEqual([])
+})
+
+
+test('普通邮箱：点击积分商城弹窗提示，不申请 ticket', async ({ page }) => {
+  await loginAsUser(page, 'student@seed.dev')
+  let ticketCalls = 0
+  await mockTicketEndpoint(page, route => { ticketCalls++; return route.fulfill({ json: { code: 200 } }) })
+  await page.goto(`${BASE}/service-hall`)
+  await storeCard(page).click()
+  await expect(page.getByRole('dialog')).toContainText('该功能仅对 SSO 用户开放')
+  expect(ticketCalls).toBe(0)
+  await page.getByRole('button', { name: '我知道了' }).click()
+  await expect(storeCard(page)).toContainText('积分商城')
+  expect(page.url()).toContain('/service-hall')
+})
+
+test('教育邮箱：商城尚未开放时提示状态', async ({ page }) => {
+  await loginAsUser(page)
+  await mockTicketEndpoint(page, route => route.fulfill({ status: 503,
+    json: { code: 503, error_code: 'POINTS_DISABLED', message: 'disabled' } }))
+  await page.goto(`${BASE}/service-hall`)
+  await storeCard(page).click()
+  await expect(page.getByRole('dialog')).toContainText('积分商城暂未开放，请稍后再试')
+  expect(page.url()).toContain('/service-hall')
+})
+
+
+test('旧登录态缺少邮箱：获取当前资料后才判断商城资格', async ({ page }) => {
+  await loginAsUser(page, null)
+  let ticketCalls = 0
+  await mockTicketEndpoint(page, route => { ticketCalls++; return route.fulfill({ json: { code: 200 } }) })
+  await page.route('http://127.0.0.1:5001/user/user_index', route =>
+    route.fulfill({ json: { code: 200, User_Email: 'ordinary@example.com' } }))
+  await page.goto(`${BASE}/service-hall`)
+  await storeCard(page).click()
+  await expect(page.getByRole('dialog')).toContainText('该功能仅对 SSO 用户开放')
+  expect(ticketCalls).toBe(0)
 })

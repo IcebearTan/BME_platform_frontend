@@ -5,7 +5,7 @@
         <div class="login-header">
           <div class="login-logo">✦</div>
           <h2 class="login-title">登录账户</h2>
-          <p class="login-subtitle">欢迎回来，请选择你的账号类型</p>
+          <p class="login-subtitle">欢迎回来，使用注册邮箱登录</p>
         </div>
       </template>
 
@@ -40,32 +40,13 @@
         @submit.prevent
         @keyup.enter="submitForm()"
       >
-        <div class="account-options" role="group" aria-label="账号类型" @keyup.enter.stop>
-          <DewButton
-            :active="!showSsoGuide"
-            :aria-pressed="!showSsoGuide"
-            :disabled="isLoading"
-            @click="showSsoGuide = false"
-          >普通账号</DewButton>
-          <DewButton
-            :active="showSsoGuide"
-            :aria-pressed="showSsoGuide"
-            :disabled="isLoading"
-            aria-controls="sso-account-guide"
-            @click="showSsoGuide = true"
-          >教育邮箱（SSO）</DewButton>
-        </div>
-
-        <SsoAccountGuide v-show="showSsoGuide" id="sso-account-guide" class="sso-account-guide" />
-
         <el-form-item prop="email">
           <DewInput
             v-model="loginForm.email"
             type="email"
-            :placeholder="showSsoGuide ? '请输入你的中大教育邮箱' : '请输入邮箱地址'"
+            placeholder="请输入邮箱地址"
             size="lg"
             :prefix-icon="User"
-            :aria-describedby="showSsoGuide ? 'sso-account-guide' : undefined"
             @blur="loginFormRef?.validateField('email')"
           />
         </el-form-item>
@@ -118,7 +99,6 @@ import { assetUrl } from '../../services/campService'
 import md5 from 'js-md5'
 import { ElMessage } from 'element-plus'
 import { User, Lock } from '@element-plus/icons-vue'
-import SsoAccountGuide from './SsoAccountGuide.vue'
 import DewCard from '@bme/dew-ui/DewCard.vue'
 import DewButton from '@bme/dew-ui/DewButton.vue'
 import DewInput from '@bme/dew-ui/DewInput.vue'
@@ -149,7 +129,6 @@ const loginForm = ref({
 const isDev = import.meta.env.DEV
 
 const isLoading = ref(false)
-const showSsoGuide = ref(false)
 const isDarkMode = computed(() => store.state.isDarkMode)
 // D1 MFA 二步验证态：staff 账号绑定 TOTP 后从用户端登录同样要走二步
 const mfaRequired = ref(false)
@@ -288,21 +267,6 @@ async function submitForm() {
   margin-top: -8px;
 }
 
-.account-options {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 20px;
-}
-
-.account-options :deep(.dew-btn) {
-  flex: 1;
-  min-width: 0;
-  width: auto !important;
-}
-
-.sso-account-guide {
-  margin-bottom: 20px;
-}
 
 .login-container {
   display: flex;
