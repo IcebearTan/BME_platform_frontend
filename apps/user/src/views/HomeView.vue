@@ -25,6 +25,9 @@ const isDarkMode = computed(() => store.getters.isDarkMode);
 // 未核验首页强提醒（R0 收紧批 2026-10-02，用户拍板强弹不可关）：
 // /home 为路由级组件，每次回到首页都会重挂载 → 每次都弹，核验完成自然消失。
 // 超管跳过（管理员不核验）；组件内自探通道，通道关闭不弹。
+// 2026-10-09 紧急下线首页未核验强弹框（用户拍板）：总闸置 false 彻底不弹。
+// 后端通道开关 IDENTITY_UI_ENABLED 已同步关闭（探测兜底）。恢复=改回 true。
+const VERIFY_REMIND_TOTAL_SWITCH = false;
 const showVerifyRemind = ref(false);
 
 ////////新增竖屏检测和组件初始化以及非竖屏销毁//////////////////////////////////////////////////
@@ -42,7 +45,8 @@ const checkScreenSize = () => {
 onMounted(() => {
   checkScreenSize();
   window.addEventListener('resize', checkScreenSize);
-  if (store.getters.isLogin && !store.getters.isVerified
+  if (VERIFY_REMIND_TOTAL_SWITCH
+      && store.getters.isLogin && !store.getters.isVerified
       && store.getters.role !== 'super_admin') {
     showVerifyRemind.value = true;
   }
