@@ -187,3 +187,132 @@ textarea.xl-input { resize: vertical; line-height: 1.6; }
 @media (prefers-reduced-motion: reduce) {
   .xl-skel { animation: none; }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   XLAB 轻设计系统（2026-10-05 广场/详情/发布 三页统一）
+   方向：年轻、现代、轻科技的创意项目平台；明暗跟随全站主题，
+   玫红/紫色做语义强调（主CTA/自由分享/已完成=玫红；active/进行中=紫色），
+   黑只用于标题与强对比。历史深色 xl-* 规则保留给旧弹层，勿再扩展。
+   ═══════════════════════════════════════════════════════════════ */
+:root {
+  --xg-bg: #f6f6f9;             /* 页面背景（浅冷灰） */
+  --xg-surface: #ffffff;        /* 卡片/面板 */
+  --xg-surface-2: #f0f0f5;      /* 次级底/标签底 */
+  --xg-line: #e7e7ee;           /* 常规描边 */
+  --xg-line-soft: #f0f0f5;      /* 弱分隔线 */
+  --xg-ink: #17171c;            /* 主文字/标题 */
+  --xg-sub: #5f5f6b;            /* 次级文字 */
+  --xg-faint: #9a9aa6;          /* 弱文字 */
+  --xg-purple: #8053df;         /* 品牌紫（筛选/营期来源/进行中） */
+  --xg-purple-rgb: 128 83 223;
+  --xg-pink-rgb: 226 19 127;
+  --xg-purple-deep: #673ab6;
+  --xg-purple-soft: #efe8fb;
+  --xg-pink: #e2137f;           /* 品牌粉（自由分享/已完成） */
+  --xg-pink-deep: #c40d6c;
+  --xg-pink-soft: #fde7f1;
+  --xg-radius: 12px;
+  --xg-radius-sm: 10px;
+  --xg-shadow: 0 10px 28px rgba(23, 23, 28, 0.1);
+  --xg-shadow-soft: 0 4px 14px rgba(23, 23, 28, 0.08);
+  --xg-focus-ring: 0 0 0 3px rgb(var(--xg-purple-rgb) / 0.12);
+  --xg-color-scheme: light;
+  --xg-on-ink: #fff;
+  --xg-on-pink: #fff;
+  --xg-pink-hover: #c40d6c;
+  --xg-purple-soft-hover: #e5d9f8;
+  --xg-hover: #ececf2;
+  --xg-line-strong: #c9c9d4;
+  --xg-line-control: #e0e0e8;
+  --xg-placeholder: #c9cdd8;
+  --xg-cover-bg: linear-gradient(135deg, #eef0f5, #e6e9f2);
+  --xg-cover-community-bg: linear-gradient(135deg, #f1eef6, #eadfec);
+  --xg-cover-overlay: rgba(255, 255, 255, 0.34);
+  --xg-badge-bg: rgba(255, 255, 255, 0.94);
+  --xg-nav-bg: rgba(246, 246, 249, 0.92);
+  --xg-poster-bg: #eceaf3;
+  --xg-poster-shade: transparent;
+  --xg-poster-fade: #ebe9f4;
+}
+
+/* body 同步全站主题，Teleported 抽屉与社区推荐同样继承这些变量。 */
+.theme-dark {
+  --xg-bg: #111318;
+  --xg-surface: #1b1e25;
+  --xg-surface-2: #252932;
+  --xg-line: #343946;
+  --xg-line-soft: #292d37;
+  --xg-ink: #f1f3f7;
+  --xg-sub: #bec3ce;
+  --xg-faint: #a0a6b3;
+  --xg-purple: #b596ff;
+  --xg-purple-rgb: 181 150 255;
+  --xg-pink-rgb: 255 110 181;
+  --xg-purple-deep: #cfb9ff;
+  --xg-purple-soft: #302640;
+  --xg-pink: #ff6eb5;
+  --xg-pink-deep: #ff98c9;
+  --xg-pink-soft: #422638;
+  --xg-shadow: 0 10px 28px rgba(0, 0, 0, 0.32);
+  --xg-shadow-soft: 0 4px 14px rgba(0, 0, 0, 0.24);
+  --xg-focus-ring: 0 0 0 3px rgb(var(--xg-purple-rgb) / 0.24);
+  --xg-color-scheme: dark;
+  --xg-on-ink: #111318;
+  --xg-on-pink: #2b1020;
+  --xg-pink-hover: #ff98c9;
+  --xg-purple-soft-hover: #403153;
+  --xg-hover: #303541;
+  --xg-line-strong: #545c6d;
+  --xg-line-control: #424957;
+  --xg-placeholder: #7d8698;
+  --xg-cover-bg: linear-gradient(135deg, #282e3b, #202630);
+  --xg-cover-community-bg: linear-gradient(135deg, #352b3c, #2c2532);
+  --xg-cover-overlay: rgba(17, 19, 24, 0.34);
+  --xg-badge-bg: rgba(27, 30, 37, 0.96);
+  --xg-nav-bg: rgba(17, 19, 24, 0.96);
+  --xg-poster-bg: #24222e;
+  --xg-poster-shade: rgba(17, 19, 24, 0.4);
+  --xg-poster-fade: #94939c;
+}
+
+.plaza-page, .create-page, .xl-drawer {
+  color-scheme: var(--xg-color-scheme);
+}
+
+/* ── 共享胶囊按钮（详情抽屉/发布工作台/空态）── */
+.xg-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  min-height: 38px; padding: 0 16px; border-radius: var(--xg-radius-sm);
+  font-size: 13px; font-weight: 600; cursor: pointer; text-decoration: none;
+  transition: background 0.15s, box-shadow 0.15s, border-color 0.15s, color 0.15s;
+}
+.xg-btn.primary { color: var(--xg-on-pink); background: var(--xg-pink); border: 1px solid var(--xg-pink); box-shadow: 0 4px 14px rgb(var(--xg-pink-rgb) / 0.22); }
+.xg-btn.primary:hover:not(:disabled), .xg-btn.primary:focus-visible:not(:disabled) { background: var(--xg-pink-hover); border-color: var(--xg-pink-hover); box-shadow: 0 6px 18px rgb(var(--xg-pink-rgb) / 0.3); outline: none; }
+.xg-btn.primary:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
+.xg-btn.ghost { color: var(--xg-ink); background: var(--xg-surface); border: 1px solid var(--xg-line-control); }
+.xg-btn.ghost:hover { border-color: var(--xg-line-strong); }
+.xg-btn.soft { color: var(--xg-purple-deep); background: var(--xg-purple-soft); border: 1px solid transparent; }
+.xg-btn.soft:hover { background: var(--xg-purple-soft-hover); }
+.xg-btn.sm { min-height: 32px; padding: 0 13px; font-size: 12px; }
+
+/* ── 共享胶囊 chip（筛选/赛道/状态选择器）── */
+.xg-chip {
+  min-height: 32px; padding: 0 14px; border-radius: 999px;
+  color: var(--xg-sub); background: transparent; border: 1px solid transparent;
+  font-size: 13px; cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.xg-chip:hover { color: var(--xg-ink); background: var(--xg-surface-2); }
+.xg-chip.purple { color: var(--xg-purple-deep); background: var(--xg-purple-soft); font-weight: 600; }
+.xg-chip.pink { color: var(--xg-pink-deep); background: var(--xg-pink-soft); font-weight: 600; }
+.xg-chip.ink { color: var(--xg-on-ink); background: var(--xg-ink); font-weight: 600; }
+
+/* ── 共享状态点 + 来源徽标（三页卡片通用）── */
+.xg-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--xg-faint); display: inline-block; }
+.xg-dot.ongoing { background: var(--xg-purple); box-shadow: 0 0 0 3px rgb(var(--xg-purple-rgb) / 0.15); }
+.xg-dot.done { background: var(--xg-pink); }
+.xg-src-badge {
+  display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px;
+  font-size: 11px; font-weight: 600; color: var(--xg-purple-deep); background: var(--xg-badge-bg);
+}
+.xg-src-badge.community { color: var(--xg-pink-deep); }

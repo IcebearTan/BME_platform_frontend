@@ -207,14 +207,14 @@ test('社区 XLAB 信号面板：主/次项目 + 排序切换 + 导流', async (
     page.waitForEvent('popup'),
     panel.locator('.cxp-main').click(),
   ])
-  await expect(projTab).toHaveURL(/\/projects\/802$/)
+  await expect(projTab).toHaveURL(/\/lab\?project=802$/)
   await projTab.close()
   await expect(page).toHaveURL(/\/community$/)
 
   // 切「最多浏览」：请求带 sort=popular + limit=3，主项目变为浏览量更高的 801
   const popularReq = page.waitForRequest((req) =>
     req.url().includes('/showcase/projects') && req.url().includes('sort=popular'))
-  await panel.getByRole('tab', { name: '最多浏览' }).click()
+  await panel.getByRole('button', { name: '最多浏览' }).click()
   const popularUrl = (await popularReq).url()
   expect(popularUrl).toContain('project_status=ongoing')
   expect(popularUrl).toContain('limit=3')
@@ -225,7 +225,7 @@ test('社区 XLAB 信号面板：主/次项目 + 排序切换 + 导流', async (
     page.waitForEvent('popup'),
     panel.locator('.cxp-brand').click(),
   ])
-  await expect(xlabTab).toHaveURL(/\/projects$/)
+  await expect(xlabTab).toHaveURL(/\/lab$/)
   await xlabTab.close()
 
   expect(errors).toEqual([])
@@ -244,15 +244,15 @@ test('社区 XLAB 信号面板：错误态重试 + reduced-motion', async ({ pag
   })
   await page.goto(`${BASE}/community`, { waitUntil: 'domcontentloaded' })
   const panel = page.locator('.community-xlab-panel')
-  await expect(panel.locator('.cxp-state')).toContainText('信号暂时中断')
+  await expect(panel.locator('.cxp-state')).toContainText('项目推荐暂时无法加载')
   await panel.getByRole('button', { name: '重试' }).click()
   await expect(panel.locator('.cxp-main')).toContainText('宿舍门锁')
 
-  // reduced-motion：扫描线动画关停（骨架/装饰动画不出现在 reduce 环境）
+  // reduced-motion：品牌状态点动画关停。
   await page.emulateMedia({ reducedMotion: 'reduce' })
-  const scan = panel.locator('.cxp-scan')
-  await expect(scan).toBeVisible()
-  const anim = await scan.evaluate((el) => getComputedStyle(el).animationName)
+  const dot = panel.locator('.cxp-brand__dot')
+  await expect(dot).toBeVisible()
+  const anim = await dot.evaluate((el) => getComputedStyle(el).animationName)
   expect(anim).toBe('none')
 
   expect(errors).toEqual([])

@@ -14,6 +14,11 @@ export default {
         // 服务类子页面（服务台 / AI 大模型服务）统一高亮「服务台」
         activeIndex() {
             const path = this.$route.path
+            // XLAB 域（2026-10-05 入口直连广场）：/lab 及全部子页（广场 / 发布 / 我的
+            // / 详情 query）与 /projects 旧链接一律钉在 XLAB 标签上，绝不回退到其他一级导航
+            if (path === '/lab' || path.startsWith('/lab/') || path.startsWith('/projects')) {
+                return '/lab'
+            }
             // 营期域统一高亮当前学期营入口
             if (path.startsWith('/camp-home') || path.startsWith('/camp')) {
                 return '/camp-home'
@@ -29,7 +34,6 @@ export default {
             if (path.startsWith('/home')) {
                 return '/home'
             }
-            if (path.startsWith('/lab') || path.startsWith('/projects')) return '/lab'
             return path
         }
     },

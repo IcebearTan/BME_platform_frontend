@@ -61,7 +61,6 @@ const loadLLMService = () => import('./views/LLMServiceView.vue')
 const loadCommunity = () => import('./views/CommunityView.vue')
 const loadCommunityThread = () => import('./views/CommunityThreadView.vue')
 const loadProjectSquare = () => import('./views/ProjectSquareView.vue')
-const loadLabHome = () => import('./views/LabHomeView.vue')
 const loadProjectCreate = () => import('./views/ProjectCreateView.vue')
 const loadUiShowcase = () => import('./views/UiShowcaseView.vue')
 const loadCampHome = () => import('./views/CampHome.vue')
@@ -440,22 +439,20 @@ const router = createRouter({
         },
         {
             // 项目广场（功能扩展轮 §五）：全站项目展示板块，双来源（营期发布投影+自由分享）
+            // 2026-10-05 XLAB 入口直连广场：/projects 统一归一到 /lab（query 保留，抽屉参数不受影响）
             path: '/projects',
-            name: 'project-square',
-            component: loadProjectSquare,
-            meta: { requiresAuth: true }
+            redirect: '/lab'
         },
         {
+            // XLAB 项目广场：全站导航 XLAB 直达（旧 LabHomeView 三卡片首页退出主流程）
             path: '/lab',
             name: 'lab-home',
-            component: loadLabHome,
+            component: loadProjectSquare,
             meta: { requiresAuth: true }
         },
         {
             path: '/lab/projects',
-            name: 'lab-projects',
-            component: loadProjectSquare,
-            meta: { requiresAuth: true }
+            redirect: '/lab'
         },
         {
             path: '/lab/projects/new',
@@ -466,7 +463,7 @@ const router = createRouter({
         {
             path: '/projects/:id',
             name: 'project-detail',
-            redirect: (to) => ({ path: '/lab/projects', query: { project: String(to.params.id) } }),
+            redirect: (to) => ({ path: '/lab', query: { project: String(to.params.id) } }),
             meta: { requiresAuth: true }
         },
     ]

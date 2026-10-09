@@ -1,17 +1,16 @@
 <template>
   <div class="xlab-root create-page">
-    <aside class="create-rail" aria-hidden="true"><div><span>X</span><small>LAB</small></div></aside>
     <MenuComponent />
     <main class="create-shell">
       <header class="create-header">
-        <router-link to="/lab/projects" class="back-link"><el-icon><ArrowLeft /></el-icon> PROJECT PLAZA</router-link>
-        <div><p>XLAB / PUBLISH WORKBENCH</p><h1>发布项目<span>_</span></h1><small>把项目整理成一份可以被发现、理解和继续讨论的公开档案。</small></div>
-        <span class="draft-state"><i></i>{{ draftSaved ? '草稿已保存' : '正在保存' }}</span>
+        <router-link to="/lab/projects" class="back-link"><el-icon><ArrowLeft /></el-icon> 项目广场</router-link>
+        <div><h1>发布项目</h1><small>把项目整理成一份可以被发现、理解和继续讨论的公开档案。</small></div>
+        <span class="draft-state"><i :class="{ saved: draftSaved }"></i>{{ draftSaved ? '草稿已保存' : '正在保存' }}</span>
       </header>
-      <nav class="section-nav" aria-label="发布步骤"><a v-for="(item,index) in sections" :key="item.id" :href="`#${item.id}`"><span>0{{ index+1 }}</span>{{ item.label }}</a></nav>
+      <nav class="section-nav" aria-label="发布步骤"><a v-for="(item,index) in sections" :key="item.id" :href="`#${item.id}`"><span>{{ index+1 }}</span>{{ item.label }}</a></nav>
       <div class="workbench-layout">
         <form class="project-form" @submit.prevent="save">
-          <section id="basic" class="form-section">
+          <DewCard id="basic" variant="flat" size="md" class="form-section">
             <div class="section-heading"><span>01</span><div><h2>基本信息</h2><p>决定项目在广场中如何被第一眼识别。</p></div></div>
             <div class="field-grid two-columns">
               <label><span>项目来源</span><div class="fixed-value"><el-icon><Lock /></el-icon>自由分享</div></label>
@@ -19,24 +18,24 @@
             </div>
             <label><span>一句话简介</span><input v-model="form.summary" maxlength="300" placeholder="用一句话说清项目解决了什么问题"></label>
             <div class="field-grid two-columns">
-              <fieldset><legend>项目赛道 *</legend><div class="segment-grid tracks"><button v-for="item in tracks" :key="item.value" type="button" :class="{active:form.track===item.value}" @click="form.track=item.value">{{ item.label }}</button></div></fieldset>
-              <fieldset><legend>当前状态</legend><div class="segment-grid"><button v-for="item in statuses" :key="item.value" type="button" :class="{active:form.project_status===item.value}" @click="form.project_status=item.value">{{ item.label }}</button></div></fieldset>
+              <fieldset><legend>项目赛道 *</legend><DewButtonBar class="seg seg-track" :items="tracks" :model-value="form.track" size="sm" stretch @update:model-value="(value) => form.track = value" /></fieldset>
+              <fieldset><legend>当前状态</legend><DewButtonBar class="seg seg-status" :items="statuses" :model-value="form.project_status" size="sm" stretch @update:model-value="(value) => form.project_status = value" /></fieldset>
             </div>
             <label><span>标签 <small>逗号分隔，最多 6 个</small></span><input v-model="form.tagsText" placeholder="硬件, 医工交叉, 物联网"></label>
-          </section>
-          <section id="content" class="form-section">
+          </DewCard>
+          <DewCard id="content" variant="flat" size="md" class="form-section">
             <div class="section-heading"><span>02</span><div><h2>项目内容</h2><p>用封面和完整介绍建立项目的上下文。</p></div></div>
             <label><span>项目封面 <small>16:9，jpg/png/webp，最大 10MB</small></span></label>
             <div class="cover-upload">
               <img v-if="cover" :src="cover.url" alt="封面预览"><div v-else><el-icon><Picture /></el-icon><span>添加项目封面</span></div>
-              <button type="button" @click="chooseCover">{{cover?'替换封面':'选择图片'}}</button>
+              <button type="button" class="cover-act" @click="chooseCover">{{cover?'替换封面':'选择图片'}}</button>
               <button v-if="cover" type="button" class="remove-media" aria-label="移除封面" @click="removeCover"><el-icon><Delete /></el-icon></button>
             </div>
             <label><span>完整项目介绍</span><textarea v-model="form.description" rows="9" placeholder="介绍问题背景、解决方案、当前成果和下一步计划"></textarea></label>
             <label><span>项目图片 <small>最多 9 张，仅本次发布上传</small></span></label>
             <div class="gallery-upload"><div v-for="(image,index) in images" :key="image.url" class="gallery-item"><img :src="image.url" alt="项目图片预览"><button type="button" :aria-label="`移除第 ${index+1} 张图片`" @click="removeImage(index)"><el-icon><Close /></el-icon></button></div><button v-if="images.length<9" type="button" class="gallery-add" @click="chooseImages"><el-icon><Plus /></el-icon><span>添加图片</span></button></div>
-          </section>
-          <section id="resources" class="form-section">
+          </DewCard>
+          <DewCard id="resources" variant="flat" size="md" class="form-section">
             <div class="section-heading"><span>03</span><div><h2>成员与资源</h2><p>让访问者知道谁参与，以及在哪里继续了解项目。</p></div></div>
             <label><span>团队成员 <small>逗号分隔</small></span><input v-model="form.membersText" placeholder="成员昵称或姓名"></label>
             <div class="resource-grid">
@@ -45,25 +44,25 @@
               <label><span>Docs</span><input v-model="form.docs" type="url" placeholder="项目文档地址"></label>
             </div>
             <label><span>其他资料 <small>每行：名称 空格 链接</small></span><textarea v-model="form.assetsText" rows="4" placeholder="研究报告 项目链接"></textarea></label>
-          </section>
-          <section id="finish" class="form-section finish-section">
-            <div class="section-heading"><span>04</span><div><h2>发布完成</h2><p>项目会以“自由分享”来源直接出现在项目广场。</p></div></div>
-            <div class="publish-checks"><p><el-icon><CircleCheck /></el-icon>发布后自动打开详情抽屉</p><p><el-icon><CircleCheck /></el-icon>发布成功后清除文字草稿</p><p><el-icon><Warning /></el-icon>图片不会写入浏览器草稿</p></div>
-            <div class="form-actions"><router-link to="/lab/projects">取消</router-link><button type="submit" :disabled="saving||!canPublish">{{saving?'发布中':'发布项目'}}<el-icon><Right /></el-icon></button></div>
-          </section>
+          </DewCard>
+          <DewCard id="finish" variant="flat" size="md" class="form-section">
+            <div class="section-heading"><span>04</span><div><h2>发布确认</h2><p>项目会以“自由分享”来源直接出现在项目广场。</p></div></div>
+            <div class="publish-checks"><p><el-icon><CircleCheck /></el-icon>发布后自动打开详情档案</p><p><el-icon><CircleCheck /></el-icon>发布成功后清除文字草稿</p><p class="warn"><el-icon><Warning /></el-icon>图片不会写入浏览器草稿</p></div>
+            <div class="form-actions"><router-link to="/lab/projects" class="cancel-link">取消</router-link><DewButton class="btn-publish" :disabled="saving||!canPublish" @click="save">{{saving?'发布中':'发布项目'}}<el-icon><Right /></el-icon></DewButton></div>
+          </DewCard>
         </form>
-        <aside class="preview-panel">
-          <div class="preview-head"><span>LIVE PREVIEW</span><div><button type="button" :class="{active:previewMode==='card'}" @click="previewMode='card'">卡片</button><button type="button" :class="{active:previewMode==='detail'}" @click="previewMode='detail'">详情</button></div></div>
-          <div v-if="previewMode==='card'" class="preview-card">
+        <DewCard variant="flat" size="sm" class="preview-panel">
+          <div class="preview-head"><span>实时预览</span><div><button type="button" :class="{active:previewMode==='card'}" @click="previewMode='card'">卡片</button><button type="button" :class="{active:previewMode==='detail'}" @click="previewMode='detail'">详情</button></div></div>
+          <DewCard v-if="previewMode==='card'" class="preview-card" no-hover>
             <div class="preview-cover"><img v-if="cover" :src="cover.url" alt=""><span v-else>{{previewTitle.charAt(0)}}</span><b>自由分享</b></div>
-            <div class="preview-card-body"><small>{{statusText}} / {{trackText}}</small><h2>{{previewTitle}}</h2><p>{{previewSummary}}</p><div class="preview-tags"><span v-for="tag in previewTags" :key="tag">{{tag}}</span></div><footer><i>X</i><span>YOU</span><b>0 VIEWS</b></footer></div>
-          </div>
+            <div class="preview-card-body"><small :class="`pv-${form.project_status}`"><i></i>{{statusText}} · {{trackText}}</small><h2>{{previewTitle}}</h2><p>{{previewSummary}}</p><div class="preview-tags"><span v-for="tag in previewTags" :key="tag">{{tag}}</span></div><footer><div class="pv-creator"><i>我</i><span>正在发布的作者</span></div><b>0 浏览</b></footer></div>
+          </DewCard>
           <div v-else class="preview-detail">
             <div class="detail-cover"><img v-if="cover" :src="cover.url" alt=""><span v-else>{{previewTitle.charAt(0)}}</span></div>
-            <small>自由分享 / {{statusText}}</small><h2>{{previewTitle}}</h2><p>{{previewSummary}}</p><div class="preview-tags"><span v-for="tag in previewTags" :key="tag">{{tag}}</span></div>
-            <section><b>OVERVIEW</b><p>{{form.description||'完整项目介绍将在这里展示。'}}</p></section><section><b>TRACK</b><p>{{trackText}}</p></section>
+            <small>自由分享 · {{statusText}}</small><h2>{{previewTitle}}</h2><p>{{previewSummary}}</p><div class="preview-tags"><span v-for="tag in previewTags" :key="tag">{{tag}}</span></div>
+            <section><b>项目简介</b><p>{{form.description||'完整项目介绍将在这里展示。'}}</p></section><section><b>项目赛道</b><p>{{trackText}}</p></section>
           </div>
-        </aside>
+        </DewCard>
       </div>
       <input ref="coverInput" type="file" accept="image/jpeg,image/png,image/webp" hidden @change="pickCover">
       <input ref="galleryInput" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden @change="pickImages">
@@ -76,11 +75,12 @@ import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { ArrowLeft, CircleCheck, Close, Delete, Lock, Picture, Plus, Right, Warning } from '@element-plus/icons-vue';
 import MenuComponent from '../components/MenuComponent.vue';
+import { DewButton, DewButtonBar, DewCard } from '@bme/dew-ui';
 import { showcaseService } from '../services/showcaseService';
 import '../styles/xlab.css';
 const DRAFT_KEY='xlab-project-publish-draft-v2';
 const router=useRouter();
-const sections=[{id:'basic',label:'基本信息'},{id:'content',label:'项目内容'},{id:'resources',label:'成员与资源'},{id:'finish',label:'发布完成'}];
+const sections=[{id:'basic',label:'基本信息'},{id:'content',label:'项目内容'},{id:'resources',label:'成员与资源'},{id:'finish',label:'发布确认'}];
 const statuses=[{label:'构思中',value:'idea'},{label:'进行中',value:'ongoing'},{label:'已完成',value:'done'}];
 const tracks=[{label:'大创',value:'innovation'},{label:'比赛',value:'competition'},{label:'实验室',value:'lab'},{label:'课程项目',value:'course'},{label:'个人探索',value:'personal'},{label:'其他',value:'other'}];
 const emptyForm={title:'',summary:'',description:'',project_status:'ongoing',track:'other',tagsText:'',membersText:'',github:'',demo:'',docs:'',assetsText:''};
@@ -121,17 +121,106 @@ onMounted(()=>{try{const draft=JSON.parse(localStorage.getItem(DRAFT_KEY)||'null
 onBeforeUnmount(()=>{clearTimeout(saveDraftTimer);removeCover();images.value.forEach((image)=>URL.revokeObjectURL(image.url));});
 </script>
 <style scoped>
-.create-page{--bg:#05070a;--panel:#0a0e13;--line:rgba(176,201,216,.17);--blue:#80b9d8;min-height:100dvh;color:#edf4f7;background:var(--bg)}
-.create-rail{position:fixed;inset:0 auto 0 0;width:118px;overflow:hidden;border-right:1px solid var(--line);background:#030507}.create-rail::before{position:absolute;top:12%;right:24px;width:230px;height:72%;content:'';border:1px solid rgba(159,207,234,.28);border-radius:50%;background:linear-gradient(90deg,rgba(4,7,10,.25),rgba(4,7,10,.8)),url('../assets/xlab-space-hero.png') center/cover}.create-rail div{position:absolute;right:13px;bottom:20%;display:flex;align-items:flex-end;gap:4px;transform:rotate(-90deg);transform-origin:right bottom}.create-rail span{font:900 32px Arial Black,Arial,sans-serif}.create-rail small{padding-bottom:4px;font:9px ui-monospace,monospace}
-.create-shell{box-sizing:border-box;width:calc(100% - 118px);max-width:1520px;margin-left:118px;padding:86px clamp(22px,4vw,58px) 80px}.create-header{display:grid;grid-template-columns:170px 1fr auto;align-items:end;gap:28px;padding-bottom:26px;border-bottom:1px solid var(--line)}.back-link{display:flex;align-items:center;gap:7px;color:rgba(199,218,229,.48);font:9px ui-monospace,monospace;text-decoration:none}.create-header p{margin:0;color:var(--blue);font:9px ui-monospace,monospace}.create-header h1{margin:8px 0 0;font-size:clamp(34px,4vw,54px);line-height:1}.create-header h1 span{color:var(--blue)}.create-header small{display:block;margin-top:12px;color:rgba(205,220,229,.52);font-size:11px}.draft-state{display:flex;align-items:center;gap:7px;color:rgba(198,216,226,.45);font:9px ui-monospace,monospace}.draft-state i{width:5px;height:5px;background:#76b7db;border-radius:50%;box-shadow:0 0 8px #76b7db}
-.section-nav{position:sticky;top:0;z-index:20;display:grid;margin-top:18px;grid-template-columns:repeat(4,1fr);background:rgba(5,7,10,.92);border:1px solid var(--line);backdrop-filter:blur(12px)}.section-nav a{display:flex;min-height:42px;padding:0 12px;align-items:center;gap:8px;color:rgba(213,227,235,.6);border-left:1px solid var(--line);font-size:10px;text-decoration:none}.section-nav a:first-child{border-left:0}.section-nav a span{color:var(--blue);font:8px ui-monospace,monospace}.section-nav a:hover{color:#fff;background:rgba(126,184,216,.08)}
-.workbench-layout{display:grid;margin-top:18px;grid-template-columns:minmax(0,1fr) minmax(300px,390px);gap:18px;align-items:start}.project-form{min-width:0}.form-section{padding:28px;background:var(--panel);border:1px solid var(--line);scroll-margin-top:62px}.form-section+.form-section{margin-top:12px}.section-heading{display:flex;margin-bottom:26px;gap:14px}.section-heading>span{color:var(--blue);font:10px ui-monospace,monospace}.section-heading h2{margin:0;font-size:20px}.section-heading p{margin:6px 0 0;color:rgba(199,217,227,.45);font-size:10px}
-.project-form label{display:flex;margin-top:18px;flex-direction:column;gap:8px;color:rgba(217,230,237,.68);font-size:10px}.project-form label:first-child{margin-top:0}.project-form small{color:rgba(182,203,215,.38);font-weight:400}.project-form input,.project-form textarea{box-sizing:border-box;width:100%;padding:11px 12px;color:#f0f6f8;background:#080b0f;border:1px solid rgba(161,193,211,.22);font:12px/1.5 inherit;outline:none}.project-form input:focus,.project-form textarea:focus{border-color:var(--blue)}.project-form textarea{resize:vertical}.field-grid{display:grid;gap:14px}.two-columns{grid-template-columns:1fr 1.7fr}.fixed-value{display:flex;min-height:39px;padding:0 12px;align-items:center;gap:8px;color:rgba(219,232,239,.6);background:#080b0f;border:1px solid rgba(161,193,211,.15)}
-fieldset{min-width:0;margin:20px 0 0;padding:0;border:0}legend{margin-bottom:8px;color:rgba(217,230,237,.68);font-size:10px}.segment-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}.segment-grid button{min-height:38px;padding:5px;color:rgba(211,225,233,.52);background:#080b0f;border:1px solid rgba(161,193,211,.18);font-size:10px;cursor:pointer}.segment-grid button.active{color:#eef8fc;background:rgba(119,180,215,.12);border-color:#78b5d7}
-.cover-upload{position:relative;display:grid;margin-top:8px;aspect-ratio:16/6;place-items:center;overflow:hidden;background:#080c11;border:1px dashed rgba(144,191,217,.3)}.cover-upload>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}.cover-upload>div{display:flex;align-items:center;flex-direction:column;gap:8px;color:rgba(190,211,223,.38)}.cover-upload>div .el-icon{font-size:25px}.cover-upload>button{position:absolute;right:12px;bottom:12px;min-height:32px;padding:0 11px;color:#071018;background:#e4f2f8;border:0;font-size:10px;cursor:pointer}.cover-upload .remove-media{top:12px;right:12px;bottom:auto;display:grid;width:32px;padding:0;place-items:center;color:#fff;background:rgba(7,10,14,.75);border:1px solid rgba(255,255,255,.2)}
-.gallery-upload{display:grid;margin-top:8px;grid-template-columns:repeat(4,1fr);gap:7px}.gallery-item,.gallery-add{position:relative;aspect-ratio:4/3;overflow:hidden;background:#080c11;border:1px solid rgba(145,187,211,.2)}.gallery-item img{width:100%;height:100%;object-fit:cover}.gallery-item button{position:absolute;top:5px;right:5px;display:grid;width:25px;height:25px;padding:0;place-items:center;color:#fff;background:rgba(5,8,11,.8);border:0;cursor:pointer}.gallery-add{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;color:rgba(190,211,223,.42);font-size:9px;cursor:pointer}.resource-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.publish-checks{display:grid;gap:10px}.publish-checks p{display:flex;margin:0;align-items:center;gap:8px;color:rgba(208,224,233,.58);font-size:11px}.publish-checks .el-icon{color:#87bfdd}.form-actions{display:flex;margin-top:26px;justify-content:flex-end;gap:10px}.form-actions a,.form-actions button{display:inline-flex;min-height:40px;padding:0 16px;align-items:center;justify-content:center;gap:8px;font-size:11px;text-decoration:none}.form-actions a{color:rgba(215,229,236,.62);border:1px solid rgba(161,193,211,.22)}.form-actions button{color:#071018;background:#e7f3f8;border:0;font-weight:700;cursor:pointer}.form-actions button:disabled{opacity:.4;cursor:not-allowed}
-.preview-panel{position:sticky;top:62px;padding:14px;background:#080b0f;border:1px solid var(--line)}.preview-head{display:flex;min-height:34px;align-items:center;justify-content:space-between;color:rgba(188,209,221,.4);font:8px ui-monospace,monospace}.preview-head div{display:flex}.preview-head button{min-height:27px;padding:0 9px;color:rgba(204,220,229,.48);background:transparent;border:1px solid rgba(155,188,206,.16);font-size:9px;cursor:pointer}.preview-head button.active{color:#eaf5fa;border-color:#76afd0}.preview-card,.preview-detail{overflow:hidden;background:#0b1016;border:1px solid rgba(156,190,209,.18)}.preview-cover,.detail-cover{position:relative;display:grid;aspect-ratio:16/9;place-items:center;overflow:hidden;background:repeating-linear-gradient(0deg,transparent 0 24px,rgba(134,185,214,.08) 25px),#0e1820}.preview-cover img,.detail-cover img{width:100%;height:100%;object-fit:cover}.preview-cover>span,.detail-cover>span{color:rgba(196,229,247,.1);font:900 74px Arial Black,Arial,sans-serif;-webkit-text-stroke:1px rgba(163,210,237,.35)}.preview-cover>b{position:absolute;top:8px;left:8px;padding:3px 6px;color:#cceafa;background:rgba(4,8,11,.8);border:1px solid rgba(127,187,220,.32);font:7px ui-monospace,monospace}.preview-card-body{padding:14px}.preview-card small,.preview-detail>small{color:rgba(186,208,221,.4);font:8px ui-monospace,monospace}.preview-card h2,.preview-detail h2{margin:9px 0 0;font-size:17px;overflow-wrap:anywhere}.preview-card p,.preview-detail p{margin:7px 0 0;color:rgba(202,220,230,.55);font-size:10px;line-height:1.55;overflow-wrap:anywhere}.preview-tags{display:flex;margin-top:11px;flex-wrap:wrap;gap:4px}.preview-tags span{padding:3px 5px;color:rgba(206,222,231,.5);border:1px solid rgba(156,190,209,.14);font:7px ui-monospace,monospace}.preview-card footer{display:flex;margin-top:14px;padding-top:12px;align-items:center;gap:7px;border-top:1px solid rgba(156,190,209,.14);color:rgba(194,214,225,.4);font:7px ui-monospace,monospace}.preview-card footer i{display:grid;width:22px;height:22px;place-items:center;color:#d8eef9;background:#13222c;border-radius:50%;font-style:normal}.preview-card footer b{margin-left:auto}.preview-detail{padding-bottom:18px}.preview-detail>small,.preview-detail>h2,.preview-detail>p,.preview-detail>.preview-tags,.preview-detail>section{display:block;margin-right:14px;margin-left:14px}.preview-detail>small{margin-top:15px}.preview-detail section{margin-top:18px;padding-top:12px;border-top:1px solid rgba(156,190,209,.14)}.preview-detail section b{color:#9fcce4;font:8px ui-monospace,monospace}
-@media(max-width:1080px){.workbench-layout{grid-template-columns:minmax(0,1fr) 320px}.create-header{grid-template-columns:130px 1fr auto}.two-columns,.resource-grid{grid-template-columns:1fr}.preview-panel{top:54px}}
-@media(max-width:820px){.create-rail{display:none}.create-shell{width:100%;margin-left:0;padding:76px 14px 52px}.create-header{grid-template-columns:1fr}.draft-state{position:absolute;top:84px;right:14px}.section-nav{overflow-x:auto;grid-template-columns:repeat(4,minmax(120px,1fr))}.workbench-layout{grid-template-columns:1fr}.preview-panel{position:relative;top:auto;order:-1}.form-section{padding:22px 16px}.gallery-upload{grid-template-columns:repeat(3,1fr)}}
-@media(max-width:520px){.create-header h1{font-size:36px}.section-nav a{min-width:110px}.segment-grid.tracks{grid-template-columns:repeat(2,1fr)}.gallery-upload{grid-template-columns:repeat(2,1fr)}.form-actions>*{flex:1}.preview-panel{display:none}}
+/* XLAB 发布工作台：框架层复用 DewUI（DewCard 分组卡/预览卡、DewButtonBar 赛道状态选择、
+   DewButton 发布按钮），品牌色经 class 扩展注入；文本输入保留原生（maxlength 约束，
+   DewInput 暂不透传该属性），视觉与 DewInput 同参数 */
+.create-page{position:relative;min-height:100dvh;color:var(--xg-ink);background:var(--xg-bg)}
+.create-shell{box-sizing:border-box;width:100%;max-width:1280px;margin:0 auto;padding:34px clamp(16px,3vw,32px) 96px}
+.create-header{display:grid;grid-template-columns:120px 1fr auto;align-items:center;gap:24px;padding-bottom:20px;border-bottom:1px solid var(--xg-line)}
+.back-link{display:inline-flex;align-items:center;gap:6px;color:var(--xg-purple-deep);font-size:13px;font-weight:600;text-decoration:none;transition:color .15s}.back-link:hover{color:var(--xg-purple)}
+.create-header h1{margin:0;font-size:28px;font-weight:750;letter-spacing:.01em}.create-header small{display:block;margin-top:8px;color:var(--xg-sub);font-size:13px}
+.draft-state{display:flex;align-items:center;gap:7px;color:var(--xg-faint);font-size:12px}.draft-state i{width:7px;height:7px;background:var(--xg-line-strong);border-radius:50%}.draft-state i.saved{background:var(--xg-purple);box-shadow:0 0 0 3px rgb(var(--xg-purple-rgb) / .15)}
+.section-nav{position:sticky;top:0;z-index:20;display:grid;margin-top:16px;grid-template-columns:repeat(4,1fr);background:var(--xg-nav-bg);border:1px solid var(--xg-line);border-radius:var(--xg-radius-sm);backdrop-filter:blur(10px);overflow:hidden}
+.section-nav a{display:flex;min-height:44px;padding:0 14px;align-items:center;gap:8px;color:var(--xg-sub);font-size:13px;font-weight:500;text-decoration:none;transition:background .15s,color .15s}
+.section-nav a span{display:grid;width:20px;height:20px;place-items:center;color:var(--xg-purple-deep);background:var(--xg-purple-soft);border-radius:999px;font-size:11px;font-weight:700}
+.section-nav a:hover{color:var(--xg-ink);background:var(--xg-surface)}
+.workbench-layout{display:grid;margin-top:16px;grid-template-columns:minmax(0,1fr) minmax(300px,380px);gap:24px;align-items:start}
+.project-form{min-width:0}
+/* 表单分组：DewCard(flat) 提供框架 */
+.create-page .form-section+.form-section{margin-top:14px}
+.create-page .form-section{scroll-margin-top:66px}
+.create-page .form-section :deep(.dew-card__body){padding:20px 22px}
+.section-heading{display:flex;margin-bottom:20px;gap:12px;align-items:flex-start}
+.section-heading>span{display:grid;width:28px;height:28px;flex:0 0 auto;place-items:center;color:var(--xg-purple-deep);background:var(--xg-purple-soft);border-radius:9px;font-size:12px;font-weight:700}
+.section-heading h2{margin:0;font-size:16px;font-weight:700}
+.section-heading p{margin:4px 0 0;color:var(--xg-faint);font-size:12px}
+.project-form label{display:flex;margin-top:16px;flex-direction:column;gap:7px;color:var(--xg-sub);font-size:12.5px;font-weight:500}
+.project-form label:first-child{margin-top:0}
+.project-form small{color:var(--xg-faint);font-weight:400;font-size:11px}
+.project-form input,.project-form textarea{box-sizing:border-box;width:100%;padding:10px 12px;color:var(--xg-ink);background:var(--xg-bg);border:1px solid var(--xg-line);border-radius:var(--xg-radius-sm);font:13px/1.6 inherit;outline:none;transition:border-color .15s,box-shadow .15s}
+.project-form input:focus,.project-form textarea:focus{border-color:var(--xg-purple);box-shadow:var(--xg-focus-ring);background:var(--xg-surface)}
+.project-form input::placeholder,.project-form textarea::placeholder{color:var(--xg-faint)}
+.project-form textarea{resize:vertical}
+.field-grid{display:grid;gap:14px}.two-columns{grid-template-columns:1fr 1.7fr}
+.fixed-value{display:flex;min-height:40px;padding:0 12px;align-items:center;gap:8px;color:var(--xg-pink-deep);background:var(--xg-pink-soft);border:1px solid transparent;border-radius:var(--xg-radius-sm);font-size:12.5px;font-weight:500}
+fieldset{min-width:0;margin:16px 0 0;padding:0;border:0}
+legend{margin-bottom:8px;color:var(--xg-sub);font-size:12.5px;font-weight:500}
+/* 赛道/状态选择：DewButtonBar，品牌色 class 扩展（绿/粉） */
+.create-page .seg-track :deep(.dew-bar__item--active){background:var(--xg-purple-soft);color:var(--xg-purple-deep)}
+.create-page .seg-status :deep(.dew-bar__item--active){background:var(--xg-pink-soft);color:var(--xg-pink-deep)}
+.cover-upload{position:relative;display:grid;margin-top:8px;aspect-ratio:16/6;place-items:center;overflow:hidden;background:var(--xg-bg);border:1.5px dashed var(--xg-line-strong);border-radius:var(--xg-radius-sm);transition:border-color .15s}
+.cover-upload:hover{border-color:var(--xg-purple)}
+.cover-upload>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.cover-upload>div{display:flex;align-items:center;flex-direction:column;gap:8px;color:var(--xg-faint);font-size:12.5px}
+.cover-upload>div .el-icon{font-size:26px}
+.cover-act{position:absolute;right:12px;bottom:12px;min-height:32px;padding:0 13px;color:var(--xg-ink);background:var(--xg-badge-bg);border:0;border-radius:999px;box-shadow:var(--xg-shadow-soft);font-size:12px;font-weight:600;cursor:pointer}
+.cover-upload .remove-media{top:12px;right:12px;bottom:auto;display:grid;width:32px;padding:0;place-items:center;color:#fff;background:rgba(23,23,28,.8);border:0;border-radius:999px;cursor:pointer}
+.gallery-upload{display:grid;margin-top:8px;grid-template-columns:repeat(4,1fr);gap:8px}
+.gallery-item,.gallery-add{position:relative;aspect-ratio:4/3;overflow:hidden;background:var(--xg-bg);border:1px solid var(--xg-line);border-radius:var(--xg-radius-sm)}
+.gallery-item img{width:100%;height:100%;object-fit:cover}
+.gallery-item button{position:absolute;top:5px;right:5px;display:grid;width:25px;height:25px;padding:0;place-items:center;color:#fff;background:rgba(23,23,28,.8);border:0;border-radius:999px;cursor:pointer}
+.gallery-add{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;color:var(--xg-faint);background:transparent;border:1.5px dashed var(--xg-line-strong);font-size:11.5px;cursor:pointer;transition:border-color .15s,color .15s}
+.gallery-add:hover{border-color:var(--xg-purple);color:var(--xg-purple-deep)}
+.resource-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.publish-checks{display:grid;gap:10px}
+.publish-checks p{display:flex;margin:0;align-items:center;gap:8px;color:var(--xg-sub);font-size:13px}
+.publish-checks .el-icon{color:var(--xg-purple)}
+.publish-checks p.warn .el-icon{color:var(--xg-pink)}
+.form-actions{display:flex;margin-top:24px;justify-content:flex-end;gap:10px}
+.cancel-link{display:inline-flex;min-height:38px;padding:0 16px;align-items:center;justify-content:center;color:var(--xg-sub);border:1px solid var(--xg-line-control);border-radius:var(--xg-radius-sm);font-size:13px;font-weight:600;text-decoration:none;transition:border-color .15s,color .15s}
+.cancel-link:hover{border-color:var(--xg-line-strong);color:var(--xg-ink)}
+/* 发布按钮：DewButton + 品牌绿 class 扩展 */
+.create-page .btn-publish{background:var(--xg-pink)!important;border-color:var(--xg-pink)!important;color:var(--xg-on-pink)!important;box-shadow:0 4px 14px rgb(var(--xg-pink-rgb) / .22)!important}
+.create-page .btn-publish:hover:not(:disabled){background:var(--xg-pink-hover)!important;border-color:var(--xg-pink-hover)!important}
+.create-page .btn-publish:disabled{opacity:.45}
+/* ── 预览面板：DewCard(flat)；卡片模式与广场 p-card 同框架（DewCard + padding0）── */
+.create-page .preview-panel{position:sticky;top:66px}
+.create-page .preview-panel :deep(.dew-card__body){display:flex;flex-direction:column;gap:10px}
+.preview-head{display:flex;min-height:30px;align-items:center;justify-content:space-between;color:var(--xg-faint);font-size:12px;font-weight:500}
+.preview-head div{display:flex;gap:6px}
+.preview-head button{min-height:28px;padding:0 12px;color:var(--xg-sub);background:transparent;border:1px solid var(--xg-line);border-radius:999px;font-size:12px;cursor:pointer}
+.preview-head button.active{color:var(--xg-ink);background:var(--xg-surface-2);border-color:transparent;font-weight:600}
+.create-page .preview-card :deep(.dew-card__body){padding:0!important}
+.preview-card{overflow:hidden}
+.preview-cover{position:relative;display:grid;aspect-ratio:16/9;place-items:center;overflow:hidden;background:var(--xg-cover-bg)}
+.preview-cover img{width:100%;height:100%;object-fit:cover}
+.preview-cover>span{color:var(--xg-placeholder);font-size:52px;font-weight:800}
+.preview-cover>b{position:absolute;top:10px;left:10px;padding:3px 10px;color:var(--xg-pink-deep);background:var(--xg-badge-bg);border-radius:999px;font-size:11px;font-weight:600;box-shadow:0 1px 6px rgba(23,23,28,.08)}
+.preview-card-body{display:flex;flex-direction:column;padding:14px 15px 13px;min-height:148px}
+.preview-card-body small{display:inline-flex;align-items:center;gap:6px;color:var(--xg-faint);font-size:11.5px}
+.preview-card-body small i{width:6px;height:6px;background:var(--xg-faint);border-radius:50%}
+.preview-card-body small.pv-ongoing{color:var(--xg-purple-deep)}.preview-card-body small.pv-ongoing i{background:var(--xg-purple);box-shadow:0 0 0 3px rgb(var(--xg-purple-rgb) / .15)}
+.preview-card-body small.pv-done{color:var(--xg-pink-deep)}.preview-card-body small.pv-done i{background:var(--xg-pink)}
+.preview-card h2{margin:8px 0 0;color:var(--xg-ink);font-size:15.5px;font-weight:650;line-height:1.45;overflow-wrap:anywhere}
+.preview-card-body p{display:-webkit-box;margin:6px 0 0;overflow:hidden;color:var(--xg-sub);font-size:12.5px;line-height:1.65;-webkit-box-orient:vertical;-webkit-line-clamp:2}
+.preview-tags{display:flex;margin-top:10px;flex-wrap:wrap;gap:5px}
+.preview-tags span{padding:2px 9px;color:var(--xg-sub);background:var(--xg-surface-2);border-radius:6px;font-size:11px}
+.preview-card footer{display:flex;margin-top:auto;padding-top:11px;align-items:center;gap:7px;border-top:1px solid var(--xg-line-soft);color:var(--xg-faint);font-size:11.5px}
+.pv-creator{display:flex;align-items:center;gap:7px}
+.pv-creator i{display:grid;width:24px;height:24px;place-items:center;color:var(--xg-ink);background:var(--xg-surface-2);border-radius:50%;font-style:normal;font-size:11px;font-weight:600}
+.preview-card footer b{margin-left:auto;color:var(--xg-faint);font-weight:500}
+.preview-detail{overflow:hidden;background:var(--xg-surface);border:1px solid var(--xg-line);border-radius:var(--xg-radius);padding-bottom:16px}
+.detail-cover{position:relative;display:grid;aspect-ratio:16/9;place-items:center;overflow:hidden;background:var(--xg-cover-bg)}
+.detail-cover img{width:100%;height:100%;object-fit:cover}
+.detail-cover>span{color:var(--xg-placeholder);font-size:52px;font-weight:800}
+.preview-detail>small{display:block;margin:14px 14px 0;color:var(--xg-sub);font-size:12px}
+.preview-detail>h2{margin:9px 14px 0;font-size:20px;font-weight:750}
+.preview-detail>p{margin:8px 14px 0;color:var(--xg-sub);font-size:12.5px;line-height:1.7}
+.preview-detail>.preview-tags{margin:12px 14px 0}
+.preview-detail section{margin:16px 14px 0;padding-top:12px;border-top:1px solid var(--xg-line-soft)}
+.preview-detail section b{color:var(--xg-ink);font-size:12.5px;font-weight:700}
+.preview-detail section p{margin:6px 0 0;color:var(--xg-sub);font-size:12px;line-height:1.7}
+@media(max-width:1080px){.workbench-layout{grid-template-columns:minmax(0,1fr) 320px}.create-header{grid-template-columns:110px 1fr auto}.two-columns,.resource-grid{grid-template-columns:1fr}}
+@media(max-width:820px){.create-shell{padding:24px 14px 60px}.create-header{grid-template-columns:1fr}.draft-state{position:absolute;top:34px;right:14px}.section-nav{overflow-x:auto;grid-template-columns:repeat(4,minmax(120px,1fr))}.workbench-layout{grid-template-columns:1fr}.create-page .preview-panel{position:relative;top:auto;order:-1}.create-page .form-section :deep(.dew-card__body){padding:18px 16px}.gallery-upload{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:520px){.section-nav a{min-width:110px}.gallery-upload{grid-template-columns:repeat(2,1fr)}.form-actions>*{flex:1}}
 </style>
