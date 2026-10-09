@@ -10,6 +10,17 @@ import { resolveMediaUrl } from '../../../composables/useCourseLearningData'
 const props = defineProps({
   lesson: { type: Object, required: true }
 })
+function rewriteMediaUrls(html) {
+  if (!html || typeof DOMParser === 'undefined') return html || ''
+  const document = new DOMParser().parseFromString(html, 'text/html')
+  document.querySelectorAll('[src], [href]').forEach((node) => {
+    for (const attr of ['src', 'href']) {
+      const value = node.getAttribute(attr)
+      if (value && /^\/media\//i.test(value)) node.setAttribute(attr, resolveMediaUrl(value))
+    }
+  })
+  return document.body.innerHTML
+}
 
 // 视频课：resource_url 即视频源
 const videoSrc = computed(() =>
@@ -35,7 +46,7 @@ const linkUrl = computed(() =>
 
 // 富文本正文（外链课的 content 是 URL，不作正文渲染）
 const bodyHtml = computed(() =>
-  props.lesson.type === 'link' ? '' : (props.lesson.content || '')
+  props.lesson.type === 'link' ? '' : rewriteMediaUrls(props.lesson.content || '')
 )
 </script>
 

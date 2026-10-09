@@ -193,13 +193,6 @@ const onSubmit = () => {
     >
       <template #header>个人资料</template>
 
-      <SsoAccountGuide
-        v-if="!loading"
-        show-account
-        :current-email="User_Info.User_Email || ''"
-        class="userinfo-sso-guide"
-      />
-
       <!-- 头像上传 -->
       <div class="avatar-block">
         <AvatarUploadComponent />
@@ -214,6 +207,9 @@ const onSubmit = () => {
         :rules="rules"
         class="userinfo-form"
       >
+        <el-form-item v-if="!loading" label="登录邮箱">
+          <SsoAccountGuide :current-email="User_Info.User_Email || ''" />
+        </el-form-item>
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="姓名" prop="username">
@@ -288,10 +284,6 @@ const onSubmit = () => {
 
 .userinfo-card {
   width: 100%;
-}
-
-.userinfo-sso-guide {
-  margin-bottom: 24px;
 }
 
 /* 头像上传区 */
