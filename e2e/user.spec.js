@@ -99,6 +99,10 @@ test('首页轮播 DB 驱动渲染 + 空态隐藏', async ({ page }) => {
   await page.goto(`${BASE}/home`)
   await expect(page.locator('.banner-image img[alt="营期中心"]')).toBeVisible()
   await expect(page.locator('.banner-image img[alt="营期中心"]')).toHaveCSS('object-position', '50% 30%')
+  await expect(page.locator('.banner-image img[alt="大模型服务中心"]')).toHaveCount(0)
+  await expect(page.locator('.el-carousel__item')).toHaveCount(2)
+  await expect(page.locator('.study-entries .entry-title', { hasText: '大模型' })).toHaveCount(0)
+  await expect(page.getByRole('link', { name: '大模型平台', exact: true })).toHaveCount(0)
 
   // 师父原始卡片轮播：主卡占舞台一半宽度，固定 160px 高，按后台焦点裁切。
   const activeBanner = page.locator('.el-carousel__item.is-active .banner-item')
@@ -139,7 +143,9 @@ test('首页卡片轮播：正反切换时环形侧卡不覆盖退出卡', async
   await page.route('http://127.0.0.1:5001/**', route => (
     route.fulfill({ json: { code: 200, data: [] } })
   ))
-  await mockBanners(page, MOCK_BANNER_FRAMES)
+  // 层级测试使用三张可见卡片；AI 入口隐藏另由 DB 渲染用例覆盖。
+  await mockBanners(page, MOCK_BANNER_FRAMES.map(frame => frame.Banner_Id === 2
+    ? { ...frame, title: '学习资源', link_value: '/resources' } : frame))
 
   await page.goto(`${BASE}/home`)
   await page.locator('.el-carousel__indicator').nth(0).click()

@@ -6,7 +6,7 @@ import MenuComponent from "../components/MenuComponent.vue";
 import PageFooterComponent from "../components/PageFooterComponent.vue";
 import MobileMenuComponent from "../components/MobileMenuComponent.vue";
 import { DewCard, DewTag, DewMessageBox } from '@bme/dew-ui';
-import { Menu as Expand, Printer, Monitor, MagicStick, ArrowRight, OfficeBuilding, EditPen, Select, Files, Briefcase, Coin } from '@element-plus/icons-vue';
+import { Menu as Expand, Printer, Monitor, ArrowRight, OfficeBuilding, EditPen, Select, Files, Briefcase, Coin } from '@element-plus/icons-vue';
 import { useWorkAccess } from '../composables/useWorkAccess';
 
 import api from '../api';
@@ -38,10 +38,6 @@ onUnmounted(() => {
 
 const toggleMobileMenu = () => {
   isMobileMenuOpen.value = !isMobileMenuOpen.value;
-};
-
-const handleAIServiceClick = () => {
-  router.push('/ai-service');
 };
 
 const open3DFarm = () => {
@@ -130,7 +126,6 @@ const pendingSections = [
 
 const selfServices = [
   { title: '3D打印农场', desc: '在线预约，一站式 3D 打印服务', icon: Printer, color: '#06b6d4', action: open3DFarm },
-  { title: 'AI 大模型服务', desc: '创建 API Key、查看用量与申请额度', icon: MagicStick, color: '#409EFF', action: handleAIServiceClick },
   { title: '积分商城', desc: '使用积分兑换商城礼品', icon: Coin, color: '#f59e0b', action: openPointsStore },
 ];
 

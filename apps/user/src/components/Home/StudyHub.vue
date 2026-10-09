@@ -100,7 +100,7 @@ import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
 // el-carousel / el-icon 由 unplugin-vue-components 按需解析（含样式），不再显式 import
 import {
-  Reading, School, Box, MagicStick, OfficeBuilding,
+  Reading, School, Box, OfficeBuilding,
 } from '@element-plus/icons-vue'
 import DewButtonBar from '@bme/dew-ui/DewButtonBar.vue'
 import DewCard from '@bme/dew-ui/DewCard.vue'
@@ -152,7 +152,6 @@ const entryIcons = {
   courses: Reading,
   camp: School,
   '3d-print': Box,
-  'llm': MagicStick,
   'xlab': IconBrainCircuit,
   'club': OfficeBuilding,
 }
@@ -168,7 +167,17 @@ async function fetchBanners() {
   try {
     const res = await api.get('/banner/list')
     const rows = res.data?.data || []
-    banners.value = rows.map(row => {
+    // AI 服务入口暂时隐藏；同时过滤运营轮播中的站内入口。
+    const visibleRows = rows.filter(row => {
+      if (!row.link_value) return true
+      try {
+        const target = new URL(row.link_value, window.location.origin)
+        return !/^\/(?:AMEII\/)?ai-service(?:\/|$)/.test(target.pathname)
+      } catch {
+        return true
+      }
+    })
+    banners.value = visibleRows.map(row => {
       const banner = {
         id: row.Banner_Id,
         title: row.title,
@@ -219,7 +228,6 @@ const studyEntries = ref([
   { id: 'courses', title: '课程', description: '系统化的课程学习', route: '/study', color: '#409EFF' },
   { id: 'camp', title: '营期中心', description: '查看报名与我的营期', route: '/camp', color: '#7c3aed' },
   { id: '3d-print', title: '3D打印', description: '3D 模型打印预约', external: '/3dfarm/', color: '#06b6d4' },
-  { id: 'llm', title: '大模型', description: '大模型 API 接口平台', route: '/ai-service', color: '#ec4899' },
   { id: 'xlab', title: 'XLAB', description: '营期项目 × 自由分享', route: '/projects', color: '#00ff9c' },
   { id: 'club', title: '社团', description: '组织架构与干事名录', route: '/organization', color: '#10b981' },
 ])

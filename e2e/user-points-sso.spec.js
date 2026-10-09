@@ -51,6 +51,7 @@ test(`后端准入成功：${email || '旧会话缺邮箱'} 以表单 POST 携�
   })
 
   await page.goto(`${BASE}/service-hall`)
+  await expect(page.locator('.entry-card', { hasText: 'AI 大模型服务' })).toHaveCount(0)
   await storeCard(page).click()
 
   // 浏览器已导航到商城回调的 mock 响应
