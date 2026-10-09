@@ -34,8 +34,9 @@ function storeCard(page) {
   return page.locator('.entry-card').filter({ hasText: '使用积分兑换商城礼品' }).first()
 }
 
-test('成功跳转：以表单 POST 携带 ticket 提交到商城回调', async ({ page }) => {
-  await loginAsUser(page)
+for (const email of ['demo@mail2.sysu.edu.cn', 'verified@qq.com', null]) {
+test(`后端准入成功：${email || '旧会话缺邮箱'} 以表单 POST 携带 ticket 到商城`, async ({ page }) => {
+  await loginAsUser(page, email)
   const pageErrors = []
   page.on('pageerror', (e) => pageErrors.push(e.message))
 
@@ -60,6 +61,7 @@ test('成功跳转：以表单 POST 携带 ticket 提交到商城回调', async 
   expect(storeRequest.postData()).toBe(`ticket=${TICKET}`)
   expect(pageErrors).toEqual([])
 })
+}
 
 test('防重复点击：请求期间二次点击不产生并发 ticket 请求', async ({ page }) => {
   await loginAsUser(page)
@@ -111,7 +113,7 @@ test('后端可读错误（非校园邮箱）透出文案且不导航', async ({
   await page.goto(`${BASE}/service-hall`)
   await storeCard(page).click()
 
-  await expect(page.getByRole('dialog')).toContainText('该功能仅对 SSO 用户开放')
+  await expect(page.getByRole('dialog')).toContainText('完成中大教育邮箱验证及审核')
   expect(storeHit).toBe(0)
   expect(page.url()).toContain('/service-hall')
   expect(pageErrors).toEqual([])
@@ -141,14 +143,15 @@ test('响应缺 ticket：提示异常且不导航', async ({ page }) => {
 })
 
 
-test('普通邮箱：点击积分商城弹窗提示，不申请 ticket', async ({ page }) => {
+test('普通邮箱未完成核验：后端拒绝后提示身份中心，不跳转商城', async ({ page }) => {
   await loginAsUser(page, 'student@seed.dev')
   let ticketCalls = 0
-  await mockTicketEndpoint(page, route => { ticketCalls++; return route.fulfill({ json: { code: 200 } }) })
+  await mockTicketEndpoint(page, route => { ticketCalls++; return route.fulfill({ status: 400,
+    json: { code: 400, error_code: 'EMAIL_DOMAIN' } }) })
   await page.goto(`${BASE}/service-hall`)
   await storeCard(page).click()
-  await expect(page.getByRole('dialog')).toContainText('该功能仅对 SSO 用户开放')
-  expect(ticketCalls).toBe(0)
+  await expect(page.getByRole('dialog')).toContainText('完成中大教育邮箱验证及审核')
+  expect(ticketCalls).toBe(1)
   await page.getByRole('button', { name: '我知道了' }).click()
   await expect(storeCard(page)).toContainText('积分商城')
   expect(page.url()).toContain('/service-hall')
@@ -165,14 +168,21 @@ test('教育邮箱：商城尚未开放时提示状态', async ({ page }) => {
 })
 
 
-test('旧登录态缺少邮箱：获取当前资料后才判断商城资格', async ({ page }) => {
-  await loginAsUser(page, null)
-  let ticketCalls = 0
-  await mockTicketEndpoint(page, route => { ticketCalls++; return route.fulfill({ json: { code: 200 } }) })
-  await page.route('http://127.0.0.1:5001/user/user_index', route =>
-    route.fulfill({ json: { code: 200, User_Email: 'ordinary@example.com' } }))
+for (const [errorCode, message, status] of [
+  ['POINTS_BINDING_CONFLICT', '该账号在积分中心已绑定其他邮箱，请联系管理员处理', 409],
+  ['POINTS_IDENTITY_UNAVAILABLE', '当前身份核验状态异常，请到身份中心查看或联系管理员', 403],
+  ['POINTS_IDENTITY_AMBIGUOUS', '存在多份不同的教育邮箱核验记录，请联系管理员核对后进入商城', 409],
+]) {
+test(`已核验 QQ 账号异常 ${errorCode}：展示后端原因且不跳转`, async ({ page }) => {
+  await loginAsUser(page, 'verified@qq.com')
+  await mockTicketEndpoint(page, route => route.fulfill({ status,
+    json: { code: status, error_code: errorCode, message } }))
+  let storeCalls = 0
+  await page.route(STORE_CALLBACK, route => { storeCalls++; return route.fulfill({ body: '' }) })
   await page.goto(`${BASE}/service-hall`)
   await storeCard(page).click()
-  await expect(page.getByRole('dialog')).toContainText('该功能仅对 SSO 用户开放')
-  expect(ticketCalls).toBe(0)
+  await expect(page.getByRole('dialog')).toContainText(message)
+  expect(storeCalls).toBe(0)
+  expect(page.url()).toContain('/service-hall')
 })
+}

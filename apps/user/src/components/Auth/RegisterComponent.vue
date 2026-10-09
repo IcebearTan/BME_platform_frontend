@@ -21,9 +21,9 @@
           <DewButton :active="emailType === 'ordinary'" :aria-pressed="emailType === 'ordinary'" :disabled="isLoading" @click="selectEmailType('ordinary')">普通邮箱</DewButton>
           <DewButton :active="emailType === 'education'" :aria-pressed="emailType === 'education'" :disabled="isLoading" @click="selectEmailType('education')">中大教育邮箱</DewButton>
         </div>
-        <div v-if="emailType === 'education'" class="register-email-hint">
-          <span>使用中大教育邮箱注册，可按开放规则使用积分商城。</span><SsoAccountHelp />
-          <span class="register-email-domains">@mail2.sysu.edu.cn / @mail.sysu.edu.cn</span>
+        <div class="register-email-hint">
+          <span>{{ emailType === 'education' ? '使用中大教育邮箱注册，可按开放规则使用积分商城。' : '普通邮箱注册后，也可通过中大教育邮箱身份核验开通商城 SSO。' }}</span><SsoAccountHelp />
+          <span v-if="emailType === 'education'" class="register-email-domains">@mail2.sysu.edu.cn / @mail.sysu.edu.cn</span>
         </div>
         <el-form-item prop="username">
           <DewInput v-model="registerForm.username" placeholder="请输入真实姓名" size="lg" :prefix-icon="User" @blur="registerFormRef?.validateField('username')" />
