@@ -7,7 +7,7 @@
       <DewCard variant="default" size="lg" :no-hover="true">
         <template #header><h3>{{ scopeLabel }}出勤周报（{{ weeklyRows.length }} 名学员 · 按周累计）</h3></template>
         <div v-if="!weeklyRows.length" class="empty">{{ scopeLabel }}暂无学员</div>
-        <el-table v-else :data="weeklyRows" border stripe size="small" v-loading="loading">
+        <el-table v-else :data="weeklyRows" class="attendance-table" border stripe size="small" v-loading="loading">
           <el-table-column label="学员" prop="username" fixed="left" min-width="100" />
           <el-table-column v-for="w in weekLabels" :key="w.label" min-width="86" align="center">
             <template #header>{{ w.label }}<div class="th-sub">{{ w.range }}</div></template>
@@ -39,7 +39,7 @@
       <DewCard variant="default" size="lg" :no-hover="true">
         <template #header><h3>考勤明细（{{ rows.length }} 名学员）</h3></template>
         <div v-if="!rows.length" class="empty">{{ scopeLabel }}暂无承诺出勤数据</div>
-        <el-table v-else :data="rows" border stripe size="small" v-loading="loading">
+        <el-table v-else :data="rows" class="attendance-table" border stripe size="small" v-loading="loading">
           <el-table-column label="学员" prop="username" fixed="left" min-width="90" />
           <el-table-column v-for="d in dates" :key="d" :label="label(d)" min-width="50" align="center">
             <template #default="{ row }">
@@ -114,11 +114,23 @@ watch(() => props.sid, load, { immediate: true });
 </script>
 
 <style scoped>
+.attendance-table {
+  --el-table-bg-color: var(--dew-dialog-bg);
+  --el-table-tr-bg-color: var(--dew-dialog-bg);
+  --el-table-header-bg-color: var(--dew-dialog-bg);
+  --el-table-text-color: var(--dew-text);
+  --el-table-header-text-color: var(--dew-text-muted);
+  --el-table-border-color: color-mix(in srgb, var(--dew-text) 15%, var(--dew-dialog-bg));
+  --el-fill-color-lighter: color-mix(in srgb, var(--dew-text) 4%, var(--dew-dialog-bg));
+  --el-table-row-hover-bg-color: color-mix(in srgb, var(--dew-text) 8%, var(--dew-dialog-bg));
+  --el-table-current-row-bg-color: var(--el-table-row-hover-bg-color);
+  --el-mask-color: color-mix(in srgb, var(--dew-dialog-bg) 85%, transparent);
+}
 .summary { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .summary .rate { margin-left: 8px; font-weight: 600; }
 .empty { color: var(--dew-text-muted); padding: 16px 0; }
-.th-sub { font-weight: 400; font-size: 11px; color: #909399; }
-.dim { color: #c0c4cc; }
+.th-sub { font-weight: 400; font-size: 11px; color: var(--dew-text-muted); }
+.dim { color: var(--dew-text-faint); }
 .cell { height: 26px; line-height: 26px; text-align: center; border-radius: 4px; font-size: 12px; font-weight: 600; position: relative; }
 .cell-present { background: rgba(16, 185, 129, .18); color: #10b981; }
 .cell-insufficient { background: rgba(245, 158, 11, .18); color: #f59e0b; }

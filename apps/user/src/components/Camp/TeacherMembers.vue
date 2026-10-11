@@ -55,7 +55,7 @@
     </DewCard>
 
     <!-- 调整承诺出勤日弹窗（migrate_46：全量替换 + 账本 + 通知学员） -->
-    <DewDialog v-model="planDlg.visible" :title="`承诺出勤日 · ${planDlg.username}`" :width="560">
+    <DewDialog v-if="attEnabled" v-model="planDlg.visible" :title="`承诺出勤日 · ${planDlg.username}`" :width="560">
       <div v-if="planDlg.loading" style="padding: 8px 0;">
         <DewSkeleton variant="rect" width="100%" height="140" rounded="8px" />
       </div>
@@ -129,7 +129,7 @@ import { campService } from '../../services/campService';
 const props = defineProps({
   sid: { type: [Number, String], required: true },
   writable: { type: Boolean, default: true },
-  /** 启用每日考勤的营才显示「出勤日」入口（policy.capabilities.attendance） */
+  /** 仅启用考勤且 attendance_mode 为 daily 时允许管理承诺出勤日。 */
   attEnabled: { type: Boolean, default: false },
 });
 const emit = defineEmits(['reviewed']);
@@ -264,6 +264,7 @@ const planDlg = reactive({
 });
 
 async function openPlanDlg(row) {
+  if (!props.attEnabled) return;
   planDlg.uid = row.user_id;
   planDlg.username = row.username;
   planDlg.reason = '';
@@ -308,7 +309,7 @@ function toggleDate(iso) {
 }
 
 async function submitPlan() {
-  if (!planDlg.picked.size || planDlg.submitting) return;
+  if (!props.attEnabled || !planDlg.picked.size || planDlg.submitting) return;
   planDlg.submitting = true;
   try {
     const r = await campService.adjustStudentPlan(
@@ -319,6 +320,9 @@ async function submitPlan() {
     ElMessage.error(e.response?.data?.message || '调整失败');
   } finally { planDlg.submitting = false; }
 }
+watch(() => props.attEnabled, (enabled) => {
+  if (!enabled) planDlg.visible = false;
+});
 </script>
 
 <style scoped>

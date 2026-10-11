@@ -15,7 +15,7 @@
       :ms-enabled="!!session?.mentor_selection_enabled" @reviewed="refreshOverview" />
     <TeacherMsAssign v-else-if="section === 'ms'" :sid="sid" @reviewed="refreshOverview" />
     <TeacherMembers v-else-if="section === 'members'" :sid="sid"
-      :att-enabled="caps.attendance" @reviewed="refreshOverview" />
+      :att-enabled="dailyAttendanceEnabled" @reviewed="refreshOverview" />
     <TrainingGroups v-else-if="section === 'groups'" :sid="sid" :session="session" />
     <TeacherAnnouncements v-else-if="section === 'announcements'" :sid="sid" />
     <TeacherProgress v-else-if="section === 'progress'" :sid="sid" />
@@ -48,6 +48,8 @@ const props = defineProps({
 // 外壳只做子页导航（方案 §6.2：不能长成包含所有表格的超大组件）。
 const section = ref('overview');
 const caps = computed(() => props.session?.policy?.capabilities || {});
+const dailyAttendanceEnabled = computed(() => !!caps.value.attendance
+  && (props.session?.policy?.attendance_mode || 'daily') === 'daily');
 
 // 「选导生收官」是开营前 selecting 阶段的临时运营能力（2026-09-21 收缩拍板）：
 // 三条件同时成立才显示——启用选导生 + 营期处于 selecting + 当前用户持有
