@@ -416,9 +416,8 @@ test('组员·纯课内布置：待办计数与组会域内提交材料', async 
 })
 
 // ── 审阅流（migrate_44）：退回带原因 → 徽标已退回；通过 → 已通过 ──
-// TODO(skip)：面板徽标断言未过（后端 /review 端点已用真实 token 全链路验证通过），
-// 疑为 mock 细节问题，待浏览器人工验收后启用
-test.skip('导生·审阅提交：退回带原因与通过评语', async ({ page }) => {
+// 点击 tbody 成员，避免误点同名表头而未展开审阅面板。
+test('导生·审阅提交：退回带原因与通过评语', async ({ page }) => {
   const errors = []
   page.on('pageerror', (e) => errors.push(e.message))
   const detail = JSON.parse(JSON.stringify(DETAIL_LEADER))
@@ -443,7 +442,7 @@ test.skip('导生·审阅提交：退回带原因与通过评语', async ({ page
   const dlg = page.locator('.dew-dialog')
   await expect(dlg).toBeVisible()
   // 展开成员面板 → 任务行有待审徽标与审阅按钮
-  await dlg.locator('.m-name').first().click()
+  await dlg.locator('tbody .m-name').first().click()
   await expect(dlg.locator('.panel-task').first().getByText('待审阅')).toBeVisible()
 
   // 退回：弹原因输入 → 提交契约（accept=false + comment）

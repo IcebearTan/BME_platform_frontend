@@ -47,6 +47,12 @@ export function todayLocal() {
 }
 
 export const campService = {
+  fetchTrainingGroups: sid => api.get(`/camp/sessions/${sid}/training-groups`).then(r => r.data),
+  createTrainingGroup: (sid, data) => api.post(`/camp/sessions/${sid}/training-groups`, data).then(r => r.data),
+  updateTrainingGroup: (sid, unit, data) => api.put(`/camp/sessions/${sid}/training-groups/${unit}`, data).then(r => r.data),
+  changeTrainingRole: (sid, unit, data, remove = false) => (remove
+    ? api.delete(`/camp/sessions/${sid}/training-groups/${unit}/members`, { data })
+    : api.post(`/camp/sessions/${sid}/training-groups/${unit}/members`, data)).then(r => r.data),
   // 我加入的营期（后端按 user_id 自动过滤）
   fetchSessions: () => api.get('/camp/sessions').then(r => r.data),
 
@@ -54,10 +60,10 @@ export const campService = {
   fetchCourses: (sid) => api.get(`/camp/sessions/${sid}/courses`).then(r => r.data),
 
   // 我的学习方向（09-12 方向制：随归属导生继承，含章节认证进度）
-  fetchMyDirection: (sid) => api.get(`/camp/sessions/${sid}/my-direction`).then(r => r.data),
+  fetchMyDirection: (sid, unit_id) => api.get(`/camp/sessions/${sid}/my-direction`, { params: { unit_id } }).then(r => r.data),
 
   // 团队进度与按章认证（导生）
-  fetchTeamProgress: (sid) => api.get(`/camp/sessions/${sid}/team/progress`).then(r => r.data),
+  fetchTeamProgress: (sid, unit_id) => api.get(`/camp/sessions/${sid}/team/progress`, { params: { unit_id } }).then(r => r.data),
   // 09-13 按章评分：score=0-100 可空（null 只认证不打分；已认证行带 score 重 POST=改分）
   certifyChapter: (sid, student_user_id, chapter_id, score = null) =>
     api.post(`/camp/sessions/${sid}/team/progress/certify`,
@@ -185,8 +191,8 @@ export const campService = {
 
   // ── 选导生（开营前置阶段；后端 blueprints/camp_ms.py）──
   // 阶段总览（含按身份视角数据；读端点顺带触发阶段过渡通知）
-  fetchMsPhase: (sid) =>
-    api.get(`/camp/ms/${sid}/phase`).then(r => r.data),
+  fetchMsPhase: (sid, perspective) =>
+    api.get(`/camp/ms/${sid}/phase`, { params: { perspective } }).then(r => r.data),
 
   // 导生名片：查/存/传照片（multipart，字段名 avatar 同头像接口）
   fetchMsProfile: (sid) =>
@@ -317,8 +323,8 @@ export const campService = {
 
   // ── 组会留档（2026-09-17：培训组=导生组 / 项目组；组长与负责人提交，组员查看）──
   // 我的培训组组会（导生=本人组，学员=归属导生组；未编组返回 group=null 空态）
-  fetchTeamMeetings: (sid) =>
-    api.get(`/camp/sessions/${sid}/team-meetings`).then(r => r.data),
+  fetchTeamMeetings: (sid, unit_id) =>
+    api.get(`/camp/sessions/${sid}/team-meetings`, { params: { unit_id } }).then(r => r.data),
   fetchUnitMeetings: (unitId) =>
     api.get(`/camp/units/${unitId}/meetings`).then(r => r.data),
   createTeamMeeting: (sid, form) =>
@@ -366,8 +372,8 @@ export const campService = {
     return assetUrl(r.data.url)
   },
   // 团队任务提交汇总（学员进度页作业维度徽标：每生 已交/总数）
-  fetchTeamTaskSummary: (sid) =>
-    api.get(`/camp/sessions/${sid}/team/task-summary`).then(r => r.data),
+  fetchTeamTaskSummary: (sid, unit_id) =>
+    api.get(`/camp/sessions/${sid}/team/task-summary`, { params: { unit_id } }).then(r => r.data),
 }
 
 // 附件短签直连共用：换签后拼 API_URL 得完整 URL（相对 /camp/... 路径）
@@ -377,8 +383,9 @@ async function fetchSignedMediaUrl(tokenPath) {
 }
 
 // 组会表单 → FormData（文字字段 + Files[] 多文件一步式，与章节材料同款）
-function meetingFormData({ title, meeting_date, content, files = [] }) {
+function meetingFormData({ title, meeting_date, content, unit_id, files = [] }) {
   const fd = new FormData()
+  if (unit_id) fd.append('unit_id', unit_id)
   fd.append('title', title)
   fd.append('meeting_date', meeting_date)
   if (content) fd.append('content', content)

@@ -4,12 +4,13 @@
        点格子=按章认证（共享 ChapterCertDialog，与组会审阅同款）；材料角标=学员×章材料弹层；
        任务列点击跳组会 tab。数据 team/progress + task-summary，09-19 后端已消 N+1。 -->
   <div class="mentor-members">
+    <DewSelect v-if="progress.groups?.length > 1" v-model="selectedGroup" :options="progress.groups.map(g => ({ label: g.name, value: g.unit_id }))" placeholder="请选择教学组" @change="load" />
     <DewCard variant="default" size="lg" :no-hover="true">
       <template #header>
         <div class="mm-head">
           <h3>学员进度<span v-if="progress.direction" class="dir-chip">{{ progress.direction }}</span></h3>
           <span v-if="taskTotal" class="mm-task" :title="pendingTitle">
-            组会任务 全组 {{ taskDoneTotal }}/{{ taskTotal * (progress.students?.length || 0) }} 已交
+            组会任务 全组 {{ taskDoneTotal }}/{{ taskExpectedTotal }} 已交
             <template v-if="pendingNames.length"> · 未交 {{ pendingNames.length }} 人</template>
             <template v-else> · 全部完成</template>
           </span>
@@ -62,10 +63,10 @@
               </template>
               <td class="c-task">
                 <button type="button" v-if="taskTotal"
-                        :class="['task-badge', { miss: taskDone(s.student_user_id) < taskTotal }]"
+                        :class="['task-badge', { miss: taskDone(s.student_user_id) < taskExpected(s.student_user_id) }]"
                         title="到「组会任务」查看提交明细"
                         @click="$emit('go-meetings')">
-                  {{ taskDone(s.student_user_id) }}/{{ taskTotal }}
+                  {{ taskDone(s.student_user_id) }}/{{ taskExpected(s.student_user_id) }}
                 </button>
                 <span v-else class="task-none">—</span>
               </td>
@@ -120,7 +121,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue';
-import { DewCard, DewButton, DewDialog } from '@bme/dew-ui';
+import { DewSelect, DewCard, DewButton, DewDialog } from '@bme/dew-ui';
 import { ElMessage } from 'element-plus';
 import { Check } from '@element-plus/icons-vue';
 import { campService } from '../../services/campService';
@@ -130,6 +131,7 @@ const props = defineProps({ sid: { type: [Number, String], required: true } });
 defineEmits(['go-meetings']);
 
 const progress = ref({});
+const selectedGroup = ref(null);
 // 章节表头取首个学员的课程块（后端按 direction.course_ids 同序输出，人人一致）
 const headerCourses = computed(() => progress.value.students?.[0]?.courses || []);
 
@@ -137,10 +139,12 @@ const headerCourses = computed(() => progress.value.students?.[0]?.courses || []
 const taskSummary = ref(null);
 const taskDone = (uid) => taskSummary.value?.summary?.find((x) => x.user_id === uid)?.submitted ?? 0;
 const taskTotal = computed(() => taskSummary.value?.task_total || 0);
+const taskExpected = uid => taskSummary.value?.summary?.find(x => x.user_id === uid)?.task_total ?? taskTotal.value;
+const taskExpectedTotal = computed(() => (progress.value.students || []).reduce((n, s) => n + taskExpected(s.student_user_id), 0));
 const taskDoneTotal = computed(() => (progress.value.students || [])
   .reduce((n, s) => n + taskDone(s.student_user_id), 0));
 const pendingNames = computed(() => (progress.value.students || [])
-  .filter((s) => taskDone(s.student_user_id) < taskTotal.value)
+  .filter((s) => taskDone(s.student_user_id) < taskExpected(s.student_user_id))
   .map((s) => s.username));
 const pendingTitle = computed(() => {
   if (!pendingNames.value.length) return '全部完成';
@@ -151,6 +155,7 @@ const pendingTitle = computed(() => {
 // ── 章节认证（点格子 → 共享弹窗）──
 const certDlg = ref({ open: false, student: null, chapter: null, cert: null });
 function openCert(student, course, chapter) {
+  if (course.can_certify === false) { ElMessage.info('此课程由其他组负责，或尚待分配'); return; }
   certDlg.value = {
     open: true,
     student: { user_id: student.student_user_id, username: student.username },
@@ -217,11 +222,11 @@ async function doRemoveMaterial() {
 
 async function load() {
   // 任务汇总静默并行（失败只丢徽标，不阻断认证矩阵）
-  campService.fetchTeamTaskSummary(props.sid)
+  campService.fetchTeamTaskSummary(props.sid, selectedGroup.value || undefined)
     .then((d) => { taskSummary.value = d; })
     .catch(() => { taskSummary.value = null; });
   try {
-    const d = await campService.fetchTeamProgress(props.sid);
+    const d = await campService.fetchTeamProgress(props.sid, selectedGroup.value || undefined);
     progress.value = d.data || d;
   } catch {
     progress.value = {};
@@ -229,7 +234,7 @@ async function load() {
   }
 }
 
-watch(() => props.sid, load, { immediate: true });
+watch(() => props.sid, () => { selectedGroup.value = null; load(); }, { immediate: true });
 </script>
 
 <style scoped>

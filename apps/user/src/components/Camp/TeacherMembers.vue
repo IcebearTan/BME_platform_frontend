@@ -26,12 +26,12 @@
       <div v-else class="member-list">
         <div v-for="row in rows" :key="row.user_id" class="member-row">
           <span class="m-name">{{ row.username }}</span>
-          <DewTag :type="row.role === 'mentor' ? 'primary' : row.role === 'member' ? 'info' : 'neutral'"
+          <DewTag :type="(row.roles || [row.role]).includes('mentor') ? 'primary' : row.role === 'member' ? 'info' : 'neutral'"
             size="sm" :round="true">
             {{ { mentor: '导生', member: '成员' }[row.role] || '学员' }}
           </DewTag>
           <div class="m-mentor">
-            <template v-if="row.role === 'student'">
+            <template v-if="(row.roles || [row.role]).includes('student')">
               <DewSelect :model-value="row.team_mentor_id" size="sm" placeholder="未分配"
                 class="mentor-select" clearable
                 :options="mentorOptions"
@@ -40,7 +40,7 @@
             <span v-else class="m-dash">—</span>
           </div>
           <span class="m-joined">{{ (row.joined_at || '').slice(0, 10) }}</span>
-          <DewButton v-if="row.role === 'student' && attEnabled" size="sm" type="ghost"
+          <DewButton v-if="(row.roles || [row.role]).includes('student') && attEnabled" size="sm" type="ghost"
                      @click="openPlanDlg(row)">出勤日</DewButton>
           <DewButton size="sm" type="ghost" @click="remove(row)">移除</DewButton>
         </div>

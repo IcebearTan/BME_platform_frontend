@@ -1,5 +1,7 @@
 <template>
   <div class="mentor-dashboard">
+    <el-checkbox v-if="board.can_include_history" v-model="includeHistory" :disabled="loading" @change="load">包含历史名单</el-checkbox>
+    <p v-if="board.include_history" class="empty">当前含历史记录；归档营自动包含。</p>
     <!-- 09-12 模式 C（学期校区·按周累计）：学员 × 周次数/时长，无承诺日矩阵 -->
     <template v-if="mode === 'weekly'">
       <DewCard variant="default" size="lg" :no-hover="true">
@@ -66,6 +68,7 @@ const props = defineProps({
 
 const loading = ref(false);
 const board = ref({});
+const includeHistory = ref(false);
 const mode = ref('daily');
 const summary = computed(() => board.value.summary || null);
 const dates = computed(() => board.value.dates || []);
@@ -103,7 +106,7 @@ const tip = (c) => {
 
 async function load() {
   loading.value = true;
-  try { board.value = await campService.fetchDashboard(props.sid); mode.value = board.value.mode || 'daily'; }
+  try { board.value = await campService.fetchDashboard(props.sid, { include_history: includeHistory.value ? 1 : undefined }); mode.value = board.value.mode || 'daily'; }
   catch { ElMessage.error(`加载${props.scopeLabel}考勤失败`); }
   finally { loading.value = false; }
 }

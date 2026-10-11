@@ -126,7 +126,7 @@
           <!-- 09-13 项目营拍板：营期层「看板/项目」tab 退役——成员工作台直接渲染 ProjectHub，
                其自带 buttonbar（项目意向=选择期临时 / 我负责的 / 我参加的 / 请假） -->
           <DewButtonBar v-else-if="!isProject" v-model="tab" :items="tabItems" style="margin: 16px 0;" />
-          <CampOverview v-if="tab === 'overview' && !isProject && current && current.is_member" :sid="sid" :my-role="current.my_role" :att-enabled="!!caps.attendance" />
+          <CampOverview :key="`${sid}-${perspective}`" v-if="tab === 'overview' && !isProject && current && current.is_member" :sid="sid" :my-role="perspective || current.my_role" :att-enabled="!!caps.attendance" />
           <template v-if="isProject && current?.is_member">
             <ProjectHub :sid="sid" :session="current" style="margin-top: 16px;" />
           </template>
@@ -190,7 +190,8 @@ const isStaff = computed(() => store.getters.role === 'super_admin');
 // 注意：studentTabs/mentorTabs 依赖 current，tab 初始化（tabItems.value）在 setup 期立即求值，
 // 故 current 必须声明在它们之前，否则 TDZ 报错 Cannot access 'current' before initialization
 const current = computed(() => sessions.value.find((s) => s.id === sid.value));
-const isMentor = computed(() => current.value?.my_role === 'mentor');
+const perspective = ref(null);
+const isMentor = computed(() => (perspective.value || current.value?.my_role) === 'mentor');
 // v1.3 category 组装：项目营=身份中性视图（负责人身份在单元层，由 ProjectHub 自行区分）；
 // 考勤/请假 tab 由 policy capabilities 决定（learning 默认开、project 首期关，营期行可覆盖）
 const isProject = computed(() => current.value?.category === 'project');
@@ -240,7 +241,7 @@ const tab = ref((tabItems.value.find((t) => t.value === route.query.tab)
 // 解析顺序：深链 perspective 参数 → 本营记住的最后视角 → 首个可用视角（teacher 职责最高）。
 // 切换只改变界面组织，后端授权每次独立校验；非多视角营不显示切换器。
 const PERSPECTIVE_LABEL = { teacher: '老师', mentor: '导生', student: '学员' };
-const perspective = ref(null);
+
 const multiPerspective = computed(
   () => (current.value?.available_perspectives?.length || 0) > 1);
 function resolvePerspective() {
@@ -264,7 +265,7 @@ function switchPerspective(p) {
 // 选导生胶囊：老师视角下点击 = 切回成员视角再进 ms tab（阶段胶囊属学员/导生域）
 function goMsFromHero() {
   if (perspective.value === 'teacher' && current.value?.is_member) {
-    switchPerspective(isMentor.value ? 'mentor' : 'student');
+    switchPerspective(current.value?.available_perspectives?.includes('mentor') ? 'mentor' : 'student');
   }
   tab.value = 'ms';
 }

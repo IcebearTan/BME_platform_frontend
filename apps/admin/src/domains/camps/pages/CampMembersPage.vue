@@ -1,5 +1,6 @@
 <template>
   <div class="camp-members-page">
+    <TrainingGroups v-if="!isProject" :sid="campId" :session="session" />
     <div class="page-header">
       <div class="page-title">成员名单</div>
       <div class="header-actions">
@@ -31,26 +32,26 @@
       <el-table :data="members" border size="small" v-loading="memberPage.loading">
         <el-table-column label="用户" prop="username" min-width="120" />
         <el-table-column label="角色" width="80">
-          <template #default="{ row }">{{ { mentor: '导生', member: '成员' }[row.role] || '学员' }}</template>
+          <template #default="{ row }">{{ (row.roles || [row.role]).map(r => ({ mentor: '导生', member: '成员', student: '学员' }[r] || r)).join('、') }}</template>
         </el-table-column>
         <el-table-column label="归属导生" min-width="140">
           <template #default="{ row }">
-            <el-select v-if="row.role === 'student' && manageWritable" :model-value="row.team_mentor_id"
+            <el-select v-if="(row.roles || [row.role]).includes('student') && manageWritable" :model-value="row.team_mentor_id"
               size="small" placeholder="未分配" clearable @change="(v) => updateMentor(row, v)">
               <el-option v-for="m in mentorMembers" :key="m.user_id" :label="m.username" :value="m.user_id" />
             </el-select>
-            <span v-else-if="row.role === 'student'">{{ mentorName(row.team_mentor_id) }}</span>
+            <span v-else-if="(row.roles || [row.role]).includes('student')">{{ mentorName(row.team_mentor_id) }}</span>
             <span v-else>—</span>
           </template>
         </el-table-column>
         <el-table-column v-if="!isProject" label="方向" min-width="130">
           <template #default="{ row }">
-            <el-select v-if="row.role === 'mentor' && manageWritable" :model-value="row.direction"
+            <el-select v-if="(row.roles || [row.role]).includes('mentor') && manageWritable" :model-value="row.direction"
               size="small" placeholder="未设置" clearable @change="(v) => setDirection(row, v)">
               <el-option v-for="d in sessionDirections" :key="d.name" :label="d.name" :value="d.name" />
             </el-select>
-            <span v-else-if="row.role === 'mentor'">{{ row.direction || '未设置' }}</span>
-            <span v-else-if="row.role === 'student'">{{ mentorDirectionName(row.team_mentor_id) }}</span>
+            <span v-else-if="(row.roles || [row.role]).includes('mentor')">{{ row.direction || '未设置' }}</span>
+            <span v-else-if="(row.roles || [row.role]).includes('student')">{{ mentorDirectionName(row.team_mentor_id) }}</span>
             <span v-else>—</span>
           </template>
         </el-table-column>
@@ -73,7 +74,7 @@
             <el-button v-if="row.status !== 'active'" size="small" type="success" link
               @click="reactivateMember(row)">重新加入</el-button>
             <template v-else>
-              <el-button v-if="!isProject && row.role === 'student'" size="small" type="primary" link
+              <el-button v-if="!isProject && (row.roles || [row.role]).includes('student')" size="small" type="primary" link
                 @click="openCourseDlg(row)">课程</el-button>
               <el-button size="small" type="danger" link @click="removeMember(row)">移除</el-button>
             </template>
@@ -160,6 +161,7 @@
 </template>
 
 <script setup>
+import TrainingGroups from '../../../components/TrainingGroups.vue'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { DewCard } from '@bme/dew-ui'
@@ -412,7 +414,7 @@ function removeMember(row) {
 // 复职（历史视图）：走 member_assign，后端对 ended 行自动 reactivate 并记事件
 function reactivateMember(row) {
   api.post(`/camp/sessions/${campId.value}/members`, {
-    user_id: row.user_id, role: row.role === 'mentor' ? 'mentor'
+    user_id: row.user_id, role: (row.roles || [row.role]).includes('mentor') ? 'mentor'
       : (isProject.value ? 'member' : 'student'),
   }).then(() => {
     ElMessage.success('已重新加入')

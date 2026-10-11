@@ -8,6 +8,7 @@
        交互独立（09-18 定稿）：点卡片=详情看全部内容（只读）；列表卡右下角
        「去布置/提交纪要」各自直达独立弹窗（MeetingAssign / 纪要表单），互不叠放。 -->
   <div class="camp-meetings">
+    <DewSelect v-if="trainingGroups?.length > 1" v-model="trainingUnit" :options="trainingGroups.map(g => ({ label: g.name, value: g.unit_id }))" placeholder="请选择小组" @change="load" />
     <div v-if="loading" class="cm-loading">
       <DewSkeleton variant="rect" width="100%" height="120" rounded="8px" />
     </div>
@@ -15,7 +16,7 @@
     <!-- 培训组未编组：空态分流（不报错）。样式与看板「不考勤说明卡」同款 -->
     <DewCard v-else-if="!group" variant="default" size="lg" :no-hover="true" class="cm-empty">
       <div class="empty-note">
-        <div class="empty-title">尚未分配导生</div>
+        <div class="empty-title">{{ trainingGroups.length ? '请选择小组' : (usesTrainingGroups ? '尚未分配学习组' : '尚未分配导生') }}</div>
         <div class="empty-sub">编组后组会会显示在这里。</div>
       </div>
     </DewCard>
@@ -235,7 +236,7 @@
 import { ref, computed, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import { VideoPlay } from '@element-plus/icons-vue';
-import { DewCard, DewButton, DewInput, DewDialog, DewSkeleton } from '@bme/dew-ui';
+import { DewSelect, DewCard, DewButton, DewInput, DewDialog, DewSkeleton } from '@bme/dew-ui';
 import { campService, todayLocal } from '../../services/campService';
 import MeetingDetail from './MeetingDetail.vue';
 import MeetingAssign from './MeetingAssign.vue';
@@ -253,12 +254,17 @@ const group = ref(null);
 const isLeader = ref(false);
 const meetings = ref([]);
 
+const trainingGroups = ref([]);
+const usesTrainingGroups = ref(false);
+const trainingUnit = ref(null);
 async function load() {
   loading.value = true;
   try {
     const d = isUnit.value
       ? await campService.fetchUnitMeetings(props.unitId)
-      : await campService.fetchTeamMeetings(props.sid);
+      : await campService.fetchTeamMeetings(props.sid, trainingUnit.value || undefined);
+    trainingGroups.value = d.groups || [];
+    usesTrainingGroups.value = Array.isArray(d.groups);
     group.value = d.group || null;
     isLeader.value = !!d.is_leader;
     meetings.value = d.meetings || [];
@@ -266,7 +272,7 @@ async function load() {
     ElMessage.error(e.response?.data?.message || '加载组会失败');
   } finally { loading.value = false; }
 }
-watch(() => [props.sid, props.unitId], load, { immediate: true });
+watch(() => [props.sid, props.unitId], () => { trainingUnit.value = null; load(); }, { immediate: true });
 
 // ── 组会状态（派生，不落库）：有纪要（文字/附件）=已完结；会期已过未归档=待纪要；
 // 已布置=进行中；否则=待布置。存量旧记录一律带纪要，天然是已完结态 ──
@@ -375,6 +381,7 @@ async function save() {
       ? { title: form.value.title.trim(), meeting_date: form.value.meeting_date,
           content: form.value.content.trim(), files: form.value.files }
       : { title: form.value.title.trim(), meeting_date: form.value.meeting_date };
+    if (!isUnit.value && !editing.value) payload.unit_id = group.value?.unit_id;
     const wasCreate = !editing.value;
     const r = editing.value
       ? await campService.updateMeeting(editing.value.id, payload)

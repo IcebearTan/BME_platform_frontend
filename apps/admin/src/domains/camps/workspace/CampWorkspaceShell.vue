@@ -202,6 +202,9 @@ function goList() {
   .ws-body {
     flex-direction: column;
   }
+  .ws-content {
+    width: 100%;
+  }
   .ws-nav-wrap {
     width: 100%;
     position: static;

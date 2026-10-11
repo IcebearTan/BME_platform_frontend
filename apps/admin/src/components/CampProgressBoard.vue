@@ -1,5 +1,7 @@
 <template>
   <div class="progress-board" v-loading="loading">
+    <el-checkbox v-if="board.can_include_history" v-model="includeHistory" :disabled="loading" @change="fetchBoard">包含历史名单</el-checkbox>
+    <span v-if="board.include_history">当前含历史记录（归档营自动包含）</span>
     <!-- 汇总条 + 口径说明 -->
     <div class="summary-bar" v-if="summary">
       <el-tag>认证章节 {{ summary.certified_chapters }}/{{ summary.total_chapters }}</el-tag>
@@ -11,7 +13,7 @@
       title="认证 n/m = 导生按章认证数 / 该课学习章节数；已完结 = 全章认证齐（课程汇总态）。悬停格子看逐章明细（自学完成比 / 认证分）。" />
 
     <template v-if="groups.length">
-      <div v-for="g in groups" :key="g.mentor_user_id ?? 'none'" class="grp">
+      <div v-for="g in groups" :key="g.unit_id ?? g.mentor_user_id ?? 'none'" class="grp">
         <div class="grp-head">
           <div class="grp-title">
             <span class="grp-name">{{ g.mentor_user_id ? g.mentor_name : '未分组' }}</span>
@@ -22,7 +24,7 @@
         </div>
         <div v-if="g.hint" class="grp-hint">{{ g.hint }}</div>
         <el-table :data="g.students" border size="small" :max-height="tableMaxH">
-          <el-table-column label="学员" prop="username" fixed="left" min-width="100" />
+          <el-table-column label="学员" fixed="left" min-width="100"><template #default="{ row }">{{ row.username }}<span v-if="row.membership_status === 'removed'">（已退营）</span></template></el-table-column>
           <el-table-column v-for="c in g.courses" :key="c.course_id"
             :label="c.course_title" min-width="104" align="center">
             <template #default="{ row }">
@@ -51,6 +53,7 @@ import { ElMessage } from 'element-plus';
 const props = defineProps({ sid: { type: Number, required: true } });
 
 const loading = ref(false);
+const includeHistory = ref(false);
 const board = ref({});
 const groups = computed(() => board.value.groups || []);
 const summary = computed(() => board.value.summary);
@@ -73,7 +76,7 @@ function cellText(b) {
 
 function courseTip(b, c) {
   if (!b || !b.total_chapters) return `${c.course_title}：暂无学习章节`;
-  const head = [c.course_title, b.score_avg != null ? `均分 ${b.score_avg}` : null]
+  const head = [b.assignment_status && b.assignment_status !== 'active' ? '历史课程' : null, c.course_title, b.score_avg != null ? `均分 ${b.score_avg}` : null]
     .filter(Boolean).join(' · ');
   const lines = (b.chapters || []).map((ch) => {
     const selfStr = `自学 ${ch.lessons_completed}/${ch.lessons}`;
@@ -95,9 +98,11 @@ async function fetchBoard() {
     let acc = [];
     let total = Infinity;
     let summary = null;
+    let historyIncluded = false;
+    let canIncludeHistory = false;
     while ((page - 1) * pageSize < total) {
       const res = await api.get(`/camp/sessions/${props.sid}/progress/board`,
-        { params: { page, page_size: pageSize } });
+        { params: { page, page_size: pageSize, include_history: includeHistory.value ? 1 : undefined } });
       if (res.data.code !== 200) {
         ElMessage.error(res.data.message || '加载学习进度看板失败');
         return;
@@ -106,6 +111,8 @@ async function fetchBoard() {
       acc = acc.concat(groups);
       total = res.data.total ?? acc.length;
       summary = res.data.summary;
+      historyIncluded = !!res.data.include_history;
+      canIncludeHistory = !!res.data.can_include_history;
       if (!groups.length) break;
       page += 1;
     }
@@ -115,7 +122,7 @@ async function fetchBoard() {
         s._byCourse = Object.fromEntries((s.courses || []).map((b) => [b.course_id, b]));
       }
     }
-    board.value = { groups: acc, summary };
+    board.value = { groups: acc, summary, include_history: historyIncluded, can_include_history: canIncludeHistory };
   } catch (e) {
     ElMessage.error(e.response?.data?.message || '加载学习进度看板失败');
   } finally {
