@@ -467,6 +467,35 @@ test('营期设置：四区块分区渲染 + 叶子路由直达', async ({ page 
   expect(pageErrors).toEqual([])
 })
 
+for (const status of ['draft', 'upcoming', 'running']) {
+  test(`空课程方向可保存并回显：${status}`, async ({ page }) => {
+    await loginAsStaff(page)
+    const calls = []
+    const session = {
+      id: 1, name: '空课程方向测试营', status, category: 'learning',
+      mentor_selection_enabled: status !== 'draft',
+      ms_directions: [{ name: '待设计方向', course_ids: [] }],
+      policy: { capabilities: {} },
+    }
+    await page.route('http://127.0.0.1:5001/camp/sessions/1', async (route) => {
+      if (route.request().method() === 'PUT') {
+        const body = route.request().postDataJSON()
+        calls.push(body)
+        session.ms_directions = body.ms_tags
+      }
+      await route.fulfill({ json: { code: 200, session } })
+    })
+    await page.goto(`${BASE}/camps/1/settings`)
+    const card = page.locator('.set-card').filter({ has: page.locator('.set-card__title', { hasText: '学习方向' }) })
+    await expect(card.getByText('关联课程（可暂不选择）', { exact: true })).toBeVisible()
+    await card.getByRole('button', { name: status === 'running' ? '保存课程绑定' : '保存方向', exact: true }).click()
+    await expect.poll(() => calls).toEqual([{ ms_tags: [{ name: '待设计方向', course_ids: [] }] }])
+    await page.reload()
+    await expect(card.locator('input').first()).toHaveValue('待设计方向')
+    await expect(card.getByText('关联课程（可暂不选择）', { exact: true })).toBeVisible()
+  })
+}
+
 // 方向解耦（09-28）：未启用选导生的营独立配方向；成员页方向代设 + 调整课程
 test('方向解耦：未启用选导生可配方向 + 成员页代设方向与调整课程', async ({ page }) => {
   await loginAsStaff(page)

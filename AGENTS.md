@@ -15,3 +15,11 @@ Mandatory rules:
 - Do not develop from `BK备份/` or legacy repositories.
 - Keep `.env.development` on the real API at `http://127.0.0.1:5001`.
 - Run `pnpm check:no-emoji`, `pnpm build`, and `pnpm test:e2e` before committing.
+
+
+## Server maintenance branch
+
+For maintenance on server 172.25.56.83, use `codex/server-maintenance` in both BME repositories.
+Make fixes and commits on that branch and deploy its committed versions.
+Do not merge, cherry-pick, push changes to, or deploy from master until the user explicitly approves synchronization.
+Preserve unrelated local changes and record the deployed commit IDs.

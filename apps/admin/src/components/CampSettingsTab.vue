@@ -121,7 +121,7 @@
             <div class="ms-help-content">
               <div class="ms-help-title">学习方向说明</div>
               <ul>
-                <li>方向是营期的教学分组配置：每个方向绑定一门或多门课程，与本页「选导生流程」相互独立。</li>
+                <li>方向是营期的教学分组配置：可以先建立方向与小组，课程后续再绑定，与本页「选导生流程」相互独立。</li>
                 <li>导生带方向（名片自选，或由管理员在成员管理中指定），学员随归属导生继承方向全部课程。</li>
                 <li>导生逐课按章认证学员学习进度（0-100 评分）；开营后新增/换绑课程会自动为该方向学员加选。</li>
               </ul>
@@ -138,14 +138,14 @@
           <div v-for="(d, i) in dirCfg.directions" :key="i" class="ms-cfg-dir-row">
             <el-input v-model="d.name" placeholder="方向名（如 硬件组）" style="flex:1" />
             <el-select v-model="d.course_ids" multiple filterable collapse-tags collapse-tags-tooltip
-              placeholder="关联课程（至少一门）" style="flex:1.6">
+              placeholder="关联课程（可暂不选择）" style="flex:1.6">
               <el-option v-for="c in allCourses" :key="c.Course_Id" :label="c.Course_title" :value="Number(c.Course_Id)" />
             </el-select>
             <el-button size="small" type="danger" link
               @click="dirCfg.directions.splice(i, 1)">删除</el-button>
           </div>
           <el-button size="small" @click="dirCfg.directions.push({ name: '', course_ids: [] })">+ 添加方向</el-button>
-          <div class="hint">每个方向至少绑定一门课程（可多门）；导生只选一个方向，学员随归属导生继承方向全部课程</div>
+          <div class="hint">课程可暂时留空，后续支持绑定多门；绑定后，学员随归属导生继承方向课程</div>
         </div>
         <div style="margin-top:6px;">
           <el-button type="primary" size="small" :loading="dirCfg.saving" @click="saveDirections">保存方向</el-button>
@@ -158,7 +158,7 @@
           <div v-for="d in dirCfg.directions" :key="d.name" class="ms-cfg-dir-row">
             <el-input :model-value="d.name" disabled style="flex:1" />
             <el-select v-model="d.course_ids" multiple filterable collapse-tags collapse-tags-tooltip
-              placeholder="关联课程（至少一门）" style="flex:1.6">
+              placeholder="关联课程（可暂不选择）" style="flex:1.6">
               <el-option v-for="c in allCourses" :key="c.Course_Id" :label="c.Course_title" :value="Number(c.Course_Id)" />
             </el-select>
           </div>
@@ -381,8 +381,8 @@ function validatedTags({ allowEmpty }) {
     ElMessage.warning('请至少配置一个完整方向（启用选导生时必须有方向）');
     return null;
   }
-  if (tags.some((d) => !d.name || !d.course_ids.length)) {
-    ElMessage.warning('请完整填写每个方向（方向名 + 至少一门关联课程）');
+  if (tags.some((d) => !d.name)) {
+    ElMessage.warning('请填写每个方向的名称，课程可暂时留空');
     return null;
   }
   if (new Set(tags.map((d) => d.name)).size !== tags.length) {
