@@ -320,7 +320,7 @@ const releaseStudent = (s) => actOnRoster('release', s);
 async function reloadAll() {
   const sid = props.sid;
   try {
-    const ph = await campService.fetchMsPhase(sid);
+    const ph = await campService.fetchMsPhase(sid, 'mentor');
     if (sid !== props.sid) return;   // 切营防串台
     phaseInfo.value = ph;
     if (ph.phase === 'collecting') {

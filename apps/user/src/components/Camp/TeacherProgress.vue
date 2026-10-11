@@ -36,6 +36,8 @@
         <DewSkeleton variant="rect" :width="200" :height="32" rounded="10px" />
       </template>
       <template v-else>
+        <el-checkbox v-if="board?.can_include_history" v-model="includeHistory" @change="onFilterChange">包含历史名单</el-checkbox>
+        <span v-if="board?.include_history" class="filter-label">当前含历史记录（归档营自动包含）</span>
         <span class="filter-label">按导生团队</span>
         <DewSelect v-model="mentorId" size="sm" class="mentor-filter"
           :options="mentorOptions" @update:model-value="onFilterChange" />
@@ -80,7 +82,7 @@
     </DewCard>
 
     <div v-else class="board-body">
-      <DewCard v-for="g in groups" :key="g.mentor_user_id ?? 'none'" variant="default" size="lg"
+      <DewCard v-for="g in groups" :key="g.unit_id ?? g.mentor_user_id ?? 'none'" variant="default" size="lg"
                :no-hover="true" class="group-card">
         <template #header>
           <div class="g-head">
@@ -103,7 +105,7 @@
             </thead>
             <tbody>
               <tr v-for="s in g.students" :key="s.student_user_id">
-                <th class="m-name">{{ s.username }}</th>
+                <th class="m-name">{{ s.username }}<span v-if="s.membership_status === 'removed'">（已退营）</span></th>
                 <td v-for="b in s.courses" :key="b.course_id"
                     :class="cellClass(b)"
                     :title="cellTitle(b)">
@@ -150,6 +152,7 @@ const page = ref(1);
 const pageSize = 5;
 // mentorId：null=全部导生 / 'unassigned'=未分组桶 / 数字=某导生（服务端解析，前端不本地过滤）
 const mentorId = ref(null);
+const includeHistory = ref(false);
 
 let reqSeq = 0;          // 请求序号：快速切筛选/翻页时旧响应一律丢弃，不覆盖新条件数据
 
@@ -162,6 +165,7 @@ async function load() {
     const d = await campService.fetchProgressBoard(props.sid, {
       page: page.value,
       page_size: pageSize,
+      include_history: includeHistory.value ? 1 : undefined,
       mentor_id: mentorId.value ?? undefined,
     });
     if (seq !== reqSeq) return;                    // 过期响应：丢弃
@@ -237,7 +241,7 @@ function cellClass(b) {
 function cellTitle(b) {
   if (!b || !b.total_chapters) return '该课程无学习单元章';
   const avg = b.score_avg != null ? ` · 均分 ${b.score_avg}` : '';
-  return `${b.course_title}：${b.certified_chapters}/${b.total_chapters} 章已认证${avg}`;
+  return `${b.assignment_status && b.assignment_status !== 'active' ? '[历史课程] ' : ''}${b.course_title}：${b.certified_chapters}/${b.total_chapters} 章已认证${avg}`;
 }
 </script>
 

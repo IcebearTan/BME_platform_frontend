@@ -16,6 +16,7 @@
     <TeacherMsAssign v-else-if="section === 'ms'" :sid="sid" @reviewed="refreshOverview" />
     <TeacherMembers v-else-if="section === 'members'" :sid="sid"
       :att-enabled="caps.attendance" @reviewed="refreshOverview" />
+    <TrainingGroups v-else-if="section === 'groups'" :sid="sid" :session="session" />
     <TeacherAnnouncements v-else-if="section === 'announcements'" :sid="sid" />
     <TeacherProgress v-else-if="section === 'progress'" :sid="sid" />
     <TeacherMeetings v-else-if="section === 'meetings'" :sid="sid" :category="session?.category" />
@@ -31,6 +32,7 @@ import TeacherOverview from './TeacherOverview.vue';
 import TeacherAdmissions from './TeacherAdmissions.vue';
 import TeacherMsAssign from './TeacherMsAssign.vue';
 import TeacherMembers from './TeacherMembers.vue';
+import TrainingGroups from './TrainingGroups.vue';
 import TeacherAnnouncements from './TeacherAnnouncements.vue';
 import TeacherProgress from './TeacherProgress.vue';
 import TeacherMeetings from './TeacherMeetings.vue';
@@ -64,6 +66,7 @@ const sectionItems = computed(() => {
     items.push({ value: 'ms', label: '选导生收官' });
   }
   items.push({ value: 'members', label: '成员管理' });
+  if (props.session?.category === 'learning') items.push({ value: 'groups', label: '培训小组' });
   items.push({ value: 'announcements', label: '营期公告' });
   items.push({ value: 'progress', label: '学习进度' });
   items.push({ value: 'meetings', label: '组会总览' });

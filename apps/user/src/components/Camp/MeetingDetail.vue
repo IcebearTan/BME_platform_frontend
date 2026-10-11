@@ -61,14 +61,14 @@
           <DewTag size="sm" round>{{ t.submit_type_text }}</DewTag>
           <span class="task-title">{{ t.title }}</span>
           <span v-if="t.note" class="task-note">{{ t.note }}</span>
-          <span class="task-stat">已交 {{ t.submission_count }}/{{ detail.students.length }}</span>
+          <span class="task-stat">已交 {{ t.submission_count }}/{{ t.expected_count ?? detail.students.length }}</span>
         </div>
         <div v-if="detail.chapters.length" class="chapter-line">
           <span class="chapter-label">课内</span>
           <span v-if="detail.meeting.chapter_due_at" class="chapter-due"
                 :class="{ late: chapterDuePassed }">认证截止 {{ dueText(detail.meeting.chapter_due_at) }}</span>
           <span v-for="c in detail.chapters" :key="c.chapter_id" class="chapter-item">
-            {{ c.chapter_title }}<i class="sep">·</i>{{ c.certified_count }}/{{ detail.students.length }} 认证
+            {{ c.chapter_title }}<i class="sep">·</i>{{ c.certified_count }}/{{ c.expected_count ?? detail.students.length }} 认证
           </span>
         </div>
       </section>
@@ -123,6 +123,7 @@
             <div v-for="c in g.chapters" :key="c.chapter_id" class="cg-chapter">
               <div class="cg-row">
                 <span class="cg-name" :title="c.chapter_title">{{ c.chapter_title }}</span>
+                <span v-if="c.required_for_me === false" class="cg-cert">不要求本次认证</span>
                 <span v-if="c.my_cert" class="cg-cert ok">已认证{{
                   c.my_cert.score != null ? ` ${c.my_cert.score} 分` : '' }}</span>
                 <span v-else-if="c.my_material_count" class="cg-cert submitted"
@@ -201,7 +202,7 @@
               <div v-if="subOf(t, openStudent)?.review_comment" class="panel-review-note">
                 {{ subOf(t, openStudent).status === 'returned' ? '退回原因' : '评语' }}：{{ subOf(t, openStudent).review_comment }}
               </div>
-              <div v-if="!subOf(t, openStudent)" class="md-none">未提交</div>
+              <div v-if="!subOf(t, openStudent)" class="md-none">{{ taskRequired(t, openStudent) ? '未提交' : '不要求本次提交' }}</div>
             </div>
           </div>
         </template>
@@ -229,10 +230,10 @@
                   <td v-for="c in detail.chapters" :key="c.chapter_id"
                       :class="['cert-cell', { ok: !!c.certs[String(s.user_id)] }]"
                       @click="certCell(c, s)">
-                    {{ c.certs[String(s.user_id)]
+                    {{ c.visible_user_ids && !c.visible_user_ids.includes(s.user_id) ? '—' : c.certs[String(s.user_id)]
                        ? (c.certs[String(s.user_id)].score != null
                            ? `${c.certs[String(s.user_id)].score} 分` : '已认证')
-                       : '未认证' }}
+                       : c.expected_user_ids && !c.expected_user_ids.includes(s.user_id) ? '不要求本次认证' : '未认证' }}
                     <button v-if="matCount(c, s)" type="button" class="mat-dot"
                             :title="`材料 ${matCount(c, s)}，点击查看`"
                             @click.stop="openMaterials(s, c)">{{ matCount(c, s) }}</button>
@@ -258,14 +259,14 @@
           <span v-if="t.due_at" class="task-due" :class="{ late: new Date(t.due_at) < new Date() }">
             截止 {{ dueText(t.due_at) }}
           </span>
-          <span class="task-stat">已交 {{ t.submission_count }}/{{ detail.student_total }}</span>
+          <span class="task-stat">已交 {{ t.submission_count }}/{{ t.expected_count ?? detail.student_total }}</span>
         </div>
         <div v-if="detail.chapters.length" class="chapter-line">
           <span class="chapter-label">课内</span>
           <span v-if="detail.meeting.chapter_due_at" class="chapter-due"
                 :class="{ late: chapterDuePassed }">认证截止 {{ dueText(detail.meeting.chapter_due_at) }}</span>
           <span v-for="c in detail.chapters" :key="c.chapter_id" class="chapter-item">
-            {{ c.chapter_title }}<i class="sep">·</i>{{ c.certified_count }}/{{ detail.student_total }} 认证
+            {{ c.chapter_title }}<i class="sep">·</i>{{ c.certified_count }}/{{ c.expected_count ?? detail.student_total }} 认证
           </span>
         </div>
       </section>
@@ -408,9 +409,9 @@ async function downloadAtt(a) {
 
 // ── 我的任务（组员；完成口径=课外任务提交+课内章节认证，2026-09-20 修正）──
 const myPending = computed(() => (detail.value?.tasks || [])
-  .filter((t) => !t.my_submission?.valid).length);
+  .filter((t) => t.required_for_me !== false && !t.my_submission?.valid).length);
 const myChapterPending = computed(() => (detail.value?.chapters || [])
-  .filter((c) => !c.my_cert).length);
+  .filter((c) => c.required_for_me !== false && !c.my_cert).length);
 const myTodoTotal = computed(() => myPending.value + myChapterPending.value);
 
 // ── 课内进度（组员；按课程分组展示，布置在组会、提交也在这里）──
@@ -440,6 +441,7 @@ function goStudy(courseId) {
 // 审阅态徽标（migrate_44）：未交/逾期 → 已退回（附原因）→ 待审阅 → 已通过（附评语）
 function myState(t) {
   const s = t.my_submission;
+  if (!s && t.required_for_me === false) return { label: '不要求本次提交', type: 'info' };
   if (!s) return t.my_overdue
     ? { label: '已逾期', type: 'danger' } : { label: '未提交', type: 'warning' };
   if (s.status === 'accepted') return { label: '已通过', type: 'success' };
@@ -496,9 +498,10 @@ const openStudentName = computed(() =>
 function subOf(task, uid) {
   return task.submissions?.[String(uid)] || null;
 }
+const taskRequired = (t, uid) => !t.expected_user_ids || t.expected_user_ids.includes(uid);
 function cellText(t, s) {
   const sub = subOf(t, s.user_id);
-  if (!sub) return '未交';
+  if (!sub) return taskRequired(t, s.user_id) ? '未交' : '不要求本次提交';
   if (sub.status === 'accepted') return '已通过';
   if (sub.status === 'returned') return '已退回';
   const n = sub.attachments.length;
@@ -507,7 +510,7 @@ function cellText(t, s) {
 }
 function cellClass(t, s) {
   const sub = subOf(t, s.user_id);
-  return ['task-cell', { ok: sub?.valid, miss: !sub, bad: sub && !sub.valid }];
+  return ['task-cell', { ok: sub?.valid, miss: !sub && taskRequired(t, s.user_id), bad: sub && !sub.valid }];
 }
 // 审阅（migrate_44 生命周期）：通过/退回带评语，退回后学员重交重新待审
 const reviewBadgeType = (sub) => (sub.status === 'accepted' ? 'success'
@@ -547,7 +550,7 @@ const zipLoading = ref(false);
 const certDlg = ref(false);
 const certTarget = ref(null);     // { chapter, student, cur }
 function certCell(c, s) {
-  if (!writable.value) return;
+  if (!writable.value || (c.visible_user_ids && !c.visible_user_ids.includes(s.user_id))) return;
   certTarget.value = { chapter: c, student: s, cur: c.certs[String(s.user_id)] || null };
   certDlg.value = true;
 }
