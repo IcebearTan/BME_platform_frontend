@@ -180,6 +180,18 @@ const api = createApiClient({
 
 ## 7. admin 端架构要点
 
+### 项目营交付契约（2026-10-13）
+
+多人项目由成员交付、负责人评价；单人项目由负责人交付、管理员验收。ProjectMilestones 使用后端
+`can_submit` 决定提交入口，使用 `completion_mode`、`node_complete` 和派生 `status` 展示进展。
+模板仍兼容旧 `submit_mode` 字段，但申报、模板编辑和审核页不再承诺旧整队/个人两种模式。
+附件一次最多20个、合计48MiB，说明最多64KiB，前后端共同校验，适配现有生产50MiB代理限制。
+管理端附件先以JWT请求 `/token`，再打开短签地址，不使用无鉴权裸链接。
+
+归档响应中的 `archive` 与 `revisions` 是同级字段。归档页将二者组成展示状态，切营或状态变化后重新加载，
+忽略旧请求结果。普通业务操作归档只读，但专用登记修正入口仍向管理员开放，由后端校验原因与版本。
+新回归位于 `e2e/camp-project-delivery.spec.js`，只运行该文件及 `camp-center` 的项目营场景，不运行全量套件。
+
 ### 7.1 管理页标准骨架(新页面必须套用)
 
 全局类在 `apps/admin/src/styles/pages.css`(单源);布局由 HomeView 提供(fixed 顶栏 + 可折叠侧栏 + content-wrapper)。

@@ -25,7 +25,7 @@
                 <p v-if="row.template_nodes?.length">
                   <b>交付节点：</b>
                   <span v-for="(n, i) in row.template_nodes" :key="i" class="papp-node">
-                    {{ i + 1 }}. {{ n.title }}（{{ n.submit_mode === 'member' ? '个人交付' : '整队交付' }}）
+                    {{ i + 1 }}. {{ n.title }}
                   </span>
                 </p>
                 <p v-else-if="row.plan"><b>计划：</b>{{ row.plan }}<span class="hint">（存量申报，过审后由负责人自建模板）</span></p>

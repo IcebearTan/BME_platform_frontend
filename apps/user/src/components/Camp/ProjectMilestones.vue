@@ -1,9 +1,6 @@
 <template>
-  <!-- 项目交付节点区（09-14 成员提交制，用户复盘定）：节点时间轴，展开区两块——
-       ① 交付材料：只有成员交付（负责人不提交——他看材料+直接评价，无通过/退回审核）；
-          提交即全员可见，重提=新版本；节点头带提交状态（负责人=已交 x/y，成员=已提交/未提交）；
-       ② 节点评价：负责人对每位成员打分 0-100 + 评语（成员仅见本人），评齐即完。
-       材料=过程，评价=结果；节点默认全展开（09-14 用户定）。 -->
+  <!-- 多人项目由成员交付、负责人评价；单人项目由负责人交付、管理员验收。
+       成员仅看本人材料及评价，节点默认展开。 -->
   <div class="pm-wrap">
     <div v-if="loading" class="pm-loading"><DewSkeleton variant="rect" width="100%" height="140" rounded="8px" /></div>
     <template v-else>
@@ -18,7 +15,8 @@
           <span class="ms-title">{{ m.title }}</span>
           <span v-if="m.due_date" class="ms-due">{{ m.due_date }}</span>
           <span class="ms-status">
-            <span v-if="canManage">已交 {{ submittedCount(m) }}/{{ m.member_count }} · 已评 {{ m.evaluated_count }}/{{ m.member_count }}</span>
+            <span v-if="m.completion_mode === 'leader_review'">{{ m.node_complete ? '管理员已验收' : '单人项目 · 待管理员验收' }}</span>
+            <span v-else-if="canManage">已交 {{ submittedCount(m) }}/{{ m.member_count }} · 已评 {{ m.evaluated_count }}/{{ m.member_count }}</span>
             <span v-else>
               <span :class="{ 'st-submitted': hasMySubmission(m) }">{{ hasMySubmission(m) ? '已提交' : '未提交' }}</span>
                · {{ myEval(m) ? `我的评价 ${myEval(m).score} 分` : '待评价' }}
@@ -36,9 +34,9 @@
           <!-- 交付与评价合框（09-14 用户定：评价就在交付行上，别拆两处）——
                负责人视角按成员分组：左=该成员版本链（没交=未提交），右=评价（无分=「评价」按钮，有分=分数+评语+修改）；
                成员视角：自己的版本链+提交盒，下接本人评价自见 -->
-          <div class="ms-sec-label">{{ canManage ? '成员交付与评价' : '我的交付' }}</div>
+          <div class="ms-sec-label">{{ m.completion_mode === 'leader_review' ? '负责人交付 · 管理员验收' : canManage ? '成员交付与评价' : '我的交付' }}</div>
 
-          <template v-if="canManage">
+          <template v-if="canManage && m.completion_mode !== 'leader_review'">
             <div v-if="!evalMembers.length" class="eval-empty">项目暂无其他成员可交付/评价</div>
             <div v-for="g in memberGroups(m)" :key="g.member.user_id" class="mem-row">
               <div class="mem-deliver">
@@ -81,9 +79,12 @@
                 <span class="chain-ver">v{{ s.version }}</span>
                 <span v-if="s.status === 'submitted'" class="chain-st submitted">已提交</span>
                 <span v-else-if="s.status === 'superseded'" class="chain-st superseded">已被新版替代</span>
+                <span v-else-if="s.status === 'approved'" class="chain-st">已验收</span>
+                <span v-else-if="s.status === 'returned'" class="chain-st">已退回</span>
                 <span class="chain-time">{{ (s.created_at || '').slice(0, 16).replace('T', ' ') }}</span>
               </div>
               <p v-if="s.content" class="chain-content">{{ s.content }}</p>
+              <p v-if="s.review_note" class="chain-content">审核说明：{{ s.review_note }}</p>
               <div v-if="s.attachments?.length" class="chain-atts">
                 <button v-for="a in s.attachments" :key="a.id" type="button"
                         class="att-link" @click="downloadAtt(a)">{{ a.filename }}{{ a.size ? `（${Math.round(a.size / 1024)}KB）` : '' }}</button>
@@ -91,10 +92,11 @@
             </div>
             <div v-if="!m.submissions.length" class="chain-empty">尚无提交</div>
 
-            <!-- 提交区（仅成员——负责人不交付，他看材料+评价；approved/归档关闭） -->
+            <!-- 提交资格由后端返回，已完成及归档节点只读。 -->
             <div v-if="canSubmit(m)" class="submit-box">
               <DewInput v-model="drafts[m.id].content" type="textarea" :rows="2"
                         placeholder="我的交付说明（做了什么/材料清单）" />
+              <p class="ms-req">附件合计不超过48MB，最多20个；交付说明不超过64KB。</p>
               <div class="submit-row">
                 <input :ref="(el) => (fileEls[m.id] = el)" type="file" multiple class="file-input-hidden"
                        @change="(e) => onFiles(m.id, e)" />
@@ -111,7 +113,7 @@
             <div v-else-if="m.status === 'approved'" class="submit-closed">已验收通过，节点关闭</div>
 
             <!-- 本人评价自见（与我的交付同框） -->
-            <div class="eval-self">
+            <div v-if="m.completion_mode !== 'leader_review'" class="eval-self">
               <template v-if="myEval(m)">
                 <span class="eval-score big">{{ myEval(m).score }} 分</span>
                 <span v-if="myEval(m).comment" class="eval-comment">{{ myEval(m).comment }}</span>
@@ -175,6 +177,8 @@ const loading = ref(true);
 const milestones = ref([]);
 const evalMembers = ref([]);   // 应评花名册（leader 渲染用）
 const myRole = ref('member');
+const submissionAllowed = ref(false);
+const uploadLimits = ref({ total_bytes: 48 * 1024 * 1024, max_files: 20, content_bytes: 64 * 1024 });
 const expanded = ref(new Set());
 const drafts = ref({});
 const submitting = ref(null);
@@ -209,9 +213,9 @@ function toggleExpand(id) {
   }
 }
 
-// 成员提交制（09-14 用户复盘定）：只有成员交付；负责人不提交（看材料+评价）
+// 单人/多人提交资格由接口决定，旧回包仅兼容普通成员。
 function canSubmit(m) {
-  return myRole.value === 'member' && m.status !== 'approved' && props.editable;
+  return submissionAllowed.value && !m.node_complete && m.status !== 'approved' && props.editable;
 }
 // 现行版本（非 superseded）才算「已提交」；负责人视角按提交人去重计数
 function hasMySubmission(m) {
@@ -240,14 +244,21 @@ function memberGroups(m) {
   }));
 }
 
+let loadSequence = 0;
 async function load() {
+  const sequence = ++loadSequence;
   loading.value = true;
   adding.value = false;
+  submissionAllowed.value = false;
+  milestones.value = [];
   try {
     const d = await campService.fetchMilestones(props.unitId);
+    if (sequence !== loadSequence) return;
     milestones.value = d.milestones || [];
     evalMembers.value = d.eval_members || [];
     myRole.value = d.my_role || 'member';
+    submissionAllowed.value = d.can_submit ?? myRole.value === 'member';
+    uploadLimits.value = d.upload_limits || uploadLimits.value;
     canManage.value = myRole.value === 'leader';
     // 默认全展开（09-14 用户定）；drafts 就位防模板空引用
     milestones.value.forEach((m) => {
@@ -255,19 +266,28 @@ async function load() {
     });
     expanded.value = new Set(milestones.value.map((m) => m.id));
   } catch (e) {
-    ElMessage.error(e.response?.data?.message || '加载交付节点失败');
+    if (sequence === loadSequence) ElMessage.error(e.response?.data?.message || '加载交付节点失败');
   } finally {
-    loading.value = false;
+    if (sequence === loadSequence) loading.value = false;
   }
 }
 onMounted(load);
 // 看板切换项目（unitId 变化）须重载——多项目时 DewSelect 切换不重挂载组件
-watch(() => props.unitId, load);
+watch(() => props.unitId, () => {
+  drafts.value = {};
+  evalDlg.value = false;
+  load();
+});
 
 // ── 交付材料：提交（multipart）──
 function onFiles(mid, e) {
-  drafts.value[mid].files = [...e.target.files];
+  const files = [...e.target.files];
   e.target.value = '';
+  if (files.length > uploadLimits.value.max_files || files.reduce((sum, f) => sum + f.size, 0) > uploadLimits.value.total_bytes) {
+    ElMessage.warning('附件合计不能超过48MB，且最多20个');
+    return;
+  }
+  drafts.value[mid].files = files;
 }
 // 隐藏原生 file input，由 DewButton 触发选择
 const fileEls = {};
@@ -275,6 +295,10 @@ function pickFiles(mid) { fileEls[mid]?.click(); }
 async function submit(m) {
   const d = drafts.value[m.id];
   if (submitting.value || (!d.content.trim() && !d.files.length)) return;
+  if (new TextEncoder().encode(d.content.trim()).length > uploadLimits.value.content_bytes) {
+    ElMessage.warning('交付说明不能超过64KB');
+    return;
+  }
   submitting.value = m.id;
   try {
     const r = await campService.submitMilestone(m.id, d.content.trim(), d.files);

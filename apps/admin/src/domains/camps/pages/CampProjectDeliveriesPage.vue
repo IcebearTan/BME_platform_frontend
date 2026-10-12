@@ -20,11 +20,11 @@
           <el-table-column label="附件" width="90" align="center">
             <template #default="{ row }">
               <span v-if="!row.attachments?.length" class="hint">—</span>
-              <a v-for="a in row.attachments" :key="a.id" :href="`/api/camp/submissions/attachments/${a.id}`"
-                 target="_blank" style="font-size: 12px; margin-right: 6px;">{{ a.filename }}</a>
+              <el-button v-for="a in row.attachments" :key="a.id" link type="primary"
+                         @click="downloadAttachment(a)">{{ a.filename }}</el-button>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="130" align="center">
+          <el-table-column v-if="manageWritable" label="操作" width="130" align="center">
             <template #default="{ row }">
               <el-button size="small" type="success" plain @click="reviewDelivery(row, 'approve')">通过</el-button>
               <el-button size="small" type="danger" plain @click="reviewDelivery(row, 'return')">退回</el-button>
@@ -78,6 +78,21 @@ const pending = ref([])
 const pendingTable = ref(null)
 const { focusId } = useFocusRow()
 const outcomes = ref([])
+
+async function downloadAttachment(attachment) {
+  const tab = window.open('', '_blank')
+  if (tab) tab.opener = null
+  try {
+    const { data } = await api.get(`/camp/submissions/attachments/${attachment.id}/token`)
+    const base = (api.defaults.baseURL || '/api').replace(/\/$/, '')
+    const url = `${base}${data.url}`
+    if (tab) tab.location.href = url
+    else window.location.assign(url)
+  } catch (e) {
+    tab?.close()
+    ElMessage.error(e.response?.data?.message || '附件下载失败')
+  }
+}
 
 async function fetchDeliveryAdmin() {
   try {

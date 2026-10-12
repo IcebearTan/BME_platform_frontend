@@ -85,13 +85,13 @@
                      @update:model-value="applySource" />
         </template>
 
+        <p>多人项目由成员交付、负责人评价；单人项目由负责人交付、管理员验收。</p>
         <div class="node-list">
           <div v-for="(n, i) in form.template_nodes" :key="i" class="node-item">
             <span class="node-order">{{ i + 1 }}</span>
             <div class="node-main">
               <div class="node-grid">
                 <DewInput v-model="n.title" size="sm" placeholder="节点标题（如：开题报告）" />
-                <DewSelect v-model="n.submit_mode" size="sm" :options="MODE_OPTS" />
               </div>
               <DewInput v-model="n.deliverable_req" size="sm" placeholder="交付要求（选填，如：报告+演示）" />
             </div>
@@ -148,10 +148,6 @@ const store = useStore();
 const myLevel = computed(() => store.getters.level || 1);
 const leaderGateOn = computed(() => props.session?.policy?.capabilities?.leader_level_gate ?? false);
 
-const MODE_OPTS = [
-  { label: '整队交付（负责人交·老师审）', value: 'team' },
-  { label: '个人交付（成员交·负责人审）', value: 'member' },
-];
 const blankNodes = () => [{ title: '', deliverable_req: '', submit_mode: 'team' }];
 
 const loading = ref(true);
@@ -283,7 +279,7 @@ async function submit() {
   border: 1px solid var(--dew-card-border);
 }
 .node-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
-.node-grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 8px; }
+.node-grid { display: grid; grid-template-columns: 1fr; gap: 8px; }
 .node-ops { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .add-node { align-self: flex-start; margin-top: 2px; }
 @media (max-width: 640px) { .node-grid { grid-template-columns: 1fr; } }
