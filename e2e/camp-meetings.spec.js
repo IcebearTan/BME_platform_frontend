@@ -294,7 +294,7 @@ test('导生·组会详情：布置编辑与审阅矩阵', async ({ page }) => {
   await expect(dlg.locator('.task-line', { hasText: '文献阅读笔记' })).toContainText('已交 1/2')
   await expect(dlg.locator('.matrix').first()).toContainText('1 文件')
   await expect(dlg.locator('.matrix').first()).toContainText('未交')
-  await expect(dlg.locator('.cert-cell.ok')).toHaveText('88 分')
+  await expect(dlg.locator('.cert-cell.ok')).toHaveText('已认证 88 分')
   // 章节认证：点未认证格子 → DewUI 认证弹窗（打分可空）→ 认证成功
   await dlg.locator('.cert-cell:not(.ok)').first().click()
   const certDlg = page.locator('.dew-dialog').last()
@@ -413,6 +413,104 @@ test('组员·纯课内布置：待办计数与组会域内提交材料', async 
   await expect(page.locator('.el-message', { hasText: '材料已提交' })).toBeVisible()
   expect(materialBody).toContain('chapter_id')
   expect(errors).toEqual([])
+})
+
+test('认证时效·学员区分按时和补认证，完成后不再标红截止', async ({ page }) => {
+  const errors = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  const pastDue = `${plusDays(-1)}T18:00:00`
+  const meeting = { ...CH_ONLY_MEETING, chapter_due_at: pastDue, my_chapter_pending: 0,
+    my_chapter_late_certified: 1 }
+  const detail = { ...DETAIL_MEMBER_CH, meeting, chapters: DETAIL_MEMBER_CH.chapters.map((c, i) => ({
+    ...c, my_cert: { score: 80 }, my_timing: {
+      status: i === 0 ? 'certified_late' : 'certified_on_time', due_at: pastDue,
+      certified_at: `${plusDays(i === 0 ? 0 : -2)}T10:00:00`,
+      first_submitted_at: `${plusDays(-2)}T09:00:00`, submission_status: 'submitted_on_time',
+    },
+  })) }
+  await loginAsUser(page, [
+    { url: '/team-meetings', json: TEAM_MEETINGS(false, [meeting]) },
+    { url: '/camp/meetings/13/detail', json: detail },
+  ])
+  await page.goto(`${BASE}/camp?sid=1&tab=meetings`, { waitUntil: 'domcontentloaded' })
+  await expect(page.locator('.mtg-stats')).toContainText('已全部完成')
+  await expect(page.locator('.mtg-stats')).toContainText('逾期补认证 1')
+  await page.locator('.mtg-card').first().click()
+  const dlg = page.locator('.dew-dialog')
+  await expect(dlg.locator('.cg-cert').first()).toContainText('逾期补认证 80 分')
+  await expect(dlg.locator('.cg-cert').last()).toContainText('按时认证 80 分')
+  await expect(dlg.locator('.cg-material-timing').first()).toHaveText('材料按时提交')
+  await expect(dlg.locator('.cg-cert').first()).toHaveAttribute('title', /认证时间/)
+  await expect(dlg.locator('.cg-due')).toContainText('认证已完成')
+  await expect(dlg.locator('.cg-due.late')).toHaveCount(0)
+  expect(errors).toEqual([])
+})
+
+test('认证时效·未提交、待认证与历史记录分别展示', async ({ page }) => {
+  const states = [
+    ['pending_submission', '待提交'], ['pending_certification', '待认证'],
+    ['overdue_pending_submission', '已逾期·未提交'], ['overdue_pending_certification', '已逾期·待认证'],
+    ['historical_certified', '历史已认证'], ['not_required', '不要求本次认证'],
+  ]
+  const detail = { ...DETAIL_MEMBER_CH, chapters: states.map(([status], i) => ({
+    ...DETAIL_MEMBER_CH.chapters[0], chapter_id: i + 1, chapter_title: `章节 ${i + 1}`,
+    my_cert: status === 'historical_certified' ? { score: null } : null,
+    required_for_me: status !== 'not_required', my_timing: { status },
+  })) }
+  await loginAsUser(page, [
+    { url: '/team-meetings', json: TEAM_MEETINGS(false, [CH_ONLY_MEETING]) },
+    { url: '/camp/meetings/13/detail', json: detail },
+  ])
+  await page.goto(`${BASE}/camp?sid=1&tab=meetings`, { waitUntil: 'domcontentloaded' })
+  await page.locator('.mtg-card').first().click()
+  const labels = page.locator('.dew-dialog .cg-cert')
+  await expect(labels).toHaveCount(states.length)
+  for (let i = 0; i < states.length; i++) await expect(labels.nth(i)).toHaveText(states[i][1])
+})
+
+test('认证时效·导生补认证后即时更新列表及改期留痕，完成的截止不标红', async ({ page }) => {
+  const pastDue = `${plusDays(-1)}T18:00:00`
+  const meeting = { ...MEETING, chapter_due_at: pastDue, chapter_count: 1, chapter_expected: 2,
+    chapter_certified: 1, chapter_overdue_count: 1, chapter_late_certified_count: 0 }
+  const detail = { ...DETAIL_LEADER, meeting, tasks: [], chapters: [{ ...DETAIL_LEADER.chapters[0],
+    expected_count: 2, certified_count: 1, late_certified_count: 0,
+    certs: { 52: { score: 88 }, 53: null },
+    timings: { 52: { status: 'certified_on_time' }, 53: { status: 'overdue_pending_certification', due_at: pastDue } },
+  }], chapter_assignment_history: [{ actor: '导生阿明', created_at: `${plusDays(0)}T09:00:00`,
+    before: { due_at: pastDue, chapters: [{ chapter_id: 7 }] },
+    after: { due_at: CH_DUE, chapters: [{ chapter_id: 7 }] },
+  }] }
+  await loginAsUser(page, [
+    { url: '/team-meetings', resp: (route) => route.fulfill({ json: TEAM_MEETINGS(true, [meeting]) }) },
+    { url: '/camp/meetings/11/detail', resp: (route) => route.fulfill({ json: detail }) },
+    { url: '/team/progress/certify', resp: (route) => {
+      meeting.chapter_certified = 2
+      meeting.chapter_overdue_count = 0
+      meeting.chapter_late_certified_count = 1
+      detail.chapters[0].certified_count = 2
+      detail.chapters[0].late_certified_count = 1
+      detail.chapters[0].certs[53] = { score: 90 }
+      detail.chapters[0].timings[53] = { status: 'certified_late', due_at: pastDue }
+      return route.fulfill({ json: { code: 200 } })
+    } },
+  ])
+  await page.goto(`${BASE}/camp?sid=1&tab=meetings`, { waitUntil: 'domcontentloaded' })
+  await page.locator('.mtg-card').first().click()
+  const dlg = page.locator('.dew-dialog')
+  await expect(dlg.locator('.chapter-due.late')).toHaveCount(1)
+  await expect(dlg.locator('.cert-cell').last()).toContainText('已逾期·待认证')
+  await dlg.locator('.cert-cell').last().click()
+  const certDlg = page.locator('.dew-dialog').last()
+  await certDlg.locator('input').fill('90')
+  await certDlg.getByRole('button', { name: '认证', exact: true }).click()
+  await expect(page.locator('.cert-form')).toHaveCount(0)
+  await expect(dlg.locator('.cert-cell').last()).toContainText('逾期补认证')
+  await expect(page.locator('.mtg-stats')).toContainText('逾期补认证 1')
+  await expect(page.locator('.mtg-stats .late')).toHaveCount(0)
+  await expect(dlg.locator('.chapter-due.late')).toHaveCount(0)
+  await dlg.locator('.chapter-history summary').click()
+  await expect(dlg.locator('.chapter-history-entry')).toContainText('导生阿明')
+  await expect(dlg.locator('.chapter-history-entry')).toContainText('截止：')
 })
 
 // ── 审阅流（migrate_44）：退回带原因 → 徽标已退回；通过 → 已通过 ──

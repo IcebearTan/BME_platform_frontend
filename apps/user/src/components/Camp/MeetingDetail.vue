@@ -66,9 +66,10 @@
         <div v-if="detail.chapters.length" class="chapter-line">
           <span class="chapter-label">课内</span>
           <span v-if="detail.meeting.chapter_due_at" class="chapter-due"
-                :class="{ late: chapterDuePassed }">认证截止 {{ dueText(detail.meeting.chapter_due_at) }}</span>
+                :class="{ late: chapterGroupOverdue }">认证截止 {{ dueText(detail.meeting.chapter_due_at) }}</span>
           <span v-for="c in detail.chapters" :key="c.chapter_id" class="chapter-item">
             {{ c.chapter_title }}<i class="sep">·</i>{{ c.certified_count }}/{{ c.expected_count ?? detail.students.length }} 认证
+            <span v-if="c.late_certified_count">（逾期补认证 {{ c.late_certified_count }}）</span>
           </span>
         </div>
       </section>
@@ -123,12 +124,13 @@
             <div v-for="c in g.chapters" :key="c.chapter_id" class="cg-chapter">
               <div class="cg-row">
                 <span class="cg-name" :title="c.chapter_title">{{ c.chapter_title }}</span>
-                <span v-if="c.required_for_me === false" class="cg-cert">不要求本次认证</span>
-                <span v-if="c.my_cert" class="cg-cert ok">已认证{{
-                  c.my_cert.score != null ? ` ${c.my_cert.score} 分` : '' }}</span>
-                <span v-else-if="c.my_material_count" class="cg-cert submitted"
-                      :title="'已提交材料 ' + c.my_material_count + ' 份，待导生认证'">已提交</span>
-                <span v-else class="cg-cert">未认证</span>
+                <span class="cg-cert" :title="timingTitle(c.my_timing)"
+                      :class="{ ok: !!c.my_cert, late: isTimingLate(c.my_timing) }">
+                  {{ c.required_for_me === false ? '不要求本次认证' : timingLabel(c.my_timing, c.my_cert, c.my_material_count) }}{{
+                    c.required_for_me !== false && c.my_cert?.score != null ? ` ${c.my_cert.score} 分` : '' }}
+                </span>
+                <span v-if="submissionLabel(c.my_timing)" class="cg-material-timing"
+                      :title="timingTitle(c.my_timing)">{{ submissionLabel(c.my_timing) }}</span>
                 <button type="button" :class="['mat-chip', { open: openChapterId === c.chapter_id }]"
                         @click="toggleChapter(c)">
                   材料
@@ -136,12 +138,15 @@
                 </button>
               </div>
               <ChapterMaterialPanel v-if="openChapterId === c.chapter_id"
-                                    :sid="sid" :chapter-id="c.chapter_id" :writable="writable" />
+                                    :sid="sid" :chapter-id="c.chapter_id" :writable="writable"
+                                    @saved="refreshProgress" @removed="refreshProgress" />
             </div>
           </div>
           <div v-if="chapterDue" :class="['cg-due', { late: chapterOverdue }]">
             {{ chapterOverdue
-              ? `已逾期（截止 ${dueText(chapterDue)}）` : `需在 ${dueText(chapterDue)} 前完成认证` }}
+              ? `已逾期（截止 ${dueText(chapterDue)}）`
+              : myChapterPending ? `需在 ${dueText(chapterDue)} 前完成认证`
+              : `认证已完成（截止 ${dueText(chapterDue)}）` }}
           </div>
         </div>
       </section>
@@ -228,12 +233,13 @@
                 <tr v-for="s in detail.students" :key="s.user_id">
                   <th class="m-name">{{ s.username }}</th>
                   <td v-for="c in detail.chapters" :key="c.chapter_id"
-                      :class="['cert-cell', { ok: !!c.certs[String(s.user_id)] }]"
+                      :class="['cert-cell', { ok: !!c.certs[String(s.user_id)], late: isTimingLate(c.timings?.[String(s.user_id)]) }]"
+                      :title="timingTitle(c.timings?.[String(s.user_id)])"
                       @click="certCell(c, s)">
-                    {{ c.visible_user_ids && !c.visible_user_ids.includes(s.user_id) ? '—' : c.certs[String(s.user_id)]
-                       ? (c.certs[String(s.user_id)].score != null
-                           ? `${c.certs[String(s.user_id)].score} 分` : '已认证')
-                       : c.expected_user_ids && !c.expected_user_ids.includes(s.user_id) ? '不要求本次认证' : '未认证' }}
+                    {{ c.visible_user_ids && !c.visible_user_ids.includes(s.user_id) ? '—'
+                       : c.expected_user_ids && !c.expected_user_ids.includes(s.user_id) ? '不要求本次认证'
+                       : timingLabel(c.timings?.[String(s.user_id)], c.certs[String(s.user_id)], matCount(c, s)) }}
+                    <span v-if="c.certs[String(s.user_id)]?.score != null"> {{ c.certs[String(s.user_id)].score }} 分</span>
                     <button v-if="matCount(c, s)" type="button" class="mat-dot"
                             :title="`材料 ${matCount(c, s)}，点击查看`"
                             @click.stop="openMaterials(s, c)">{{ matCount(c, s) }}</button>
@@ -264,13 +270,23 @@
         <div v-if="detail.chapters.length" class="chapter-line">
           <span class="chapter-label">课内</span>
           <span v-if="detail.meeting.chapter_due_at" class="chapter-due"
-                :class="{ late: chapterDuePassed }">认证截止 {{ dueText(detail.meeting.chapter_due_at) }}</span>
+                :class="{ late: chapterGroupOverdue }">认证截止 {{ dueText(detail.meeting.chapter_due_at) }}</span>
           <span v-for="c in detail.chapters" :key="c.chapter_id" class="chapter-item">
             {{ c.chapter_title }}<i class="sep">·</i>{{ c.certified_count }}/{{ c.expected_count ?? detail.student_total }} 认证
+            <span v-if="c.late_certified_count">（逾期补认证 {{ c.late_certified_count }}）</span>
           </span>
         </div>
       </section>
     </div>
+
+    <details v-if="detail?.chapter_assignment_history?.length" class="chapter-history">
+      <summary>章节布置与截止调整记录（最近 50 条）</summary>
+      <div v-for="(entry, index) in detail.chapter_assignment_history" :key="index" class="chapter-history-entry">
+        <span>{{ entry.created_at?.slice(0, 16).replace('T', ' ') }} · {{ entry.actor }}</span>
+        <span>截止：{{ entry.before?.due_at?.replace('T', ' ') || '未设置' }} → {{ entry.after?.due_at?.replace('T', ' ') || '未设置' }}</span>
+        <span>布置章节：{{ entry.before?.chapters?.length || 0 }} → {{ entry.after?.chapters?.length || 0 }}</span>
+      </div>
+    </details>
 
     <!-- 组员提交/修改任务（嵌套弹窗：打开时外层弹窗暂闭遮罩点击与 Esc） -->
     <DewDialog v-model="submitDlg" :title="`提交任务 · ${submitTask?.title || ''}`" width="520px">
@@ -301,7 +317,7 @@
     <!-- 章节认证（09-19 抽共享 ChapterCertDialog，与学员进度看板同款交互） -->
     <ChapterCertDialog v-model="certDlg" :sid="sid"
                        :student="certTarget?.student" :chapter="certTarget?.chapter"
-                       :cert="certTarget?.cur" :readonly="!writable" @done="load" />
+                       :cert="certTarget?.cur" :readonly="!writable" @done="refreshProgress" />
 
     <!-- 章节材料弹层（导生·审阅矩阵角标入口，09-20 修「导生看不到学员课内作业」）：
          学员 × 章 的材料查看下载；删除仍在学员进度页，此处只读 -->
@@ -330,6 +346,7 @@
 
 <script setup>
 import { ref, computed, watch, nextTick } from 'vue';
+import { timingLabel, timingTitle, submissionLabel } from './chapterTiming';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox, ElIcon } from 'element-plus';
 import { VideoPlay, ArrowDown, QuestionFilled } from '@element-plus/icons-vue';
@@ -367,6 +384,10 @@ async function load() {
     detail.value = null;
     ElMessage.error(e.response?.data?.message || '加载组会详情失败');
   } finally { loading.value = false; }
+}
+async function refreshProgress() {
+  await load();
+  emit('changed');
 }
 watch(() => [props.modelValue, props.meetingId], async ([open]) => {
   if (open) {
@@ -434,6 +455,9 @@ const chapterDue = computed(() => detail.value?.meeting?.chapter_due_at || null)
 const chapterDuePassed = computed(() =>
   !!chapterDue.value && new Date(chapterDue.value) < new Date());
 const chapterOverdue = computed(() => chapterDuePassed.value && myChapterPending.value > 0);
+const chapterGroupOverdue = computed(() => chapterDuePassed.value && (detail.value?.chapters || [])
+  .some((c) => (c.certified_count || 0) < (c.expected_count ?? detail.value?.student_total ?? detail.value?.students?.length ?? 0)));
+const isTimingLate = (timing) => timing?.status === 'certified_late' || timing?.status?.startsWith('overdue_');
 // 去学习：直达课程详情页（与学习方向卡同路由；sid 透传保营期快照口径）
 function goStudy(courseId) {
   router.push(`/study/details?id=${courseId}&from=camp&sid=${props.sid}`);
@@ -767,4 +791,9 @@ a.att-link { align-self: flex-start; }
 .picker-hint { font-size: 12px; color: var(--dew-text-faint); }
 .form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px; }
 .file-hidden { display: none; }
+.cg-cert.late, .cert-cell.late { color: var(--color-warning); }
+.cg-material-timing { font-size: 12px; color: var(--dew-text-muted); }
+.chapter-history { margin-top: 16px; font-size: 12px; color: var(--dew-text-muted); }
+.chapter-history summary { cursor: pointer; }
+.chapter-history-entry { display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 8px 0; }
 </style>

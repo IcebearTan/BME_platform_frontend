@@ -115,10 +115,12 @@
                 <template v-if="isLeader && m.chapter_expected > 0">
                   <span class="stat">认证 {{ m.chapter_certified }}/{{ m.chapter_expected }}</span>
                   <span v-if="m.chapter_overdue_count > 0" class="stat late">逾期 {{ m.chapter_overdue_count }}</span>
+                  <span v-if="m.chapter_late_certified_count > 0" class="stat warn">逾期补认证 {{ m.chapter_late_certified_count }}</span>
                 </template>
                 <template v-if="!isLeader">
                   <span v-if="myTodoOf(m) > 0" class="stat warn">待完成 {{ myTodoOf(m) }}</span>
                   <span v-else class="stat ok">已全部完成</span>
+                  <span v-if="m.my_chapter_late_certified > 0" class="stat warn">逾期补认证 {{ m.my_chapter_late_certified }}</span>
                   <span v-if="(m.my_overdue || 0) + (m.my_chapter_overdue || 0) > 0"
                         class="stat late">逾期 {{ (m.my_overdue || 0) + (m.my_chapter_overdue || 0) }}</span>
                 </template>
