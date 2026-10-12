@@ -28,7 +28,6 @@
             <div v-for="(n, i) in previewNodes" :key="i" class="src-node">
               <span class="src-order">{{ i + 1 }}</span>
               <span class="src-title">{{ n.title }}</span>
-              <DewTag size="sm" round>{{ n.submit_mode === 'member' ? '个人交付' : '整队交付' }}</DewTag>
             </div>
           </div>
         </template>
@@ -41,6 +40,7 @@
 
         <!-- 节点编辑器 -->
         <div class="field-label">节点序列 <span class="field-hint">（按交付顺序排列；创建后自动生成为项目里程碑）</span></div>
+        <p class="tpl-note">多人项目由成员交付、负责人评价；单人项目由负责人交付、管理员验收。</p>
         <div class="node-list">
           <div v-for="(n, i) in form.nodes" :key="i" class="node-item">
             <span class="node-order">{{ i + 1 }}</span>
@@ -48,7 +48,6 @@
               <DewInput v-model="n.title" size="sm" placeholder="节点标题（如：中期检查）" />
               <DewInput v-model="n.deliverable_req" size="sm" placeholder="交付要求（选填，如：中期报告+演示）" />
               <div class="node-ops">
-                <DewSelect v-model="n.submit_mode" size="sm" :options="MODE_OPTS" class="node-mode" />
                 <DewButton type="ghost" size="sm" :disabled="i === 0" @click="move(i, -1)">上移</DewButton>
                 <DewButton type="ghost" size="sm" :disabled="i === form.nodes.length - 1" @click="move(i, 1)">下移</DewButton>
                 <DewButton type="ghost" size="sm" @click="form.nodes.splice(i, 1)">删除</DewButton>
@@ -81,7 +80,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
-import { DewButton, DewInput, DewSelect, DewTag, DewSkeleton } from '@bme/dew-ui';
+import { DewButton, DewInput, DewSelect, DewSkeleton } from '@bme/dew-ui';
 import { campService } from '../../services/campService';
 
 const props = defineProps({
@@ -94,10 +93,6 @@ const STARTS = [
   { mode: 'blank', title: '空白自建', desc: '从零开始搭自己的节点序列' },
   { mode: 'platform', title: '平台默认模板', desc: '按项目类别选用管理员维护的起点' },
   { mode: 'clone', title: '复制历史项目', desc: '站在往届项目的施工图上改' },
-];
-const MODE_OPTS = [
-  { label: '整队交付（负责人交·老师审）', value: 'team' },
-  { label: '个人交付（成员交·负责人审）', value: 'member' },
 ];
 
 const loading = ref(true);

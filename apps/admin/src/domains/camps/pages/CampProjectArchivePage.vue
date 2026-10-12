@@ -15,7 +15,7 @@
         <template v-else>
           <div class="hint" style="padding: 4px 0;">
             冻结于 {{ archive.frozen_at }} · 版本 v{{ archive.version }} · 修正 {{ archive.revisions.length }} 次
-            <el-button v-if="manageWritable" size="small" style="margin-left: 8px;" @click="reviseArchive">登记修正</el-button>
+            <el-button v-if="canManage" size="small" style="margin-left: 8px;" @click="reviseArchive">登记修正</el-button>
           </div>
           <el-collapse>
             <el-collapse-item title="档案快照（关键事实）">
@@ -34,24 +34,30 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { watch, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '../../../api'
 import { useCampContext } from '../context/campContext'
 import AccessDenied from '../workspace/AccessDenied.vue'
 
 const ctx = useCampContext()
-const { campId, status, canManage, manageWritable } = ctx
+const { campId, status, canManage } = ctx
 
 const archive = ref(null)
+let loadSequence = 0
 
 async function fetchArchive() {
+  const sequence = ++loadSequence
+  archive.value = null
   if (status.value !== 'archived') return
   try {
     const res = await api.get(`/camp/sessions/${campId.value}/archive`)
-    archive.value = res.data?.archive || null
+    if (sequence !== loadSequence) return
+    archive.value = res.data?.archive
+      ? { ...res.data.archive, revisions: res.data.revisions || [] }
+      : null
   } catch {
-    archive.value = null   // 历史结营营不补建：404 等静默为空态
+    if (sequence === loadSequence) archive.value = null
   }
 }
 
@@ -74,7 +80,7 @@ async function reviseArchive() {
   }
 }
 
-onMounted(fetchArchive)
+watch([campId, status], fetchArchive, { immediate: true })
 </script>
 
 <style scoped>

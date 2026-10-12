@@ -25,7 +25,7 @@
         <el-table-column label="节点概览" min-width="240">
           <template #default="{ row }">
             <span class="node-brief">
-              {{ row.nodes.map((n, i) => `${i + 1}.${n.title}${n.submit_mode === 'member' ? '（个）' : ''}`).join(' → ') || '—' }}
+              {{ row.nodes.map((n, i) => `${i + 1}.${n.title}`).join(' → ') || '—' }}
             </span>
           </template>
         </el-table-column>
@@ -61,14 +61,10 @@
               <span class="node-idx">{{ i + 1 }}</span>
               <el-input v-model="n.title" size="small" placeholder="节点标题" style="width: 160px;" />
               <el-input v-model="n.deliverable_req" size="small" placeholder="交付要求（选填）" style="flex: 1;" />
-              <el-select v-model="n.submit_mode" size="small" style="width: 150px;">
-                <el-option label="整队交付·老师审" value="team" />
-                <el-option label="个人交付·负责人审" value="member" />
-              </el-select>
               <el-button size="small" text type="danger" :disabled="dlg.form.nodes.length <= 1" @click="dlg.form.nodes.splice(i, 1)">删</el-button>
             </div>
             <el-button size="small" text type="primary" @click="dlg.form.nodes.push({ title: '', deliverable_req: '', submit_mode: 'team' })">＋ 添加节点</el-button>
-            <div class="node-tip">「（个）」= 个人交付节点（成员各交、负责人审）；其余为整队交付（负责人交、老师审）</div>
+            <div class="node-tip">多人项目由成员交付、负责人评价；单人项目由负责人交付、管理员验收。</div>
           </div>
         </el-form-item>
       </el-form>
