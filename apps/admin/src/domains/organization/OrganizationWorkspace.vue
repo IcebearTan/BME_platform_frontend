@@ -29,7 +29,7 @@ const sections = [
   { name: 'org.groups', label: '小组管理' },
   { name: 'org.positions', label: '职位定义' },
   { name: 'org.officers', label: '社团职务' },
-  { name: 'org.workGrants', label: '协作授权' },
+  { name: 'org.workGrants', label: import.meta.env.VITE_WORKBENCH_URL ? '独立工作台管理' : '协作授权' },
 ]
 
 // 绑定路由名：浏览器前进/后退时高亮随当前路由派生
