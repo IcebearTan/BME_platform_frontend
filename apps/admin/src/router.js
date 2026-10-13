@@ -24,6 +24,10 @@ const router = createRouter({
 // 无 token 直跳登录页（2026-09-16 加固）——原先依赖接口 401 兜底踢回，
 // 退出后直访受保护页会先渲染整壳再闪退；staffOnly 防手输 URL 绕菜单
 router.beforeEach(async (to) => {
+    if (import.meta.env.VITE_WORKBENCH_URL && to.path === '/organization/work-grants') {
+        window.location.assign(import.meta.env.VITE_WORKBENCH_URL.replace(/\/$/, '') + '/work/governance')
+        return false
+    }
     const publicPages = to.path === '/login' || to.path === '/register'
         || (import.meta.env.DEV && to.path === '/dev/accounts');
     // D1 会话门面：先引导再判定（cookie 模式刷新页恢复会话；booting 不误判）

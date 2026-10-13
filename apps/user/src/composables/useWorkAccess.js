@@ -36,7 +36,7 @@ export function useWorkAccess() {
         const data = res?.data || {}
         me.value = data
         // 入口判据：有可进入的工作区，或持有治理身份（治理人员可能暂无组工作区）
-        hasAccess.value = Boolean(data.workspaces?.length) || Boolean(data.is_governance)
+        hasAccess.value = Boolean(data.external_url && data.eligibility) || Boolean(data.workspaces?.length) || Boolean(data.is_governance)
         isGovernance.value = Boolean(data.is_governance)
         probedAt = Date.now()   // 成功也记时戳：TTL 过期后下一次 detect 自动重探
       })

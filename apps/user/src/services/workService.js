@@ -55,7 +55,7 @@ export const EVENT_LABELS = {
 export const workService = {
   /** 资格与工作台摘要（探测端点：无资格回 200 空形，前端据此隐藏入口） */
   async fetchMe() {
-    return api.get('/work/me').then(r => r.data)
+    return api.get(import.meta.env.VITE_WORKBENCH_URL ? '/workbench-sso/me' : '/work/me').then(r => r.data)
   },
 
   /** 我可进入的工作区列表 */
