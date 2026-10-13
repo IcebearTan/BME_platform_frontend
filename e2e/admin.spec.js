@@ -1671,3 +1671,59 @@ test('开发测试账号面板：独立页分组卡片，点击一键登录（im
   expect(posted).toHaveLength(1)
   expect(posted[0]).toEqual({ User_Email: 'admin@seed.dev', User_Password: '25d55ad283aa400af464c76d713c07ad' })
 })
+
+
+test('任职档案：补录年份明确但日期未知的历史任职', async ({ page }) => {
+  await loginAsStaff(page)
+  await mockClubMeta(page)
+  const errors = []
+  page.on('pageerror', e => errors.push(e.message))
+  let submitted = null
+  await page.route('http://127.0.0.1:5001/user/user_list', route => route.fulfill({ json: [{ User_Id: 11, User_Name: '档案成员' }] }))
+  await page.route('http://127.0.0.1:5001/admin/officers**', route => {
+    const request = route.request(), path = new URL(request.url()).pathname
+    if (request.method() === 'POST') { submitted = request.postDataJSON(); return route.fulfill({ json: { code: 200, data: { id: 5 } } }) }
+    if (path.includes('/history/')) return route.fulfill({ json: { code: 200, data: { years: submitted ? [2025] : [], records: submitted ? [{ id: 5, title: '历任副社长', status: 'ended', record_source: 'backfill', years: [2025], events: [], source_note: '2025届任命名单' }] : [] } } })
+    return route.fulfill({ json: { code: 200, data: { officers: [], total: 0 } } })
+  })
+  await page.goto(`${BASE}/organization/officers`)
+  await page.getByRole('button', { name: '任职档案', exact: true }).click()
+  const archive = page.getByRole('dialog', { name: '个人任职档案' })
+  await archive.getByRole('button', { name: '补录历史任职' }).click()
+  const dialog = page.getByRole('dialog', { name: '补录历史任职', exact: true })
+  await dialog.locator('.el-select').click()
+  await page.getByRole('option', { name: '档案成员 · #11' }).click()
+  await dialog.getByRole('textbox', { name: '历史职位' }).fill('历任副社长')
+  await dialog.getByRole('spinbutton').fill('2025')
+  await dialog.getByRole('textbox', { name: '资料来源' }).fill('2025届任命名单')
+  await dialog.getByRole('button', { name: '保存历史任职' }).click()
+  await expect(archive.getByText('历任副社长', { exact: true })).toBeVisible()
+  expect(submitted.user_id).toBe(11)
+  expect(submitted.historical_year).toBe(2025)
+  expect(submitted.term_start).toBeNull()
+  expect(submitted.term_end).toBeNull()
+  expect(submitted.source_note).toBe('2025届任命名单')
+  expect(errors).toEqual([])
+})
+
+test('调整任职：换职与纠错显式分开，提交必须带原因', async ({ page }) => {
+  await loginAsStaff(page)
+  await mockClubMeta(page)
+  let submitted = null
+  await page.route('http://127.0.0.1:5001/admin/officers**', route => {
+    if (route.request().method() === 'PUT') { submitted = route.request().postDataJSON(); return route.fulfill({ json: { code: 200, data: {} } }) }
+    return route.fulfill({ json: { code: 200, data: { officers: [{ id: 1, user_id: 11, username: '档案成员', title_id: 1, title: '社长', status: 'active', term_start: '2025-09-01' }], total: 1 } } })
+  })
+  await page.goto(`${BASE}/organization/officers`)
+  await page.getByRole('button', { name: '编辑', exact: true }).click()
+  const dialog = page.getByRole('dialog', { name: '调整任职' })
+  await expect(dialog.getByText('结束原任期并创建新任期，原记录保留。')).toBeVisible()
+  await dialog.getByRole('button', { name: '确认', exact: true }).click()
+  expect(submitted).toBeNull()
+  await dialog.getByRole('textbox', { name: '调整原因' }).fill('换届连任')
+  await dialog.getByRole('button', { name: '确认', exact: true }).click()
+  await expect(dialog).not.toBeVisible()
+  expect(submitted.mode).toBe('transition')
+  expect(submitted.reason).toBe('换届连任')
+  expect(submitted.term_start).not.toBe('2025-09-01')
+})
