@@ -13,7 +13,7 @@ import { Expand } from '@element-plus/icons-vue'
 
 const VERSIONS = [
   {
-    version: 'v3.7.0', date: '2026-10-15', current: true,
+    version: 'v3.6.3', date: '2026-10-15', current: true,
     items: [
       '文章先审后发：新发布的文章提交管理员审核，通过后公开；审核结果会通过消息通知，驳回原因可在「我的文章」查看。',
       '积分任务上新：每日打卡、每日首帖、文章过审可获积分奖励（管理员配置分值后生效），首页右侧栏新增积分任务入口。',
