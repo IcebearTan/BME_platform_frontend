@@ -60,7 +60,7 @@
           @click="handleEntryClick(entry)"
         >
           <div class="entry-inner">
-            <div class="entry-icon-wrapper" :style="{ background: entry.color + '1a' }">
+            <div class="entry-icon-wrapper" :style="{ background: `color-mix(in srgb, ${entry.color} 10%, transparent)` }">
               <el-icon class="entry-icon" :style="{ color: entry.color }">
                 <component :is="entryIcons[entry.id]" />
               </el-icon>
@@ -228,7 +228,7 @@ const studyEntries = ref([
   { id: 'courses', title: '课程', description: '系统化的课程学习', route: '/study', color: '#409EFF' },
   { id: 'camp', title: '营期中心', description: '查看报名与我的营期', route: '/camp', color: '#7c3aed' },
   { id: '3d-print', title: '3D打印', description: '3D 模型打印预约', external: '/3dfarm/', color: '#06b6d4' },
-  { id: 'xlab', title: 'XLAB', description: '营期项目 × 自由分享', route: '/projects', color: '#00ff9c' },
+  { id: 'xlab', title: 'XLAB', description: '营期项目 × 自由分享', route: '/projects', color: 'var(--color-primary)' },
   { id: 'club', title: '社团', description: '组织架构与干事名录', route: '/organization', color: '#10b981' },
 ])
 

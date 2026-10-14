@@ -116,6 +116,12 @@ test('XLAB 暗夜：全站切换同步广场、反白筛选与 body 详情抽屉
   await expect(page.locator('.plaza-page')).not.toHaveCSS('background-color', lightBackground)
   await expectReadable(page.getByRole('heading', { name: '全部项目' }))
   await expectReadable(page.locator('.tag-line button.active'))
+  await expectReadable(page.locator('.source-row button.active'))
+  await expectReadable(page.locator('.status-row button.active'))
+  await expect.poll(() => page.evaluate(() =>
+    getComputedStyle(document.querySelector('.discovery-panel')).backgroundColor ===
+    getComputedStyle(document.querySelector('.p-card')).backgroundColor
+  )).toBe(true)
   await expectReadable(page.getByRole('button', { name: '分享我的项目' }))
   await page.getByRole('button', { name: '我的项目', exact: true }).click()
   await expectReadable(page.getByRole('button', { name: '我的项目', exact: true }))
@@ -148,6 +154,7 @@ test('XLAB 暗夜：手机保存主题、详情展开与发布两种预览', asy
   await expect(page.locator('body')).toHaveClass(/theme-dark/)
   await expect(page.locator('.p-card')).toHaveCount(3)
   await page.screenshot({ animations: 'disabled', path: testInfo.outputPath('xlab-dark-mobile.png'), fullPage: true })
+  await expect(page.locator('.tag-line')).toBeVisible()
   await page.locator('.p-card', { hasText: '智能输液监护系统' }).click()
   await expect(page.locator('.drawer-body h2')).toBeVisible()
   await page.getByRole('button', { name: '展开详情' }).click()
@@ -157,6 +164,8 @@ test('XLAB 暗夜：手机保存主题、详情展开与发布两种预览', asy
   await page.getByRole('button', { name: '分享我的项目', exact: true }).click()
   await page.getByPlaceholder('例如：宿舍智能门锁').fill('暗夜天气站')
   await expectReadable(page.getByPlaceholder('例如：宿舍智能门锁'))
+  await expectReadable(page.getByPlaceholder('硬件, 医工交叉, 物联网'))
+  await expectReadable(page.getByPlaceholder('介绍问题背景、解决方案、当前成果和下一步计划'))
   await expectReadable(page.locator('.preview-card h2'))
   await expectReadable(page.getByRole('button', { name: '发布项目', exact: true }))
   await page.locator('.preview-panel').scrollIntoViewIfNeeded()
@@ -221,7 +230,7 @@ test('项目广场：独立发布页（community 免审上架）', async ({ page
 })
 
 // 2026-10-05 起 XLAB 不要独立首页：/lab 直达项目广场（旧 LabHomeView 三卡片/字标动效/全屏舞台
-// 已退役，对应三条旧测试随之删除；导航收纳回归由下方「导航自动收纳」测试继续覆盖）
+// 已退役，对应三条旧测试随之删除；全站顶栏由下方「导航常驻」测试覆盖）
 test('XLAB 入口：/lab 直达项目广场（旧首页已退役）', async ({ page }) => {
   const errors = []
   page.on('pageerror', (e) => errors.push(e.message))
@@ -319,24 +328,23 @@ test('发布：封面上传失败仍进入新项目抽屉并提示补传', async
   await expect(page.locator('.xl-drawer')).toBeVisible()
 })
 
-// 导航自动收纳（09-16）：进页上缩 / 悬停热区展开 / 移开 240ms 宽限后缩回
-// 回归锚：初版 navLeave 里 !querySelector 无弹层时为 true，曾导致移开恒展开
-test('XLab 导航自动收纳：悬停展开、移开缩回', async ({ page }) => {
+test('XLab 导航常驻：进页可见、移开与滚动后仍可操作', async ({ page }) => {
   const errors = []
   page.on('pageerror', (e) => errors.push(e.message))
+  await page.setViewportSize({ width: 1440, height: 900 })
   await loginAsUser(page)
   await page.goto(`${BASE}/projects`, { waitUntil: 'domcontentloaded' })
   const menu = page.locator('.el-menu-demo').first()
-
-  // 进页即收起（translateY 为负）
-  await expect(menu).toHaveCSS('transform', /matrix\(1, 0, 0, 1, 0, -/)
-  // 悬停顶部热区 → 展开
-  await page.mouse.move(640, 8)
-  await expect(menu).toHaveCSS('transform', 'matrix(1, 0, 0, 1, 0, 0)')
-  // 移开到页面中部 → 宽限后缩回
+  const xlab = menu.getByRole('menuitem', { name: 'XLAB', exact: true })
+  await expect(xlab).toBeInViewport()
+  const menuBounds = await menu.boundingBox()
+  const posterBounds = await page.locator('.plaza-poster').boundingBox()
+  expect(posterBounds.y).toBeGreaterThanOrEqual(menuBounds.y + menuBounds.height)
   await page.mouse.move(640, 500)
-  await expect(menu).toHaveCSS('transform', /matrix\(1, 0, 0, 1, 0, -/)
-
+  await page.evaluate(() => window.scrollTo(0, 600))
+  await expect(xlab).toBeInViewport()
+  await page.getByTitle('切换到夜间模式').click()
+  await expect(page.locator('body')).toHaveClass(/theme-dark/)
   expect(errors).toEqual([])
 })
 

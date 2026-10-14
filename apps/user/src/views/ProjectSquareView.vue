@@ -1,6 +1,6 @@
 <template>
   <div class="xlab-root plaza-page" :class="{ 'detail-open': selectedId }">
-    <div class="xlab-navdock" :class="{ 'nav-open': navOpen }" @mouseenter="navEnter" @mouseleave="navLeave"><MenuComponent /></div>
+    <div class="xlab-navdock"><MenuComponent /></div>
     <header class="plaza-poster" :style="posterStyle" aria-label="XLAB 工程实验场项目广场"></header>
     <div class="plaza-fade" aria-hidden="true"></div>
     <main class="plaza-body">
@@ -12,9 +12,9 @@
           </header>
           <DewCard variant="flat" size="md" class="discovery-panel" aria-label="项目搜索与筛选">
             <DewInput v-model="keyword" class="project-search" type="search" :prefix-icon="Search" clearable placeholder="搜索项目名称、简介或关键词，回车检索" @enter="load" @clear="load" />
-            <div class="filter-line source-row"><span class="filter-label">来源</span><div class="filter-options"><button v-for="filter in sourceFilters" :key="String(filter.value)" type="button" :class="{ active: filters.source === filter.value }" @click="setFilter('source', filter.value)">{{ filter.label }}</button></div></div>
-            <div class="filter-line status-row"><span class="filter-label">状态</span><div class="filter-options"><button v-for="filter in statusFilters" :key="String(filter.value)" type="button" :class="{ active: filters.project_status === filter.value }" @click="setFilter('project_status', filter.value)">{{ filter.label }}</button></div></div>
-            <div v-if="allTags.length" class="filter-line tag-line"><span class="filter-label">标签</span><div class="filter-options"><button type="button" :class="{ active: !filters.tag }" @click="setFilter('tag', null)">全部</button><button v-for="tag in allTags" :key="tag" type="button" :class="{ active: filters.tag === tag }" @click="setFilter('tag', tag)">{{ tag }}</button></div></div>
+            <div class="filter-line source-row"><span class="filter-label">来源</span><div class="filter-options"><DewButton size="sm" type="ghost" v-for="filter in sourceFilters" :key="String(filter.value)" :aria-pressed="filters.source === filter.value" :class="{ active: filters.source === filter.value }" @click="setFilter('source', filter.value)">{{ filter.label }}</DewButton></div></div>
+            <div class="filter-line status-row"><span class="filter-label">状态</span><div class="filter-options"><DewButton size="sm" type="ghost" v-for="filter in statusFilters" :key="String(filter.value)" :aria-pressed="filters.project_status === filter.value" :class="{ active: filters.project_status === filter.value }" @click="setFilter('project_status', filter.value)">{{ filter.label }}</DewButton></div></div>
+            <div v-if="allTags.length" class="filter-line tag-line"><span class="filter-label">标签</span><div class="filter-options"><DewButton size="sm" type="ghost" :aria-pressed="!filters.tag" :class="{ active: !filters.tag }" @click="setFilter('tag', null)">全部</DewButton><DewButton size="sm" type="ghost" v-for="tag in allTags" :key="tag" :aria-pressed="filters.tag === tag" :class="{ active: filters.tag === tag }" @click="setFilter('tag', tag)">{{ tag }}</DewButton></div></div>
           </DewCard>
           <section class="catalog-results" aria-label="项目列表">
             <div v-if="loading" class="grid-loading"><DewSkeleton v-for="index in 6" :key="index" variant="rect" height="300" rounded="14px" /></div>
@@ -31,7 +31,7 @@
                   <div class="p-card-topline"><span :class="['p-status', `ps-${project.project_status}`]"><i></i>{{ project.project_status_text }}</span><span>{{ project.track_text || '其他' }}</span></div>
                   <h2>{{ project.title }}</h2>
                   <p>{{ project.summary || project.description || '这个项目正在补充介绍。' }}</p>
-                  <div class="p-tags"><span v-for="tag in (project.tags || []).slice(0, 3)" :key="tag">{{ tag }}</span></div>
+                  <div class="p-tags"><DewTag v-for="tag in (project.tags || []).slice(0, 3)" :key="tag" type="neutral" size="sm">{{ tag }}</DewTag></div>
                   <div class="p-bottom"><div class="creator"><span>{{ (project.owner_name || 'X').charAt(0) }}</span><b>{{ project.owner_name || 'XLAB MEMBER' }}</b></div><div class="engagement"><span><el-icon><View /></el-icon>{{ project.view_count ?? 0 }}</span><span><el-icon><Star /></el-icon>{{ project.favorite_count ?? 0 }}</span></div></div>
                 </div>
               </DewCard>
@@ -41,7 +41,7 @@
         <aside class="plaza-rail" aria-label="项目功能区">
           <DewCard variant="flat" size="sm" class="rail-actions">
             <DewButton class="rail-secondary" :class="{ on: mineOnly }" block @click="toggleMine"><el-icon><Folder /></el-icon><span>我的项目</span></DewButton>
-            <DewButton class="rail-primary" block @click="router.push('/lab/projects/new')"><el-icon><Plus /></el-icon><span>分享我的项目</span></DewButton>
+            <DewButton class="rail-primary xg-action-primary" block @click="router.push('/lab/projects/new')"><el-icon><Plus /></el-icon><span>分享我的项目</span></DewButton>
           </DewCard>
           <DewCard variant="flat" size="md" class="plaza-reco">
             <header class="reco-head"><p class="reco-kicker">XLAB PICKS</p><h2>推荐项目</h2></header>
@@ -71,12 +71,12 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useStore } from 'vuex';
 import { ElMessage } from 'element-plus';
 import { Folder, Grid, Plus, Search, Star, View } from '@element-plus/icons-vue';
-import { DewButton, DewCard, DewImage, DewInput, DewSelect, DewSkeleton } from '@bme/dew-ui';
+import { DewButton, DewCard, DewImage, DewInput, DewSelect, DewSkeleton, DewTag } from '@bme/dew-ui';
 import MenuComponent from '../components/MenuComponent.vue';
 import ProjectDetailDrawer from '../components/ProjectDetailDrawer.vue';
 import { assetUrl } from '../services/campService';
@@ -84,9 +84,9 @@ import { showcaseService } from '../services/showcaseService';
 import posterUrl from '../assets/xlab-poster.png.png';
 import '../styles/xlab.css';
 const router = useRouter(); const route = useRoute(); const store = useStore();
-const navOpen = ref(false); const loading = ref(true); const projects = ref([]); const allTags = ref([]); const keyword = ref(''); const sortMode = ref('updated'); const recoPool = ref([]); const mineOnly = ref(false);
+const loading = ref(true); const projects = ref([]); const allTags = ref([]); const keyword = ref(''); const sortMode = ref('updated'); const recoPool = ref([]); const mineOnly = ref(false);
 const filters = ref({ source: null, project_status: null, tag: null });
-let navCloseTimer = null; let loadVersion = 0;
+let loadVersion = 0;
 const sourceFilters = [{ label: '全部', value: null }, { label: '营期项目', value: 'camp' }, { label: '自由分享', value: 'community' }];
 const statusFilters = [{ label: '全部', value: null }, { label: '构思中', value: 'idea' }, { label: '进行中', value: 'ongoing' }, { label: '已完成', value: 'done' }];
 const sortOptions = [{ label: '最近更新', value: 'updated' }, { label: '最多浏览', value: 'popular' }, { label: '最多收藏', value: 'favorites' }];
@@ -105,8 +105,6 @@ const displayProjects = computed(() => (mineOnly.value ? sortedProjects.value.fi
 const recommendedProjects = computed(() => [...recoPool.value].sort((a, b) => (b.view_count || 0) - (a.view_count || 0)).slice(0, 8));
 // 海报主视觉：整张设计稿按原始比例（2172×642）展示，双后缀文件名为实际存在名称
 const posterStyle = { '--poster-img': `url("${posterUrl}")` };
-function navEnter() { clearTimeout(navCloseTimer); navOpen.value = true; }
-function navLeave() { clearTimeout(navCloseTimer); navCloseTimer = setTimeout(() => { navOpen.value = Boolean(document.querySelector('.dew-popover')); }, 240); }
 function setFilter(key, value) { filters.value = { ...filters.value, [key]: value }; load(); }
 function clearFilters() { filters.value = { source: null, project_status: null, tag: null }; keyword.value = ''; mineOnly.value = false; load(); }
 function toggleMine() { mineOnly.value = !mineOnly.value; }
@@ -122,7 +120,7 @@ async function load() {
   catch (error) { if (version === loadVersion) ElMessage.error(error.response?.data?.message || '加载项目列表失败'); }
   finally { if (version === loadVersion) loading.value = false; }
 }
- onMounted(load); onBeforeUnmount(() => clearTimeout(navCloseTimer));
+onMounted(load);
 </script>
 
 <style scoped>
@@ -131,7 +129,8 @@ async function load() {
 .plaza-page{--pq-bg:var(--xg-bg);--pq-card:var(--xg-surface);--pq-line:var(--xg-line);--pq-line-soft:var(--xg-line-soft);--pq-ink:var(--xg-ink);--pq-sub:var(--xg-sub);--pq-faint:var(--xg-faint);--pq-purple:var(--xg-purple);--pq-purple-deep:var(--xg-purple-deep);--pq-purple-soft:var(--xg-purple-soft);--pq-pink:var(--xg-pink);--pq-pink-deep:var(--xg-pink-deep);--pq-pink-soft:var(--xg-pink-soft);position:relative;min-height:100dvh;color:var(--pq-ink);background:var(--pq-bg)}
 /* ═══ 海报：整张设计稿原始比例，全宽；下方柔过渡跟随主体主题 ═══ */
 .plaza-poster{position:relative;z-index:1;width:100%;aspect-ratio:2172/642;max-height:460px;overflow:hidden;background-color:var(--xg-poster-bg);background-image:linear-gradient(var(--xg-poster-shade),var(--xg-poster-shade)),var(--poster-img);background-position:center;background-size:cover;background-repeat:no-repeat}
-.plaza-fade{height:56px;background:linear-gradient(180deg,var(--xg-poster-fade),var(--pq-bg))}
+.plaza-poster::after{position:absolute;inset:65% 0 0;content:'';pointer-events:none;background:linear-gradient(180deg,transparent,var(--pq-bg))}
+.plaza-fade{height:40px;background:var(--pq-bg)}
 /* ═══ 主体：居中双栏 ═══ */
 .plaza-body{position:relative;z-index:1;box-sizing:border-box;width:100%;max-width:1280px;margin:0 auto;padding:8px clamp(16px,3vw,32px) 96px}
 .plaza-layout{display:grid;grid-template-columns:minmax(0,1fr) 292px;gap:28px;align-items:start}
@@ -145,12 +144,12 @@ async function load() {
 .catalog-actions label{display:flex;align-items:center;gap:8px;color:var(--pq-faint);font-size:12px}
 .sort-select{width:128px}
 /* ── 筛选：DewCard(flat) 容器 + DewInput 搜索 + 轻量胶囊 ── */
-.plaza-page .discovery-panel :deep(.dew-card__body){display:flex;flex-wrap:wrap;gap:12px 24px;align-items:center}
-.plaza-page .project-search{flex:1 1 230px;min-width:200px;max-width:340px}
+.plaza-page .discovery-panel :deep(.dew-card__body){display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.plaza-page .project-search{flex:1 1 100%;min-width:0;max-width:none}
 .filter-line{display:flex;flex-wrap:wrap;align-items:center;gap:9px}
 .filter-label{color:var(--pq-sub);font-size:12.5px;font-weight:500}
 .filter-options{display:flex;flex-wrap:wrap;gap:4px}
-.filter-options button{min-height:30px;padding:0 13px;color:var(--pq-sub);background:transparent;border:0;border-radius:999px;font-size:12.5px;cursor:pointer;transition:background .15s,color .15s}
+.filter-options button{min-height:32px;padding:0 12px;color:var(--pq-sub);background:transparent;border:0;border-radius:999px;font-size:12.5px;cursor:pointer;transition:background .15s,color .15s}
 .filter-options button:hover{color:var(--pq-ink);background:var(--xg-hover)}
 .source-row .filter-options button.active{color:var(--pq-purple-deep);background:var(--pq-purple-soft);font-weight:600}
 .status-row .filter-options button.active{color:var(--pq-pink-deep);background:var(--pq-pink-soft);font-weight:600}
@@ -179,7 +178,7 @@ async function load() {
 .p-card h2{margin:8px 0 0;color:var(--pq-ink);font-size:15.5px;font-weight:650;line-height:1.45;overflow-wrap:anywhere}
 .p-card p{display:-webkit-box;margin:6px 0 0;overflow:hidden;color:var(--pq-sub);font-size:12.5px;line-height:1.65;-webkit-box-orient:vertical;-webkit-line-clamp:2}
 .p-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:10px}
-.p-tags span{padding:2px 9px;color:var(--pq-sub);background:var(--pq-line-soft);border-radius:6px;font-size:11px}
+
 .p-bottom{display:flex;margin-top:auto;padding-top:11px;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid var(--pq-line-soft)}
 .creator{display:flex;min-width:0;align-items:center;gap:7px}
 .creator>span{display:grid;width:24px;height:24px;flex:0 0 auto;place-items:center;color:var(--pq-ink);background:var(--xg-surface-2);border-radius:50%;font-size:11px;font-weight:600}
@@ -194,8 +193,7 @@ async function load() {
 /* ── 右栏：DewCard(flat) 动作卡 + 推荐卡；按钮复用 DewButton（品牌色 class 扩展）── */
 .plaza-rail{position:sticky;top:20px;display:flex;flex-direction:column;gap:14px}
 .plaza-page .rail-actions :deep(.dew-card__body){display:flex;flex-direction:column;gap:10px}
-.plaza-page .rail-primary{background:var(--pq-pink)!important;border-color:var(--pq-pink)!important;color:var(--xg-on-pink)!important;box-shadow:0 4px 14px rgb(var(--xg-pink-rgb) / .22)!important}
-.plaza-page .rail-primary:hover{background:var(--xg-pink-hover)!important;border-color:var(--xg-pink-hover)!important}
+
 .plaza-page .rail-secondary{background:var(--xg-surface)!important;border-color:var(--xg-line-control)!important;color:var(--pq-ink)!important}
 .plaza-page .rail-secondary:hover{border-color:var(--xg-line-strong)!important}
 .plaza-page .rail-secondary.on{background:var(--pq-ink)!important;border-color:var(--pq-ink)!important;color:var(--xg-on-ink)!important}
@@ -219,13 +217,10 @@ async function load() {
 .reco-views{display:inline-flex;align-items:center;gap:3px}
 .reco-empty{margin:0;padding:22px 16px;color:var(--pq-faint);font-size:12px;text-align:center}
 .reco-foot{padding:10px 2px 0;border-top:1px solid var(--pq-line-soft);color:var(--xg-faint);font-size:10.5px}
-/* ── 顶部悬停导航 ── */
-.xlab-navdock{position:fixed;top:0;right:0;left:0;z-index:999;height:22px}
-.xlab-navdock :deep(.el-menu-demo){transform:translateY(-102%);transition:transform .3s cubic-bezier(.2,.85,.25,1)}
-.xlab-navdock.nav-open :deep(.el-menu-demo){transform:translateY(0)}
+/* 全站导航常驻顶部；为 MenuComponent 的固定定位预留空间。 */
+.xlab-navdock{height:60px}
 /* ── 响应式 ── */
 @media(max-width:1180px){.plaza-layout{grid-template-columns:1fr}.plaza-rail{position:static}.plaza-page .rail-actions :deep(.dew-card__body){flex-direction:row}.plaza-page .rail-actions :deep(.dew-btn){flex:1}.reco-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr))}.grid-loading,.project-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:740px){.plaza-poster{aspect-ratio:auto;height:clamp(200px,62vw,330px)}.plaza-body{padding:8px 14px 72px}.grid-loading,.project-grid{grid-template-columns:1fr}.catalog-head{align-items:flex-start;flex-direction:column}.catalog-actions{width:100%;justify-content:space-between}.plaza-page .project-search{max-width:none;flex-basis:100%}.reco-list{display:block}.xlab-navdock{height:0}.xlab-navdock :deep(.el-menu-demo){transform:none}}
-@media(max-width:560px){.tag-line{display:none}}
-@media(prefers-reduced-motion:reduce){.cover-img :deep(img),.reco-item,.xlab-navdock :deep(.el-menu-demo){transition:none}}
+@media(max-width:740px){.plaza-poster{aspect-ratio:auto;height:clamp(200px,62vw,330px)}.plaza-body{padding:8px 14px 72px}.grid-loading,.project-grid{grid-template-columns:1fr}.catalog-head{align-items:flex-start;flex-direction:column}.catalog-actions{width:100%;justify-content:space-between}.plaza-page .project-search{max-width:none;flex-basis:100%}.reco-list{display:block}.filter-line{width:100%;gap:8px}.filter-options{min-width:0;flex:1}.filter-label{flex:0 0 28px}}
+@media(prefers-reduced-motion:reduce){.cover-img :deep(img),.reco-item{transition:none}}
 </style>

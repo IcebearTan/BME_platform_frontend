@@ -14,14 +14,14 @@
             <div class="section-heading"><span>01</span><div><h2>基本信息</h2><p>决定项目在广场中如何被第一眼识别。</p></div></div>
             <div class="field-grid two-columns">
               <label><span>项目来源</span><div class="fixed-value"><el-icon><Lock /></el-icon>自由分享</div></label>
-              <label><span>项目名称 *</span><input v-model="form.title" required maxlength="100" placeholder="例如：宿舍智能门锁"></label>
+              <label><span>项目名称 *</span><input class="native-field" v-model="form.title" required maxlength="100" placeholder="例如：宿舍智能门锁"></label>
             </div>
-            <label><span>一句话简介</span><input v-model="form.summary" maxlength="300" placeholder="用一句话说清项目解决了什么问题"></label>
+            <label><span>一句话简介</span><input class="native-field" v-model="form.summary" maxlength="300" placeholder="用一句话说清项目解决了什么问题"></label>
             <div class="field-grid two-columns">
               <fieldset><legend>项目赛道 *</legend><DewButtonBar class="seg seg-track" :items="tracks" :model-value="form.track" size="sm" stretch @update:model-value="(value) => form.track = value" /></fieldset>
               <fieldset><legend>当前状态</legend><DewButtonBar class="seg seg-status" :items="statuses" :model-value="form.project_status" size="sm" stretch @update:model-value="(value) => form.project_status = value" /></fieldset>
             </div>
-            <label><span>标签 <small>逗号分隔，最多 6 个</small></span><input v-model="form.tagsText" placeholder="硬件, 医工交叉, 物联网"></label>
+            <label><span>标签 <small>逗号分隔，最多 6 个</small></span><DewInput v-model="form.tagsText" placeholder="硬件, 医工交叉, 物联网" /></label>
           </DewCard>
           <DewCard id="content" variant="flat" size="md" class="form-section">
             <div class="section-heading"><span>02</span><div><h2>项目内容</h2><p>用封面和完整介绍建立项目的上下文。</p></div></div>
@@ -31,31 +31,31 @@
               <button type="button" class="cover-act" @click="chooseCover">{{cover?'替换封面':'选择图片'}}</button>
               <button v-if="cover" type="button" class="remove-media" aria-label="移除封面" @click="removeCover"><el-icon><Delete /></el-icon></button>
             </div>
-            <label><span>完整项目介绍</span><textarea v-model="form.description" rows="9" placeholder="介绍问题背景、解决方案、当前成果和下一步计划"></textarea></label>
+            <label><span>完整项目介绍</span><DewInput v-model="form.description" type="textarea" :rows="9" placeholder="介绍问题背景、解决方案、当前成果和下一步计划" /></label>
             <label><span>项目图片 <small>最多 9 张，仅本次发布上传</small></span></label>
             <div class="gallery-upload"><div v-for="(image,index) in images" :key="image.url" class="gallery-item"><img :src="image.url" alt="项目图片预览"><button type="button" :aria-label="`移除第 ${index+1} 张图片`" @click="removeImage(index)"><el-icon><Close /></el-icon></button></div><button v-if="images.length<9" type="button" class="gallery-add" @click="chooseImages"><el-icon><Plus /></el-icon><span>添加图片</span></button></div>
           </DewCard>
           <DewCard id="resources" variant="flat" size="md" class="form-section">
             <div class="section-heading"><span>03</span><div><h2>成员与资源</h2><p>让访问者知道谁参与，以及在哪里继续了解项目。</p></div></div>
-            <label><span>团队成员 <small>逗号分隔</small></span><input v-model="form.membersText" placeholder="成员昵称或姓名"></label>
+            <label><span>团队成员 <small>逗号分隔</small></span><DewInput v-model="form.membersText" placeholder="成员昵称或姓名" /></label>
             <div class="resource-grid">
-              <label><span>GitHub</span><input v-model="form.github" type="url" placeholder="GitHub 项目地址"></label>
-              <label><span>Demo</span><input v-model="form.demo" type="url" placeholder="在线演示地址"></label>
-              <label><span>Docs</span><input v-model="form.docs" type="url" placeholder="项目文档地址"></label>
+              <label><span>GitHub</span><DewInput v-model="form.github" type="url" placeholder="GitHub 项目地址" /></label>
+              <label><span>Demo</span><DewInput v-model="form.demo" type="url" placeholder="在线演示地址" /></label>
+              <label><span>Docs</span><DewInput v-model="form.docs" type="url" placeholder="项目文档地址" /></label>
             </div>
-            <label><span>其他资料 <small>每行：名称 空格 链接</small></span><textarea v-model="form.assetsText" rows="4" placeholder="研究报告 项目链接"></textarea></label>
+            <label><span>其他资料 <small>每行：名称 空格 链接</small></span><DewInput v-model="form.assetsText" type="textarea" :rows="4" placeholder="研究报告 项目链接" /></label>
           </DewCard>
           <DewCard id="finish" variant="flat" size="md" class="form-section">
             <div class="section-heading"><span>04</span><div><h2>发布确认</h2><p>项目会以“自由分享”来源直接出现在项目广场。</p></div></div>
             <div class="publish-checks"><p><el-icon><CircleCheck /></el-icon>发布后自动打开详情档案</p><p><el-icon><CircleCheck /></el-icon>发布成功后清除文字草稿</p><p class="warn"><el-icon><Warning /></el-icon>图片不会写入浏览器草稿</p></div>
-            <div class="form-actions"><router-link to="/lab/projects" class="cancel-link">取消</router-link><DewButton class="btn-publish" :disabled="saving||!canPublish" @click="save">{{saving?'发布中':'发布项目'}}<el-icon><Right /></el-icon></DewButton></div>
+            <div class="form-actions"><router-link to="/lab/projects" class="cancel-link">取消</router-link><DewButton class="btn-publish xg-action-primary" :loading="saving" :disabled="!canPublish" @click="save">{{saving?'发布中':'发布项目'}}<el-icon><Right /></el-icon></DewButton></div>
           </DewCard>
         </form>
         <DewCard variant="flat" size="sm" class="preview-panel">
-          <div class="preview-head"><span>实时预览</span><div><button type="button" :class="{active:previewMode==='card'}" @click="previewMode='card'">卡片</button><button type="button" :class="{active:previewMode==='detail'}" @click="previewMode='detail'">详情</button></div></div>
+          <div class="preview-head"><span>实时预览</span><DewButtonBar v-model="previewMode" :items="previewModes" size="sm" aria-label="预览方式" /></div>
           <DewCard v-if="previewMode==='card'" class="preview-card" no-hover>
             <div class="preview-cover"><img v-if="cover" :src="cover.url" alt=""><span v-else>{{previewTitle.charAt(0)}}</span><b>自由分享</b></div>
-            <div class="preview-card-body"><small :class="`pv-${form.project_status}`"><i></i>{{statusText}} · {{trackText}}</small><h2>{{previewTitle}}</h2><p>{{previewSummary}}</p><div class="preview-tags"><span v-for="tag in previewTags" :key="tag">{{tag}}</span></div><footer><div class="pv-creator"><i>我</i><span>正在发布的作者</span></div><b>0 浏览</b></footer></div>
+            <div class="preview-card-body"><small :class="`pv-${form.project_status}`"><i></i>{{statusText}} · {{trackText}}</small><h2>{{previewTitle}}</h2><p>{{previewSummary}}</p><div class="preview-tags"><DewTag v-for="tag in previewTags" :key="tag" type="neutral" size="sm">{{tag}}</DewTag></div><footer><div class="pv-creator"><i>我</i><span>正在发布的作者</span></div><b>0 浏览</b></footer></div>
           </DewCard>
           <div v-else class="preview-detail">
             <div class="detail-cover"><img v-if="cover" :src="cover.url" alt=""><span v-else>{{previewTitle.charAt(0)}}</span></div>
@@ -75,9 +75,10 @@ import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { ArrowLeft, CircleCheck, Close, Delete, Lock, Picture, Plus, Right, Warning } from '@element-plus/icons-vue';
 import MenuComponent from '../components/MenuComponent.vue';
-import { DewButton, DewButtonBar, DewCard } from '@bme/dew-ui';
+import { DewButton, DewButtonBar, DewCard, DewInput, DewTag } from '@bme/dew-ui';
 import { showcaseService } from '../services/showcaseService';
 import '../styles/xlab.css';
+const previewModes=[{label:'卡片',value:'card'},{label:'详情',value:'detail'}];
 const DRAFT_KEY='xlab-project-publish-draft-v2';
 const router=useRouter();
 const sections=[{id:'basic',label:'基本信息'},{id:'content',label:'项目内容'},{id:'resources',label:'成员与资源'},{id:'finish',label:'发布确认'}];
@@ -122,8 +123,8 @@ onBeforeUnmount(()=>{clearTimeout(saveDraftTimer);removeCover();images.value.for
 </script>
 <style scoped>
 /* XLAB 发布工作台：框架层复用 DewUI（DewCard 分组卡/预览卡、DewButtonBar 赛道状态选择、
-   DewButton 发布按钮），品牌色经 class 扩展注入；文本输入保留原生（maxlength 约束，
-   DewInput 暂不透传该属性），视觉与 DewInput 同参数 */
+   DewButton 发布按钮），品牌色经 class 扩展注入；项目名及简介保留原生（maxlength 约束，
+   DewInput 暂不透传该属性），其余字段复用 DewInput */
 .create-page{position:relative;min-height:100dvh;color:var(--xg-ink);background:var(--xg-bg)}
 .create-shell{box-sizing:border-box;width:100%;max-width:1280px;margin:0 auto;padding:34px clamp(16px,3vw,32px) 96px}
 .create-header{display:grid;grid-template-columns:120px 1fr auto;align-items:center;gap:24px;padding-bottom:20px;border-bottom:1px solid var(--xg-line)}
@@ -147,17 +148,18 @@ onBeforeUnmount(()=>{clearTimeout(saveDraftTimer);removeCover();images.value.for
 .project-form label{display:flex;margin-top:16px;flex-direction:column;gap:7px;color:var(--xg-sub);font-size:12.5px;font-weight:500}
 .project-form label:first-child{margin-top:0}
 .project-form small{color:var(--xg-faint);font-weight:400;font-size:11px}
-.project-form input,.project-form textarea{box-sizing:border-box;width:100%;padding:10px 12px;color:var(--xg-ink);background:var(--xg-bg);border:1px solid var(--xg-line);border-radius:var(--xg-radius-sm);font:13px/1.6 inherit;outline:none;transition:border-color .15s,box-shadow .15s}
-.project-form input:focus,.project-form textarea:focus{border-color:var(--xg-purple);box-shadow:var(--xg-focus-ring);background:var(--xg-surface)}
-.project-form input::placeholder,.project-form textarea::placeholder{color:var(--xg-faint)}
+.project-form .native-field{box-sizing:border-box;width:100%;padding:10px 12px;color:var(--xg-ink);background:var(--xg-surface-2);border:1px solid var(--xg-line-control);border-radius:var(--xg-radius-sm);font-family:inherit;font-size:13px;line-height:1.6;outline:none;transition:border-color .15s,box-shadow .15s}
+.project-form .native-field:focus{border-color:var(--xg-purple);box-shadow:var(--xg-focus-ring);background:var(--xg-surface)}
+.project-form .native-field::placeholder{color:var(--xg-faint)}
 .project-form textarea{resize:vertical}
 .field-grid{display:grid;gap:14px}.two-columns{grid-template-columns:1fr 1.7fr}
 .fixed-value{display:flex;min-height:40px;padding:0 12px;align-items:center;gap:8px;color:var(--xg-pink-deep);background:var(--xg-pink-soft);border:1px solid transparent;border-radius:var(--xg-radius-sm);font-size:12.5px;font-weight:500}
 fieldset{min-width:0;margin:16px 0 0;padding:0;border:0}
 legend{margin-bottom:8px;color:var(--xg-sub);font-size:12.5px;font-weight:500}
-/* 赛道/状态选择：DewButtonBar，品牌色 class 扩展（绿/粉） */
-.create-page .seg-track :deep(.dew-bar__item--active){background:var(--xg-purple-soft);color:var(--xg-purple-deep)}
-.create-page .seg-status :deep(.dew-bar__item--active){background:var(--xg-pink-soft);color:var(--xg-pink-deep)}
+/* 赛道与状态选择复用 DewButtonBar 的局部粉紫主题。 */
+
+.create-page .seg-status{--dew-glow-indicator-bg:var(--xg-pink-soft);--dew-bar-text-active:var(--xg-pink-deep)}
+.create-page .seg-track{max-width:100%;overflow-x:auto}
 .cover-upload{position:relative;display:grid;margin-top:8px;aspect-ratio:16/6;place-items:center;overflow:hidden;background:var(--xg-bg);border:1.5px dashed var(--xg-line-strong);border-radius:var(--xg-radius-sm);transition:border-color .15s}
 .cover-upload:hover{border-color:var(--xg-purple)}
 .cover-upload>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
@@ -179,17 +181,13 @@ legend{margin-bottom:8px;color:var(--xg-sub);font-size:12.5px;font-weight:500}
 .form-actions{display:flex;margin-top:24px;justify-content:flex-end;gap:10px}
 .cancel-link{display:inline-flex;min-height:38px;padding:0 16px;align-items:center;justify-content:center;color:var(--xg-sub);border:1px solid var(--xg-line-control);border-radius:var(--xg-radius-sm);font-size:13px;font-weight:600;text-decoration:none;transition:border-color .15s,color .15s}
 .cancel-link:hover{border-color:var(--xg-line-strong);color:var(--xg-ink)}
-/* 发布按钮：DewButton + 品牌绿 class 扩展 */
-.create-page .btn-publish{background:var(--xg-pink)!important;border-color:var(--xg-pink)!important;color:var(--xg-on-pink)!important;box-shadow:0 4px 14px rgb(var(--xg-pink-rgb) / .22)!important}
-.create-page .btn-publish:hover:not(:disabled){background:var(--xg-pink-hover)!important;border-color:var(--xg-pink-hover)!important}
+/* 发布按钮复用局部 DewUI 品牌主题。 */
 .create-page .btn-publish:disabled{opacity:.45}
 /* ── 预览面板：DewCard(flat)；卡片模式与广场 p-card 同框架（DewCard + padding0）── */
 .create-page .preview-panel{position:sticky;top:66px}
 .create-page .preview-panel :deep(.dew-card__body){display:flex;flex-direction:column;gap:10px}
 .preview-head{display:flex;min-height:30px;align-items:center;justify-content:space-between;color:var(--xg-faint);font-size:12px;font-weight:500}
-.preview-head div{display:flex;gap:6px}
-.preview-head button{min-height:28px;padding:0 12px;color:var(--xg-sub);background:transparent;border:1px solid var(--xg-line);border-radius:999px;font-size:12px;cursor:pointer}
-.preview-head button.active{color:var(--xg-ink);background:var(--xg-surface-2);border-color:transparent;font-weight:600}
+
 .create-page .preview-card :deep(.dew-card__body){padding:0!important}
 .preview-card{overflow:hidden}
 .preview-cover{position:relative;display:grid;aspect-ratio:16/9;place-items:center;overflow:hidden;background:var(--xg-cover-bg)}
@@ -204,7 +202,7 @@ legend{margin-bottom:8px;color:var(--xg-sub);font-size:12.5px;font-weight:500}
 .preview-card h2{margin:8px 0 0;color:var(--xg-ink);font-size:15.5px;font-weight:650;line-height:1.45;overflow-wrap:anywhere}
 .preview-card-body p{display:-webkit-box;margin:6px 0 0;overflow:hidden;color:var(--xg-sub);font-size:12.5px;line-height:1.65;-webkit-box-orient:vertical;-webkit-line-clamp:2}
 .preview-tags{display:flex;margin-top:10px;flex-wrap:wrap;gap:5px}
-.preview-tags span{padding:2px 9px;color:var(--xg-sub);background:var(--xg-surface-2);border-radius:6px;font-size:11px}
+
 .preview-card footer{display:flex;margin-top:auto;padding-top:11px;align-items:center;gap:7px;border-top:1px solid var(--xg-line-soft);color:var(--xg-faint);font-size:11.5px}
 .pv-creator{display:flex;align-items:center;gap:7px}
 .pv-creator i{display:grid;width:24px;height:24px;place-items:center;color:var(--xg-ink);background:var(--xg-surface-2);border-radius:50%;font-style:normal;font-size:11px;font-weight:600}

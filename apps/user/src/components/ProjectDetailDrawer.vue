@@ -9,7 +9,7 @@
           <button ref="closeButton" type="button" class="drawer-close" aria-label="关闭详情" @click="emitClose"><el-icon><Close /></el-icon></button>
         </header>
 
-        <div v-if="loading" class="drawer-state">正在读取项目档案</div>
+        <div v-if="loading" class="drawer-loading" role="status" aria-label="正在读取项目档案"><DewSkeleton variant="rect" height="240" /><DewSkeleton variant="text" width="70%" /><DewSkeleton variant="text" :lines="4" /></div>
         <div v-else-if="error" class="drawer-state">{{ error }}<button type="button" @click="load">重试</button></div>
         <div v-else-if="project" class="drawer-content">
           <div class="drawer-cover">
@@ -22,10 +22,10 @@
             <div class="title-meta"><span :class="`tm-${project.project_status}`">{{ project.project_status_text }}</span><span>{{ project.track_text || '其他' }}</span><span v-if="project.camp_name">{{ project.camp_name }}</span></div>
             <h2>{{ project.title }}</h2>
             <p class="drawer-summary">{{ project.summary || '这个项目尚未补充一句话介绍。' }}</p>
-            <div class="drawer-tags"><span v-for="tag in project.tags || []" :key="tag">{{ tag }}</span></div>
+            <div class="drawer-tags"><DewTag v-for="tag in project.tags || []" :key="tag" type="neutral" size="sm">{{ tag }}</DewTag></div>
 
             <div class="drawer-actions">
-              <button type="button" class="xg-btn sm" :class="project.favorited ? 'primary' : 'soft'" :aria-label="project.favorited ? '已收藏' : '收藏'" :disabled="favoriteBusy" @click="toggleFavorite"><el-icon><StarFilled v-if="project.favorited" /><Star v-else /></el-icon>{{ project.favorited ? '已收藏' : '收藏' }}</button>
+              <DewButton size="sm" :class="project.favorited ? 'xg-action-primary' : 'xg-action-soft'" :aria-label="project.favorited ? '已收藏' : '收藏'" :disabled="favoriteBusy" @click="toggleFavorite"><el-icon><StarFilled v-if="project.favorited" /><Star v-else /></el-icon>{{ project.favorited ? '已收藏' : '收藏' }}</DewButton>
               <a v-for="link in primaryLinks" :key="link.url" class="xg-btn sm ghost" :href="link.url" target="_blank" rel="noopener noreferrer"><el-icon><Link /></el-icon>{{ link.label }}</a>
             </div>
             <div class="drawer-metrics"><span><strong>{{ project.view_count ?? 0 }}</strong> 浏览</span><span><strong>{{ project.favorite_count ?? 0 }}</strong> 收藏</span><span><strong>{{ threads.length }}</strong> 评论</span></div>
@@ -59,7 +59,7 @@
               <p v-if="threadsError" class="drawer-muted">讨论加载失败。<button type="button" @click="loadThreads">重试</button></p>
               <p v-else-if="!threads.length" class="drawer-muted">还没有讨论，留下第一条反馈。</p>
               <article v-for="thread in threads" :key="thread.id" class="drawer-thread"><div><b>{{ thread.author_name || `#${thread.author_id}` }}</b><time>{{ formatTime(thread.created_at) }}</time></div><p>{{ thread.content }}</p></article>
-              <form class="drawer-comment" @submit.prevent="postComment"><span class="drawer-comment-label">发表讨论 <em>{{ comment.trim().length }}/10</em></span><DewInput v-model="comment" type="textarea" :rows="3" placeholder="至少 10 字" aria-label="发表讨论内容" /><button type="submit" class="xg-btn sm primary" :disabled="posting || comment.trim().length < 10">{{ posting ? '发送中' : '发表' }}</button></form>
+              <form class="drawer-comment" @submit.prevent="postComment"><span class="drawer-comment-label">发表讨论 <em>{{ comment.trim().length }}/10</em></span><DewInput v-model="comment" type="textarea" :rows="3" placeholder="至少 10 字" aria-label="发表讨论内容" /><DewButton size="sm" class="xg-action-primary" :loading="posting" :disabled="comment.trim().length < 10" @click="postComment">{{ posting ? '发送中' : '发表' }}</DewButton></form>
             </section>
           </div>
         </div>
@@ -72,8 +72,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import { Bottom, Close, Link, Star, StarFilled, Top, TopRight } from '@element-plus/icons-vue';
-import DewImage from '@bme/dew-ui/DewImage.vue';
-import DewInput from '@bme/dew-ui/DewInput.vue';
+import { DewButton, DewImage, DewInput, DewSkeleton, DewTag } from '@bme/dew-ui';
 import { assetUrl } from '../services/campService';
 import { showcaseService } from '../services/showcaseService';
 import api from '../api';
@@ -128,12 +127,12 @@ onBeforeUnmount(() => { requestVersion++; threadVersion++; document.body.style.o
 /* XLAB 项目档案抽屉：明暗设计系统（--xg-* tokens），与广场/发布页同一视觉体系 */
 .xl-drawer-backdrop{position:fixed;inset:0;z-index:2100;background:rgba(23,23,28,.42);backdrop-filter:blur(3px);animation:backdrop-in .2s ease-out}.xl-drawer{position:absolute;top:0;right:0;bottom:0;width:clamp(560px,48vw,800px);overflow-y:auto;color:var(--xg-ink);background:var(--xg-surface);border-left:1px solid var(--xg-line);border-radius:20px 0 0 20px;box-shadow:-24px 0 70px rgba(23,23,28,.2);animation:drawer-in .28s cubic-bezier(.2,.8,.2,1)}@keyframes backdrop-in{from{opacity:0}}@keyframes drawer-in{from{transform:translateX(100%)}}
 .drawer-head{position:sticky;top:0;z-index:4;display:flex;height:56px;padding:0 18px;align-items:center;gap:10px;background:var(--xg-surface);border-bottom:1px solid var(--xg-line-soft);}.drawer-head>div{display:flex;align-items:center;gap:9px}.drawer-head small{color:var(--xg-faint);font-size:12px;font-weight:500}.drawer-head b{color:var(--xg-purple-deep);font-size:12px;font-weight:700}.drawer-grip,.drawer-expand{display:none}.drawer-close,.drawer-expand{width:34px;height:34px;padding:0;color:var(--xg-sub);background:var(--xg-surface-2);border:0;border-radius:999px;cursor:pointer;transition:background .15s,color .15s}.drawer-close{margin-left:auto}.drawer-close:hover,.drawer-expand:hover,.drawer-close:focus-visible,.drawer-expand:focus-visible{color:var(--xg-ink);background:var(--xg-hover);outline:none}
-.drawer-state{display:grid;min-height:70dvh;padding:30px;place-items:center;align-content:center;gap:16px;color:var(--xg-faint);font-size:13px}.drawer-state button{color:var(--xg-purple-deep);background:none;border:0;cursor:pointer;font-size:13px}
+.drawer-loading{display:grid;padding:24px;gap:20px}.drawer-state{display:grid;min-height:70dvh;padding:30px;place-items:center;align-content:center;gap:16px;color:var(--xg-faint);font-size:13px}.drawer-state button{color:var(--xg-purple-deep);background:none;border:0;cursor:pointer;font-size:13px}
 .drawer-cover{position:relative;display:grid;aspect-ratio:16/8.5;place-items:center;overflow:hidden;background:var(--xg-cover-bg)}.drawer-cover :deep(.dew-image),.drawer-cover :deep(img){width:100%;height:100%;object-fit:cover}.drawer-cover::after{position:absolute;inset:0;content:'';background:linear-gradient(0deg,var(--xg-cover-overlay),transparent 42%)}.drawer-placeholder{position:absolute;inset:0;display:grid;place-items:center;background:var(--xg-cover-bg)}.drawer-placeholder span{color:var(--xg-placeholder);font-size:110px;font-weight:800}
 .cover-source{position:absolute;z-index:2;bottom:14px;left:18px;display:inline-flex;align-items:center;padding:3px 11px;border-radius:999px;color:var(--xg-purple-deep);background:var(--xg-badge-bg);box-shadow:var(--xg-shadow-soft);font-size:11px;font-weight:600}.cover-source.cs-community{color:var(--xg-pink-deep)}
 .drawer-body{padding:26px clamp(20px,3.5vw,40px) 56px}.title-meta{display:flex;flex-wrap:wrap;gap:7px}.title-meta span{padding:3px 11px;border-radius:999px;color:var(--xg-sub);background:var(--xg-surface-2);font-size:11.5px;font-weight:500}.title-meta span.tm-ongoing{color:var(--xg-purple-deep);background:var(--xg-purple-soft)}.title-meta span.tm-done{color:var(--xg-pink-deep);background:var(--xg-pink-soft)}
 .drawer-body h2{margin:13px 0 0;font-size:clamp(23px,2.4vw,32px);font-weight:750;line-height:1.25;overflow-wrap:anywhere}.drawer-summary{margin:12px 0 0;color:var(--xg-sub);font-size:13.5px;line-height:1.75}
-.drawer-tags{display:flex;margin-top:14px;flex-wrap:wrap;gap:5px}.drawer-tags span{padding:2px 9px;color:var(--xg-sub);background:var(--xg-surface-2);border-radius:6px;font-size:11px}
+.drawer-tags{display:flex;margin-top:14px;flex-wrap:wrap;gap:5px}
 .drawer-actions{display:flex;margin-top:20px;flex-wrap:wrap;gap:8px}
 .drawer-metrics{display:flex;margin-top:16px;gap:16px;color:var(--xg-faint);font-size:12px}.drawer-metrics strong{color:var(--xg-ink);font-size:13px;font-weight:700}
 .drawer-section{margin-top:30px;padding-top:20px;border-top:1px solid var(--xg-line-soft)}.drawer-section h3{display:flex;margin:0 0 14px;align-items:center;gap:8px;color:var(--xg-ink);font-size:13.5px;font-weight:700}.drawer-section h3 span{color:var(--xg-purple);font-size:11px;font-weight:700}.drawer-section h3 b{margin-left:auto;color:var(--xg-faint);font-size:12px;font-weight:600}.drawer-section>p{margin:0;color:var(--xg-sub);font-size:13px;line-height:1.85;white-space:pre-wrap;overflow-wrap:anywhere}
