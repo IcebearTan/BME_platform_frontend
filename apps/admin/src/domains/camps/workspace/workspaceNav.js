@@ -23,6 +23,7 @@ export const WORKSPACE_GROUPS = [
     { name: 'camp.learning.progress', label: '学习进度', order: 20, applies: (ctx) => ctx.isLearning },
   ] },
   { key: 'project', label: '项目营工作区', items: [
+    { name: 'camp.project.dashboard', label: '项目总览', order: 5, applies: (ctx) => ctx.isProject },
     { name: 'camp.project.applications', label: '项目申报', order: 10, applies: (ctx) => ctx.isProject, manageOnly: true },
     { name: 'camp.project.formation', label: '项目组队', order: 20, applies: (ctx) => ctx.isProject, manageOnly: true },
     { name: 'camp.project.deliveries', label: '交付审核', order: 30, applies: (ctx) => ctx.isProject, manageOnly: true },
