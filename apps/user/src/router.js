@@ -180,6 +180,7 @@ const router = createRouter({
             component: loadUserCenter,
             meta: { requiresAuth: true },
             children: [
+                { path: '/user-center/points', name: 'my-points', component: () => import('./components/Points/MyPoints.vue') },
                 {
                     path: '/user-center/user-info',
                     name: 'user-info',

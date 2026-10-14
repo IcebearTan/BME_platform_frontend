@@ -46,6 +46,7 @@ const closeMenu = () => {
         <li><router-link to="/community" @click="closeMenu">社区广场</router-link></li>
         <!-- 可以添加登录/注册/用户中心链接 -->
          <li><router-link to="/user-center/user-info" @click="closeMenu">个人中心</router-link></li>
+         <li v-if="authSession.getToken()"><router-link to="/user-center/points" @click="closeMenu">我的积分</router-link></li>
          <li v-if="workAccess"><router-link to="/work" @click="closeMenu">内部工作台<span v-if="workTodoCount > 0" class="work-todo-badge">{{ workTodoCount }} 项待办</span></router-link></li>
       </ul>
     </div>
