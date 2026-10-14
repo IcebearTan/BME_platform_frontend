@@ -14,6 +14,11 @@ export default {
         // 服务类子页面（服务台 / AI 大模型服务）统一高亮「服务台」
         activeIndex() {
             const path = this.$route.path
+            // XLAB 域（2026-10-05 入口直连广场）：/lab 及全部子页（广场 / 发布 / 我的
+            // / 详情 query）与 /projects 旧链接一律钉在 XLAB 标签上，绝不回退到其他一级导航
+            if (path === '/lab' || path.startsWith('/lab/') || path.startsWith('/projects')) {
+                return '/lab'
+            }
             // 营期域统一高亮当前学期营入口
             if (path.startsWith('/camp-home') || path.startsWith('/camp')) {
                 return '/camp-home'
@@ -241,7 +246,7 @@ const handleUserInfo = () => {
                     <img :src="campLogo" alt="秋季学期营" class="camp-nav-logo" />
                 </el-menu-item>
                 <el-menu-item index="/lab" class="xlab-nav-item">
-                    <img src="../assets/XLAB.png" alt="XLab" class="xlab-nav-logo" />
+                    <span class="xlab-nav-logo">XLAB</span>
                 </el-menu-item>
                 <el-menu-item index="/service-hall">
                     服务台
@@ -270,10 +275,11 @@ const handleUserInfo = () => {
 
         <!-- 主题切换按钮 -->
         <el-menu-item class="custom-menu-item theme-menu-item" :class="{ 'theme-dark': isDarkMode, 'theme-light': !isDarkMode }">
-            <div 
+            <button type="button"
               class="theme-toggle-wrapper"
-              @click="toggleTheme"
+              @click.stop="toggleTheme"
               :title="isDarkMode ? '切换到白天模式' : '切换到夜间模式'"
+              :aria-label="isDarkMode ? '切换到白天模式' : '切换到夜间模式'"
             >
               <div class="theme-toggle-button" :class="{ 'theme-dark': isDarkMode }">
                 <el-icon class="theme-icon">
@@ -281,7 +287,7 @@ const handleUserInfo = () => {
                   <Moon v-else />
                 </el-icon>
               </div>
-            </div>
+            </button>
         </el-menu-item>
 
         <el-menu-item v-if="isLogin && !isAuthRoute" class="custom-menu-item theme-menu-item" :class="{ 'theme-dark': isDarkMode, 'theme-light': !isDarkMode }">
@@ -651,6 +657,9 @@ const handleUserInfo = () => {
 }
 
 .theme-toggle-wrapper {
+  border: 0;
+  background: transparent;
+  font: inherit;
   cursor: pointer;
   transition: background-color 0.3s ease, color 0.3s ease;
   padding: 4px;
@@ -1115,38 +1124,10 @@ const handleUserInfo = () => {
 .avatar-pop__action--danger:hover { background: var(--color-danger-light); }
 .avatar-pop__action--danger .el-icon { color: var(--color-danger); }
 
-/* === XLab 字标导航项（透明底 PNG，荧光绿发光）=== */
-.xlab-nav-item {
-  display: flex;
-  align-items: center;
-}
-
-.xlab-nav-logo {
-  height: 24px;
-  width: auto;
-  display: block;
-  /* 荧光绿发光：贴字形的 drop-shadow */
-  filter:
-    drop-shadow(0 0 5px rgba(0, 255, 156, 0.70))
-    drop-shadow(0 0 12px rgba(0, 255, 156, 0.40));
-  transition:
-    filter 0.3s ease,
-    transform 0.3s var(--dew-bounce);
-}
-
-.xlab-nav-item:hover .xlab-nav-logo {
-  transform: translateY(-1px) scale(1.04);
-  filter:
-    drop-shadow(0 0 7px rgba(0, 255, 156, 0.90))
-    drop-shadow(0 0 18px rgba(0, 255, 156, 0.55));
-}
-
-.xlab-nav-item.is-active .xlab-nav-logo {
-  transform: scale(1.06);
-  filter:
-    drop-shadow(0 0 8px rgba(0, 255, 156, 0.95))
-    drop-shadow(0 0 20px rgba(0, 255, 156, 0.65));
-}
+/* XLAB 导航字标：沿用主题文字色，悬停使用全站强调色。 */
+.xlab-nav-item { display:flex; align-items:center; }
+.xlab-nav-logo { font-size:21px; font-weight:850; font-style:italic; letter-spacing:-.06em; color:var(--dew-text-heading); transition:color .2s ease; }
+.xlab-nav-item:hover .xlab-nav-logo, .xlab-nav-item.is-active .xlab-nav-logo { color:var(--color-primary); }
 
 /* === 暑期训练营 艺术字导航项 === */
 .camp-nav-item {

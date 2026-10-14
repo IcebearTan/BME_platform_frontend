@@ -114,21 +114,17 @@ EP 是结构层,不做逐个替换;通过全局 CSS 把 EP 拉进设计系统:
 5. UI 调整**大胆做**,不要每次只挪 2px。
 6. **禁外网字体/脚本 CDN**(国内环境红线):字体走系统栈,高亮资产见 `@bme/editor`。
 
-### 4.6 XLab 页面主题（2026-10-07）
+### 4.6 XLab 主题:明暗双态(2026-10-09 更新)
 
-XLab 当前以浅灰白内容界面、绿色与粉色语义强调呈现。入口为 `/lab`，
-项目详情通过 `?project=id` 打开抽屉，独立发布页为 `/lab/projects/new`。
-旧 `/projects`、`/lab/projects` 和 `/projects/:id` 保留重定向兼容。
+当前 XLAB 入口 `/lab` 为项目广场，发布页为 `/lab/projects/new`，详情通过 `ProjectDetailDrawer` 展示；旧 `/projects` 与 `/projects/:id` 分别重定向到广场与详情抽屉。当前页面族复用 DewUI 框架，颜色单源为 `apps/user/src/styles/xlab.css` 的 `--xg-*` 变量，跟随全站 `.theme-dark/.theme-light`。历史恒黑页面已退出主流程，当前广场、发布页、抽屉与社区推荐面板均使用明暗双态。
 
-页面使用 DewCard、DewInput、DewSelect、DewButton 等现有组件；品牌变量
-集中在 `apps/user/src/styles/xlab.css` 的 `--xg-*`，共享类使用 `xg-` 前缀。
-历史 `--xl-*`/`xl-*` 规则保留供旧组件使用，新增页面不再扩展恒黑主题。
-页面族及 Teleport 抽屉使用固定浅色主题，顶部全局菜单遵循平台明暗设置。
-社区推荐面板使用相同品牌变量，关联项目卡保留其局部深色样式。
-
-样式必须限定页面或带 XLab 前缀，不能污染其他页面。保持图标、系统字体、
-减少动画偏好等全站约束。改版验证桌面与约 400px 窄屏，并同步项目广场、
-社区关联卡和旧链接跳转的端到端用例。
+- 明暗变量在 `:root` 与 `.theme-dark` 定义，覆盖背景、实心面板、文字、边框、封面占位、徽标、按钮、焦点与海报衔接；不修改全站 DewUI tokens。
+- XLAB 只使用玫红与紫色强调：玫红用于主按钮、自由分享和已完成，紫色用于营期来源、进行中、筛选和焦点。颜色与光晕全部使用 `--xg-pink-*` / `--xg-purple-*` 变量；暗色使用更亮的文字色，主按钮文字与反白选中态各自使用专用对比色变量。
+- 详情抽屉 Teleport 到 body，必须继承 body 的全站主题变量，抽屉和顶部栏保持实心背景；无需额外维护独立主题状态。
+- 共享样式继续使用 `xl-` / `xlab-` / `xg-` 前缀，页面布局留在 scoped 样式中。
+- 视觉验收覆盖广场、详情抽屉、发布表单和两种预览的明暗切换，以及桌面和约 400px 手机宽度。
+- 页面族通过局部 DewUI token 桥接统一卡片、输入、按钮和分段控件；桥接限定在 XLAB 页面与详情抽屉，不覆盖全站主题。导航及社区关联卡同步使用粉紫强调，弃用绿色发光和硬投影。
+- 广场全站导航常驻顶部，并预留 60px 高度避免遮挡海报；不再自动收起或要求悬停展开。
 
 ## 5. 共享包契约
 
@@ -169,8 +165,6 @@ const api = createApiClient({
 纯展示组件库,禁止引入业务概念(用户/课程等)。组件直接从包根 import(`import { DewCard } from '@bme/dew-ui'`)。修改组件 = 修改两端视觉,变更必须在 `UiShowcaseView` 有对照。
 
 ## 6. user 端架构要点
-
-- **积分商城 SSO**：资格由后端 `/points-sso/eligibility` 判断，资料页只展示结果；服务台直接调用 `/points-sso/ticket`，由后端实时复核。注册邮箱后缀只用于注册输入校验，不能用于商城权限判断。普通邮箱注册后通过中大教育邮箱核验及审批的账号也可符合资格；仅有通用 `verification_status=verified` 不足以由前端判定。资格接口失败时显示待确认，不回退到邮箱后缀授权。
 
 - **组织**:`views/`(路由页)+ `components/`(按域分组:Article/Attendence/Camp/Course/Auth/Home/…) + `composables/`(useArticleReactions 等) + `services/`(campService 等纯逻辑);
 - **主题**:`store.isDarkMode` → body 与 `#app` 同步挂 `theme-dark/theme-light`(App.vue watch);

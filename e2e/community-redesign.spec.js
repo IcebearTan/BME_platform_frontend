@@ -248,10 +248,13 @@ test('社区 XLAB 信号面板：错误态重试 + reduced-motion', async ({ pag
   await panel.getByRole('button', { name: '重试' }).click()
   await expect(panel.locator('.cxp-main')).toContainText('宿舍门锁')
 
-  // reduced-motion：扫描线动画关停（骨架/装饰动画不出现在 reduce 环境）
+  // reduced-motion：品牌状态点动画关停。
   await page.emulateMedia({ reducedMotion: 'reduce' })
   const dot = panel.locator('.cxp-brand__dot')
-  await expect(dot).toHaveCSS('animation-name', 'none')
+  await expect(dot).toBeVisible()
+  const anim = await dot.evaluate((el) => getComputedStyle(el).animationName)
+  expect(anim).toBe('none')
+
   expect(errors).toEqual([])
 })
 
@@ -324,7 +327,7 @@ test('社区 Phase 2：帖子话题/项目 chip + 发帖选话题关联项目', 
     page.waitForEvent('popup'),
     lpc.click(),
   ])
-  await expect(cardTab).toHaveURL(/\/lab\?project=801$/)
+  await expect(cardTab).toHaveURL(/\/projects\/801$/)
   await cardTab.close()
 
   // 键盘访问（§12.2.11）：Enter 原生导航、Space 由组件接管，均新开标签页
@@ -333,14 +336,14 @@ test('社区 Phase 2：帖子话题/项目 chip + 发帖选话题关联项目', 
     page.waitForEvent('popup'),
     page.keyboard.press('Enter'),
   ])
-  await expect(enterTab).toHaveURL(/\/lab\?project=801$/)
+  await expect(enterTab).toHaveURL(/\/projects\/801$/)
   await enterTab.close()
   await lpc.focus()
   const [spaceTab] = await Promise.all([
     page.waitForEvent('popup'),
     page.keyboard.press('Space'),
   ])
-  await expect(spaceTab).toHaveURL(/\/lab\?project=801$/)
+  await expect(spaceTab).toHaveURL(/\/projects\/801$/)
   await spaceTab.close()
 
   // 话题筛选 chips 从 feed 聚合出现
