@@ -9,19 +9,14 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Delete, EditPen, Plus } from '@element-plus/icons-vue'
-import { DewCard, DewButtonBar, DewButton, DewMessage, DewMessageBox, DewSkeleton } from '@bme/dew-ui'
+import { DewCard, DewButtonBar, DewButton, DewMessage, DewMessageBox, DewSkeleton, DewTag } from '@bme/dew-ui'
 import api from '../../api'
 
 const router = useRouter()
-const activeTab = ref('published')   // 'published' | 'draft'
+const activeTab = ref('published')   // 'published' | 'pending' | 'draft'
 const articles = ref([])
 const loading = ref(true)
-const counts = ref({ published: 0, draft: 0 })
-
-const tabItems = [
-  { value: 'published', label: '已发布' },
-  { value: 'draft', label: '草稿箱' },
-]
+const counts = ref({ published: 0, pending: 0, draft: 0 })
 
 const loadCounts = async () => {
   try {
@@ -29,6 +24,7 @@ const loadCounts = async () => {
     const all = res.data.data || []
     counts.value = {
       published: all.filter(a => a.status === 'published').length,
+      pending: all.filter(a => a.status === 'pending_review').length,
       draft: all.filter(a => a.status === 'draft').length,
     }
   } catch { /* 忽略：计数失败不影响列表 */ }
@@ -37,7 +33,9 @@ const loadCounts = async () => {
 const load = async () => {
   loading.value = true
   try {
-    const res = await api({ method: 'get', url: `/v2/article/my?status=${activeTab.value}` })
+    // 待审核单独成 tab（先审后发）；驳回的文章回草稿箱，带原因展示
+    const status = activeTab.value === 'pending' ? 'pending_review' : activeTab.value
+    const res = await api({ method: 'get', url: `/v2/article/my?status=${status}` })
     articles.value = res.data.data || []
   } catch (e) {
     console.error('加载文章失败', e)
@@ -52,9 +50,12 @@ const fmt = (t) => t
   ? new Date(t.replace(' ', 'T')).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
   : ''
 
-const meta = (a) => a.status === 'draft'
-  ? (a.updated_at ? `最后编辑 ${fmt(a.updated_at)}` : '未发布')
-  : (fmt(a.publish_time) || fmt(a.created_at))
+const meta = (a) => {
+  if (a.status === 'pending_review') return a.submitted_at ? `提交审核 ${fmt(a.submitted_at)}` : '待审核'
+  if (a.status === 'draft')
+    return (a.reject_reason ? `已驳回：${a.reject_reason}` : (a.updated_at ? `最后编辑 ${fmt(a.updated_at)}` : '未发布'))
+  return fmt(a.publish_time) || fmt(a.created_at)
+}
 
 const openItem = (a) => {
   // 点正文：草稿→继续编辑，已发布→阅读页
@@ -94,6 +95,7 @@ onMounted(() => { loadCounts(); load() })
           v-model="activeTab"
           :items="[
             { value: 'published', label: '已发布', badge: counts.published },
+            { value: 'pending', label: '审核中', badge: counts.pending },
             { value: 'draft', label: '草稿箱', badge: counts.draft },
           ]"
           size="sm"
@@ -117,9 +119,9 @@ onMounted(() => { loadCounts(); load() })
     <div v-else-if="articles.length" class="ma-list">
       <div v-for="a in articles" :key="a.id" class="ma-item">
         <div class="ma-item-main" @click="openItem(a)">
-          <div class="ma-item-title">{{ a.title || '无标题草稿' }}</div>
+          <div class="ma-item-title"><span class="ma-item-title-text">{{ a.title || '无标题草稿' }}</span><DewTag v-if="a.status === 'pending_review'" type="warning" size="sm">审核中</DewTag><DewTag v-else-if="a.status === 'draft' && a.reject_reason" type="danger" size="sm">已驳回</DewTag></div>
           <div class="ma-item-intro">{{ a.introduction || '（暂无简介）' }}</div>
-          <div class="ma-item-meta">{{ meta(a) }}</div>
+          <div class="ma-item-meta" :class="{ 'ma-item-meta--reject': a.status === 'draft' && a.reject_reason }">{{ meta(a) }}</div>
         </div>
         <div class="ma-item-actions">
           <button class="ma-act" title="编辑" @click="editItem(a)"><EditPen /></button>
@@ -128,7 +130,7 @@ onMounted(() => { loadCounts(); load() })
       </div>
     </div>
     <div v-else class="ma-empty">
-      {{ activeTab === 'draft' ? '还没有草稿，去写一篇吧' : '还没有发布过文章，写第一篇吧' }}
+      {{ activeTab === 'draft' ? '还没有草稿，去写一篇吧' : activeTab === 'pending' ? '暂无审核中的文章' : '还没有发布过文章，写第一篇吧' }}
     </div>
   </DewCard>
 </template>
@@ -156,10 +158,16 @@ onMounted(() => { loadCounts(); load() })
 .ma-item:hover { background: var(--dew-card-inset-bg-hover); }
 .ma-item-main { flex: 1; min-width: 0; cursor: pointer; }
 .ma-item-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
   font-size: 15px;
   font-weight: 600;
   color: var(--dew-text-heading);
-  margin-bottom: 4px;
+}
+.ma-item-title-text {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -175,6 +183,7 @@ onMounted(() => { loadCounts(); load() })
   overflow: hidden;
 }
 .ma-item-meta { font-size: 12px; color: var(--dew-text-faint); }
+.ma-item-meta--reject { color: var(--color-danger); }
 
 .ma-item-actions { display: flex; gap: 4px; flex-shrink: 0; }
 .ma-act {

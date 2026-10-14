@@ -43,6 +43,7 @@ const articleAuthor = ref('')
 const authorAvatar = ref('')
 const authorId = ref(null)
 const coverUrl = ref('')       // 封面（09-19 社区重设计：有封面时 hero 大图）
+const articleStatus = ref('')  // 先审后发（2026-10-15）：待审文章仅作者/管理员可见，展示审核状态条
 
 // 互动状态（点赞 / 收藏 / 计数），v2 走 discussion reaction 体系
 const {
@@ -64,7 +65,8 @@ const getArticle = async () => {
     const res = await api({ method: 'get', url: `/v2/article/${articleId.value}` })
     const d = res.data.data || {} // V2 返 {code, data:{...}}，比 v1 多一层 data
     articleTitle.value = d.title || ''
-    articleTime.value = d.publish_time || ''
+    articleTime.value = d.publish_time || d.submitted_at || ''
+    articleStatus.value = d.status || ''
     articleAuthor.value = d.author_name || ''
     authorId.value = d.author_id ?? null
     authorAvatar.value = assetUrl(d.author_avatar || '') || ''
@@ -141,6 +143,9 @@ onMounted(async () => {
         <!-- 封面 hero（09-19）：官方推文/带封面文章的头图，跨主列全宽 -->
         <DewImage v-if="coverUrl" class="article-hero" :src="coverUrl" ratio="16/9" alt="文章封面" />
         <DewCard variant="flat" size="lg" class="article-main">
+          <div v-if="!loading && articleStatus === 'pending_review'" class="review-banner" role="status">
+            该文章已提交审核，目前仅你自己可见；通过审核后对所有人公开。
+          </div>
           <!-- 头部 -->
           <header class="article-header">
             <template v-if="loading">
@@ -240,6 +245,17 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+/* 审核状态条（先审后发 2026-10-15）：待审文章作者本人可见 */
+.review-banner {
+  margin-bottom: 18px;
+  padding: 10px 14px;
+  border: 1px solid var(--dew-card-inset-border, rgba(0, 0, 0, 0.08));
+  border-radius: var(--radius-md, 10px);
+  background: var(--dew-card-inset-bg, rgba(0, 0, 0, 0.03));
+  color: var(--dew-text-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
 .article-wrap {
   font-family: var(--dew-font, inherit);
   max-width: 1200px;
