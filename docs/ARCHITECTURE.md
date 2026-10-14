@@ -176,6 +176,15 @@ const api = createApiClient({
 
 ### 项目营交付契约（2026-10-13）
 
+2026-10-14新增项目总览：本营管理老师在用户端 TeacherWorkspace 默认进入 TeacherProjectDashboard，
+管理端对应 `/camps/:campId/project/dashboard`。两端各自持有业务组件，共用后端
+`/camp/projects/:sid/dashboard` 与按项目key的只读详情接口，不跨app导入业务组件。
+后端按有效 CampStaff 的 `project.read_all` 实时授权，老师只读材料/评价及附件，不增加项目写权限。
+矩阵按实际节点展开，无节点明确显示未配置；完成率复用交付完成口径，结营后使用冻结档案。
+刷新、切营与关闭详情均忽略过期响应；表格和抽屉使用Dew语义变量，支持明暗主题和窄屏。
+专项检查位于 `e2e/camp-project-dashboard.spec.js`，通过独立配置使用18091/15183端口，
+避免与积分分支共用检查服务。运行该专项及相关交付检查，不执行全量回归。
+
 多人项目由成员交付、负责人评价；单人项目由负责人交付、管理员验收。ProjectMilestones 使用后端
 `can_submit` 决定提交入口，使用 `completion_mode`、`node_complete` 和派生 `status` 展示进展。
 模板仍兼容旧 `submit_mode` 字段，但申报、模板编辑和审核页不再承诺旧整队/个人两种模式。

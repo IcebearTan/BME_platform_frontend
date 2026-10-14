@@ -376,6 +376,12 @@ async function save() {
     const cap = f.type.startsWith('video/') ? 500 : 100;
     if (mb > cap) { ElMessage.error(`${f.name} 超过 ${cap}MB 上限`); return; }
   }
+  // 本次待传合计 ≤1024MB（与后端整包上限同口径），超限就地提醒，不白跑一次上传
+  const totalMb = form.value.files.reduce((s, f) => s + f.size, 0) / 1024 / 1024;
+  if (totalMb > 1024) {
+    ElMessage.error(`附件合计 ${Math.round(totalMb)}MB，超过单次提交 1024MB 上限，请删减或分次上传`);
+    return;
+  }
   saving.value = true;
   try {
     // 创建只带主题+日期（第 1 步）；纪要/文件/录像经「提交纪要」（编辑链）归档
@@ -398,7 +404,13 @@ async function save() {
       openAssign(r.meeting, true);
     }
   } catch (e) {
-    ElMessage.error(e.response?.data?.message || '保存失败');
+    // 413 = 体积超限（网关整包或后端强校验）：给明确话术，不落到含糊的「保存失败」
+    if (e.response?.status === 413) {
+      ElMessage.error(e.response?.data?.message
+        || '文件过大：单文件不超过 100MB、视频不超过 500MB、合计不超过 1024MB');
+    } else {
+      ElMessage.error(e.response?.data?.message || '保存失败');
+    }
   } finally { saving.value = false; }
 }
 

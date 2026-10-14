@@ -10,7 +10,8 @@
 
     <DewButtonBar v-model="section" :items="sectionItems" style="margin: 14px 0;" />
 
-    <TeacherOverview v-if="section === 'overview'" ref="overviewRef" :sid="sid" @navigate="goSection" />
+    <TeacherProjectDashboard v-if="section === 'projects'" :sid="sid" />
+    <TeacherOverview v-else-if="section === 'overview'" ref="overviewRef" :sid="sid" @navigate="goSection" />
     <TeacherAdmissions v-else-if="section === 'admissions'" ref="admissionsRef" :sid="sid"
       :ms-enabled="!!session?.mentor_selection_enabled" @reviewed="refreshOverview" />
     <TeacherMsAssign v-else-if="section === 'ms'" :sid="sid" @reviewed="refreshOverview" />
@@ -29,6 +30,7 @@
 import { ref, computed, watch } from 'vue';
 import { DewButtonBar, DewTag } from '@bme/dew-ui';
 import TeacherOverview from './TeacherOverview.vue';
+import TeacherProjectDashboard from './TeacherProjectDashboard.vue';
 import TeacherAdmissions from './TeacherAdmissions.vue';
 import TeacherMsAssign from './TeacherMsAssign.vue';
 import TeacherMembers from './TeacherMembers.vue';
@@ -59,7 +61,9 @@ const msTabVisible = computed(() =>
 
 const sectionItems = computed(() => {
   const items = [
-    { value: 'overview', label: '概览' },
+    props.session?.category === 'project'
+      ? { value: 'projects', label: '项目总览' }
+      : { value: 'overview', label: '概览' },
     { value: 'admissions', label: '报名审批' },
   ];
   if (msTabVisible.value) {
@@ -68,12 +72,16 @@ const sectionItems = computed(() => {
   items.push({ value: 'members', label: '成员管理' });
   if (props.session?.category === 'learning') items.push({ value: 'groups', label: '培训小组' });
   items.push({ value: 'announcements', label: '营期公告' });
-  items.push({ value: 'progress', label: '学习进度' });
+  if (props.session?.category !== 'project') items.push({ value: 'progress', label: '学习进度' });
   items.push({ value: 'meetings', label: '组会总览' });
   if (caps.value.attendance) items.push({ value: 'attendance', label: '全营考勤' });
   items.push({ value: 'leaves', label: '请假审批' });
   return items;
 });
+
+watch(() => [props.sid, props.session?.category], () => {
+  section.value = props.session?.category === 'project' ? 'projects' : 'overview';
+}, { immediate: true });
 
 // 营期状态刷新后失效的子页自动回落：停在 ms 时营期进入 running → Tab 消失即回概览，
 // 不残留一个后端已 409 的子页
@@ -84,6 +92,11 @@ watch(msTabVisible, (visible) => {
 // 顶部提示随阶段变化：running 后不再提「选导生」类暗示仍可操作的文案
 const stageHint = computed(() => {
   const st = props.session?.status;
+  if (props.session?.category === 'project') {
+    if (st === 'archived') return '营期已结营，在项目总览查看冻结的进度与成果';
+    if (st === 'running') return '在项目总览检查全营节点进度、待评价材料和逾期项目';
+    return '项目申报与组队阶段，项目总览展示已建项目及节点配置';
+  }
   if (st === 'selecting') {
     return '报名审批、选导生收官、成员与请假运营在本工作台处理；开营后选导生入口自动收起，补分组转「成员管理」';
   }

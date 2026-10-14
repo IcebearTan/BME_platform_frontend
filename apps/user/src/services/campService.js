@@ -47,6 +47,8 @@ export function todayLocal() {
 }
 
 export const campService = {
+  fetchProjectDashboard: sid => api.get(`/camp/projects/${sid}/dashboard`).then(r => r.data),
+  fetchProjectDashboardDetail: (sid, key) => api.get(`/camp/projects/${sid}/dashboard/${encodeURIComponent(key)}`).then(r => r.data),
   fetchTrainingGroups: sid => api.get(`/camp/sessions/${sid}/training-groups`).then(r => r.data),
   createTrainingGroup: (sid, data) => api.post(`/camp/sessions/${sid}/training-groups`, data).then(r => r.data),
   updateTrainingGroup: (sid, unit, data) => api.put(`/camp/sessions/${sid}/training-groups/${unit}`, data).then(r => r.data),
