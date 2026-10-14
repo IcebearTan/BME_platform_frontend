@@ -8,7 +8,7 @@
       <span class="ws-hint">{{ stageHint }}</span>
     </div>
 
-    <DewButtonBar v-model="section" :items="sectionItems" style="margin: 14px 0;" />
+    <div class="ws-nav-scroll"><DewButtonBar v-model="section" :items="sectionItems" /></div>
 
     <TeacherProjectDashboard v-if="section === 'projects'" :sid="sid" />
     <TeacherOverview v-else-if="section === 'overview'" ref="overviewRef" :sid="sid" @navigate="goSection" />
@@ -19,6 +19,7 @@
       :att-enabled="caps.attendance" @reviewed="refreshOverview" />
     <TrainingGroups v-else-if="section === 'groups'" :sid="sid" :session="session" />
     <TeacherAnnouncements v-else-if="section === 'announcements'" :sid="sid" />
+    <CampPointsPanel v-else-if="section === 'points'" :key="sid" :sid="sid" manage />
     <TeacherProgress v-else-if="section === 'progress'" :sid="sid" />
     <TeacherMeetings v-else-if="section === 'meetings'" :sid="sid" :category="session?.category" />
     <MentorDashboard v-else-if="section === 'attendance'" :sid="sid" scope-label="全营" />
@@ -28,6 +29,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { DewButtonBar, DewTag } from '@bme/dew-ui';
 import TeacherOverview from './TeacherOverview.vue';
 import TeacherProjectDashboard from './TeacherProjectDashboard.vue';
@@ -40,6 +42,7 @@ import TeacherProgress from './TeacherProgress.vue';
 import TeacherMeetings from './TeacherMeetings.vue';
 import MentorDashboard from './MentorDashboard.vue';
 import MentorLeave from './MentorLeave.vue';
+import CampPointsPanel from './CampPointsPanel.vue';
 
 const props = defineProps({
   sid: { type: [Number, String], required: true },
@@ -48,6 +51,7 @@ const props = defineProps({
 });
 
 // 外壳只做子页导航（方案 §6.2：不能长成包含所有表格的超大组件）。
+const route = useRoute(), router = useRouter();
 const section = ref('overview');
 const caps = computed(() => props.session?.policy?.capabilities || {});
 
@@ -76,6 +80,7 @@ const sectionItems = computed(() => {
   items.push({ value: 'meetings', label: '组会总览' });
   if (caps.value.attendance) items.push({ value: 'attendance', label: '全营考勤' });
   items.push({ value: 'leaves', label: '请假审批' });
+  if ((props.session?.my_permissions || []).includes('reward.issue')) items.push({ value: 'points', label: '积分奖励' });
   return items;
 });
 
@@ -87,6 +92,17 @@ watch(() => [props.sid, props.session?.category], () => {
 // 不残留一个后端已 409 的子页
 watch(msTabVisible, (visible) => {
   if (!visible && section.value === 'ms') section.value = 'overview';
+});
+
+watch(sectionItems, items => { if (!items.some(item => item.value === section.value)) section.value = 'overview' });
+watch(() => route.query.tab, (value, previous) => {
+  if (value === 'points' && sectionItems.value.some(item => item.value === 'points')) section.value = 'points';
+  else if (previous === 'points' && section.value === 'points') section.value = 'overview';
+}, { immediate: true });
+watch(section, value => {
+  const query = { ...route.query };
+  if (value === 'points' && query.tab !== 'points') router.replace({ query: { ...query, tab: 'points' } });
+  else if (value !== 'points' && query.tab === 'points') { delete query.tab; router.replace({ query }); }
 });
 
 // 顶部提示随阶段变化：running 后不再提「选导生」类暗示仍可操作的文案
@@ -129,6 +145,8 @@ function goSection(key) {
 </script>
 
 <style scoped>
+.ws-nav-scroll { max-width: 100%; overflow-x: auto; margin: 14px 0; scrollbar-width: none; }
+.ws-nav-scroll :deep(.dew-bar) { min-width: max-content; }
 .ws-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .ws-hint { font-size: 12px; color: var(--dew-text-faint); }
 </style>

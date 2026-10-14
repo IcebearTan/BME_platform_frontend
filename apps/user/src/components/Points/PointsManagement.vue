@@ -1,17 +1,16 @@
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { Plus, Refresh, QuestionFilled } from '@element-plus/icons-vue'
 import { DewCard, DewButton, DewButtonBar, DewDialog, DewInput, DewSelect, DewSwitch, DewTag, DewMessage, DewMessageBox } from '@bme/dew-ui'
 import api from '../../api'
 
-defineProps({ embedded: Boolean })
-const camps = ref([]), kinds = ref([]), campId = ref(null), tab = ref('rules')
+const props = defineProps({ sid: { type: [Number, String], required: true } })
+const camps = ref([]), kinds = ref([]), campId = ref(null), tab = ref('review')
 const rules = ref([]), rows = ref([]), members = ref([]), loading = ref(false), error = ref(''), busy = ref(false)
 const total = ref(0), page = ref(1), detail = ref(null)
 const ruleDialog = ref(false), proposalDialog = ref(false), actionDialog = ref(false)
 const ruleForm = reactive({}), proposal = reactive({}), decision = reactive({})
 const selected = computed(() => camps.value.find(c => c.id === campId.value))
-const campOptions = computed(() => camps.value.map(c => ({ value: c.id, label: c.name })))
 const memberOptions = computed(() => members.value.map(u => ({ value: u.id, label: u.name })))
 const proposalKinds = computed(() => rules.value.filter(r => r.enabled && ['contribution', 'completion'].includes(r.kind)).map(r => ({ value: r.kind, label: r.title })))
 const statuses = { review: '待审核', pending: '待到账', processing: '入账中', failed: '待重试', completed: '已到账', rejected: '已退回', cancelled: '已取消' }
@@ -21,13 +20,24 @@ const errorText = e => e?.response?.data?.message || '操作失败，请稍后�
 const localMinute = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().slice(0, 16) }
 let generation = 0
 async function initialize() {
+  const current = ++generation, sid = Number(props.sid)
+  campId.value = null; camps.value = []; rules.value = []; rows.value = []; members.value = []
+  ruleDialog.value = proposalDialog.value = actionDialog.value = false; detail.value = null; page.value = 1
   loading.value = true; error.value = ''
-  try { const { data } = await api.get('/points/manage/meta'); camps.value = data.camps || []; kinds.value = data.kinds || []; campId.value = camps.value[0]?.id || null }
-  catch (e) { error.value = errorText(e) } finally { loading.value = false }
+  try {
+    const { data } = await api.get('/points/manage/meta', { params: { camp_id: sid } })
+    if (current !== generation) return
+    camps.value = (data.camps || []).filter(c => c.id === sid); kinds.value = data.kinds || []
+    campId.value = camps.value[0]?.id || null
+    if (!campId.value) { error.value = '无权管理该营期积分'; return }
+    await load()
+  } catch (e) { if (current === generation) error.value = errorText(e) }
+  finally { if (current === generation) loading.value = false }
 }
 async function load() {
-  const current = ++generation, sid = campId.value
+  const sid = campId.value
   if (!sid) return
+  const current = ++generation
   loading.value = true; error.value = ''
   try {
     const results = await Promise.all([
@@ -40,10 +50,10 @@ async function load() {
   } catch (e) { if (current === generation) error.value = errorText(e) }
   finally { if (current === generation) loading.value = false }
 }
-watch(campId, () => { ruleDialog.value = proposalDialog.value = actionDialog.value = false; detail.value = null; rules.value = []; rows.value = []; members.value = []; page.value = 1; load() })
+watch(() => props.sid, initialize, { immediate: true })
+onBeforeUnmount(() => { generation++ })
 watch(tab, () => { page.value = 1; load() })
 watch(page, load)
-onMounted(initialize)
 function editRule(row) {
   Object.assign(ruleForm, { camp_id: campId.value, kind: row?.kind || kinds.value[0]?.value, amount: String(row?.amount || 1),
     period_limit: String(row?.period_limit || 1), enabled: row?.enabled || false, version: row?.version || 0, effective_at: localMinute(), existing: !!row })
@@ -76,8 +86,8 @@ async function approve(row) {
 </script>
 
 <template>
-  <div class="points-management selectable">
-    <div :class="embedded ? 'pm-header' : 'page-header'"><div :class="embedded ? 'pm-title' : 'page-title'">积分管理</div><el-tooltip content="规则由平台管理员配置；导生提报本组奖励，本营老师审批。规则版本与操作记录保留，重试不会重复发放。" placement="top"><button class="pm-help" aria-label="管理说明"><el-icon><QuestionFilled /></el-icon></button></el-tooltip><span class="pm-spacer" /><div class="pm-camp-select"><DewSelect v-model="campId" :options="campOptions" :disabled="busy" placeholder="选择营期" /></div><DewButton type="ghost" size="sm" :loading="loading" aria-label="刷新积分管理" @click="camps.length ? load() : initialize()"><el-icon><Refresh /></el-icon></DewButton></div>
+  <div class="points-management">
+    <div class="pm-header"><div class="pm-title">积分管理</div><el-tooltip content="规则由平台管理员配置；导生提报本组奖励，本营老师审批。规则版本与操作记录保留，重试不会重复发放。" placement="top"><button class="pm-help" aria-label="管理说明"><el-icon><QuestionFilled /></el-icon></button></el-tooltip><span class="pm-spacer" /><DewButton type="ghost" size="sm" :loading="loading" aria-label="刷新积分管理" @click="camps.length ? load() : initialize()"><el-icon><Refresh /></el-icon></DewButton></div>
     <div v-if="error" class="pm-error" role="alert">{{ error }}<DewButton size="sm" @click="camps.length ? load() : initialize()">重试</DewButton></div>
     <template v-if="selected">
       <div class="pm-toolbar"><DewButtonBar v-model="tab" :items="tabs" size="sm" /><span class="pm-spacer" /><DewTag v-if="selected.readonly" type="neutral" size="sm">只读</DewTag><DewButton v-else-if="tab === 'rules' && selected.can_rules" size="sm" @click="editRule()"><el-icon><Plus /></el-icon>新增规则</DewButton><DewButton v-else-if="!selected.readonly && proposalKinds.length" size="sm" @click="newProposal">提报奖励</DewButton></div>
@@ -97,7 +107,7 @@ async function approve(row) {
           <el-table-column label="时间" min-width="145"><template #default="{ row }">{{ dateText(row.created_at) }}</template></el-table-column>
           <el-table-column v-if="selected.can_review && !selected.readonly" label="操作" min-width="160"><template #default="{ row }"><div class="pm-actions"><template v-if="row.status === 'review'"><DewButton type="ghost" size="sm" :disabled="busy" @click="approve(row)">通过</DewButton><DewButton type="ghost" size="sm" :disabled="busy" @click="openAction(row, 'reject')">退回</DewButton></template><DewButton v-else-if="row.status === 'failed'" type="ghost" size="sm" :disabled="busy" @click="perform(row, 'retry')">重试</DewButton><DewButton v-if="row.amount > 0 && ['completed','pending','failed'].includes(row.status)" type="ghost" size="sm" :disabled="busy" @click="openAction(row, 'reverse')">撤回</DewButton></div></template></el-table-column>
         </el-table>
-        <div v-if="tab !== 'rules' && total > 20" class="pagination-wrapper"><el-pagination v-model:current-page="page" :total="total" :page-size="20" layout="prev, pager, next" /></div>
+        <div v-if="tab !== 'rules' && total > 20" class="pm-pagination"><el-pagination v-model:current-page="page" :total="total" :page-size="20" layout="prev, pager, next" /></div>
       </DewCard>
     </template>
     <div v-else-if="!loading && !error" class="pm-empty">暂无可管理的营期</div>
@@ -114,7 +124,7 @@ async function approve(row) {
 .pm-header, .pm-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .pm-title { font-size: 18px; font-weight: 600; color: var(--dew-text-heading); }
 .pm-spacer { flex: 1; }
-.pm-camp-select { width: 220px; max-width: 100%; }
+.pm-pagination { display: flex; justify-content: center; padding: 16px; }
 .pm-help { display: inline-flex; align-items: center; border: 0; padding: 4px; color: var(--dew-text-muted); background: transparent; cursor: help; vertical-align: middle; }
 .pm-help:hover { color: var(--color-primary); }
 .table-card :deep(.dew-card__body) { padding: 0; }
@@ -129,5 +139,5 @@ async function approve(row) {
 .pm-detail dt { color: var(--dew-text-muted); }
 .pm-detail dd { margin: 0; overflow-wrap: anywhere; }
 .pm-error, .pm-empty { padding: 24px 0; display: flex; gap: 12px; align-items: center; justify-content: center; color: var(--dew-text-muted); }
-@media (max-width: 600px) { .pm-camp-select { width: 100%; order: 3; } .pm-toolbar :deep(.dew-bar__item) { padding-left: 8px; padding-right: 8px; } .pm-form-row { display: block; } }
+@media (max-width: 600px) { .pm-toolbar :deep(.dew-bar__item) { padding-left: 8px; padding-right: 8px; } .pm-form-row { display: block; } }
 </style>
