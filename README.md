@@ -73,3 +73,10 @@ dev server 下两端登录页有「测试账号面板」入口（仅 dev 构建�
 - `Icebear_develop` — 日常开发分支，稳定后合回 master
 
 （2026-08 清债批次 1–6 历史为线性提交，全部包含于 master；原 debt/N-* 中间分支与 legacy/admin-master 存档线已清理，后者头部提交为 86b48b9，如需找回见本地 reflog。）
+
+## 积分功能
+
+用户端 `/user-center/points` 提供余额、获取任务、训练营记录和发放进度；
+管理端 `/operations/points` 管理规则、审核及异常，营期老师/导生在用户端处理授权范围。
+页面复用 DewUI，说明使用问号提示。商城消费明细暂从商城入口查看。
+后端需迁移 78 并配置 `POINTS_REWARDS_ENABLED` 后才启用奖励规则与发放。
