@@ -18,8 +18,8 @@ const tasks = ref([]), taskLoading = ref(true), taskError = ref('')
 const records = ref([]), recordLoading = ref(false), recordError = ref(''), total = ref(0), page = ref(1), kind = ref('all')
 const detail = ref(null), connecting = ref(false)
 const filters = [{ value: 'all', label: '全部' }, { value: 'earned', label: '获得' }, { value: 'spent', label: '扣减' }]
-const states = { review: '待审核', pending: '待到账', processing: '入账中', failed: '待重试', completed: '已到账', rejected: '已退回', cancelled: '已取消' }
-const stateType = s => ({ completed: 'success', review: 'warning', failed: 'warning', cancelled: 'neutral', rejected: 'neutral' }[s] || 'primary')
+const states = { review: '待审核', pending: '待到账', processing: '入账中', failed: '待重试', blocked: '身份待核', completed: '已到账', rejected: '已退回', cancelled: '已取消' }
+const stateType = s => ({ completed: 'success', review: 'warning', failed: 'warning', blocked: 'warning', cancelled: 'neutral', rejected: 'neutral' }[s] || 'primary')
 const dateLabel = s => s ? s.replace('T', ' ').slice(0, 16) : '—'
 const signed = n => `${n > 0 ? '+' : ''}${formatPoints(n)}`
 const accountMessage = computed(() => summary.value?.needs_identity ? '完成身份核验后使用积分' : summary.value?.status === 'unlinked' ? '尚未关联积分账户' : '积分服务暂不可用')
@@ -70,15 +70,16 @@ onMounted(reload)
         <div v-else-if="taskError" class="points-empty"><span>{{ taskError }}</span><DewButton size="sm" @click="loadTasks">重试</DewButton></div>
         <div v-else-if="!tasks.length" class="points-empty">暂无生效的积分任务</div>
         <div v-for="task in tasks" :key="task.id" class="points-task">
-          <div class="points-task-copy"><div class="points-task-title">{{ task.title }}<PointsHelp :text="task.help" /></div><span class="points-label">{{ task.frequency }}</span></div>
+          <div class="points-task-copy"><div class="points-task-title">{{ task.title }}<PointsHelp :text="task.help" /></div><span class="points-label">{{ task.frequency }}</span><span v-if="task.kind === 'daily_checkin' && task.amount_desc" class="points-label">{{ task.amount_desc }}</span></div>
           <strong v-if="task.enabled && task.amount != null" class="points-gain">+{{ formatPoints(task.amount) }}</strong>
           <DewButton v-if="task.enabled && task.action_path" size="sm" type="ghost" @click="router.push(task.action_path)">去完成<el-icon><ArrowRight /></el-icon></DewButton>
-          <DewTag v-else type="neutral" size="sm">待开放</DewTag>
+          <DewTag v-else-if="task.enabled && task.done_today" type="success" size="sm">今日已完成</DewTag>
+          <DewTag v-else-if="!task.enabled" type="neutral" size="sm">待开放</DewTag>
         </div>
       </DewCard>
     </template>
     <template v-else-if="tab === 'records'">
-      <div class="points-toolbar"><DewButtonBar v-model="kind" :items="filters" size="sm" /><span class="points-spacer" /><span class="points-label">训练营记录</span><PointsHelp text="当前展示训练营产生的奖励与撤回。商城兑换、退款及其他平台记录请到积分商城查看。" /><DewButton type="ghost" size="sm" :loading="pointsStoreLoading" @click="openPointsStore">商城记录</DewButton></div>
+      <div class="points-toolbar"><DewButtonBar v-model="kind" :items="filters" size="sm" /><span class="points-spacer" /><span class="points-label">本平台记录</span><PointsHelp text="当前展示平台任务与训练营产生的奖励及撤回。商城兑换、退款等其他平台记录请到积分商城查看。" /><DewButton type="ghost" size="sm" :loading="pointsStoreLoading" @click="openPointsStore">商城记录</DewButton></div>
       <DewCard no-hover>
         <DewSkeleton v-if="recordLoading" :lines="4" />
         <div v-else-if="recordError" class="points-empty"><span>{{ recordError }}</span><DewButton size="sm" @click="loadRecords">重试</DewButton></div>

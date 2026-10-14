@@ -17,7 +17,7 @@ import { useRouter } from 'vue-router'
 import { useStore } from 'vuex'
 import { Upload } from '@element-plus/icons-vue'
 import api from '../../../api'
-import { DewButton, DewCard, DewInput, DewMessage, DewImage } from '@bme/dew-ui'
+import { DewButton, DewCard, DewInput, DewMessage, DewImage, DewTag } from '@bme/dew-ui'
 import { MdEditor, MdCatalog } from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
 import '@bme/editor/md-setup' // 自托管 highlight.js（禁外网 CDN），与阅读页共享
@@ -133,7 +133,9 @@ const removeCover = async () => {
   }
 }
 const isPublishedMode = computed(() => articleStatus.value === 'published')
-const publishLabel = computed(() => (isPublishedMode.value ? '保存修改' : '发布文章'))
+// 待审核：先审后发（2026-10-15）——编辑器只允许保存修改，公开与否由审核决定
+const isPendingReview = computed(() => articleStatus.value === 'pending_review')
+const publishLabel = computed(() => (isPublishedMode || isPendingReview.value ? '保存修改' : '发布文章'))
 
 // 编辑模式：回填（md 是裸字符串，无需 JSON.parse）
 const loadArticle = async () => {
@@ -200,20 +202,20 @@ const handleSubmit = async () => {
       content_md: content.value, // 裸 md 字符串，不 JSON.stringify
     }
     if (currentId.value && articleStatus.value === 'draft') {
-      // 草稿→发布（接口会把当前编辑内容一并写入，避免改动丢失）
-      await api.post(`/v2/article/${currentId.value}/publish`, payload)
-      DewMessage.success('文章发布成功')
+      // 草稿→发布（普通用户进待审核，管理员直发；message 由服务端区分）
+      const res = await api.post(`/v2/article/${currentId.value}/publish`, payload)
+      DewMessage.success(res.data?.message || '文章发布成功')
       setTimeout(() => router.push({ path: '/article-v2', query: { id: currentId.value } }), 600)
-    } else if (currentId.value && articleStatus.value === 'published') {
-      // 更新已发布文章
+    } else if (currentId.value && (articleStatus.value === 'published' || articleStatus.value === 'pending_review')) {
+      // 更新已发布/待审核文章（审核通过后也可自由修改，不重审）
       await api.post(`/v2/article/${currentId.value}/edit`, payload)
-      DewMessage.success('文章更新成功')
+      DewMessage.success('修改已保存')
     } else {
-      // 新建并发布
+      // 新建并发布（普通用户提交后进入审核，通过后公开）
       const res = await api.post('/v2/article/public', payload)
       const newId = res.data.id
-      DewMessage.success('文章发布成功')
-      // 发布后跳 V2 阅读页查看效果
+      DewMessage.success(res.data?.message || '文章发布成功')
+      // 提交后跳 V2 阅读页（作者本人可见待审文章与审核状态）
       setTimeout(() => router.push({ path: '/article-v2', query: { id: newId } }), 600)
     }
   } catch (e) {
@@ -239,8 +241,9 @@ onMounted(() => {
       <div class="toolbar-row">
         <h2 class="editor-title">{{ currentId ? '编辑文章' : '写文章' }}</h2>
         <div class="toolbar-actions">
+          <DewTag v-if="isPendingReview" type="warning" size="sm">审核中</DewTag>
           <DewButton
-            v-if="!isPublishedMode"
+            v-if="!isPublishedMode && !isPendingReview"
             type="ghost"
             size="sm"
             :disabled="submitting"
