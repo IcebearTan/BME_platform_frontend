@@ -6,6 +6,16 @@
 /** 私信域（感谢信等）统一去收件箱私信 tab */
 const MESSAGE_TARGET = { path: '/notifications', query: { tab: 'message' } }
 
+/** 版本公告识别：脚本扇出行带 source_type=platform_release；历史上经管理面板手发的
+ *  版本公告（source_type=admin，如「BME 平台 v3.5 更新公告」）按标题归口——
+ *  两者点击都直达更新日志页，避免同类更新通知一半去公告中心、一半落通知中心。 */
+export function isReleaseAnnouncement(item) {
+  if (!item) return false
+  if (item.source_type === 'platform_release') return true
+  const title = item.title || ''
+  return item.category === 'system' && /v\d+(?:\.\d+)+/.test(title) && /更新|版本/.test(title)
+}
+
 /**
  * 解析一条通知的点击目标。
  * @param {Object} item 通知行（category / source_type / camp_session_id）
@@ -25,8 +35,8 @@ export function notificationTarget(item) {
     }
     return { path: '/work' }
   }
-  // 平台发版公告（scripts/announce_release.py 扇出）：直达更新日志页
-  if (item.source_type === 'platform_release') {
+  // 平台发版公告（脚本扇出 + 历史手发行，见 isReleaseAnnouncement）：直达更新日志页
+  if (isReleaseAnnouncement(item)) {
     return { path: '/changelog' }
   }
   // 身份域（登录一次性核验提醒 / outbox 投递的归并结果通知）：直达身份中心
@@ -40,7 +50,8 @@ export function notificationTarget(item) {
       : { path: '/community' }
   }
   if (item.category !== 'camp') {
-    return { path: '/notifications' }
+    // 兜底去通知中心时带上 id：收件箱据此直接选中该条并在右栏展示详情，免去再点一次
+    return { path: '/notifications', query: item.id ? { id: item.id } : {} }
   }
   const sid = item.camp_session_id
   const withSid = (query) => (sid ? { path: '/camp', query: { ...query, sid } } : { path: '/camp' })
