@@ -125,8 +125,9 @@
 
           <!-- 09-13 项目营拍板：营期层「看板/项目」tab 退役——成员工作台直接渲染 ProjectHub，
                其自带 buttonbar（项目意向=选择期临时 / 我负责的 / 我参加的 / 请假） -->
-          <DewButtonBar v-else-if="!isProject" v-model="tab" :items="tabItems" style="margin: 16px 0;" />
+          <div v-else-if="!isProject" class="camp-tabs-scroll"><DewButtonBar v-model="tab" :items="tabItems" /></div>
           <CampOverview :key="`${sid}-${perspective}`" v-if="tab === 'overview' && !isProject && current && current.is_member" :sid="sid" :my-role="perspective || current.my_role" :att-enabled="!!caps.attendance" />
+          <CampPointsPanel v-if="tab === 'points' && !isProject && current?.is_member && perspective !== 'teacher'" :key="`${sid}-${perspective}`" :sid="sid" :manage="isMentor" />
           <template v-if="isProject && current?.is_member">
             <ProjectHub :sid="sid" :session="current" style="margin-top: 16px;" />
           </template>
@@ -168,6 +169,7 @@ import MentorDashboard from '../components/Camp/MentorDashboard.vue';
 import MentorLeave from '../components/Camp/MentorLeave.vue';
 import MentorMembers from '../components/Camp/MentorMembers.vue';
 import TeacherWorkspace from '../components/Camp/TeacherWorkspace.vue';
+import CampPointsPanel from '../components/Camp/CampPointsPanel.vue';
 import MsStudentPick from '../components/Camp/MsStudentPick.vue';
 import MsMentorDesk from '../components/Camp/MsMentorDesk.vue';
 import CampCenter from '../components/Camp/CampCenter.vue';
@@ -216,6 +218,7 @@ const studentTabs = computed(() => {
   ];
   if (caps.value.attendance) t.push({ value: 'attendance', label: '我的考勤' });
   if (caps.value.leave) t.push({ value: 'leave', label: '请假' });
+  t.push({ value: 'points', label: '营期积分' });
   if (current.value?.mentor_selection_enabled) t.splice(1, 0, { value: 'ms', label: msOver.value ? '我的导生' : '选导生' });
   return t;
 });
@@ -228,6 +231,7 @@ const mentorTabs = computed(() => {
   ];
   if (caps.value.attendance) t.push({ value: 'dashboard', label: '团队考勤' });
   if (caps.value.leave) t.push({ value: 'leave', label: '请假审批' });
+  t.push({ value: 'points', label: '积分奖励' });
   if (current.value?.mentor_selection_enabled) t.splice(1, 0, { value: 'ms', label: msOver.value ? '我的学员' : '选导生' });
   return t;
 });
@@ -436,6 +440,8 @@ async function loadPendingRequests() {
 </script>
 
 <style scoped>
+.camp-tabs-scroll { max-width: 100%; overflow-x: auto; margin: 16px 0; scrollbar-width: none; }
+.camp-tabs-scroll :deep(.dew-bar) { min-width: max-content; }
 .camp-view { min-height: 100vh; }
 /* 页面内容宽度 */
 .camp-wrap { max-width: 1280px; margin: 0 auto; padding: 24px 20px; }

@@ -99,6 +99,8 @@
                     :units="mine.joining" role="member" @changed="reload" />
     </template>
 
+    <CampPointsPanel v-else-if="view === 'points'" :key="sid" :sid="sid" />
+
     <!-- ④ 请假 -->
     <LeaveApply v-else-if="view === 'leave'" :sid="sid" />
 
@@ -118,11 +120,13 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
 import { ElMessage } from 'element-plus';
+import { useRoute, useRouter } from 'vue-router';
 import { DewCard, DewButton, DewInput, DewTag, DewButtonBar, DewSkeleton } from '@bme/dew-ui';
 import { campService } from '../../services/campService';
 import ProjectBoard from './ProjectBoard.vue';
 import LeaveApply from './LeaveApply.vue';
 import ProjectApplyCard from './ProjectApplyCard.vue';
+import CampPointsPanel from './CampPointsPanel.vue';
 
 const props = defineProps({
   sid: { type: Number, required: true },
@@ -147,6 +151,7 @@ const leaveOn = computed(() => !!props.session.policy?.capabilities?.leave);
 
 // ── 视图切换（选择期多「项目意向」临时项设默认；我负责的=有负责项目才出现；
 //    申报期恒显「申报项目」——已入营负责人可继续申报，未入营者走营期层申报卡）──
+const route = useRoute(), router = useRouter();
 const view = ref(null);
 const viewItems = computed(() => {
   const items = [];
@@ -155,11 +160,23 @@ const viewItems = computed(() => {
   if (mine.value.joining?.length || !selectingOpen.value) items.push({ value: 'join', label: '我参加的' });
   if (leaveOn.value) items.push({ value: 'leave', label: '请假' });
   if (props.session.status === 'upcoming') items.push({ value: 'apply', label: '申报项目' });
+  items.push({ value: 'points', label: '营期积分' });
   return items;
 });
 watch(viewItems, (items) => {
-  if (!items.some((t) => t.value === view.value)) view.value = items[0]?.value ?? null;
+  if (route.query.tab === 'points') view.value = 'points';
+  else if (!items.some((t) => t.value === view.value)) view.value = items[0]?.value ?? null;
 }, { immediate: true });
+
+watch(() => route.query.tab, (value, previous) => {
+  if (value === 'points') view.value = 'points';
+  else if (previous === 'points' && view.value === 'points') view.value = viewItems.value[0]?.value ?? null;
+});
+watch(view, value => {
+  const query = { ...route.query };
+  if (value === 'points' && query.tab !== 'points') router.replace({ query: { ...query, tab: 'points' } });
+  else if (value !== 'points' && query.tab === 'points') { delete query.tab; router.replace({ query }); }
+});
 
 const picked = (unitId) => tray.value.some((t) => t.unit_id === unitId);
 const pickRank = (unitId) => tray.value.findIndex((t) => t.unit_id === unitId) + 1;

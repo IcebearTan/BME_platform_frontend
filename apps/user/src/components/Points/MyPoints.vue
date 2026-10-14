@@ -7,18 +7,15 @@ import { usePoints } from '../../composables/usePoints'
 import { usePointsStore } from '../../composables/usePointsStore'
 import { pointsService, formatPoints, pointsError } from '../../services/pointsService'
 import PointsHelp from './PointsHelp.vue'
-import PointsManagement from './PointsManagement.vue'
 
 const route = useRoute(), router = useRouter()
 const { summary, loading, failed, balanceLabel, refresh } = usePoints()
 const { pointsStoreLoading, openPointsStore } = usePointsStore()
-const tab = computed({ get: () => ['records', 'pending', 'manage'].includes(route.query.tab) ? route.query.tab : 'earn',
+const tab = computed({ get: () => route.query.tab === 'records' ? 'records' : 'earn',
   set: value => router.replace({ query: { ...route.query, tab: value } }) })
-const tabs = computed(() => [{ value: 'earn', label: '赚取积分' }, { value: 'records', label: '收支明细' },
-  { value: 'pending', label: '发放进度' }, ...(summary.value?.can_manage ? [{ value: 'manage', label: '营期管理' }] : [])])
+const tabs = [{ value: 'earn', label: '赚取积分' }, { value: 'records', label: '收支明细' }]
 const tasks = ref([]), taskLoading = ref(true), taskError = ref('')
 const records = ref([]), recordLoading = ref(false), recordError = ref(''), total = ref(0), page = ref(1), kind = ref('all')
-const pending = ref([]), pendingLoading = ref(false), pendingError = ref('')
 const detail = ref(null), connecting = ref(false)
 const filters = [{ value: 'all', label: '全部' }, { value: 'earned', label: '获得' }, { value: 'spent', label: '扣减' }]
 const states = { review: '待审核', pending: '待到账', processing: '入账中', failed: '待重试', completed: '已到账', rejected: '已退回', cancelled: '已取消' }
@@ -29,7 +26,7 @@ const accountMessage = computed(() => summary.value?.needs_identity ? '完成身
 let recordRequest = 0
 async function loadTasks() {
   taskLoading.value = true; taskError.value = ''
-  try { tasks.value = (await pointsService.tasks()).data.items || [] } catch (e) { taskError.value = pointsError(e) }
+  try { tasks.value = ((await pointsService.tasks()).data.items || []).filter(task => task.scope === 'platform') } catch (e) { taskError.value = pointsError(e) }
   finally { taskLoading.value = false }
 }
 async function loadRecords() {
@@ -42,21 +39,16 @@ async function loadRecords() {
   } catch (e) { if (request === recordRequest) recordError.value = pointsError(e) }
   finally { if (request === recordRequest) recordLoading.value = false }
 }
-async function loadPending() {
-  pendingLoading.value = true; pendingError.value = ''
-  try { pending.value = (await pointsService.pending()).data.items || [] } catch (e) { pendingError.value = pointsError(e) }
-  finally { pendingLoading.value = false }
-}
 async function connect() {
   if (connecting.value) return
   connecting.value = true
   try { await pointsService.connect(); await refresh(true); DewMessage.success('积分账户已关联') }
   catch (e) { DewMessage.error(pointsError(e)) } finally { connecting.value = false }
 }
-async function reload() { await Promise.allSettled([refresh(true), loadTasks(), loadRecords(), loadPending()]) }
+async function reload() { await Promise.allSettled([refresh(true), loadTasks(), loadRecords()]) }
 watch(kind, () => { page.value = 1; loadRecords() })
 watch(page, loadRecords)
-watch(tab, value => { detail.value = null; if (value === 'records') loadRecords(); if (value === 'pending') loadPending() })
+watch(tab, value => { detail.value = null; if (value === 'records') loadRecords() })
 onMounted(reload)
 </script>
 
@@ -66,7 +58,6 @@ onMounted(reload)
     <DewCard no-hover class="points-summary">
       <div class="points-wallet">
         <div><span class="points-label"><el-icon><Coin /></el-icon>可用积分</span><DewSkeleton v-if="loading && !summary" width="130px" height="44px" /><strong v-else class="points-balance" data-testid="points-balance">{{ balanceLabel }}</strong></div>
-        <button v-if="summary?.pending_total > 0" class="points-pending-link" @click="tab = 'pending'"><span>待到账</span><strong>+{{ formatPoints(summary.pending_total) }}</strong></button>
         <span class="points-spacer" /><DewButton :loading="pointsStoreLoading" @click="openPointsStore">积分商城<el-icon><ArrowRight /></el-icon></DewButton>
       </div>
       <div v-if="failed" class="points-account-state"><span>积分暂未更新</span><PointsHelp :text="summary?.updated_at ? `上次更新：${dateLabel(summary.updated_at)}。当前显示上次成功查询的余额。` : '查询失败时不会把余额显示为 0，请稍后重试。'" /><DewButton type="ghost" size="sm" @click="refresh(true)">重试</DewButton></div>
@@ -79,10 +70,10 @@ onMounted(reload)
         <div v-else-if="taskError" class="points-empty"><span>{{ taskError }}</span><DewButton size="sm" @click="loadTasks">重试</DewButton></div>
         <div v-else-if="!tasks.length" class="points-empty">暂无生效的积分任务</div>
         <div v-for="task in tasks" :key="task.id" class="points-task">
-          <div class="points-task-copy"><div class="points-task-title">{{ task.title }}<PointsHelp :text="task.help" /><DewTag v-if="task.recent_status" :type="stateType(task.recent_status)" size="sm">{{ states[task.recent_status] }}</DewTag></div><span class="points-label">{{ task.camp_name }}</span></div>
-          <strong class="points-gain">+{{ formatPoints(task.amount) }}</strong>
-          <DewButton v-if="['attendance','chapter'].includes(task.kind)" size="sm" type="ghost" @click="router.push(task.action_path)">去查看<el-icon><ArrowRight /></el-icon></DewButton>
-          <span v-else class="points-label">老师审核</span>
+          <div class="points-task-copy"><div class="points-task-title">{{ task.title }}<PointsHelp :text="task.help" /></div><span class="points-label">{{ task.frequency }}</span></div>
+          <strong v-if="task.enabled && task.amount != null" class="points-gain">+{{ formatPoints(task.amount) }}</strong>
+          <DewButton v-if="task.enabled && task.action_path" size="sm" type="ghost" @click="router.push(task.action_path)">去完成<el-icon><ArrowRight /></el-icon></DewButton>
+          <DewTag v-else type="neutral" size="sm">待开放</DewTag>
         </div>
       </DewCard>
     </template>
@@ -96,13 +87,6 @@ onMounted(reload)
         <el-pagination v-if="total > 20" v-model:current-page="page" :total="total" :page-size="20" layout="prev, pager, next" class="points-pagination" />
       </DewCard>
     </template>
-    <DewCard v-else-if="tab === 'pending'" no-hover>
-      <DewSkeleton v-if="pendingLoading" :lines="3" />
-      <div v-else-if="pendingError" class="points-empty"><span>{{ pendingError }}</span><DewButton size="sm" @click="loadPending">重试</DewButton></div>
-      <div v-else-if="!pending.length" class="points-empty">暂无待处理的发放记录</div>
-      <button v-for="item in pending" :key="item.id" class="points-record" @click="detail = item"><div><strong>{{ item.title }}</strong><span>{{ item.camp_name }} · {{ dateLabel(item.created_at) }}</span></div><strong class="points-gain">{{ signed(item.amount) }}</strong><DewTag :type="stateType(item.status)" size="sm">{{ states[item.status] }}</DewTag></button>
-    </DewCard>
-    <PointsManagement v-else-if="tab === 'manage' && summary?.can_manage" embedded />
     <DewDialog :model-value="!!detail" title="积分记录" :width="480" @update:model-value="detail = null">
       <template v-if="detail"><div class="points-detail-top"><strong class="points-balance">{{ signed(detail.amount) }}</strong><DewTag :type="stateType(detail.status)">{{ states[detail.status] }}</DewTag></div><dl class="points-detail"><dt>事项</dt><dd>{{ detail.title }}</dd><dt>营期</dt><dd>{{ detail.camp_name }}</dd><dt>依据</dt><dd>{{ detail.reason }}</dd><dt v-if="detail.review_note">审核意见</dt><dd v-if="detail.review_note">{{ detail.review_note }}</dd><dt v-if="detail.last_error">处理进度</dt><dd v-if="detail.last_error">{{ detail.last_error }}</dd><dt>时间</dt><dd>{{ dateLabel(detail.completed_at || detail.created_at) }}</dd><dt v-if="detail.balance_after != null">余额变动</dt><dd v-if="detail.balance_after != null">{{ formatPoints(detail.balance_before) }} → {{ formatPoints(detail.balance_after) }}</dd><dt>规则版本</dt><dd>v{{ detail.rule_version }}</dd><dt v-if="detail.transaction_uuid">流水号</dt><dd v-if="detail.transaction_uuid">{{ detail.transaction_uuid }}</dd></dl><DewButton v-if="detail.source_path" size="sm" @click="router.push(detail.source_path)"><el-icon><Tickets /></el-icon>查看来源</DewButton></template>
     </DewDialog>
@@ -117,8 +101,6 @@ onMounted(reload)
 .points-wallet { gap: 28px; flex-wrap: wrap; }
 .points-label { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--dew-text-muted); }
 .points-balance { display: block; margin-top: 8px; color: var(--dew-text-heading); font-size: 36px; line-height: 1.3; font-variant-numeric: tabular-nums; }
-.points-pending-link { display: grid; gap: 8px; border: 0; background: transparent; color: var(--dew-text-muted); text-align: left; cursor: pointer; font: inherit; font-size: 12px; }
-.points-pending-link strong { color: var(--color-warning); font-size: 20px; }
 .points-account-state { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--dew-card-divider); color: var(--dew-text-muted); font-size: 12px; }
 .points-tabs { align-self: flex-start; max-width: 100%; }
 .points-toolbar { flex-wrap: wrap; }
