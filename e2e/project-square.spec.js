@@ -38,21 +38,19 @@ const CAMP_DONE = {
 const PNG_1PX = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64')
 
-async function loginAsUser(page) {
-  await page.addInitScript(() => {
+async function loginAsUser(page, isDarkMode = false) {
+  await page.addInitScript((isDarkMode) => {
+    localStorage.setItem('themeInitialized', 'true')
     localStorage.setItem('bme-user-token', 'e2e-mock-token')
     localStorage.setItem('bme-user-state', JSON.stringify({
-      token: 'e2e-mock-token', isLogin: true, isDarkMode: false,
-      user: { role: 'user', User_Id: '0000011', verification_status: 'verified' }, checkinInfo: {},
+      token: 'e2e-mock-token', isLogin: true, isDarkMode,
+      user: { role: 'user', verification_status: 'verified' }, checkinInfo: {},
     }))
-  })
+  }, isDarkMode)
   await page.route('http://127.0.0.1:5001/**', (route) => {
     const url = route.request().url()
     if (url.includes('/media/')) {
       return route.fulfill({ contentType: 'image/png', body: PNG_1PX })
-    }
-    if (/\/showcase\/projects\/\d+$/.test(new URL(url).pathname) && route.request().method() === 'GET') {
-      return route.fulfill({ json: { code: 200, project: LIST.projects.find(p => String(p.id) === url.split('/').pop()) || { ...LIST.projects[2], id: 900 } } })
     }
     if (url.includes('/showcase/projects')) {
       if (route.request().method() === 'POST') {
@@ -79,13 +77,117 @@ async function loginAsUser(page) {
   })
 }
 
+// 检查实际渲染的文字对比度，捕获亮底残留与反白选中态的同色文字。
+async function expectReadable(locator) {
+  await expect.poll(() => locator.evaluate((element) => {
+    const rgb = (value) => value.match(/[\d.]+/g).map(Number)
+    const luminance = (channels) => channels.slice(0, 3).map((channel) => {
+      const value = channel / 255
+      return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
+    }).reduce((sum, value, index) => sum + value * [0.2126, 0.7152, 0.0722][index], 0)
+    const foreground = luminance(rgb(getComputedStyle(element).color))
+    let parent = element
+    let background
+    while (parent) {
+      const channels = rgb(getComputedStyle(parent).backgroundColor)
+      if (channels.length === 3 || channels[3] === 1) { background = luminance(channels); break }
+      parent = parent.parentElement
+    }
+    if (background === undefined) throw new Error('未找到实心背景')
+    return (Math.max(foreground, background) + 0.05) / (Math.min(foreground, background) + 0.05)
+  })).toBeGreaterThanOrEqual(4.5)
+}
+
+test('XLAB 暗夜：全站切换同步广场、反白筛选与 body 详情抽屉', async ({ page }, testInfo) => {
+  const errors = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await loginAsUser(page)
+  await page.route('http://127.0.0.1:5001/showcase/projects/801', (route) =>
+    route.fulfill({ json: { code: 200, project: LIST.projects[0] } }))
+  await page.goto(`${BASE}/lab`)
+  await expect(page.locator('.p-card')).toHaveCount(3)
+  const lightBackground = await page.locator('.plaza-page').evaluate((element) => getComputedStyle(element).backgroundColor)
+  await expectReadable(page.getByRole('button', { name: '分享我的项目' }))
+  await page.screenshot({ animations: 'disabled', path: testInfo.outputPath('xlab-light-desktop.png'), fullPage: true })
+  await page.mouse.move(700, 8)
+  await page.getByTitle('切换到夜间模式').click()
+  await expect(page.locator('body')).toHaveClass(/theme-dark/)
+  await expect(page.locator('.plaza-page')).not.toHaveCSS('background-color', lightBackground)
+  await expectReadable(page.getByRole('heading', { name: '全部项目' }))
+  await expectReadable(page.locator('.tag-line button.active'))
+  await expectReadable(page.locator('.source-row button.active'))
+  await expectReadable(page.locator('.status-row button.active'))
+  await expect.poll(() => page.evaluate(() =>
+    getComputedStyle(document.querySelector('.discovery-panel')).backgroundColor ===
+    getComputedStyle(document.querySelector('.p-card')).backgroundColor
+  )).toBe(true)
+  await expectReadable(page.getByRole('button', { name: '分享我的项目' }))
+  await page.getByRole('button', { name: '我的项目', exact: true }).click()
+  await expectReadable(page.getByRole('button', { name: '我的项目', exact: true }))
+  await page.getByRole('button', { name: '我的项目', exact: true }).click()
+  await page.mouse.move(700, 500)
+  await page.screenshot({ animations: 'disabled', path: testInfo.outputPath('xlab-dark-desktop.png'), fullPage: true })
+  await page.locator('.p-card', { hasText: '智能输液监护系统' }).click()
+  await expect(page.locator('.drawer-body h2')).toHaveText('智能输液监护系统')
+  await expect(page.locator('.drawer-head')).toHaveCSS('background-color', await page.locator('.xl-drawer').evaluate((element) => getComputedStyle(element).backgroundColor))
+  await expectReadable(page.locator('.drawer-body h2'))
+  await expectReadable(page.locator('.title-meta .tm-ongoing'))
+  await page.screenshot({ animations: 'disabled', path: testInfo.outputPath('xlab-dark-drawer.png') })
+  await page.getByRole('button', { name: '关闭详情' }).click()
+  await page.mouse.move(700, 8)
+  await page.getByTitle('切换到白天模式').click()
+  await expect(page.locator('.plaza-page')).toHaveCSS('background-color', lightBackground)
+  await page.locator('.p-card', { hasText: '智能输液监护系统' }).click()
+  await expect(page.locator('.xl-drawer')).toHaveCSS('background-color', 'rgb(255, 255, 255)')
+  expect(errors).toEqual([])
+})
+
+test('XLAB 暗夜：手机保存主题、详情展开与发布两种预览', async ({ page }, testInfo) => {
+  const errors = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  await page.setViewportSize({ width: 400, height: 850 })
+  await loginAsUser(page, true)
+  await page.route('http://127.0.0.1:5001/showcase/projects/801', (route) =>
+    route.fulfill({ json: { code: 200, project: LIST.projects[0] } }))
+  await page.goto(`${BASE}/lab`)
+  await expect(page.locator('body')).toHaveClass(/theme-dark/)
+  await expect(page.locator('.p-card')).toHaveCount(3)
+  await page.screenshot({ animations: 'disabled', path: testInfo.outputPath('xlab-dark-mobile.png'), fullPage: true })
+  await expect(page.locator('.tag-line')).toBeVisible()
+  await page.locator('.p-card', { hasText: '智能输液监护系统' }).click()
+  await expect(page.locator('.drawer-body h2')).toBeVisible()
+  await page.getByRole('button', { name: '展开详情' }).click()
+  await expectReadable(page.locator('.drawer-body h2'))
+  await page.screenshot({ animations: 'disabled', path: testInfo.outputPath('xlab-dark-mobile-drawer.png') })
+  await page.getByRole('button', { name: '关闭详情' }).click()
+  await page.getByRole('button', { name: '分享我的项目', exact: true }).click()
+  await page.getByPlaceholder('例如：宿舍智能门锁').fill('暗夜天气站')
+  await expectReadable(page.getByPlaceholder('例如：宿舍智能门锁'))
+  await expectReadable(page.getByPlaceholder('硬件, 医工交叉, 物联网'))
+  await expectReadable(page.getByPlaceholder('介绍问题背景、解决方案、当前成果和下一步计划'))
+  await expectReadable(page.locator('.preview-card h2'))
+  await expectReadable(page.getByRole('button', { name: '发布项目', exact: true }))
+  await page.locator('.preview-panel').scrollIntoViewIfNeeded()
+  await page.screenshot({ animations: 'disabled', path: testInfo.outputPath('xlab-dark-mobile-publish.png') })
+  await page.getByRole('button', { name: '详情', exact: true }).click()
+  await expectReadable(page.locator('.preview-detail h2'))
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(400)
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.getByTitle('切换到白天模式').click()
+  await page.setViewportSize({ width: 400, height: 850 })
+  await expect(page.locator('.create-page')).toHaveCSS('background-color', 'rgb(246, 246, 249)')
+  await expectReadable(page.locator('.preview-detail h2'))
+  expect(errors).toEqual([])
+})
+
 test('项目广场：双来源卡片渲染与来源/状态筛选', async ({ page }) => {
   const errors = []
   page.on('pageerror', (e) => errors.push(e.message))
   await loginAsUser(page)
 
   await page.goto(`${BASE}/projects`, { waitUntil: 'domcontentloaded' })
-  await expect(page.getByRole('heading', { name: '全部项目', exact: true })).toBeVisible({ timeout: 20_000 })
+  await expect(page.getByRole('heading', { name: '全部项目' })).toBeVisible()
   // 三张卡片：来源标（营期=success 系/自由分享）+ 状态字 + 营期溯源
   await expect(page.locator('.p-card')).toHaveCount(3)
   await expect(page.locator('.p-card', { hasText: '智能输液监护系统' }).locator('.src-camp')).toBeVisible()
@@ -109,17 +211,17 @@ test('项目广场：独立发布页（community 免审上架）', async ({ page
   await loginAsUser(page)
 
   await page.goto(`${BASE}/projects`, { waitUntil: 'domcontentloaded' })
-  await page.getByRole('button', { name: '分享我的项目' }).click()
+  await page.getByRole('button', { name: '分享我的项目', exact: true }).click()
   await expect(page).toHaveURL(/\/lab\/projects\/new$/)
   await expect(page.getByText('自由分享', { exact: true }).first()).toBeVisible()
   await expect(page.locator('.form-actions button')).toBeDisabled()
   await page.getByPlaceholder('例如：宿舍智能门锁').fill('桌面天气站')
   await expect(page.locator('.preview-card h2')).toHaveText('桌面天气站')
   await expect.poll(() => page.evaluate(() => {
-    const draft = JSON.parse(localStorage.getItem('bme-user-xlab-project-publish-draft-v2') || 'null')
+    const draft = JSON.parse(localStorage.getItem('xlab-project-publish-draft-v2') || 'null')
     return draft?.title
   })).toBe('桌面天气站')
-  await page.getByRole('button', { name: '发布项目', exact: true }).click()
+  await page.getByRole('button', { name: '发布项目' }).click()
   await expect(page).toHaveURL(/\/lab\?project=900$/)
   await expect(page.locator('.xl-drawer')).toBeVisible()
   await expect(page.getByText('已发布到项目广场（免审上架）')).toBeVisible()
@@ -127,19 +229,20 @@ test('项目广场：独立发布页（community 免审上架）', async ({ page
   expect(errors).toEqual([])
 })
 
-test('XLab：旧详情链接跳转到广场抽屉，减少动画偏好下可关闭', async ({ page }) => {
+// 2026-10-05 起 XLAB 不要独立首页：/lab 直达项目广场（旧 LabHomeView 三卡片/字标动效/全屏舞台
+// 已退役，对应三条旧测试随之删除；全站顶栏由下方「导航常驻」测试覆盖）
+test('XLAB 入口：/lab 直达项目广场（旧首页已退役）', async ({ page }) => {
   const errors = []
   page.on('pageerror', (e) => errors.push(e.message))
-  await page.emulateMedia({ reducedMotion: 'reduce' })
   await loginAsUser(page)
-  await page.route('http://127.0.0.1:5001/showcase/projects/802', (route) =>
-    route.fulfill({ json: { code: 200, project: LIST.projects[1] } }))
-  await page.goto(`${BASE}/projects/802`)
-  await expect(page).toHaveURL(/\/lab\?project=802$/)
-  await expect(page.getByRole('dialog', { name: '宿舍智能门锁' })).toBeVisible()
-  await page.keyboard.press('Escape')
-  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await page.goto(`${BASE}/lab`, { waitUntil: 'domcontentloaded' })
   await expect(page).toHaveURL(/\/lab$/)
+  await expect(page.getByRole('heading', { name: '全部项目' })).toBeVisible()
+  await expect(page.locator('.p-card')).toHaveCount(3)
+  await expect(page.getByRole('heading', { name: '推荐项目' })).toBeVisible()
+  // 旧首页元素零残留
+  await expect(page.locator('.lab-layout')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: '待开发' })).toHaveCount(0)
   expect(errors).toEqual([])
 })
 
@@ -180,11 +283,11 @@ test('广场：空结果与无封面兜底，手机抽屉展开/收起/关闭', 
   await page.route('http://127.0.0.1:5001/showcase/projects/801', (route) =>
     route.fulfill({ json: { code: 200, project: LIST.projects[0] } }))
   await page.goto(`${BASE}/lab/projects`, { waitUntil: 'domcontentloaded' })
-  await page.getByPlaceholder(/搜索项目名称、简介或关键词/).fill('没有这个项目')
-  await page.getByPlaceholder(/搜索项目名称、简介或关键词/).press('Enter')
+  await page.getByPlaceholder('搜索项目名称、简介或关键词').fill('没有这个项目')
+  await page.getByPlaceholder('搜索项目名称、简介或关键词').press('Enter')
   await expect(page.locator('.plaza-empty')).toBeVisible()
-  await page.getByPlaceholder(/搜索项目名称、简介或关键词/).fill('')
-  await page.getByPlaceholder(/搜索项目名称、简介或关键词/).press('Enter')
+  await page.getByPlaceholder('搜索项目名称、简介或关键词').fill('')
+  await page.getByPlaceholder('搜索项目名称、简介或关键词').press('Enter')
   const card = page.locator('.p-card', { hasText: '智能输液监护系统' })
   await expect(card.locator('.cover-char')).toHaveText('智')
   await card.click()
@@ -215,50 +318,33 @@ test('发布：封面上传失败仍进入新项目抽屉并提示补传', async
   await page.route('http://127.0.0.1:5001/showcase/projects/900/cover', (route) =>
     route.fulfill({ status: 500, json: { message: 'upload failed' } }))
   await page.goto(`${BASE}/lab/projects/new`, { waitUntil: 'domcontentloaded' })
-  await page.getByPlaceholder('例如：宿舍智能门锁').fill('带图测试项目')
+  await page.getByPlaceholder('如：宿舍智能门锁').fill('带图测试项目')
   await page.locator('input[type=file]').first().setInputFiles({
     name: 'cover.png', mimeType: 'image/png', buffer: PNG_1PX,
   })
-  await page.getByRole('button', { name: '发布项目', exact: true }).click()
+  await page.getByRole('button', { name: '发布项目' }).click()
   await expect(page).toHaveURL(/\/lab\?project=900$/)
   await expect(page.getByText('部分图片未上传成功', { exact: false })).toBeVisible()
   await expect(page.locator('.xl-drawer')).toBeVisible()
 })
 
-// 导航自动收纳（09-16）：进页上缩 / 悬停热区展开 / 移开 240ms 宽限后缩回
-// 回归锚：初版 navLeave 里 !querySelector 无弹层时为 true，曾导致移开恒展开
-test('XLab 导航自动收纳：悬停展开、移开缩回', async ({ page }) => {
+test('XLab 导航常驻：进页可见、移开与滚动后仍可操作', async ({ page }) => {
   const errors = []
   page.on('pageerror', (e) => errors.push(e.message))
+  await page.setViewportSize({ width: 1440, height: 900 })
   await loginAsUser(page)
   await page.goto(`${BASE}/projects`, { waitUntil: 'domcontentloaded' })
   const menu = page.locator('.el-menu-demo').first()
-
-  // 进页即收起（translateY 为负）
-  await expect(menu).toHaveCSS('transform', /matrix\(1, 0, 0, 1, 0, -/)
-  // 悬停顶部热区 → 展开
-  await page.mouse.move(640, 8)
-  await expect(menu).toHaveCSS('transform', 'matrix(1, 0, 0, 1, 0, 0)')
-  // 移开到页面中部 → 宽限后缩回
+  const xlab = menu.getByRole('menuitem', { name: 'XLAB', exact: true })
+  await expect(xlab).toBeInViewport()
+  const menuBounds = await menu.boundingBox()
+  const posterBounds = await page.locator('.plaza-poster').boundingBox()
+  expect(posterBounds.y).toBeGreaterThanOrEqual(menuBounds.y + menuBounds.height)
   await page.mouse.move(640, 500)
-  await expect(menu).toHaveCSS('transform', /matrix\(1, 0, 0, 1, 0, -/)
-
-  expect(errors).toEqual([])
-})
-
-test('XLab 我的项目：兼容登录接口补零的用户编号，取消筛选恢复列表', async ({ page }) => {
-  const errors = []
-  page.on('pageerror', (e) => errors.push(e.message))
-  await loginAsUser(page)
-  await page.route(/\/showcase\/projects(?:\?.*)?$/, (route) =>
-    route.fulfill({ json: { ...LIST, projects: LIST.projects.map((p, i) => ({ ...p, owner_user_id: i === 0 ? 11 : 12 })) } }))
-  await page.goto(`${BASE}/lab`)
-  await expect(page.locator('.p-card')).toHaveCount(3)
-  await page.getByRole('button', { name: '我的项目', exact: true }).click()
-  await expect(page.locator('.p-card')).toHaveCount(1)
-  await expect(page.locator('.p-card')).toContainText('智能输液监护系统')
-  await page.getByRole('button', { name: '我的项目', exact: true }).click()
-  await expect(page.locator('.p-card')).toHaveCount(3)
+  await page.evaluate(() => window.scrollTo(0, 600))
+  await expect(xlab).toBeInViewport()
+  await page.getByTitle('切换到夜间模式').click()
+  await expect(page.locator('body')).toHaveClass(/theme-dark/)
   expect(errors).toEqual([])
 })
 

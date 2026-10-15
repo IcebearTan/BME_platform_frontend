@@ -1,15 +1,17 @@
 <script setup>
 import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
-import { Coin, ArrowRight, Calendar, ChatDotRound, Refresh } from '@element-plus/icons-vue'
+import { Coin, ArrowRight, Calendar, ChatDotRound, Refresh, Document } from '@element-plus/icons-vue'
 import { DewCard, DewButton, DewSkeleton } from '@bme/dew-ui'
 import { usePoints } from '../../composables/usePoints'
 import { pointsService } from '../../services/pointsService'
-import PointsTaskStatus from '../Points/PointsTaskStatus.vue'
-import PointsHelp from '../Points/PointsHelp.vue'
+import PointsTaskStatus from './PointsTaskStatus.vue'
+import PointsHelp from './PointsHelp.vue'
 import '../../styles/points.css'
 
 const router = useRouter()
+const store = useStore()
 const { summary, balanceLabel, failed, loading, refresh } = usePoints()
 const tasks = ref([]), tasksLoading = ref(true), tasksFailed = ref(false)
 let disposed = false
@@ -17,17 +19,18 @@ async function load() {
   tasksLoading.value = true; tasksFailed.value = false
   try {
     const { data } = await pointsService.tasks()
-    if (!disposed) tasks.value = (data.items || []).filter(task => task.scope === 'platform')
+    if (!disposed) tasks.value = (data.items || []).filter(task => task.scope === 'platform' && task.enabled)
   } catch { if (!disposed) tasksFailed.value = true }
   finally { if (!disposed) tasksLoading.value = false }
 }
+function openTask(task) { router.push(task.action_path || '/user-center/points') }
 function openPoints() { router.push('/user-center/points') }
 onMounted(() => { refresh(); load() })
 onBeforeUnmount(() => { disposed = true })
 </script>
 <template>
-  <section class="home-points points-theme" aria-label="我的积分">
-    <DewCard no-hover class="points-accent-card" size="lg">
+  <section v-if="store.getters.isLogin && tasks.length" class="home-points points-theme" aria-label="我的积分">
+    <DewCard no-hover class="points-accent-card ptp-card" size="lg">
       <div class="hp-header"><span class="hp-coin"><Coin /></span><h3>我的积分</h3><PointsHelp text="积分与商城共用。平台任务尚未配置奖励时显示待开放。" /><span class="hp-spacer" /><DewButton type="ghost" size="sm" aria-label="进入积分中心" @click="openPoints"><el-icon><ArrowRight /></el-icon></DewButton></div>
       <div class="hp-wallet"><div><span class="hp-label">可用积分</span><DewSkeleton v-if="loading && !summary" width="100px" height="44px" /><strong v-else data-testid="home-points-balance">{{ balanceLabel }}</strong></div><DewButton size="sm" class="points-action" @click="openPoints">积分中心</DewButton></div>
       <div v-if="failed" class="hp-account-state"><span>积分暂未更新</span><DewButton type="ghost" size="sm" :loading="loading" aria-label="重试首页积分" @click="refresh(true)"><el-icon><Refresh /></el-icon></DewButton></div>
@@ -36,7 +39,7 @@ onBeforeUnmount(() => { disposed = true })
         <DewSkeleton v-if="tasksLoading" :lines="2" />
         <div v-else-if="tasksFailed" class="hp-account-state">任务暂未更新<DewButton type="ghost" size="sm" @click="load">重试</DewButton></div>
         <div v-else-if="!tasks.length" class="hp-label">暂无积分任务</div>
-        <button v-for="task in tasks" :key="task.id" class="hp-task" @click="openPoints"><span class="hp-task-icon"><component :is="task.kind === 'community_post' ? ChatDotRound : Calendar" /></span><span>{{ task.title }}</span><span class="hp-spacer" /><PointsTaskStatus :task="task" /></button>
+        <button v-for="task in tasks" :key="task.id" class="hp-task" @click="openTask(task)"><span class="hp-task-icon"><component :is="task.kind === 'community_post' ? ChatDotRound : task.kind === 'article' ? Document : Calendar" /></span><span>{{ task.title }}</span><span class="hp-spacer" /><PointsTaskStatus :task="task" /></button>
       </div>
     </DewCard>
   </section>

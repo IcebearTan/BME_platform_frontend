@@ -24,6 +24,9 @@
             <el-checkbox v-model="query.showGroup" @change="handleSearch">显示组内职位</el-checkbox>
           </el-form-item>
           <el-form-item>
+            <el-button plain @click="archivePanel.open()">任职档案</el-button>
+          </el-form-item>
+          <el-form-item>
             <el-button type="primary" plain @click="openAppoint">
               <el-icon><Plus /></el-icon>任命
             </el-button>
@@ -63,10 +66,10 @@
             {{ row.department || '—' }}
           </template>
         </el-table-column>
-        <el-table-column label="任期起" width="120" align="center" prop="term_start" />
+        <el-table-column label="任期起" width="120" align="center"><template #default="{ row }">{{ row.term_start || '日期不详' }}</template></el-table-column>
         <el-table-column label="任期止" width="120" align="center">
           <template #default="{ row }">
-            {{ row.term_end || '在任' }}
+            {{ row.term_end || (row.status === 'active' ? '在任' : '日期不详') }}
           </template>
         </el-table-column>
         <el-table-column label="卸任原因" min-width="140">
@@ -75,8 +78,9 @@
             <span v-else>—</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="150" align="center">
+        <el-table-column label="操作" width="210" align="center">
           <template #default="{ row }">
+            <el-button size="small" link @click="archivePanel.open(row.user_id)">履历</el-button>
             <template v-if="row.status === 'active'">
               <el-button size="small" link @click="openEdit(row)">编辑</el-button>
               <el-button size="small" link type="danger" @click="openEnd(row)">卸任</el-button>
@@ -92,8 +96,12 @@
     </DewCard>
 
     <!-- 任命 / 编辑（active 行） -->
-    <el-dialog v-model="dlg.visible" :title="dlg.id ? '编辑任职' : '任命干事'" width="520px">
+    <el-dialog v-model="dlg.visible" :title="dlg.id ? '调整任职' : '任命干事'" width="520px">
       <el-form :model="dlg.form" label-width="90px">
+        <el-form-item v-if="dlg.id" label="操作类型">
+          <el-radio-group v-model="dlg.form.mode"><el-radio-button value="transition">换职 / 连任</el-radio-button><el-radio-button value="correction">信息纠错</el-radio-button></el-radio-group>
+        </el-form-item>
+        <el-alert v-if="dlg.id" :closable="false" type="info" :title="dlg.form.mode === 'transition' ? '结束原任期并创建新任期，原记录保留。' : '仅用于登记错误，修改前后信息会保留在日志中。'" />
         <el-form-item v-if="!dlg.id" label="成员" required>
           <el-select v-model="dlg.form.user_id" placeholder="搜索并选择社员" filterable style="width: 100%;">
             <el-option v-for="u in users" :key="u.User_Id" :label="u.User_Name" :value="u.User_Id">
@@ -116,7 +124,7 @@
             :disabled="selectedPos?.group_rule === 'forbidden'"
             :placeholder="groupPlaceholder" clearable style="width: 100%;" />
         </el-form-item>
-        <el-form-item label="任期起" required>
+        <el-form-item :label="dlg.id && dlg.form.mode === 'transition' ? '变更生效日' : '任期起'" required>
           <el-date-picker v-model="dlg.form.term_start" type="date" value-format="YYYY-MM-DD"
             placeholder="选择日期" style="width: 100%;" />
         </el-form-item>
@@ -124,6 +132,7 @@
           <el-input v-model="dlg.form.scope_note" maxlength="200" show-word-limit
             placeholder="选填（展示在个人主页社团身份卡，如：统筹硬件组日常培训与器材管理）" />
         </el-form-item>
+        <el-form-item v-if="dlg.id" label="调整原因" required><el-input v-model="dlg.form.reason" maxlength="200" show-word-limit /></el-form-item>
       </el-form>
       <template #footer>
         <div class="dialog-footer">
@@ -156,12 +165,21 @@
     <!-- ended 行修正（仅卸任留痕两字段） -->
     <el-dialog v-model="fixDlg.visible" title="修正卸任信息" width="480px">
       <el-form :model="fixDlg.form" label-width="90px">
+        <template v-if="fixDlg.backfill">
+          <el-form-item label="历史职位" required><el-input v-model="fixDlg.form.title" maxlength="30" /></el-form-item>
+          <el-form-item label="历史组别"><el-input v-model="fixDlg.form.department" maxlength="50" /></el-form-item>
+          <el-form-item label="职位类别"><el-radio-group v-model="fixDlg.form.org_slot_snapshot"><el-radio value="club">社团职务</el-radio><el-radio value="group">组内职位</el-radio></el-radio-group></el-form-item>
+          <el-form-item label="已知年份"><el-input-number v-model="fixDlg.form.historical_year" :min="1900" :max="new Date().getFullYear()" :precision="0" /></el-form-item>
+          <el-form-item label="资料来源" required><el-input v-model="fixDlg.form.source_note" type="textarea" maxlength="500" /></el-form-item>
+        </template>
+        <el-form-item label="任期起"><el-date-picker v-model="fixDlg.form.term_start" type="date" value-format="YYYY-MM-DD" style="width: 100%;" /></el-form-item>
         <el-form-item label="任期止">
           <el-date-picker v-model="fixDlg.form.term_end" type="date" value-format="YYYY-MM-DD" style="width: 100%;" />
         </el-form-item>
         <el-form-item label="卸任原因">
           <el-input v-model="fixDlg.form.end_reason" type="textarea" :rows="2" maxlength="200" show-word-limit />
         </el-form-item>
+        <el-form-item label="纠错原因" required><el-input v-model="fixDlg.form.reason" maxlength="200" show-word-limit /></el-form-item>
       </el-form>
       <template #footer>
         <div class="dialog-footer">
@@ -171,6 +189,7 @@
       </template>
     </el-dialog>
 
+    <AppointmentArchivePanel ref="archivePanel" @changed="fetchOfficers" />
     <!-- 批量任命（实名名单：粘贴/上传 → 后端按核验姓名匹配 → 重名消歧 → 整表确认；A1 2026-10-04） -->
     <el-dialog v-model="batchDlg.visible" title="批量任命（实名名单）" width="880px"
       :close-on-click-modal="false">
@@ -258,8 +277,10 @@ import { Search, Plus, Upload } from '@element-plus/icons-vue'
 import { DewCard } from '@bme/dew-ui'
 import api, { assetUrl } from '../api'
 import { buildGroupCascaderOptions } from '../utils/club'
+import AppointmentArchivePanel from './AppointmentArchivePanel.vue'
 
 const route = useRoute()
+const archivePanel = ref(null)
 
 // ── 职位与组树：后台可配数据（/admin/club/*），不再前端硬编码（设计方案 §0.1 双源漂移清账）──
 const positions = ref([])
@@ -347,7 +368,10 @@ const openAppoint = () => {
 const openEdit = (row) => {
   if (row.status === 'ended') {
     fixDlg.id = row.id
-    fixDlg.form = { term_end: row.term_end, end_reason: row.end_reason || '' }
+    fixDlg.form = { term_start: row.term_start, term_end: row.term_end, end_reason: row.end_reason || '', mode: 'correction', reason: '' }
+    fixDlg.backfill = row.record_source === 'backfill'
+    if (fixDlg.backfill) Object.assign(fixDlg.form, { title: row.title, department: row.department,
+      historical_year: row.historical_year, source_note: row.source_note, org_slot_snapshot: row.org_slot })
     fixDlg.visible = true
     return
   }
@@ -356,11 +380,14 @@ const openEdit = (row) => {
     user_id: row.user_id,
     title_id: row.title_id,
     group_id: row.group_id ?? null,
-    term_start: row.term_start,
+    term_start: today(), original_start: row.term_start, mode: 'transition', reason: '',
     scope_note: row.scope_note || '',
   }
   dlg.visible = true
 }
+watch(() => dlg.form.mode, mode => {
+  if (dlg.id) dlg.form.term_start = mode === 'correction' ? dlg.form.original_start : today()
+})
 
 // 当前选中职位（group_rule 联动依据）
 const selectedPos = computed(() => positionsById.value[dlg.form.title_id] || null)
@@ -384,6 +411,7 @@ const submitAppointOrEdit = async () => {
   if (selectedPos.value?.group_rule === 'required' && !f.group_id)
     return ElMessage.warning(`${selectedPos.value.name}必须归属一个组`)
   if (!f.term_start) return ElMessage.warning('请选择任期起')
+  if (dlg.id && !f.reason?.trim()) return ElMessage.warning('请填写调整原因')
 
   dlg.submitting = true
   try {
@@ -391,7 +419,7 @@ const submitAppointOrEdit = async () => {
     const payload = { title_id: f.title_id, group_id: f.group_id ?? null, term_start: f.term_start,
                       scope_note: (f.scope_note || '').trim() || null }
     if (dlg.id) {
-      await api({ url: `/admin/officers/${dlg.id}`, method: 'put', data: payload })
+      await api({ url: `/admin/officers/${dlg.id}`, method: 'put', data: { ...payload, mode: f.mode, reason: f.reason.trim() } })
       ElMessage.success('任职信息已更新')
     } else {
       await api({ url: '/admin/officers', method: 'post', data: { user_id: Number(f.user_id), ...payload } })
@@ -428,8 +456,9 @@ const submitEnd = async () => {
 }
 
 // ── ended 行修正 ──
-const fixDlg = reactive({ visible: false, id: null, submitting: false, form: {} })
+const fixDlg = reactive({ visible: false, id: null, submitting: false, backfill: false, form: {} })
 const submitFix = async () => {
+  if (!fixDlg.form.reason?.trim()) return ElMessage.warning('请填写纠错原因')
   fixDlg.submitting = true
   try {
     await api({ url: `/admin/officers/${fixDlg.id}`, method: 'put', data: fixDlg.form })

@@ -14,6 +14,7 @@ export const pointsError = (error) => error?.response?.data?.message || '积分�
 // 未开放与未完成分开；没有完成信息时不推断用户尚未完成。
 export function pointsTaskState(task) {
   if (!task.enabled || task.status === 'unconfigured') return 'unavailable'
+  if (typeof task.done_today === 'boolean') return task.done_today ? 'completed' : 'incomplete'
   if (task.completed === true || task.completion_status === 'completed' || task.status === 'completed') return 'completed'
   if (task.completed === false || task.completion_status === 'incomplete' || task.status === 'incomplete') return 'incomplete'
   return 'unknown'

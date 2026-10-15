@@ -176,8 +176,8 @@ for (const dark of [false,true]) {
     await page.setViewportSize(dark?{width:390,height:844}:{width:1440,height:1000})
     const errors=[];page.on('pageerror',e=>errors.push(e.message))
     const tasks=[
-      {...platformTasks[0],kind:'daily_checkin',enabled:true,completed:true,amount:5,action_path:'/home'},
-      {...platformTasks[1],kind:'community_post',enabled:true,completed:false,amount:10,action_path:'/community'},
+      {...platformTasks[0],kind:'daily_checkin',enabled:true,done_today:true,amount:5,action_path:'/home'},
+      {...platformTasks[1],kind:'community_post',enabled:true,done_today:false,amount:10,action_path:'/community'},
     ]
     await page.route(`${API}/points/tasks`,r=>r.fulfill({json:{code:200,items:tasks}}))
     await page.route(`${API}/banner/list`,r=>r.fulfill({json:{code:200,data:[]}}))
@@ -213,4 +213,14 @@ test('未开放任务显示锁形，缺少完成信息显示待更新',async({pa
   await expect(page.locator('.points-task').first().locator('.points-task-state svg')).toBeVisible()
   await expect(page.locator('.points-task').last().getByRole('img',{name:'待更新',exact:true})).toBeVisible()
   await expect(page.getByRole('img',{name:'未完成',exact:true})).toHaveCount(0)
+})
+
+
+test('线上 done_today 字段驱动文章任务完成状态',async({page})=>{
+  await seed(page)
+  await page.route(`${API}/points/tasks`,r=>r.fulfill({json:{code:200,items:[{id:'article',kind:'article',scope:'platform',title:'文章过审',enabled:true,status:'configured',done_today:true,amount:10,action_path:'/article-editor-v2',help:'文章过审奖励'}]}}))
+  await page.goto(`${USER}/user-center/points`)
+  const task=page.locator('.points-task')
+  await expect(task.getByRole('img',{name:'已完成',exact:true})).toBeVisible()
+  await expect(task.getByRole('button',{name:/去完成/})).toHaveCount(0)
 })

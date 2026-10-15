@@ -73,6 +73,8 @@ const router = createRouter({
         return { top: 0 }
     },
     routes: [
+        { path: '/workbench-login', name: 'workbench-authorize',
+          component: () => import('./views/WorkbenchAuthorizeView.vue'), meta: { requiresAuth: true } },
         // ── UI 组件展示（开发用）──
         {
             path: '/ui-showcase',
@@ -472,6 +474,12 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to, from, next) => {
+    const externalWork = import.meta.env.VITE_WORKBENCH_URL
+    if (externalWork && (to.path === '/work' || to.path.startsWith('/work/'))) {
+        window.location.assign(externalWork.replace(/\/$/, '') + to.fullPath)
+        next(false)
+        return
+    }
     // 路由顶部进度条：分包 chunk 首载期遮羞（同步导航瞬时完成，进度条一闪而过）
     routeProgressStart()
 

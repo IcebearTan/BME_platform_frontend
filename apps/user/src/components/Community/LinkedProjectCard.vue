@@ -38,6 +38,7 @@
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { DewImage } from '@bme/dew-ui'
+import '../../styles/xlab.css'
 import { assetUrl } from '../../services/campService'
 
 // 帖子内关联项目大卡（XLab 引流优化方案 §6/§8.2）：只接收 feed 已投影的项目摘要渲染，
@@ -62,143 +63,26 @@ const openManual = () => window.open(projectHref.value, '_blank', 'noopener')
 </script>
 
 <style scoped>
-/* XLab 嵌入视觉（同 CommunityXlabPanel 口径）：黑底 + 直角 + 1px 白透明边 + mono，
-   局部 --lpc-* 变量，样式全部限定在 .linked-project-card 后代，不污染社区流。 */
-.linked-project-card {
-  --lpc-panel: #0b0b0b;
-  --lpc-line: rgba(255, 255, 255, 0.14);
-  --lpc-line-strong: rgba(255, 255, 255, 0.34);
-  --lpc-dim: rgba(255, 255, 255, 0.62);
-  --lpc-faint: rgba(255, 255, 255, 0.38);
-  --lpc-green: #00ff9c;
-  --lpc-pink: #ff2e97;
-  --lpc-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, Consolas, 'Liberation Mono', monospace;
-
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin: 2px 0 16px;
-  padding: 12px 14px 11px;
-  background: #050505;
-  border: 1px solid var(--lpc-line-strong);
-  color: #fff;
-  font-family: var(--lpc-mono);
-  text-decoration: none;
-  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
-}
-.linked-project-card:hover {
-  border-color: rgba(0, 255, 156, 0.55);
-  box-shadow: 4px 4px 0 rgba(0, 255, 156, 0.14);
-  transform: translate(-2px, -2px);
-}
-.linked-project-card:focus-visible {
-  outline: 1px solid var(--lpc-green);
-  outline-offset: 2px;
-}
-
-.lpc-eyebrow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  color: var(--lpc-faint);
-}
-.lpc-no { color: var(--lpc-faint); font-weight: 600; letter-spacing: 0.08em; }
-
-.lpc-body { display: flex; gap: 12px; align-items: stretch; }
-.lpc-cover {
-  flex: 0 0 132px;
-  position: relative;
-  display: block;
-  border: 1px solid var(--lpc-line);
-  background:
-    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    var(--lpc-panel);
-  background-size: 18px 18px, 18px 18px, auto;
-  overflow: hidden;
-  align-self: flex-start;
-}
-.lpc-cover__img { display: block; width: 132px; border-radius: 0; }
-.lpc-cover :deep(.dew-image) { border-radius: 0; }
-.lpc-cover__ph {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 132px;
-  aspect-ratio: 16 / 9;
-  font-family: var(--lpc-mono);
-  font-size: 30px;
-  font-weight: 800;
-  color: transparent;
-  -webkit-text-stroke: 1px rgba(255, 255, 255, 0.3);
-  user-select: none;
-}
-.linked-project-card:hover .lpc-cover__ph { -webkit-text-stroke-color: rgba(0, 255, 156, 0.6); }
-
-.lpc-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
-.lpc-title-row { display: flex; align-items: center; gap: 10px; }
-.lpc-title {
-  flex: 1;
-  min-width: 0;
-  font-family: inherit;
-  font-size: 15px;
-  font-weight: 650;
-  color: #fff;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.linked-project-card:hover .lpc-title {
-  text-shadow: 1.5px 0 rgba(0, 255, 156, 0.55), -1.5px 0 rgba(255, 46, 151, 0.55);
-}
-.lpc-st { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; flex-shrink: 0; }
-.lpc-st--ongoing { color: var(--lpc-green); }
-.lpc-st--idea { color: var(--lpc-faint); }
-.lpc-st--done { color: var(--lpc-pink); }
-
-.lpc-cat { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.lpc-src { font-size: 10.5px; font-weight: 600; letter-spacing: 0.06em; color: var(--lpc-dim); }
-.lpc-src--community { color: var(--lpc-pink); }
-.lpc-tag {
-  font-size: 10px;
-  letter-spacing: 0.04em;
-  padding: 1px 7px;
-  border: 1px solid var(--lpc-line);
-  color: var(--lpc-dim);
-}
-.lpc-summary {
-  font-size: 12px;
-  line-height: 1.6;
-  color: var(--lpc-dim);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.lpc-foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-top: 8px;
-  border-top: 1px solid var(--lpc-line);
-  font-size: 10.5px;
-  letter-spacing: 0.06em;
-}
-.lpc-views { color: var(--lpc-faint); }
-.lpc-open { color: var(--lpc-green); font-weight: 700; }
-
-@media (prefers-reduced-motion: reduce) {
-  .linked-project-card { transition: none; }
-  .linked-project-card:hover { transform: none; box-shadow: none; }
-}
-
-/* 移动端（方案 §10）：封面在上、文字在下，点击区域不受影响 */
-@media (max-width: 768px) {
-  .lpc-body { flex-direction: column; }
-  .lpc-cover, .lpc-cover__img, .lpc-cover__ph { width: 100%; flex-basis: auto; }
-}
+.linked-project-card { display:flex;flex-direction:column;gap:12px;margin:2px 0 16px;padding:16px;color:var(--xg-ink);background:var(--xg-surface);border:1px solid var(--xg-line);border-radius:var(--xg-radius);text-decoration:none;transition:border-color .2s,box-shadow .2s; }
+.linked-project-card:hover { border-color:var(--xg-purple);box-shadow:var(--xg-shadow-soft); }
+.linked-project-card:focus-visible { outline:2px solid var(--xg-purple);outline-offset:3px; }
+.lpc-eyebrow,.lpc-foot { display:flex;align-items:center;justify-content:space-between;gap:12px;color:var(--xg-faint);font-size:11px; }
+.lpc-body { display:flex;gap:14px;align-items:flex-start; }
+.lpc-cover { flex:0 0 132px;overflow:hidden;background:var(--xg-cover-bg);border-radius:var(--xg-radius-sm); }
+.lpc-cover__img { display:block;width:132px; }
+.lpc-cover__ph { display:grid;width:132px;aspect-ratio:16/9;place-items:center;color:var(--xg-placeholder);font-size:30px;font-weight:800; }
+.lpc-info { flex:1;min-width:0;display:flex;flex-direction:column;gap:7px; }
+.lpc-title-row { display:flex;align-items:center;gap:10px; }
+.lpc-title { flex:1;min-width:0;font-size:15px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+.lpc-st { flex-shrink:0;font-size:11px;font-weight:600; }
+.lpc-st--ongoing { color:var(--xg-purple-deep); }
+.lpc-st--idea { color:var(--xg-faint); }
+.lpc-st--done,.lpc-src--community { color:var(--xg-pink-deep); }
+.lpc-cat { display:flex;align-items:center;gap:6px;flex-wrap:wrap;color:var(--xg-sub);font-size:11px; }
+.lpc-tag { padding:3px 8px;background:var(--xg-surface-2);border-radius:6px; }
+.lpc-summary { display:-webkit-box;overflow:hidden;color:var(--xg-sub);font-size:12px;line-height:1.7;-webkit-line-clamp:2;-webkit-box-orient:vertical; }
+.lpc-foot { padding-top:10px;border-top:1px solid var(--xg-line-soft); }
+.lpc-open { color:var(--xg-purple-deep);font-weight:600; }
+@media(max-width:768px) { .lpc-body{flex-direction:column}.lpc-cover,.lpc-cover__img,.lpc-cover__ph{width:100%;flex-basis:auto} }
+@media(prefers-reduced-motion:reduce) { .linked-project-card{transition:none} }
 </style>

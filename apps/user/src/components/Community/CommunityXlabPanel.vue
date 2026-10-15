@@ -37,7 +37,7 @@
       </div>
 
       <template v-else>
-        <!-- 主项目：封面为主视觉 + 状态/来源/浏览（XLAB 业务卡，浅色） -->
+        <!-- 主项目：封面为主视觉 + 状态/来源/浏览（XLAB 业务卡，跟随全站主题） -->
         <button type="button" class="cxp-main" @click="emit('open-project', main.id)">
           <span class="cxp-main__cover">
             <DewImage v-if="main.cover_thumb || main.cover" class="cxp-main__img"
@@ -85,7 +85,7 @@ import '../../styles/xlab.css'
 // 请求最多 3 个进行中项目、管理排序选中态与 loading/empty/error/retry；
 // 路由行为交页面层（emit open-project / open-xlab），不承担发帖候选与 feed 排序。
 // 视觉：复用 DewUI（DewCard/DewButtonBar/DewButton/DewSkeleton），XLAB 品牌只保留
-// 绿点、PROJECT PICKS 小字和状态点（--xg-* tokens 来自 xlab.css）。
+// 紫色点、PROJECT PICKS 小字和状态点（--xg-* tokens 来自 xlab.css）。
 const emit = defineEmits(['open-project', 'open-xlab'])
 
 const PANEL_LIMIT = 3
@@ -150,13 +150,13 @@ onMounted(load)
 }
 .cxp-brand__dot {
   width: 7px; height: 7px; flex-shrink: 0; border-radius: 50%;
-  background: var(--xg-green); box-shadow: 0 0 0 3px rgba(0, 168, 118, 0.15);
+  background: var(--xg-purple); box-shadow: 0 0 0 3px rgb(var(--xg-purple-rgb) / 0.15);
   animation: cxp-pulse 2.4s ease-in-out infinite;
 }
 .cxp-brand__name { font-size: 14px; font-weight: 800; color: var(--xg-ink); letter-spacing: 0.02em; }
-.cxp-brand__sub { font-family: var(--cxp-mono); font-size: 9px; font-weight: 700; letter-spacing: 0.16em; color: var(--xg-green-deep); }
-.cxp-brand__more { margin-left: auto; font-size: 12px; font-weight: 500; color: var(--xg-green-deep); transition: color 0.15s, transform 0.15s; }
-.cxp-brand:hover .cxp-brand__more { color: var(--xg-green); transform: translateX(2px); }
+.cxp-brand__sub { font-family: var(--cxp-mono); font-size: 9px; font-weight: 700; letter-spacing: 0.16em; color: var(--xg-purple-deep); }
+.cxp-brand__more { margin-left: auto; font-size: 12px; font-weight: 500; color: var(--xg-purple-deep); transition: color 0.15s, transform 0.15s; }
+.cxp-brand:hover .cxp-brand__more { color: var(--xg-purple); transform: translateX(2px); }
 
 /* ── 加载骨架（DewSkeleton 排版） ── */
 .cxp-loading { display: flex; flex-direction: column; gap: 8px; }
@@ -165,7 +165,7 @@ onMounted(load)
 .cxp-state { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 16px 8px; text-align: center; }
 .cxp-state__text { font-size: 12px; color: var(--xg-faint); }
 
-/* ── 主项目（XLAB 业务卡，浅色） ── */
+/* ── 主项目（XLAB 业务卡，跟随全站主题） ── */
 .cxp-main {
   display: flex; flex-direction: column; gap: 7px;
   width: 100%; padding: 10px;
@@ -175,25 +175,25 @@ onMounted(load)
   transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
 }
 .cxp-main:hover, .cxp-main:focus-visible {
-  border-color: rgba(0, 168, 118, 0.45);
+  border-color: rgb(var(--xg-purple-rgb) / 0.45);
   box-shadow: var(--xg-shadow-soft);
   transform: translateY(-1px);
   outline: none;
 }
 .cxp-main__cover {
   display: block; overflow: hidden; border-radius: 7px;
-  background: linear-gradient(135deg, #eef0f5, #e6e9f2);
+  background: var(--xg-cover-bg);
 }
 .cxp-main__img { display: block; width: 100%; }
 .cxp-main__ph {
   display: flex; align-items: center; justify-content: center;
-  aspect-ratio: 16 / 9; font-size: 34px; font-weight: 800; color: #c9cdd8;
+  aspect-ratio: 16 / 9; font-size: 34px; font-weight: 800; color: var(--xg-placeholder);
   user-select: none;
 }
 .cxp-main__meta { display: flex; align-items: center; gap: 9px; font-size: 11px; color: var(--xg-faint); }
 .cxp-st { display: inline-flex; align-items: center; gap: 5px; font-weight: 600; }
-.cxp-st i, .cxp-rest__meta i { width: 5px; height: 5px; flex-shrink: 0; border-radius: 50%; background: #b6b6c2; }
-.cxp-st--ongoing { color: var(--xg-green-deep); } .cxp-st--ongoing i { background: var(--xg-green); }
+.cxp-st i, .cxp-rest__meta i { width: 5px; height: 5px; flex-shrink: 0; border-radius: 50%; background: var(--xg-faint); }
+.cxp-st--ongoing { color: var(--xg-purple-deep); } .cxp-st--ongoing i { background: var(--xg-purple); }
 .cxp-st--done { color: var(--xg-pink-deep); } .cxp-st--done i { background: var(--xg-pink); }
 .cxp-src { color: var(--xg-sub); }
 .cxp-src--community { color: var(--xg-pink-deep); }
@@ -219,18 +219,18 @@ onMounted(load)
 .cxp-rest__thumb {
   position: relative; display: grid; place-items: center;
   width: 42px; height: 42px; flex-shrink: 0; overflow: hidden;
-  border-radius: 7px; background: linear-gradient(135deg, #eef0f5, #e6e9f2);
+  border-radius: 7px; background: var(--xg-cover-bg);
 }
-.cxp-rest__thumb.src-community { background: linear-gradient(135deg, #f1eef6, #eadfec); }
+.cxp-rest__thumb.src-community { background: var(--xg-cover-community-bg); }
 .cxp-rest__img, .cxp-rest__img :deep(img) { width: 100%; height: 100%; object-fit: cover; }
-.cxp-rest__thumb b { font-size: 15px; font-weight: 800; color: #c9cdd8; }
+.cxp-rest__thumb b { font-size: 15px; font-weight: 800; color: var(--xg-placeholder); }
 .cxp-rest__info { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 2px; }
 .cxp-rest__name {
   font-size: 12.5px; font-weight: 600; color: var(--xg-ink);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .cxp-rest__meta { display: flex; align-items: center; gap: 4px; font-size: 10.5px; color: var(--xg-faint); }
-.cxp-rest__meta.st-ongoing { color: var(--xg-green-deep); } .cxp-rest__meta.st-ongoing i { background: var(--xg-green); }
+.cxp-rest__meta.st-ongoing { color: var(--xg-purple-deep); } .cxp-rest__meta.st-ongoing i { background: var(--xg-purple); }
 .cxp-rest__meta.st-done { color: var(--xg-pink-deep); } .cxp-rest__meta.st-done i { background: var(--xg-pink); }
 
 /* ── 动效白名单 + reduced-motion（方案 §5.4 沿用） ── */
@@ -249,7 +249,7 @@ onMounted(load)
 /* focus-visible（键盘可达） */
 .community-xlab-panel button:focus-visible,
 .community-xlab-panel :deep(.dew-bar__item:focus-visible) {
-  outline: 2px solid var(--xg-green);
+  outline: 2px solid var(--xg-purple);
   outline-offset: 2px;
 }
 </style>
