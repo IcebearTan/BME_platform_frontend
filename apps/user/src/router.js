@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 
 import { routeProgressStart, routeProgressDone } from './utils/routeProgress';
 import { authSession } from './api';
+import { workService } from './services/workService';
 
 // ── 落地三页保持同步打包（登录前后首屏直达，不做异步分包）：门户 /、主应用 /home、登录页 ──
 import HomeView from './views/HomeView.vue'
@@ -474,11 +475,20 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to, from, next) => {
-    const externalWork = import.meta.env.VITE_WORKBENCH_URL
-    if (externalWork && (to.path === '/work' || to.path.startsWith('/work/'))) {
-        window.location.assign(externalWork.replace(/\/$/, '') + to.fullPath)
-        next(false)
-        return
+    if (to.path === '/work' || to.path.startsWith('/work/')) {
+        try {
+            const externalWork = await workService.fetchEntryUrl()
+            if (externalWork) {
+                window.location.assign(externalWork + to.fullPath)
+                next(false)
+                return
+            }
+        } catch {
+            const { ElMessage } = await import('element-plus')
+            ElMessage.error('工作台入口暂时无法获取，请稍后重试')
+            next({ path: '/service-hall' })
+            return
+        }
     }
     // 路由顶部进度条：分包 chunk 首载期遮羞（同步导航瞬时完成，进度条一闪而过）
     routeProgressStart()

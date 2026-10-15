@@ -12,6 +12,7 @@
     "dev:test": "vite --mode test --host 127.0.0.1 --port 18081 --strictPort",
     "prebuild": "node ../../packages/styles/copy-to-public.mjs",
     "build": "vite build",
+    "postbuild": "node ../../scripts/check-workbench-entry.mjs",
     "preview": "vite preview",
     "release": "node release.js",
     "version:patch": "npm version patch --no-git-tag-version && node release.js",

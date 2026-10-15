@@ -55,7 +55,18 @@ export const EVENT_LABELS = {
 export const workService = {
   /** 资格与工作台摘要（探测端点：无资格回 200 空形，前端据此隐藏入口） */
   async fetchMe() {
-    return api.get(import.meta.env.VITE_WORKBENCH_URL ? '/workbench-sso/me' : '/work/me').then(r => r.data)
+    return api.get('/workbench-sso/me').then(r => r.data)
+  },
+
+  /** 工作台入口由来源后端配置决定，普通构建不依赖额外的发布环境变量。 */
+  async fetchEntryUrl() {
+    const { data } = await api.get('/workbench-sso/config')
+    if (!data.enabled) return null
+    const url = new URL(data.workbench_url)
+    if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) {
+      throw new Error('工作台入口配置无效')
+    }
+    return url.href.replace(/\/$/, '')
   },
 
   /** 我可进入的工作区列表 */

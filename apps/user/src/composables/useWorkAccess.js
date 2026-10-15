@@ -1,5 +1,5 @@
 // 内部工作台资格探测 — 模块级单例状态（范式对齐 useNotificationTabs 的导生探测）。
-// /work/me 是探测端点：无资格回 200 空形；探测失败静默（仅失去入口，不影响页面主流程）。
+// 独立工作台使用 /workbench-sso/me 探测资格，不依赖构建时环境变量。
 // 消费方：服务台入口卡 / 顶栏入口 / 组织架构页「进入工作区」按钮 / 通知中心「工作」tab。
 import { ref } from 'vue'
 import { authSession } from '../api';

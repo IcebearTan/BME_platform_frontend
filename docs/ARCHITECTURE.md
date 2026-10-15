@@ -370,3 +370,12 @@ TrainingGroups 各自复用 DewCard/Button/Dialog/Input/Select/ButtonBar/Tag/Ske
 DewButton，不修改全站 tokens。完成状态由 PointsTaskStatus 显示勾选圆标、空心时钟、锁形
 或待更新图标；仅按接口明确的完成字段判断，不把未开放或状态未知的任务算作未完成。
 任务状态优先读取线上 `done_today`，保留已上线的每日打卡、发帖与文章任务；状态样式检查使用模拟数据。
+
+### 独立工作台入口（2026-10-15）
+
+用户端工作台入口资格固定查询 `/workbench-sso/me`；`/work` 及其子路径的跳转地址通过
+`/workbench-sso/config` 的运行时配置获得。二者不依赖 `VITE_WORKBENCH_URL` 是否在构建时设置。
+普通训练营页面发布曾因缺少该变量编译回退到已退役 `/work/me`，导致有资格者入口消失；
+不能通过只改服务器 `.env.production` 或复用旧产物来修复。新构建必须保留此运行时契约。
+有资格者入口显示、无资格者隐藏；入口本身不授予工作台访问权限，真实登录继续逐请求检查。
+入口和授权定向检查可运行 `pnpm exec playwright test -c e2e/playwright.workbench.config.js`，无需全量回归。
