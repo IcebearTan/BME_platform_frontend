@@ -358,3 +358,12 @@ TrainingGroups 各自复用 DewCard/Button/Dialog/Input/Select/ButtonBar/Tag/Ske
 商城通用流水尚未开放，明确区分训练营流水与商城记录入口，不把本地列表当成中央全量账本。
 
 本轮仅做积分、商城 SSO 和章节认证相关定向检查；不执行全量回归。
+
+
+### 积分配色与任务状态（2026-10-15）
+
+首页右栏使用 HomePointsCard 展示统一余额与平台任务入口。首页、个人积分与营期积分展示
+共用用户端 `styles/points.css` 的局部暖金配色，沿用头像钱包的 warning 色系、DewCard 和
+DewButton，不修改全站 tokens。完成状态由 PointsTaskStatus 显示勾选圆标、空心时钟、锁形
+或待更新图标；仅按接口明确的完成字段判断，不把未开放或状态未知的任务算作未完成。
+平台奖励仍保持待开放，状态样式测试使用模拟数据，不启用真实积分发放。

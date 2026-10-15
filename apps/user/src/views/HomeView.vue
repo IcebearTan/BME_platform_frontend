@@ -10,6 +10,7 @@ import LivePanel from "../components/Home/LivePanel.vue";
 import AttenceRankComponent from "../components/Attendence/AttenceRankComponent.vue";
 import MiniCalendar from "../components/Attendence/MiniCalendar.vue";
 import StudyHub from "../components/Home/StudyHub.vue";
+import HomePointsCard from "../components/Home/HomePointsCard.vue";
 
 import MobileMenuComponent from "../components/MobileMenuComponent.vue";//添加这个竖屏版本的菜单
 import { Menu as Expand } from '@element-plus/icons-vue'; // 确保导入了 Rank
@@ -115,6 +116,7 @@ const handleEntryClick = (entry) => {
             
             <!-- 右侧分区 - 迷你日历 + 出勤排行榜 -->
             <div class="right-section">
+              <HomePointsCard v-if="store.getters.isLogin" />
               <MiniCalendar />
               <AttenceRankComponent />
             </div>

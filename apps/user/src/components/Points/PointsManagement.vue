@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { Plus, Refresh, QuestionFilled } from '@element-plus/icons-vue'
 import { DewCard, DewButton, DewButtonBar, DewDialog, DewInput, DewSelect, DewSwitch, DewTag, DewMessage, DewMessageBox } from '@bme/dew-ui'
 import api from '../../api'
+import '../../styles/points.css'
 
 const props = defineProps({ sid: { type: [Number, String], required: true } })
 const camps = ref([]), kinds = ref([]), campId = ref(null), tab = ref('review')
@@ -86,7 +87,7 @@ async function approve(row) {
 </script>
 
 <template>
-  <div class="points-management">
+  <div class="points-management points-theme">
     <div class="pm-header"><div class="pm-title">积分管理</div><el-tooltip content="规则由平台管理员配置；导生提报本组奖励，本营老师审批。规则版本与操作记录保留，重试不会重复发放。" placement="top"><button class="pm-help" aria-label="管理说明"><el-icon><QuestionFilled /></el-icon></button></el-tooltip><span class="pm-spacer" /><DewButton type="ghost" size="sm" :loading="loading" aria-label="刷新积分管理" @click="camps.length ? load() : initialize()"><el-icon><Refresh /></el-icon></DewButton></div>
     <div v-if="error" class="pm-error" role="alert">{{ error }}<DewButton size="sm" @click="camps.length ? load() : initialize()">重试</DewButton></div>
     <template v-if="selected">
@@ -126,12 +127,12 @@ async function approve(row) {
 .pm-spacer { flex: 1; }
 .pm-pagination { display: flex; justify-content: center; padding: 16px; }
 .pm-help { display: inline-flex; align-items: center; border: 0; padding: 4px; color: var(--dew-text-muted); background: transparent; cursor: help; vertical-align: middle; }
-.pm-help:hover { color: var(--color-primary); }
+.pm-help:hover { color: var(--points-ink); }
 .table-card :deep(.dew-card__body) { padding: 0; }
-.pm-amount { color: var(--color-primary); font-variant-numeric: tabular-nums; }
+.pm-amount { color: var(--points-ink); font-variant-numeric: tabular-nums; }
 .pm-secondary, .pm-record-link small { display: block; color: var(--dew-text-muted); font-size: 12px; }
 .pm-record-link { border: 0; background: transparent; padding: 0; color: var(--dew-text-heading); text-align: left; font: inherit; cursor: pointer; }
-.pm-record-link:hover { color: var(--color-primary); }
+.pm-record-link:hover { color: var(--points-ink); }
 .pm-actions { display: flex; gap: 4px; }
 .pm-form-row { display: flex; gap: 16px; }
 .pm-form-row > * { flex: 1; min-width: 0; }

@@ -5,6 +5,7 @@ import { Refresh, ArrowRight } from '@element-plus/icons-vue'
 import { DewButton, DewButtonBar, DewCard, DewDialog, DewSkeleton, DewTag } from '@bme/dew-ui'
 import PointsManagement from '../Points/PointsManagement.vue'
 import PointsHelp from '../Points/PointsHelp.vue'
+import '../../styles/points.css'
 import { pointsService, pointsError, formatPoints } from '../../services/pointsService'
 
 const props = defineProps({ sid: { type: [Number, String], required: true }, manage: Boolean })
@@ -37,7 +38,7 @@ onBeforeUnmount(() => { generation++ })
 </script>
 <template>
   <PointsManagement v-if="manage" :key="sid" :sid="sid" />
-  <div v-else class="camp-points">
+  <div v-else class="camp-points points-theme">
     <div class="cp-toolbar"><DewButtonBar v-model="tab" :items="tabs" size="sm" /><PointsHelp text="仅展示本营奖励。审核通过后提交到账，未确认的积分不计入余额；积分总额与收支明细在个人中心查看。" /><span class="cp-spacer" /><DewButton type="ghost" size="sm" :loading="loading" aria-label="刷新营期积分" @click="load"><el-icon><Refresh /></el-icon></DewButton></div>
     <DewCard no-hover>
       <DewSkeleton v-if="loading" :lines="3" />
@@ -63,7 +64,7 @@ onBeforeUnmount(() => { generation++ })
 .cp-empty { display: flex; justify-content: center; align-items: center; gap: 12px; padding: 32px 0; font-size: 13px; color: var(--dew-text-muted); }
 .cp-rule { padding: 16px 0; border-bottom: 1px solid var(--dew-card-divider); }
 .cp-rule:last-child, .cp-record:last-child { border-bottom: 0; }
-.cp-gain { color: var(--color-primary); font-variant-numeric: tabular-nums; }
+.cp-gain { color: var(--points-ink); font-variant-numeric: tabular-nums; }
 .cp-frequency { min-width: 64px; font-size: 12px; color: var(--dew-text-muted); text-align: right; }
 .cp-record { display: flex; width: 100%; align-items: center; gap: 16px; padding: 16px 4px; border: 0; border-bottom: 1px solid var(--dew-card-divider); background: transparent; color: var(--dew-text); font: inherit; text-align: left; cursor: pointer; }
 .cp-record:hover { background: var(--dew-ghost-hover-bg); border-radius: var(--radius-md); }

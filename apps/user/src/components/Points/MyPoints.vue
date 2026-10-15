@@ -1,12 +1,14 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Coin, Refresh, ArrowRight, Tickets } from '@element-plus/icons-vue'
+import { Coin, Refresh, ArrowRight, Tickets, Calendar, ChatDotRound } from '@element-plus/icons-vue'
 import { DewCard, DewButton, DewButtonBar, DewTag, DewSkeleton, DewDialog, DewMessage } from '@bme/dew-ui'
 import { usePoints } from '../../composables/usePoints'
 import { usePointsStore } from '../../composables/usePointsStore'
-import { pointsService, formatPoints, pointsError } from '../../services/pointsService'
+import { pointsService, formatPoints, pointsError, pointsTaskState } from '../../services/pointsService'
 import PointsHelp from './PointsHelp.vue'
+import PointsTaskStatus from './PointsTaskStatus.vue'
+import '../../styles/points.css'
 
 const route = useRoute(), router = useRouter()
 const { summary, loading, failed, balanceLabel, refresh } = usePoints()
@@ -53,27 +55,31 @@ onMounted(reload)
 </script>
 
 <template>
-  <div class="my-points">
+  <div class="my-points points-theme">
     <div class="points-heading"><h2>我的积分</h2><PointsHelp text="积分与商城共用，等级不受兑换影响。待审核、待到账奖励不计入可用余额。" /><span class="points-spacer" /><DewButton type="ghost" size="sm" :loading="loading" aria-label="刷新积分" @click="reload"><el-icon><Refresh /></el-icon></DewButton></div>
-    <DewCard no-hover class="points-summary">
+    <DewCard no-hover size="lg" class="points-summary points-accent-card">
       <div class="points-wallet">
-        <div><span class="points-label"><el-icon><Coin /></el-icon>可用积分</span><DewSkeleton v-if="loading && !summary" width="130px" height="44px" /><strong v-else class="points-balance" data-testid="points-balance">{{ balanceLabel }}</strong></div>
-        <span class="points-spacer" /><DewButton :loading="pointsStoreLoading" @click="openPointsStore">积分商城<el-icon><ArrowRight /></el-icon></DewButton>
+        <span class="points-wallet-mark" aria-hidden="true"><Coin /></span>
+        <div><span class="points-label">可用积分</span><DewSkeleton v-if="loading && !summary" width="130px" height="44px" /><strong v-else class="points-balance" data-testid="points-balance">{{ balanceLabel }}</strong></div>
+        <span class="points-spacer" /><DewButton class="points-action" :loading="pointsStoreLoading" @click="openPointsStore">积分商城<el-icon><ArrowRight /></el-icon></DewButton>
       </div>
       <div v-if="failed" class="points-account-state"><span>积分暂未更新</span><PointsHelp :text="summary?.updated_at ? `上次更新：${dateLabel(summary.updated_at)}。当前显示上次成功查询的余额。` : '查询失败时不会把余额显示为 0，请稍后重试。'" /><DewButton type="ghost" size="sm" @click="refresh(true)">重试</DewButton></div>
       <div v-else-if="summary && summary.status !== 'ready'" class="points-account-state"><span>{{ accountMessage }}</span><PointsHelp v-if="summary.message" :text="summary.message" /><DewButton v-if="summary.needs_identity" type="ghost" size="sm" @click="router.push('/user-center/identity')">去核验</DewButton><DewButton v-else-if="summary.status === 'unlinked'" type="ghost" size="sm" :loading="connecting" @click="connect">关联账户</DewButton></div>
     </DewCard>
     <DewButtonBar v-model="tab" :items="tabs" class="points-tabs" />
     <template v-if="tab === 'earn'">
-      <DewCard no-hover>
+      <DewCard no-hover size="lg" class="points-tasks-card">
         <DewSkeleton v-if="taskLoading" :lines="3" />
         <div v-else-if="taskError" class="points-empty"><span>{{ taskError }}</span><DewButton size="sm" @click="loadTasks">重试</DewButton></div>
         <div v-else-if="!tasks.length" class="points-empty">暂无生效的积分任务</div>
-        <div v-for="task in tasks" :key="task.id" class="points-task">
+        <div v-for="task in tasks" :key="task.id" class="points-task" :class="`points-task--${pointsTaskState(task)}`">
+          <span class="points-task-icon" aria-hidden="true"><component :is="task.kind === 'community_post' ? ChatDotRound : Calendar" /></span>
           <div class="points-task-copy"><div class="points-task-title">{{ task.title }}<PointsHelp :text="task.help" /></div><span class="points-label">{{ task.frequency }}</span></div>
-          <strong v-if="task.enabled && task.amount != null" class="points-gain">+{{ formatPoints(task.amount) }}</strong>
-          <DewButton v-if="task.enabled && task.action_path" size="sm" type="ghost" @click="router.push(task.action_path)">去完成<el-icon><ArrowRight /></el-icon></DewButton>
-          <DewTag v-else type="neutral" size="sm">待开放</DewTag>
+          <div class="points-task-side">
+            <span v-if="task.enabled && task.amount != null" class="points-reward"><Coin aria-hidden="true" />+{{ formatPoints(task.amount) }}</span>
+            <PointsTaskStatus :task="task" />
+            <DewButton v-if="task.enabled && task.action_path && pointsTaskState(task) === 'incomplete'" size="sm" class="points-action" @click="router.push(task.action_path)">去完成<el-icon><ArrowRight /></el-icon></DewButton>
+          </div>
         </div>
       </DewCard>
     </template>
@@ -94,22 +100,32 @@ onMounted(reload)
 </template>
 
 <style scoped>
+.points-summary :deep(.dew-card__body) { padding-top: 26px; padding-bottom: 26px; }
+.points-wallet-mark { display: grid; place-items: center; flex-shrink: 0; width: 64px; height: 64px; color: var(--points-ink); background: var(--points-icon-bg); border-radius: var(--radius-full); box-shadow: inset 0 0 0 1px var(--points-line); }
+.points-wallet-mark svg { width: 34px; height: 34px; }
+.points-task-icon { display: grid; place-items: center; flex-shrink: 0; width: 46px; height: 46px; border-radius: var(--radius-md); background: var(--points-icon-bg); color: var(--points-ink); }
+.points-task-icon svg { width: 22px; height: 22px; }
+.points-task--unavailable .points-task-icon { color: var(--dew-text-muted); background: var(--dew-ghost-hover-bg); }
+.points-task-side { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+.points-reward { display: inline-flex; align-items: center; gap: 5px; padding: 5px 9px; border-radius: var(--radius-full); background: var(--points-soft); color: var(--points-ink); font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.points-reward svg { width: 15px; height: 15px; }
+
 .my-points { display: flex; flex-direction: column; gap: 20px; min-width: 0; font-family: var(--dew-font); color: var(--dew-text); }
 .points-heading, .points-wallet, .points-toolbar, .points-task, .points-detail-top, .points-account-state { display: flex; align-items: center; gap: 12px; }
 .points-heading h2 { margin: 0; font-size: 22px; color: var(--dew-text-heading); }
 .points-spacer { flex: 1; }
 .points-wallet { gap: 28px; flex-wrap: wrap; }
 .points-label { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--dew-text-muted); }
-.points-balance { display: block; margin-top: 8px; color: var(--dew-text-heading); font-size: 36px; line-height: 1.3; font-variant-numeric: tabular-nums; }
+.points-balance { display: block; margin-top: 8px; color: var(--points-ink); font-size: 40px; line-height: 1.3; font-variant-numeric: tabular-nums; }
 .points-account-state { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--dew-card-divider); color: var(--dew-text-muted); font-size: 12px; }
 .points-tabs { align-self: flex-start; max-width: 100%; }
 .points-toolbar { flex-wrap: wrap; }
-.points-task { padding: 18px 0; border-bottom: 1px solid var(--dew-card-divider); }
+.points-task { padding: 22px 0; border-bottom: 1px solid var(--dew-card-divider); }
 .points-task:last-child { border-bottom: 0; }
 .points-task-copy { flex: 1; min-width: 0; }
 .points-task-title { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-bottom: 5px; font-weight: 600; color: var(--dew-text-heading); }
-.points-gain { color: var(--color-primary); font-variant-numeric: tabular-nums; }
-.points-task > strong { font-size: 21px; min-width: 52px; text-align: right; }
+.points-gain { color: var(--points-ink); font-variant-numeric: tabular-nums; }
+
 .points-empty { display: flex; justify-content: center; align-items: center; gap: 12px; padding: 36px 12px; color: var(--dew-text-muted); font-size: 13px; }
 .points-record { display: flex; width: 100%; align-items: center; gap: 16px; padding: 18px 8px; background: transparent; border: 0; border-bottom: 1px solid var(--dew-card-divider); color: var(--dew-text); text-align: left; font: inherit; cursor: pointer; }
 .points-record:hover { background: var(--dew-ghost-hover-bg); border-radius: var(--radius-md); }
@@ -123,5 +139,17 @@ onMounted(reload)
 .points-detail { display: grid; grid-template-columns: 72px 1fr; gap: 14px; margin: 24px 0; font-size: 13px; }
 .points-detail dt { color: var(--dew-text-muted); }
 .points-detail dd { margin: 0; overflow-wrap: anywhere; color: var(--dew-text); }
-@media (max-width: 600px) { .points-wallet { gap: 16px; } .points-wallet > .points-spacer { display: none; } .points-wallet > :last-child { margin-left: auto; } .points-task { flex-wrap: wrap; } .points-task-copy { flex-basis: calc(100% - 76px); } .points-task > :last-child { margin-left: auto; } .points-tabs :deep(.dew-bar__item) { padding-left: 8px; padding-right: 8px; } .points-record { gap: 10px; } }
+@media (max-width: 600px) {
+  .points-wallet { gap: 14px; }
+  .points-wallet-mark { width: 44px; height: 44px; }
+  .points-wallet-mark svg { width: 26px; height: 26px; }
+  .points-balance { font-size: 32px; }
+  .points-wallet > .points-spacer { display: none; }
+  .points-wallet > :last-child { margin-left: auto; }
+  .points-task { display: grid; grid-template-columns: 42px minmax(0, 1fr); gap: 10px; }
+  .points-task-icon { width: 42px; height: 42px; }
+  .points-task-side { grid-column: 2; gap: 10px; }
+  .points-tabs :deep(.dew-bar__item) { padding-left: 8px; padding-right: 8px; }
+  .points-record { gap: 10px; }
+}
 </style>

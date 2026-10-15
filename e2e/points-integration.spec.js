@@ -9,12 +9,12 @@ const reward = { id: 1, user_id: 21, username: '林同学', camp_id: 1, camp_nam
 async function seed(page, side='user', dark=false) {
   await page.addInitScript(({side,dark}) => {
     localStorage.setItem(`bme-${side}-token`, 'e2e-points-token')
-    localStorage.setItem(`bme-${side}-state`, JSON.stringify({ token: 'e2e-points-token', isLogin: true, isDarkMode: dark, level: 3, user: { User_Id: '0000021', User_Name: '林同学', role: side === 'admin' ? 'super_admin' : 'user', permissions: [] } }))
+    localStorage.setItem(`bme-${side}-state`, JSON.stringify({ token: 'e2e-points-token', isLogin: true, isDarkMode: dark, level: 3, user: { User_Id: '0000021', User_Name: '林同学', role: side === 'admin' ? 'super_admin' : 'user', permissions: [], verification_status: 'verified' } }))
     localStorage.setItem('themeInitialized', 'true')
   }, {side,dark})
   await page.route(`${API}/**`, route => {
     const path = new URL(route.request().url()).pathname
-    if (path === '/user/user_index') return route.fulfill({json:{code:200,User_Name:'林同学',User_Id:'0000021',role:side==='admin'?'super_admin':'user',permissions:[],level:3}})
+    if (path === '/user/user_index') return route.fulfill({json:{code:200,User_Name:'林同学',User_Id:'0000021',role:side==='admin'?'super_admin':'user',permissions:[],level:3,verification_status:'verified'}})
     if (path === '/points/me') return route.fulfill({json:{code:200,status:'ready',balance:1280,rewards_enabled:true,updated_at:'2026-10-14T12:01:00'}})
     if (path === '/points/tasks') return route.fulfill({json:{code:200,items:platformTasks}})
     if (path === '/points/records') return route.fulfill({json:{code:200,items:[reward],total:1,scope:'training'}})
@@ -167,4 +167,50 @@ test('老师与项目营积分深链刷新后仍停留在工作台积分页',asy
   await campFixture(page,'student','project')
   await page.goto(`${USER}/camp?sid=1&tab=points`)
   await expect(page.locator('.cp-record')).toContainText('待到账')
+})
+
+
+for (const dark of [false,true]) {
+  test(`首页与积分中心的暖金任务状态图标${dark?'深色窄屏':'浅色桌面'}`,async({page},testInfo)=>{
+    await seed(page,'user',dark)
+    await page.setViewportSize(dark?{width:390,height:844}:{width:1440,height:1000})
+    const errors=[];page.on('pageerror',e=>errors.push(e.message))
+    const tasks=[
+      {...platformTasks[0],kind:'daily_checkin',enabled:true,completed:true,amount:5,action_path:'/home'},
+      {...platformTasks[1],kind:'community_post',enabled:true,completed:false,amount:10,action_path:'/community'},
+    ]
+    await page.route(`${API}/points/tasks`,r=>r.fulfill({json:{code:200,items:tasks}}))
+    await page.route(`${API}/banner/list`,r=>r.fulfill({json:{code:200,data:[]}}))
+    await page.route(`${API}/community/feed*`,r=>r.fulfill({json:{code:200,data:[]}}))
+    await page.goto(`${USER}/home`)
+    const home=page.locator('.home-points')
+    await expect(home.getByTestId('home-points-balance')).toHaveText('1,280')
+    await expect(home.getByRole('img',{name:'已完成',exact:true})).toBeVisible()
+    await expect(home.getByRole('img',{name:'未完成',exact:true})).toBeVisible()
+    await expect(home.locator('.points-task-state--completed svg')).toBeVisible()
+    await home.screenshot({path:testInfo.outputPath(`home-points-${dark?'dark':'light'}.png`)})
+    await home.getByRole('button',{name:'积分中心',exact:true}).click()
+    await expect(page.getByTestId('points-balance')).toHaveText('1,280')
+    const daily=page.locator('.points-task').filter({hasText:'每日打卡'})
+    const post=page.locator('.points-task').filter({hasText:'发布帖子'})
+    await expect(daily.getByRole('img',{name:'已完成',exact:true})).toBeVisible()
+    await expect(daily.getByRole('button',{name:/去完成/})).toHaveCount(0)
+    await expect(post.getByRole('img',{name:'未完成',exact:true})).toBeVisible()
+    await expect(post.getByRole('button',{name:/去完成/})).toBeVisible()
+    await expect(page.locator('.my-points')).toHaveJSProperty('scrollWidth',await page.locator('.my-points').evaluate(el=>el.clientWidth))
+    await page.locator('.my-points').screenshot({path:testInfo.outputPath(`points-task-states-${dark?'dark':'light'}.png`)})
+    await post.getByRole('button',{name:/去完成/}).click()
+    await expect(page).toHaveURL(/\/community$/)
+    expect(errors).toEqual([])
+  })
+}
+
+test('未开放任务显示锁形，缺少完成信息显示待更新',async({page})=>{
+  await seed(page)
+  await page.route(`${API}/points/tasks`,r=>r.fulfill({json:{code:200,items:[platformTasks[0],{...platformTasks[1],enabled:true}]}}))
+  await page.goto(`${USER}/user-center/points`)
+  await expect(page.locator('.points-task').first().getByRole('img',{name:'待开放',exact:true})).toBeVisible()
+  await expect(page.locator('.points-task').first().locator('.points-task-state svg')).toBeVisible()
+  await expect(page.locator('.points-task').last().getByRole('img',{name:'待更新',exact:true})).toBeVisible()
+  await expect(page.getByRole('img',{name:'未完成',exact:true})).toHaveCount(0)
 })

@@ -1,0 +1,22 @@
+/* 积分域沿用头像钱包的暖金色；不覆盖共享 DewUI 或全站品牌色。 */
+.points-theme {
+  --points-ink: color-mix(in srgb, var(--color-warning) 56%, var(--dew-text-heading));
+  --points-soft: var(--color-warning-light);
+  --points-line: color-mix(in srgb, var(--color-warning) 22%, transparent);
+  --points-icon-bg: color-mix(in srgb, var(--color-warning) 12%, transparent);
+  --dew-bar-text-active: var(--points-ink);
+  --dew-glow-indicator-bg: var(--points-soft);
+}
+.points-theme .points-action {
+  color: var(--points-ink);
+  --dew-btn-bg: var(--points-soft);
+  --dew-btn-bg-hover: color-mix(in srgb, var(--color-warning) 20%, var(--points-soft));
+  --dew-btn-border: var(--points-line);
+}
+.points-theme .points-accent-card {
+  --dew-card-bg: var(--points-soft);
+  --dew-card-bg-hover: var(--points-soft);
+  --dew-card-border: var(--points-line);
+}
+.points-theme .points-help:hover,
+.points-theme .points-help:focus-visible { color: var(--points-ink); }
