@@ -4,7 +4,7 @@
       <template #header>
         <div class="head-row">
           <!-- 首次加载不闪「全营组会（0）」：标题计数走骨架，加载后用后端 total（非当前页条数） -->
-          <h3>全营组会（<DewSkeleton v-if="initialLoading" variant="text" :width="24" :height="14" class="head-count-skel" /><template v-else>{{ total }}</template>）</h3>
+          <h3>{{ unitId ? '本项目组会' : '全营组会' }}（<DewSkeleton v-if="initialLoading" variant="text" :width="24" :height="14" class="head-count-skel" /><template v-else>{{ total }}</template>）</h3>
           <span class="head-hint">{{ headHint }}</span>
         </div>
       </template>
@@ -100,6 +100,7 @@ const props = defineProps({
   sid: { type: [Number, String], required: true },
   /** 营期类型（session.category）：learning=培训营显示导生筛选；project=项目营不显示 */
   category: { type: String, default: 'learning' },
+  unitId: { type: Number, default: null },
 });
 
 const isLearning = computed(() => props.category !== 'project');
@@ -133,6 +134,7 @@ async function load() {
     const d = await campService.fetchCampMeetingsAll(props.sid, {
       page: page.value,
       page_size: pageSize,
+      unit_id: props.unitId || undefined,
       mentor_id: mentorId.value ?? undefined,
     });
     if (seq !== reqSeq) return;                    // 过期响应：丢弃
@@ -174,7 +176,7 @@ function clearFilter() {
   onFilterChange();
 }
 // 切营：清筛选、回第一页、重进完整准备态
-watch(() => props.sid, () => {
+watch(() => [props.sid, props.unitId], () => {
   page.value = 1;
   mentorId.value = null;
   meetings.value = [];

@@ -1,16 +1,20 @@
 <template>
   <!-- 多人项目由成员交付、负责人评价；单人项目由负责人交付、管理员验收。
        成员仅看本人材料及评价，节点默认展开。 -->
-  <div class="pm-wrap">
+  <div :class="['pm-wrap', { 'pm-workspace': workspace }]">
+    <nav v-if="workspace && !loading && milestones.length" class="pm-node-nav" aria-label="交付节点"><button v-for="node in milestones" :key="node.id" :aria-current="selectedId === node.id ? 'step' : undefined" @click="selectNode(node.id)"><span>{{ node.title }}</span><small>{{ node.node_complete ? '已完成' : node.due_date || '未设置截止' }}</small></button></nav>
+    <div class="pm-content">
+    <p v-if="workspace && invalidNode" class="ms-req" role="alert">指定节点不属于当前项目或已经移除，请从节点列表重新选择。</p>
     <div v-if="loading" class="pm-loading"><DewSkeleton variant="rect" width="100%" height="140" rounded="8px" /></div>
+    <div v-else-if="loadError" role="alert"><p>{{ loadError }}</p><DewButton size="sm" @click="load">重试</DewButton></div>
     <template v-else>
       <div v-if="!milestones.length" class="pm-empty">
         {{ canManage ? '还没有交付节点——先建项目模板（施工图）自动生成，或在下方手动添加' : '负责人尚未配置交付节点' }}
       </div>
 
       <!-- 节点列表 -->
-      <div v-for="m in milestones" :key="m.id" :class="['ms-row', `ms-${m.status}`, { 'ms-done': m.node_complete }]">
-        <button type="button" class="ms-head" @click="toggleExpand(m.id)">
+      <div v-for="m in visibleMilestones" :key="m.id" :class="['ms-row', `ms-${m.status}`, { 'ms-done': m.node_complete }]">
+        <button type="button" class="ms-head" @click="!workspace && toggleExpand(m.id)">
           <span class="ms-order">{{ m.order_no }}</span>
           <span class="ms-title">{{ m.title }}</span>
           <span v-if="m.due_date" class="ms-due">{{ m.due_date }}</span>
@@ -27,7 +31,7 @@
         </button>
 
         <!-- 展开区：要求 + ① 交付材料 + ② 节点评价 -->
-        <div v-if="expanded.has(m.id)" class="ms-body">
+        <div v-if="workspace || expanded.has(m.id)" class="ms-body">
           <p v-if="m.requirement" class="ms-req"><span class="req-label">交付要求：</span>{{ m.requirement }}</p>
           <p v-if="m.description" class="ms-req"><span class="req-label">说明：</span>{{ m.description }}</p>
 
@@ -44,6 +48,7 @@
                   {{ g.member.username }}
                   <span v-if="!g.subs.length" class="mem-nosub">未提交</span>
                 </div>
+                <DewButton v-if="workspace && g.total > 1" size="sm" type="ghost" @click="toggleHistory(m.id, g.member.user_id)">{{ historyOpen.has(`${m.id}:${g.member.user_id}`) ? '收起历史版本' : `历史版本（${g.total}）` }}</DewButton>
                 <div v-for="s in g.subs" :key="s.id" :class="['chain-item', `cs-${s.status}`]">
                   <div class="chain-line">
                     <span class="chain-ver">v{{ s.version }}</span>
@@ -74,7 +79,8 @@
           </template>
 
           <template v-else>
-            <div v-for="s in m.submissions" :key="s.id" :class="['chain-item', `cs-${s.status}`]">
+            <DewButton v-if="workspace && m.submissions.length > 1" size="sm" type="ghost" @click="toggleHistory(m.id)">{{ historyOpen.has(`${m.id}:self`) ? '收起历史版本' : `历史版本（${m.submissions.length}）` }}</DewButton>
+            <div v-for="s in visibleSubmissions(m)" :key="s.id" :class="['chain-item', `cs-${s.status}`]">
               <div class="chain-line">
                 <span class="chain-ver">v{{ s.version }}</span>
                 <span v-if="s.status === 'submitted'" class="chain-st submitted">已提交</span>
@@ -155,11 +161,13 @@
         </div>
       </DewDialog>
     </template>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { ArrowDown } from '@element-plus/icons-vue';
 import { DewButton, DewInput, DewDialog, DewSkeleton } from '@bme/dew-ui';
@@ -167,6 +175,8 @@ import { campService } from '../../services/campService';
 
 const props = defineProps({
   unitId: { type: Number, required: true },
+  workspace: Boolean,
+  draftCache: { type: Object, default: () => ({}) },
   campStatus: { type: String, required: true },
   editable: { type: Boolean, default: true },     // camp archived/unit terminated → false
   ownerUserId: { type: Number, default: null },   // 兼容 ProjectBoard 传参（成员提交制后暂未使用）
@@ -175,12 +185,20 @@ const emit = defineEmits(['changed']);
 
 const loading = ref(true);
 const milestones = ref([]);
+const loadError = ref('');
+const route = useRoute(), router = useRouter();
+const selectedId = computed(() => milestones.value.find(m => String(m.id) === String(route.query.node))?.id || milestones.value.find(m => !m.node_complete)?.id || milestones.value[0]?.id);
+const invalidNode = computed(() => props.workspace && route.query.node && !loading.value && !milestones.value.some(m => String(m.id) === String(route.query.node)));
+const visibleMilestones = computed(() => props.workspace ? invalidNode.value ? [] : milestones.value.filter(m => m.id === selectedId.value) : milestones.value);
+function selectNode(id) { router.push({ query: { ...route.query, node: String(id) } }); }
 const evalMembers = ref([]);   // 应评花名册（leader 渲染用）
 const myRole = ref('member');
 const submissionAllowed = ref(false);
 const uploadLimits = ref({ total_bytes: 48 * 1024 * 1024, max_files: 20, content_bytes: 64 * 1024 });
 const expanded = ref(new Set());
-const drafts = ref({});
+const historyOpen = ref(new Set());
+const drafts = ref(props.draftCache[props.unitId] || {});
+props.draftCache[props.unitId] = drafts.value;
 const submitting = ref(null);
 const adding = ref(false);
 const addingSaving = ref(false);
@@ -235,11 +253,19 @@ function evalOf(m, uid) {
 function myEval(m) {
   return (m.evaluations || [])[0] || null;   // 成员视角后端只回本人行
 }
+function toggleHistory(mid, uid = 'self') { const next = new Set(historyOpen.value), key = `${mid}:${uid}`; next.has(key) ? next.delete(key) : next.add(key); historyOpen.value = next; }
+function visibleSubmissions(m, uid = 'self') {
+  const rows = (m.submissions || []).filter(s => uid === 'self' || s.submitted_by === uid);
+  if (!props.workspace) return rows;
+  const ordered = [...rows].sort((a, b) => b.version - a.version);
+  return historyOpen.value.has(`${m.id}:${uid}`) ? ordered : ordered.slice(0, 1);
+}
 // 负责人视角按成员分组（09-14 合框）：左=该成员版本链，右=评价；没交的成员也占一行（未提交）
 function memberGroups(m) {
   return evalMembers.value.map((t) => ({
     member: t,
-    subs: (m.submissions || []).filter((s) => s.submitted_by === t.user_id),
+    subs: visibleSubmissions(m, t.user_id),
+    total: (m.submissions || []).filter(s => s.submitted_by === t.user_id).length,
     eval: evalOf(m, t.user_id),
   }));
 }
@@ -248,6 +274,7 @@ let loadSequence = 0;
 async function load() {
   const sequence = ++loadSequence;
   loading.value = true;
+  loadError.value = '';
   adding.value = false;
   submissionAllowed.value = false;
   milestones.value = [];
@@ -265,8 +292,12 @@ async function load() {
       if (!drafts.value[m.id]) drafts.value[m.id] = { content: '', files: [] };
     });
     expanded.value = new Set(milestones.value.map((m) => m.id));
+    if (props.workspace && !route.query.node && String(route.query.unit) === String(props.unitId)) {
+      const selected = milestones.value.find(m => !m.node_complete) || milestones.value[0];
+      if (selected) await router.replace({ query: { ...route.query, node: String(selected.id) } });
+    }
   } catch (e) {
-    if (sequence === loadSequence) ElMessage.error(e.response?.data?.message || '加载交付节点失败');
+    if (sequence === loadSequence) loadError.value = e.response?.data?.message || '加载交付节点失败';
   } finally {
     if (sequence === loadSequence) loading.value = false;
   }
@@ -274,10 +305,13 @@ async function load() {
 onMounted(load);
 // 看板切换项目（unitId 变化）须重载——多项目时 DewSelect 切换不重挂载组件
 watch(() => props.unitId, () => {
-  drafts.value = {};
+  drafts.value = props.draftCache[props.unitId] || {};
+  props.draftCache[props.unitId] = drafts.value;
   evalDlg.value = false;
   load();
 });
+onBeforeUnmount(() => loadSequence++);
+defineExpose({ reload: load });
 
 // ── 交付材料：提交（multipart）──
 function onFiles(mid, e) {
@@ -367,6 +401,8 @@ async function addMilestone() {
 </script>
 
 <style scoped>
+.pm-wrap.pm-workspace { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 24px; }.pm-content { min-width: 0; }.pm-node-nav { display: flex; flex-direction: column; gap: 8px; align-self: start; }.pm-node-nav button { border: 1px solid var(--dew-card-flat-border); border-radius: 8px; padding: 14px 12px; background: transparent; color: var(--dew-text); font: inherit; text-align: left; cursor: pointer; }.pm-node-nav button[aria-current=step] { border-color: var(--color-primary); background: var(--color-primary-light); }.pm-node-nav small { display: block; font-size: 12px; color: var(--dew-text-muted); margin-top: 6px; }.pm-workspace .ms-row { border: 0; margin-top: 0; }.pm-workspace .ms-head { flex-wrap: wrap; }.pm-workspace .ms-body { padding-inline: 0; }.pm-workspace .ms-caret { display: none; }
+@media(max-width:850px) { .pm-wrap.pm-workspace { grid-template-columns: 1fr; }.pm-node-nav { flex-direction: row; flex-wrap: wrap; }.pm-node-nav button { flex: 1; min-width: 130px; } }
 .pm-wrap { display: flex; flex-direction: column; gap: 8px; }
 .pm-loading, .pm-empty { padding: 6px 0; }
 .pm-empty { font-size: 12.5px; color: var(--dew-text-faint); }

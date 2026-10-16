@@ -7,16 +7,17 @@
       <div class="toolbar">
         <DewInput v-model="query.keyword" placeholder="搜索姓名" size="sm"
           style="width: 180px;" @enter="search" @clear="search" clearable />
-        <DewSelect v-model="query.role" size="sm" style="width: 120px;"
+        <DewSelect v-if="!isProject" v-model="query.role" size="sm" style="width: 120px;"
           placeholder="全部身份" clearable
           :options="[{ label: '学员', value: 'student' }, { label: '导生', value: 'mentor' }, { label: '成员', value: 'member' }]"
           @update:model-value="search" />
         <DewButton size="sm" @click="search">查询</DewButton>
         <div class="toolbar-right">
-          <span class="count-hint">导生 {{ counts.mentor }} · 学员 {{ counts.student }}</span>
-          <DewButton size="sm" type="glass" @click="openAdd">加成员</DewButton>
+          <span v-if="!isProject" class="count-hint">导生 {{ counts.mentor }} · 学员 {{ counts.student }}</span>
+          <DewButton v-if="writable" size="sm" type="glass" @click="openAdd">加成员</DewButton>
         </div>
       </div>
+      <p v-if="isProject && campStatus !== 'archived'" class="project-formation-note">{{ campStatus === 'selecting' ? '组队期由项目负责人勾选成员；负责人调整由平台管理员处理。' : '项目成员调整与负责人转交由平台管理员处理。' }}</p>
 
       <!-- 列表 -->
       <div v-if="loading" style="display: flex; flex-direction: column; gap: 8px;">
@@ -26,23 +27,27 @@
       <div v-else class="member-list">
         <div v-for="row in rows" :key="row.user_id" class="member-row">
           <span class="m-name">{{ row.username }}</span>
-          <DewTag :type="(row.roles || [row.role]).includes('mentor') ? 'primary' : row.role === 'member' ? 'info' : 'neutral'"
+          <DewTag :type="isProject ? 'info' : (row.roles || [row.role]).includes('mentor') ? 'primary' : row.role === 'member' ? 'info' : 'neutral'"
             size="sm" :round="true">
-            {{ { mentor: '导生', member: '成员' }[row.role] || '学员' }}
+            {{ isProject ? '营期成员' : { mentor: '导生', member: '成员' }[row.role] || '学员' }}
           </DewTag>
-          <div class="m-mentor">
+          <div v-if="isProject" class="m-projects">
+            <DewButton v-for="item in projectMemberships[row.user_id] || []" :key="item.project.key || item.project.unit_id" type="ghost" size="sm" @click="$emit('open-project', item.project)">{{ item.project.name }} · {{ item.role === 'leader' ? '负责人' : '成员' }}</DewButton>
+            <span v-if="!projectMemberships[row.user_id]?.length" class="m-dash">未加入项目</span>
+          </div>
+          <div v-else class="m-mentor">
             <template v-if="(row.roles || [row.role]).includes('student')">
               <DewSelect :model-value="row.team_mentor_id" size="sm" placeholder="未分配"
-                class="mentor-select" clearable
+                class="mentor-select" clearable :disabled="!writable"
                 :options="mentorOptions"
                 @update:model-value="(v) =>reassign(row, v)" />
             </template>
             <span v-else class="m-dash">—</span>
           </div>
           <span class="m-joined">{{ (row.joined_at || '').slice(0, 10) }}</span>
-          <DewButton v-if="(row.roles || [row.role]).includes('student') && attEnabled" size="sm" type="ghost"
+          <DewButton v-if="!isProject && writable && (row.roles || [row.role]).includes('student') && attEnabled" size="sm" type="ghost"
                      @click="openPlanDlg(row)">出勤日</DewButton>
-          <DewButton size="sm" type="ghost" @click="remove(row)">移除</DewButton>
+          <DewButton v-if="writable && (!isProject || !projectMemberships[row.user_id]?.length)" size="sm" type="ghost" @click="remove(row)">移除</DewButton>
         </div>
       </div>
 
@@ -89,7 +94,7 @@
 
     <!-- 加成员弹窗 -->
     <DewDialog v-model="addDlg.visible" title="加成员" :width="520">
-      <div class="add-hint">搜索未入营的普通用户（每次最多 20 个候选）；学员可统一预分配导生，加入后可改派</div>
+      <div class="add-hint">{{ isProject ? '搜索未入营人员；加入营期后，由项目负责人或平台管理员完成组队。' : '搜索未入营的普通用户（每次最多 20 个候选）；学员可统一预分配导生，加入后可改派' }}</div>
       <DewInput v-model="addDlg.keyword" placeholder="输入姓名或邮箱搜索" size="sm"
         style="width: 100%; margin: 10px 0;" @enter="searchCandidates" />
       <DewButton size="sm" @click="searchCandidates">搜索</DewButton>
@@ -104,7 +109,7 @@
         </div>
         <div v-if="!addDlg.options.length && addDlg.searched" class="empty">没有匹配的用户</div>
       </div>
-      <div v-if="picked.size" class="add-form">
+      <div v-if="picked.size && !isProject" class="add-form">
         <DewSelect v-model="addDlg.role" size="sm" style="width: 140px;"
           :options="[{ label: '学员', value: 'student' }, { label: '导生', value: 'mentor' }]" />
         <DewSelect v-if="addDlg.role === 'student'" v-model="addDlg.mentorId" size="sm"
@@ -129,10 +134,21 @@ import { campService } from '../../services/campService';
 const props = defineProps({
   sid: { type: [Number, String], required: true },
   writable: { type: Boolean, default: true },
+  category: { type: String, default: 'learning' },
+  projects: { type: Array, default: () => [] },
+  campStatus: { type: String, default: 'running' },
   /** 启用每日考勤的营才显示「出勤日」入口（policy.capabilities.attendance） */
   attEnabled: { type: Boolean, default: false },
 });
-const emit = defineEmits(['reviewed']);
+const emit = defineEmits(['reviewed', 'open-project']);
+const isProject = computed(() => props.category === 'project');
+const projectMemberships = computed(() => {
+  const result = {};
+  for (const project of props.projects) for (const member of project.members || []) {
+    if (member.user_id) (result[member.user_id] ||= []).push({ project, role: member.role });
+  }
+  return result;
+});
 
 const rows = ref([]);
 const mentors = ref([]);
@@ -154,7 +170,7 @@ async function load() {
     counts.value = { ...counts.value, ...(d.counts || {}) };
     counts.value.all = Object.values(d.counts || {}).reduce((s, n) => s + n, 0);
     // 改派选项：本营导生（成员行外的独立列表，member_list 未含全量导生时兜底拉 mentors）
-    if (!mentors.value.length) {
+    if (!isProject.value && !mentors.value.length) {
       try {
         const all = await campService.fetchMembersPaged(props.sid, { page: 1, page_size: 100, role: 'mentor' });
         mentors.value = (all.members || []).map((m) => ({ label: m.username, value: m.user_id }));
@@ -173,6 +189,7 @@ function search() { query.page = 1; load(); }
 
 // 改派（member_update：学员行换导生；清空=回未分配池，后端会通知三方）
 async function reassign(row, mentorId) {
+  if (!props.writable || isProject.value) return;
   try {
     await campService.updateMemberMentor(props.sid, row.user_id, mentorId || null);
     row.team_mentor_id = mentorId || null;
@@ -185,9 +202,10 @@ async function reassign(row, mentorId) {
 }
 
 async function remove(row) {
+  if (!props.writable) return;
   try {
     await ElMessageBox.confirm(
-      `移除「${row.username}」后其考勤承诺、报名与导生归属数据将被清理，且会通知本人。确定移除吗？`,
+      isProject.value ? `移除「${row.username}」将结束其本营所有项目参与关系，并通知本人。历史材料保留。确定移除吗？` : `移除「${row.username}」后其考勤承诺、报名与导生归属数据将被清理，且会通知本人。确定移除吗？`,
       '移除成员', { confirmButtonText: '移除', cancelButtonText: '取消', type: 'warning' });
   } catch { return; }
   try {
@@ -208,8 +226,9 @@ const addDlg = reactive({
 const picked = ref(new Set());
 
 function openAdd() {
+  if (!props.writable) return;
   addDlg.keyword = ''; addDlg.options = []; addDlg.searched = false;
-  addDlg.role = 'student'; addDlg.mentorId = null;
+  addDlg.role = isProject.value ? 'member' : 'student'; addDlg.mentorId = null;
   picked.value = new Set();
   addDlg.visible = true;
 }
@@ -232,13 +251,13 @@ function togglePick(u) {
   picked.value = next;
 }
 async function submitAdd() {
-  if (!picked.value.size) return;
+  if (!props.writable || !picked.value.size || addDlg.submitting) return;
   addDlg.submitting = true;
   try {
     const items = [...picked.value].map((uid) => ({
       user_id: uid,
-      role: addDlg.role,
-      team_mentor_id: addDlg.role === 'student' ? (addDlg.mentorId || null) : null,
+      role: isProject.value ? 'member' : addDlg.role,
+      team_mentor_id: !isProject.value && addDlg.role === 'student' ? (addDlg.mentorId || null) : null,
     }));
     const r = await campService.assignMembersBatch(props.sid, items);
     const ok = r.added || 0;
@@ -334,6 +353,8 @@ async function submitPlan() {
 .member-row + .member-row { border-top: 1px solid var(--dew-card-divider); }
 .m-name { font-weight: 600; min-width: 72px; }
 .m-mentor { flex: 1; min-width: 0; }
+.m-projects { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 4px; }
+.project-formation-note { color: var(--dew-text-muted); font-size: 12px; line-height: 1.7; margin-bottom: 12px; }
 .mentor-select { width: 220px; }
 .m-dash { color: var(--dew-text-faint); }
 .m-joined { font-size: 12px; color: var(--dew-text-faint); width: 84px; text-align: right; }
@@ -379,4 +400,5 @@ async function submitPlan() {
 .cand-mail { font-size: 12px; color: var(--dew-text-faint); overflow: hidden; text-overflow: ellipsis; }
 .add-form { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
 .empty { padding: 20px 0; color: var(--dew-text-faint); font-size: 13px; text-align: center; }
+@media(max-width:600px) { .member-row { flex-wrap: wrap; }.m-projects { flex-basis: 100%; }.m-joined { width: auto; }.mentor-select { max-width: 100%; } }
 </style>

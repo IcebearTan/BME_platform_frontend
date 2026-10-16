@@ -47,6 +47,7 @@ export function todayLocal() {
 }
 
 export const campService = {
+  resolveProjectNode: (sid, mid) => api.get(`/camp/projects/${sid}/node-target/${mid}`).then(r => r.data),
   fetchProjectDashboard: sid => api.get(`/camp/projects/${sid}/dashboard`).then(r => r.data),
   fetchProjectDashboardDetail: (sid, key) => api.get(`/camp/projects/${sid}/dashboard/${encodeURIComponent(key)}`).then(r => r.data),
   fetchTrainingGroups: sid => api.get(`/camp/sessions/${sid}/training-groups`).then(r => r.data),
@@ -153,7 +154,7 @@ export const campService = {
   updateMemberMentor: (sid, uid, teamMentorId) =>
     api.put(`/camp/sessions/${sid}/members/${uid}`, { team_mentor_id: teamMentorId }).then(r => r.data),
   removeMember: (sid, uid) =>
-    api.delete(`/camp/sessions/${sid}/members/${uid}`).then(r => r.data),
+    api.delete(`/camp/sessions/${sid}/members/${uid}`, { data: {} }).then(r => r.data),
   fetchMemberCandidates: (sid, params) =>
     api.get(`/camp/sessions/${sid}/member-candidates`, { params }).then(r => r.data),
   assignMembersBatch: (sid, items) =>

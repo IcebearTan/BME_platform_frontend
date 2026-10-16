@@ -10,7 +10,7 @@
 
     <template v-if="cur">
       <!-- 看板头 -->
-      <DewCard variant="inset" size="lg" :no-hover="true" class="board-head">
+      <DewCard v-if="!workspace" variant="inset" size="lg" :no-hover="true" class="board-head">
         <div class="head-row">
           <div class="head-main">
             <span class="head-name">{{ cur.name }}</span>
@@ -29,7 +29,7 @@
       </DewCard>
 
       <!-- 成员管理（负责） -->
-      <template v-if="role === 'leader'">
+      <template v-if="role === 'leader' && visible('members')">
         <div class="sec-title">成员管理</div>
         <DewCard variant="default" :no-hover="true" class="sec-card">
           <ProjectRoster :unit-id="cur.unit_id" :camp-status="session.status" @changed="emitChanged" />
@@ -37,27 +37,30 @@
       </template>
 
       <!-- 节点交付（模板实例化的里程碑：材料提交/审核 + 节点评价；09-14 用户定名「项目进展」） -->
-      <div class="sec-title">项目进展</div>
+      <template v-if="visible('delivery')"><div v-if="workspace && role === 'leader'" class="board-tools"><DewButton size="sm" type="ghost" :disabled="session.status === 'archived' || cur.status !== 'active'" @click="openTemplate">管理节点计划</DewButton></div><div v-if="!workspace" class="sec-title">项目进展</div>
       <DewCard variant="default" :no-hover="true" class="sec-card">
-        <ProjectMilestones :unit-id="cur.unit_id" :camp-status="session.status"
+        <ProjectMilestones ref="milestonesRef" :unit-id="cur.unit_id" :camp-status="session.status"
                            :editable="session.status !== 'archived' && cur.status === 'active'"
-                           :owner-user-id="cur.leader_user_id" @changed="emitChanged" />
+                           :owner-user-id="cur.leader_user_id" :workspace="workspace" :draft-cache="draftCache" @changed="emitChanged" />
       </DewCard>
 
+      </template>
       <!-- 活动考勤（09-13 拍板：以项目为单位，负责人发起/勾选出席） -->
-      <div class="sec-title">活动考勤</div>
+      <template v-if="visible('activities')"><div class="sec-title">活动考勤</div>
       <DewCard variant="default" :no-hover="true" class="sec-card">
         <ProjectActivities :sid="sid" :session="session" :unit-id="cur.unit_id" />
       </DewCard>
 
+      </template>
       <!-- 组会纪要（09-17：负责人提交文字/文件/录像纪要，组员查看；结营只读） -->
-      <div class="sec-title">组会纪要</div>
+      <template v-if="visible('meetings')"><div v-if="!workspace" class="sec-title">组会纪要</div>
       <DewCard variant="default" :no-hover="true" class="sec-card">
         <CampMeetings :sid="sid" :unit-id="cur.unit_id" :camp-status="session.status" />
       </DewCard>
 
+      </template>
       <!-- 周考勤（09-13：项目营开了周打卡后负责人的成员×周面板，两区并显不并口径） -->
-      <template v-if="role === 'leader' && weeklyOn">
+      <template v-if="role === 'leader' && weeklyOn && visible('weekly')">
         <div class="sec-title">周考勤</div>
         <DewCard variant="default" :no-hover="true" class="sec-card">
           <ProjectWeeklyAttendance :unit-id="cur.unit_id" />
@@ -65,12 +68,13 @@
       </template>
 
       <!-- 成果 -->
-      <div class="sec-title">项目成果</div>
+      <template v-if="visible('outcomes')"><div v-if="!workspace" class="sec-title">项目成果</div>
       <DewCard variant="default" :no-hover="true" class="sec-card">
         <div class="outcome-head">
           <span class="outcome-title">验收材料与成果</span>
           <DewButton v-if="role === 'leader' && session.status !== 'archived' && cur.status === 'active'"
                      type="ghost" size="sm" @click="openOutcome">登记成果</DewButton>
+          <DewButton v-if="workspace && role === 'leader'" type="ghost" size="sm" @click="openPublish">发布到项目广场</DewButton>
         </div>
         <div v-if="!outcomes.length" class="outcome-empty">
           {{ role === 'leader' ? '尚无成果登记——结题材料验收后在此登记，管理员核验后入档' : '负责人尚未登记成果' }}
@@ -83,12 +87,13 @@
           </div>
         </div>
       </DewCard>
+      </template>
     </template>
 
     <!-- 项目模板（三起点+节点编辑） -->
     <DewDialog v-model="tplDlg" :title="`项目模板 · ${cur?.name || ''}`" width="680px">
       <TemplateEditor v-if="tplDlg && cur" :unit-id="cur.unit_id" :sid="sid"
-                      @close="tplDlg = false" @changed="emitChanged" />
+                      @close="tplDlg = false" @created="milestonesRef?.reload()" @changed="emitChanged" />
     </DewDialog>
 
     <!-- 发布到项目广场 -->
@@ -144,11 +149,16 @@ import TemplateEditor from './TemplateEditor.vue';
 
 const props = defineProps({
   sid: { type: Number, required: true },
+  section: { type: String, default: null },
+  workspace: Boolean,
+  draftCache: { type: Object, default: () => ({}) },
   session: { type: Object, required: true },
   units: { type: Array, required: true },          // 同一角色的项目列表（mine.leading / mine.joining）
   role: { type: String, default: 'member' },       // leader / member
 });
 const emit = defineEmits(['changed']);
+const milestonesRef = ref(null);
+const visible = section => !props.section || props.section === section;
 
 const unitStatusText = { active: '进行中', paused: '已暂停', terminated: '已终止' };
 const OUTCOME_TEXT = { submitted: '待核验', verified: '已核验', rejected: '已驳回' };
@@ -169,7 +179,7 @@ const weeklyOn = computed(() => !!props.session.policy?.capabilities?.attendance
 // ── 成果 ──
 const outcomes = ref([]);
 async function loadOutcomes() {
-  if (!cur.value) return;
+  if (!cur.value || !visible('outcomes')) return;
   try {
     const d = await campService.fetchOutcomes(cur.value.unit_id);
     outcomes.value = d.outcomes || [];

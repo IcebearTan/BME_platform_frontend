@@ -14,7 +14,7 @@
       </div>
     </DewCard>
 
-    <div v-if="viewItems.length" class="hub-bar-scroll">
+    <div v-if="viewItems.length && !preferencesOnly" class="hub-bar-scroll">
       <DewButtonBar v-model="view" :items="viewItems" class="hub-bar" />
     </div>
 
@@ -130,6 +130,7 @@ import CampPointsPanel from './CampPointsPanel.vue';
 
 const props = defineProps({
   sid: { type: Number, required: true },
+  preferencesOnly: { type: Boolean, default: false },
   session: { type: Object, required: true },   // 营期行（project 营，含 status/policy）
 });
 
@@ -164,6 +165,7 @@ const viewItems = computed(() => {
   return items;
 });
 watch(viewItems, (items) => {
+  if (props.preferencesOnly) { view.value = 'pref'; return; }
   if (route.query.tab === 'points') view.value = 'points';
   else if (!items.some((t) => t.value === view.value)) view.value = items[0]?.value ?? null;
 }, { immediate: true });

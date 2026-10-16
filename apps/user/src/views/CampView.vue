@@ -17,12 +17,12 @@
       <!-- 工作台：具体营期内容；其他营期统一回中心选择 -->
       <div v-else-if="sessions.length" class="camp-layout">
         <div class="camp-main">
-          <DewButton type="ghost" size="sm" class="back-center" @click="backToCenter">
+          <DewButton v-if="!projectWorkspaceActive" type="ghost" size="sm" class="back-center" @click="backToCenter">
             <el-icon><ArrowLeft /></el-icon>
             <span>营期中心</span>
           </DewButton>
           <!-- 营期头部：无卡片样式，置于最上；tabs 切换条紧随其下 -->
-          <header v-if="current" class="camp-hero">
+          <header v-if="current && !projectWorkspaceActive" class="camp-hero">
             <h1 class="hero-title">{{ current.name }}</h1>
             <!-- 信息行：状态·日期·规则（左） + 选导生阶段胶囊（右） -->
             <div class="hero-meta-row">
@@ -66,7 +66,8 @@
 
           <!-- ── 老师视角（阶段 1，CampStaff）：负责人工作台——先于成员判定，
                staff 非成员也能进自己的营 ── -->
-          <template v-if="current && perspective === 'teacher'">
+          <ProjectWorkspaceShell v-if="projectWorkspaceActive" :key="sid" :sid="sid" :session="current" :perspective="perspective" @back="backToCenter" @perspective-change="switchPerspective" />
+          <template v-else-if="current && perspective === 'teacher'">
             <TeacherWorkspace :sid="sid" :session="current" />
           </template>
 
@@ -128,7 +129,7 @@
           <div v-else-if="!isProject" class="camp-tabs-scroll"><DewButtonBar v-model="tab" :items="tabItems" /></div>
           <CampOverview :key="`${sid}-${perspective}`" v-if="tab === 'overview' && !isProject && current && current.is_member" :sid="sid" :my-role="perspective || current.my_role" :att-enabled="!!caps.attendance" />
           <CampPointsPanel v-if="tab === 'points' && !isProject && current?.is_member && perspective !== 'teacher'" :key="`${sid}-${perspective}`" :sid="sid" :manage="isMentor" />
-          <template v-if="isProject && current?.is_member">
+          <template v-if="isProject && current?.is_member && !projectWorkspaceActive">
             <ProjectHub :sid="sid" :session="current" style="margin-top: 16px;" />
           </template>
           <template v-else-if="isMentor && current?.is_member">
@@ -175,6 +176,7 @@ import MsMentorDesk from '../components/Camp/MsMentorDesk.vue';
 import CampCenter from '../components/Camp/CampCenter.vue';
 import CampJoin from '../components/Camp/CampJoin.vue';
 import ProjectHub from '../components/Camp/ProjectHub.vue';
+import ProjectWorkspaceShell from '../components/Camp/ProjectWorkspaceShell.vue';
 import ProjectApplyCard from '../components/Camp/ProjectApplyCard.vue';
 
 const store = useStore();
@@ -197,6 +199,7 @@ const isMentor = computed(() => (perspective.value || current.value?.my_role) ==
 // v1.3 category 组装：项目营=身份中性视图（负责人身份在单元层，由 ProjectHub 自行区分）；
 // 考勤/请假 tab 由 policy capabilities 决定（learning 默认开、project 首期关，营期行可覆盖）
 const isProject = computed(() => current.value?.category === 'project');
+const projectWorkspaceActive = computed(() => isProject.value && (current.value?.is_member || perspective.value === 'teacher'));
 const caps = computed(() => current.value?.policy?.capabilities || {});
 // 看板为默认 tab（营期概要+仪表盘，自 CampHome 成员视图迁入）；
 // 选导生为开营前置阶段，启用时紧随看板（session 数据来自 _session_dict 的 mentor_selection_enabled）

@@ -56,6 +56,10 @@ export function notificationTarget(item) {
   const sid = item.camp_session_id
   const withSid = (query) => (sid ? { path: '/camp', query: { ...query, sid } } : { path: '/camp' })
   switch (item.source_type) {
+    case 'project_node':
+      return withSid({ scope: 'project', tab: 'delivery', node: item.source_id })
+    case 'camp_project':
+      return withSid({ tab: 'overview' })
     case 'leave':              // 请假提交（审批人）/审批结果（学员）→ 各自视角的请假页
       return withSid({ tab: 'leave' })
     case 'camp_meeting':       // 组会/任务 → 组会任务 tab（项目营自动回落 ProjectHub）

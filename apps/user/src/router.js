@@ -117,6 +117,10 @@ const router = createRouter({
             name: 'dev-accounts',
             component: () => import('./views/DevAccountsView.vue'),
             meta: { authPage: true }
+        }, {
+            path: '/dev/project-workspace',
+            name: 'dev-project-workspace',
+            component: () => import('./views/ProjectWorkspacePreviewView.vue'),
         }] : []),
         {
             path: '/register',

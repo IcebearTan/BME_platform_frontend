@@ -5,10 +5,10 @@
     <!-- 09-12 模式 C（学期校区·按周累计）：学员 × 周次数/时长，无承诺日矩阵 -->
     <template v-if="mode === 'weekly'">
       <DewCard variant="default" size="lg" :no-hover="true">
-        <template #header><h3>{{ scopeLabel }}出勤周报（{{ weeklyRows.length }} 名学员 · 按周累计）</h3></template>
-        <div v-if="!weeklyRows.length" class="empty">{{ scopeLabel }}暂无学员</div>
+        <template #header><h3>{{ scopeLabel }}出勤周报（{{ weeklyRows.length }} 名{{ participantLabel }} · 按周累计）</h3></template>
+        <div v-if="!weeklyRows.length" class="empty">{{ scopeLabel }}暂无{{ participantLabel }}</div>
         <el-table v-else :data="weeklyRows" border stripe size="small" v-loading="loading">
-          <el-table-column label="学员" prop="username" fixed="left" min-width="100" />
+          <el-table-column :label="participantLabel" prop="username" fixed="left" min-width="100" />
           <el-table-column v-for="w in weekLabels" :key="w.label" min-width="86" align="center">
             <template #header>{{ w.label }}<div class="th-sub">{{ w.range }}</div></template>
             <template #default="{ row }">
@@ -37,10 +37,10 @@
       </DewCard>
 
       <DewCard variant="default" size="lg" :no-hover="true">
-        <template #header><h3>考勤明细（{{ rows.length }} 名学员）</h3></template>
+        <template #header><h3>考勤明细（{{ rows.length }} 名{{ participantLabel }}）</h3></template>
         <div v-if="!rows.length" class="empty">{{ scopeLabel }}暂无承诺出勤数据</div>
         <el-table v-else :data="rows" border stripe size="small" v-loading="loading">
-          <el-table-column label="学员" prop="username" fixed="left" min-width="90" />
+          <el-table-column :label="participantLabel" prop="username" fixed="left" min-width="90" />
           <el-table-column v-for="d in dates" :key="d" :label="label(d)" min-width="50" align="center">
             <template #default="{ row }">
               <div v-if="row.daily && row.daily[d]"
@@ -64,7 +64,9 @@ const props = defineProps({
   sid: { type: [Number, String], required: true },
   /** 范围文案：导生=本团队（默认）；老师工作台复用时传「全营」 */
   scopeLabel: { type: String, default: '本团队' },
+  category: { type: String, default: 'learning' },
 });
+const participantLabel = computed(() => props.category === 'project' ? '成员' : '学员');
 
 const loading = ref(false);
 const board = ref({});

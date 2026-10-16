@@ -80,7 +80,8 @@ import { ElMessage } from 'element-plus';
 import { DewCard, DewButton, DewInput, DewSelect, DewProgress, DewSkeleton } from '@bme/dew-ui';
 import { campService } from '../../services/campService';
 
-const props = defineProps({ sid: { type: [Number, String], required: true } });
+const props = defineProps({ sid: { type: [Number, String], required: true }, workspace: Boolean });
+const emit = defineEmits(['open-project']);
 const board = ref(null), loading = ref(false), error = ref('');
 const keyword = ref(''), risk = ref('all'), status = ref('all'), page = ref(1), pageSize = 20;
 const drawerOpen = ref(false), selectedName = ref(''), selectedKey = ref(null), selectedNode = ref(null);
@@ -119,6 +120,7 @@ async function load() {
 }
 function closeDetail() { detailSequence++; detail.value = null; detailError.value = ''; selectedKey.value = null; }
 function openProject(project, nodeId = null) {
+  if (props.workspace) { emit('open-project', project, nodeId ? 'delivery' : 'overview', nodeId); return; }
   selectedKey.value = project.key; selectedName.value = project.name; selectedNode.value = nodeId; drawerOpen.value = true; fetchDetail();
 }
 async function fetchDetail() {

@@ -1,8 +1,8 @@
 import { test, expect } from '@playwright/test'
 
 const API = 'http://127.0.0.1:5001'
-const USER = 'http://127.0.0.1:18081/AMEII'
-const ADMIN = 'http://127.0.0.1:15173/admin'
+const USER = process.env.BME_USER_TEST_URL || 'http://127.0.0.1:18081/AMEII'
+const ADMIN = process.env.BME_ADMIN_TEST_URL || 'http://127.0.0.1:15173/admin'
 const session = (status = 'running') => ({ id: 30, name: '项目营交付检查', category: 'project', status,
   start_date: '2026-10-01', end_date: '2026-12-01', is_member: true, my_role: 'member',
   policy: { capabilities: { attendance: false, leave: false, seat: false } } })
@@ -20,6 +20,41 @@ async function login(page, admin = false) {
     return route.fulfill({ json: { code: 200, data: {}, message: 'ok' } })
   })
 }
+
+test('工作区创建模板后自动刷新交付节点，无需刷新整页', async ({ page }) => {
+  await login(page)
+  await page.route(`${API}/camp/sessions`, r => r.fulfill({ json: { code: 200, sessions: [session()] } }))
+  await page.route(`${API}/camp/projects/30/mine`, r => r.fulfill({ json: { code: 200, leading: [{ unit_id: 41, name: '新项目', status: 'active', member_count: 1 }], joining: [] } }))
+  let created = false
+  await page.route(`${API}/camp/units/41/milestones`, r => r.fulfill({ json: { code: 200, my_role: 'leader', can_submit: true, milestones: created ? [{ id: 501, title: '首次验收', node_complete: false, submissions: [], evaluations: [], completion_mode: 'leader_review' }] : [] } }))
+  await page.route(`${API}/camp/units/41/template`, r => {
+    if (r.request().method() === 'POST') created = true
+    return r.fulfill({ json: { code: 200, template: null } })
+  })
+  await page.goto(`${USER}/camp?sid=30&unit=41&tab=delivery`)
+  await page.getByRole('button', { name: '管理节点计划', exact: true }).click()
+  await page.getByPlaceholder('如：硬件研发三阶段').fill('新项目节点计划')
+  await page.locator('.add-node').click()
+  await page.getByPlaceholder('节点标题（如：中期检查）').fill('首次验收')
+  await page.getByRole('button', { name: '创建模板并生成里程碑', exact: true }).click()
+  await expect(page.locator('.pm-node-nav')).toContainText('首次验收')
+  await expect(page.locator('.pm-content .ms-title')).toHaveText('首次验收')
+  await expect(page.locator('.ms-body')).toBeVisible()
+})
+
+test('节点完成后刷新仍保留当前节点，不自动跳到下一项', async ({ page }) => {
+  await login(page)
+  await page.route(`${API}/camp/sessions`, r => r.fulfill({ json: { code: 200, sessions: [session()] } }))
+  await page.route(`${API}/camp/projects/30/mine`, r => r.fulfill({ json: { code: 200, leading: [], joining: [{ unit_id: 41, name: '连续交付项目', status: 'active', member_count: 2 }] } }))
+  let complete = false
+  await page.route(`${API}/camp/units/41/milestones`, r => r.fulfill({ json: { code: 200, my_role: 'member', can_submit: true, milestones: [{ id: 501, title: '当前节点', node_complete: complete, submissions: [], evaluations: [] }, { id: 502, title: '下一节点', node_complete: false, submissions: [], evaluations: [] }] } }))
+  await page.goto(`${USER}/camp?sid=30&unit=41&tab=delivery`)
+  await expect(page).toHaveURL(/node=501/)
+  complete = true
+  await page.reload()
+  await expect(page.locator('.pm-node-nav [aria-current=step]')).toContainText('当前节点')
+  await expect(page.locator('.pm-content .ms-title')).toHaveText('当前节点')
+})
 
 test('项目营修复：单人负责人提交与管理员验收结果', async ({ page }) => {
   const errors = []
@@ -44,7 +79,7 @@ test('项目营修复：单人负责人提交与管理员验收结果', async ({
     return r.fulfill({ json: { code: 200, message: '已提交' } })
   })
   await page.goto(`${USER}/camp?sid=30`)
-  await page.getByRole('button', { name: '我负责的' }).click()
+  await page.locator('.pws-nav').getByRole('button', { name: '节点与交付', exact: true }).click()
   await expect(page.getByText('负责人交付 · 管理员验收')).toBeVisible()
   await expect(page.locator('.submit-box')).toBeVisible()
   await expect(page.getByRole('button', { name: '评价', exact: true })).toHaveCount(0)
@@ -58,7 +93,7 @@ test('项目营修复：单人负责人提交与管理员验收结果', async ({
   expect(body).toContain('独立完成的样机')
   complete = true
   await page.reload()
-  await page.getByRole('button', { name: '我负责的' }).click()
+  await page.locator('.pws-nav').getByRole('button', { name: '节点与交付', exact: true }).click()
   await expect(page.getByText('管理员已验收')).toBeVisible()
   await expect(page.locator('.submit-box')).toHaveCount(0)
   await expect(page.getByText('审核说明：通过测试')).toBeVisible()
