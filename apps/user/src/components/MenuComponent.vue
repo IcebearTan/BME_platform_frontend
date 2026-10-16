@@ -60,6 +60,7 @@ import NotificationBell from './Notification/NotificationBell.vue'
 import campLogo from '../assets/秋季学期营.png'
 import { DewPopover, DewButton } from '@bme/dew-ui'
 import { usePoints } from '../composables/usePoints'
+import {useProjectAccess} from '../composables/useProjectAccess'
 import { usePointsStore } from '../composables/usePointsStore'
 import PointsHelp from './Points/PointsHelp.vue'
 const { summary: pointsSummary, balanceLabel, failed: pointsFailed, refresh: refreshPoints } = usePoints()
@@ -71,11 +72,14 @@ const popoverRef = ref()
 const store = useStore()
 const router = useRouter()
 const route = useRoute()
+const {available:projectAccess,detect:detectProjectAccess}=useProjectAccess()
+onMounted(()=>detectProjectAccess())
 
 // 内部工作台快速入口（feature/work-collab）：位于头像下拉（与营期中心/个人资料
 // 同组，属个人域操作），仅已开通工作人员可见；待办徽标随探测与下拉打开（@show）刷新。
 // 单例探测 /work/me（与服务台卡/组织页按钮/个人中心分组/通知工作 tab 共用）
 import { watch } from 'vue'
+watch(()=>store.state.isLogin,()=>detectProjectAccess())
 import { Briefcase } from '@element-plus/icons-vue'
 import { useWorkAccess } from '../composables/useWorkAccess'
 import { useWorkData } from '../composables/useWorkData'
@@ -338,6 +342,7 @@ const handleUserInfo = () => {
                                 <el-icon><Calendar /></el-icon>
                                 <span>营期中心</span>
                             </div>
+                            <div v-if="projectAccess" class="avatar-pop__action" @click="router.push('/my-projects')"><el-icon><Calendar /></el-icon><span>我的项目</span></div>
                             <div class="avatar-pop__action" @click="handleUserInfo">
                                 <el-icon><User /></el-icon>
                                 <span>个人资料</span>

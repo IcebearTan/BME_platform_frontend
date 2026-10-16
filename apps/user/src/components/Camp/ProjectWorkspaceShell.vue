@@ -7,6 +7,7 @@
         <div v-if="loading || resolvingLocation" class="pws-loading"><DewSkeleton variant="rect" width="100%" height="220" /></div>
         <div v-else-if="error || locationError" role="alert" class="pws-error"><p>{{ error || locationError }}</p><DewButton size="sm" @click="load()">重试</DewButton></div>
         <template v-else><div class="pws-breadcrumb">{{ session.name }} / {{ campPage ? '营期事务' : selection.scope === 'camp' ? '全营管理' : selection.unit?.name || '项目工作' }} / {{ activeLabel }}</div><div class="pws-page-heading"><div><h2>{{ activeLabel }}</h2><p v-if="selection.scope === 'project' && selection.unit && !campPage">{{ selection.unit.name }} · {{ selection.unit.member_count }}人<span v-if="selection.unit.status !== 'active'"> · {{ unitStatusText[selection.unit.status] }}</span></p></div><DewTag v-if="session.status === 'archived'" size="sm">已结营 · 只读</DewTag></div>
+          <ProjectCampInbox v-if="teacher && selection.scope==='camp' && selection.tab==='members' && session.status!=='archived'" :sid="sid" @changed="refreshProject" />
           <p v-if="weekly?.mode === 'weekly'" class="pws-notice pws-attendance">累计出勤 {{ weekly.total_days || 0 }} 次 · {{ weekly.total_hours || 0 }}h</p>
           <p v-if="selection.invalidUnit" class="pws-notice" role="status">原项目不在当前可访问列表中，请从工作范围重新选择项目。</p>
           <div :key="`${sid}-${selection.scope}-${selection.unit?.unit_id}-${selection.tab}-${teacher}`" class="pws-page">
@@ -45,6 +46,8 @@ import { ArrowLeft, House, DocumentChecked, ChatDotRound, User, Collection, Grid
 import { DewButton, DewSelect, DewTag, DewSkeleton } from '@bme/dew-ui'
 import { campService } from '../../services/campService'
 import { resolveProjectWorkspace } from './projectWorkspaceNav'
+import {projectService} from '../../domains/projects/service'
+const ProjectCampInbox=defineAsyncComponent(()=>import('../../domains/projects/ProjectCampInbox.vue'))
 const ProjectBoard = defineAsyncComponent(() => import('./ProjectBoard.vue'))
 const ProjectWorkspaceOverview = defineAsyncComponent(() => import('./ProjectWorkspaceOverview.vue'))
 const ProjectWorkspaceRead = defineAsyncComponent(() => import('./ProjectWorkspaceRead.vue'))
@@ -80,6 +83,7 @@ const activeLabel = computed(() => selection.value.tabs.find(t => t.key === sele
 const scopeOptions = computed(() => [...(teacher.value ? [{ value: 'camp', label: '全营管理' }] : []), ...projects.value.map(p => ({ value: String(p.unit_id), label: `${p.name}${teacher.value ? '' : p.my_role === 'leader' ? ' · 负责人' : ' · 成员'}` }))])
 const attention = computed(() => (dashboard.value.projects || []).filter(p => p.risks?.length && p.status === 'active'))
 let generation = 0, locationGeneration = 0, attendanceGeneration = 0
+let bridgeGeneration=0
 async function load({ silent = false } = {}) {
   const seq = ++generation
   if (!silent) { loading.value = true; projects.value = []; dashboard.value = {} }
@@ -145,6 +149,12 @@ watch(() => [props.sid, teacher.value, props.session.status, props.session.polic
   catch { /* 不把不可用的出勤数据显示成零 */ }
 }, { immediate: true })
 onBeforeUnmount(() => { generation++; locationGeneration++; attendanceGeneration++ })
+watch(()=>[loading.value,selection.value.scope,selection.value.unit?.unit_id,selection.value.tab],async()=>{
+  const seq=++bridgeGeneration,unit=selection.value.unit?.unit_id,path=route.fullPath
+  if(loading.value||selection.value.scope!=='project'||!unit||campPage.value||props.session.status==='archived')return
+  try{if(!(await projectService.status()).enabled)return;const d=await projectService.resolveLegacy(unit);if(seq!==bridgeGeneration||route.fullPath!==path||!d.mapped)return;const aliases={overview:'overview',delivery:'assessment',members:'camp-members',meetings:'camp-meetings',outcomes:'camp-outcomes'};if(!aliases[selection.value.tab])return;await router.replace({path:`/project-workspace/${d.project_id}`,query:{binding:d.binding_id,unit,tab:aliases[selection.value.tab],node:route.query.node||undefined,view:teacher.value?'camp':undefined}})}catch{/* 未迁移或未开放时保留原营期路径 */}
+})
+onBeforeUnmount(()=>bridgeGeneration++)
 </script>
 <style scoped>
 .project-workspace { --pws-line: var(--dew-card-flat-border); color: var(--dew-text); background: var(--dew-card-flat-bg); border: 1px solid var(--pws-line); border-radius: 12px; overflow: clip; min-width: 0; }.pws-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 16px 20px; border-bottom: 1px solid var(--pws-line); flex-wrap: wrap; }.pws-title { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }.pws-title h1 { margin: 0; font-size: 20px; color: var(--dew-text-heading); }.pws-top-controls { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--dew-text-muted); }.pws-top-controls label { display: flex; gap: 8px; align-items: center; }.pws-top-controls :deep(.dew-select) { width: 140px; }.pws-layout { display: grid; grid-template-columns: 218px minmax(0, 1fr); min-height: 600px; }.pws-sidebar { padding: 20px 12px; border-right: 1px solid var(--pws-line); background: var(--dew-card-flat-bg-hover); }.pws-scope-label { display: block; padding: 0 8px; margin-bottom: 8px; font-size: 12px; color: var(--dew-text-muted); }.pws-scope { width: 100%; }.pws-nav { display: flex; flex-direction: column; gap: 4px; margin-top: 22px; }.pws-nav button { display: flex; align-items: center; gap: 10px; padding: 12px; border: 0; border-radius: 8px; background: transparent; color: var(--dew-text); font: inherit; text-align: left; cursor: pointer; }.pws-nav button:hover, .pws-nav button[aria-current=page] { background: var(--color-primary-light); color: var(--color-primary); }.pws-nav-group { color: var(--dew-text-muted); border-top: 1px solid var(--pws-line); padding: 14px 10px 4px; margin-top: 12px; font-size: 12px; }.pws-identity { font-size: 12px; color: var(--dew-text-muted); padding: 18px 10px; }.pws-main { min-width: 0; padding: 24px; }.pws-breadcrumb { color: var(--dew-text-muted); font-size: 12px; overflow-wrap: anywhere; margin-bottom: 14px; }.pws-page-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; gap: 12px; }.pws-page-heading h2 { margin: 0; font-size: 21px; }.pws-page-heading p { color: var(--dew-text-muted); font-size: 12px; }.pws-page { min-width: 0; }.pws-page :deep(.sec-title:first-child) { margin-top: 0; }.pws-page :deep(.sec-card) { border: 0; box-shadow: none; background: transparent; }.pws-page :deep(.sec-card > .dew-card__body) { padding: 0; }.pws-notice, .pws-muted { color: var(--dew-text-muted); font-size: 13px; line-height: 1.7; }.pws-notice { margin-bottom: 20px; }.pws-empty { padding: 40px 0; color: var(--dew-text-muted); }.pws-empty h3 { color: var(--dew-text-heading); }.pws-camp-stats { display: flex; gap: 28px; flex-wrap: wrap; padding-bottom: 22px; }.pws-camp-stats strong { font-size: 25px; }.pws-attention { display: flex; justify-content: space-between; width: 100%; gap: 16px; text-align: left; background: transparent; color: var(--dew-text); border: 0; border-bottom: 1px solid var(--pws-line); padding: 18px 0; font: inherit; cursor: pointer; }.pws-attention small { display: block; color: var(--dew-text-muted); margin-top: 5px; }.pws-mobile { display: none; }

@@ -5,6 +5,7 @@
       <div class="page-header">
         <div class="page-title">项目组队</div>
       </div>
+      <ProjectCompositionPanel :sid="campId" :writable="manageWritable" @changed="fetchProjectOverview" />
 
       <div style="margin: 0 0 12px;">
         <el-button size="small" :loading="pExporting" @click="exportProjectCsv">导出项目志愿 CSV</el-button>
@@ -29,7 +30,7 @@
                   </el-tag>
                   {{ m.username }}
                   <span v-if="m.status === 'ended'" class="hint">（已退出）</span>
-                  <el-button v-else-if="m.role !== 'leader' && manageWritable" size="small" type="danger" text
+                  <el-button v-else-if="m.role !== 'leader' && manageWritable && !row.project_id" size="small" type="danger" text
                     style="margin-left: 8px;" @click="endProjectMember(row, m)">移除</el-button>
                 </p>
               </div>
@@ -49,10 +50,10 @@
           </el-table-column>
           <el-table-column v-if="manageWritable" label="管理员操作" width="230" align="center">
             <template #default="{ row }">
-              <el-button size="small" @click="changeProjectLeader(row)">换负责人</el-button>
-              <el-button v-if="row.status === 'active'" size="small" type="warning" plain @click="setProjectStatus(row, 'paused')">暂停</el-button>
-              <el-button v-else-if="row.status === 'paused'" size="small" type="success" plain @click="setProjectStatus(row, 'active')">恢复</el-button>
-              <el-button v-if="row.status !== 'terminated'" size="small" type="danger" plain @click="setProjectStatus(row, 'terminated')">终止</el-button>
+              <el-button v-if="!row.project_id" size="small" @click="changeProjectLeader(row)">换负责人</el-button>
+              <el-button v-if="!row.project_id && row.status === 'active'" size="small" type="warning" plain @click="setProjectStatus(row, 'paused')">暂停</el-button>
+              <el-button v-else-if="!row.project_id && row.status === 'paused'" size="small" type="success" plain @click="setProjectStatus(row, 'active')">恢复</el-button>
+              <el-button v-if="!row.project_id && row.status !== 'terminated'" size="small" type="danger" plain @click="setProjectStatus(row, 'terminated')">终止</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -128,6 +129,7 @@ import { DewCard } from '@bme/dew-ui'
 import api from '../../../api'
 import { useCampContext } from '../context/campContext'
 import AccessDenied from '../workspace/AccessDenied.vue'
+import ProjectCompositionPanel from './ProjectCompositionPanel.vue'
 
 const ctx = useCampContext()
 const { campId, status, canManage, manageWritable } = ctx
@@ -137,7 +139,7 @@ const pOverviewLoading = ref(false)
 const pExporting = ref(false)
 const pBatchDlg = reactive({ visible: false, rows: [], loading: false, submitting: false })
 
-const pActiveProjects = computed(() => (pOverview.projects || []).filter((p) => p.status === 'active'))
+const pActiveProjects = computed(() => (pOverview.projects || []).filter((p) => p.status === 'active' && !p.project_id))
 const pUnitName = (unitId) => pOverview.projects?.find((p) => p.unit_id === unitId)?.name || `#${unitId}`
 const pActionLabel = (a) => ({
   select: '加入', deselect: '移出', exit: '退出', remove: '移除',

@@ -147,6 +147,9 @@ const router = createRouter({
         },
 
         // ── 需要登录的路由 ──
+        { path: '/my-projects', name: 'my-projects', component: () => import('./domains/projects/ProjectHome.vue'), meta: { requiresAuth: true } },
+        { path: '/project-workspace/:projectId', name: 'project-core-workspace', component: () => import('./domains/projects/ProjectHome.vue'), meta: { requiresAuth: true } },
+        { path: '/project-activity/:eventId', name: 'project-core-activity', component: () => import('./domains/projects/ProjectActivityTarget.vue'), meta: { requiresAuth: true } },
         {
             path: '/',
             name: 'profile',

@@ -1,0 +1,15 @@
+<template>
+  <section class="project-import"><DewButton size="sm" type="ghost" @click="open">迁入已有营期项目</DewButton><DewDialog v-model="dialog" title="迁入已有项目" width="660px"><div class="pi-form"><label>原营期项目<DewSelect v-model="unitId" :disabled="prepared" :options="units.map(u=>({value:u.unit_id,label:u.camp_name+' · '+u.name+'（'+(u.write_model==='project'?'已迁入':'待处理')+'）'}))" placeholder="选择原项目" @update:model-value="preview=null" /></label><label>关联到已有长期项目（可选）<DewSelect v-model="targetId" :disabled="prepared" :options="[{value:'',label:'建立独立项目主档'},...projects.map(p=>({value:p.id,label:p.title+' · '+p.code}))]" /></label><DewButton :loading="busy" :disabled="!unitId" @click="inspect">预览迁移</DewButton><template v-if="preview"><p>原名单 {{ preview.members.length }} 人 · {{ preview.milestone_count }} 个考核节点 · {{ preview.submission_count }} 份材料</p><p v-if="!preview.ready" role="alert">仅迁入未结营且组织有效的项目；既有结营档案继续从原营期查看。</p><p v-else>原材料和评价ID保留。项目D0由负责人后续确认。</p></template><label>迁移原因<DewInput v-model="reason" placeholder="说明项目续做关系与本次迁移依据" /></label><p v-if="prepared">映射已准备，请核对后切换。切换后长期项目只从新入口维护。</p><p v-if="error" role="alert">{{ error }}</p></div><template #footer><DewButton v-if="!prepared" :loading="busy" :disabled="!preview?.ready||!reason.trim()" @click="apply('prepare')">准备映射</DewButton><template v-else><DewButton :loading="busy" @click="apply('switch')">确认切换</DewButton><DewButton type="ghost" @click="apply('cancel')">撤销准备</DewButton></template></template></DewDialog></section>
+</template>
+<script setup>
+import {ref} from 'vue'
+import {DewButton,DewSelect,DewDialog,DewInput} from '@bme/dew-ui'
+import {ElMessage} from 'element-plus'
+import {projectService} from './service'
+defineProps({projects:Array});const emit=defineEmits(['changed'])
+const dialog=ref(false),units=ref([]),unitId=ref(null),targetId=ref(''),preview=ref(null),reason=ref(''),prepared=ref(false),busy=ref(false),error=ref('')
+async function open(){try{units.value=(await projectService.legacyCandidates()).units;unitId.value=null;targetId.value='';preview.value=null;prepared.value=false;reason.value='';error.value='';dialog.value=true}catch(e){ElMessage.error(e.response?.data?.message||'候选加载失败')}}
+async function inspect(){busy.value=true;error.value='';try{preview.value=(await projectService.migrationPreview(unitId.value)).preview;prepared.value=false}catch(e){error.value=e.response?.data?.message||'预览失败'}finally{busy.value=false}}
+async function apply(action){if(busy.value)return;busy.value=true;error.value='';try{const d=await projectService.migrate(unitId.value,{action,source_digest:preview.value.source_digest,reason:reason.value,project_id:targetId.value||undefined});prepared.value=d.write_model==='shadow';if(action!=='prepare'){dialog.value=false;emit('changed');ElMessage.success(action==='switch'?'项目已切换':'准备映射已撤销')}}catch(e){error.value=e.response?.data?.message||'迁移未完成'}finally{busy.value=false}}
+</script>
+<style scoped>.pi-form{display:flex;flex-direction:column;gap:15px}.pi-form label{display:flex;flex-direction:column;gap:7px}.pi-form p{font-size:13px;line-height:1.8}.project-import{margin-bottom:20px}</style>

@@ -87,7 +87,7 @@ const router = useRouter(); const route = useRoute(); const store = useStore();
 const loading = ref(true); const projects = ref([]); const allTags = ref([]); const keyword = ref(''); const sortMode = ref('updated'); const recoPool = ref([]); const mineOnly = ref(false);
 const filters = ref({ source: null, project_status: null, tag: null });
 let loadVersion = 0;
-const sourceFilters = [{ label: '全部', value: null }, { label: '营期项目', value: 'camp' }, { label: '自由分享', value: 'community' }];
+const sourceFilters = [{ label: '全部', value: null }, { label: '长期项目', value: 'project' }, { label: '营期项目', value: 'camp' }, { label: '自由分享', value: 'community' }];
 const statusFilters = [{ label: '全部', value: null }, { label: '构思中', value: 'idea' }, { label: '进行中', value: 'ongoing' }, { label: '已完成', value: 'done' }];
 const sortOptions = [{ label: '最近更新', value: 'updated' }, { label: '最多浏览', value: 'popular' }, { label: '最多收藏', value: 'favorites' }];
 const hasFilters = computed(() => Boolean(filters.value.source || filters.value.project_status || filters.value.tag || keyword.value.trim()));

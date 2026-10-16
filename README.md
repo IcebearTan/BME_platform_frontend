@@ -74,6 +74,10 @@ dev server 下两端登录页有「测试账号面板」入口（仅 dev 构建�
 
 （2026-08 清债批次 1–6 历史为线性提交，全部包含于 master；原 debt/N-* 中间分支与 legacy/admin-master 存档线已清理，后者头部提交为 86b48b9，如需找回见本地 reflog。）
 
+## 独立项目
+
+独立项目入口为 `/my-projects`，项目工作区为 `/project-workspace/:projectId`，长期团队、D0及研发日历跨营期保留。营期按显式关联组合项目，本期考核与积分仍沿用营期范围。配套后端需先执行迁移79，再按灰度范围开启 `PROJECT_CORE_ENABLED`。实现约束见 `docs/ARCHITECTURE.md` 的项目营交付契约；本次只执行独立项目、原工作区及相关看板/交付专项检查。
+
 ## 积分功能
 
 用户端 `/user-center/points` 提供余额、平台常驻获取途径和已到账收支；

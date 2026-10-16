@@ -4,6 +4,8 @@ import { authSession } from '../api';
 import { Close } from '@element-plus/icons-vue';
 import { useWorkAccess } from '../composables/useWorkAccess';
 import { useWorkData } from '../composables/useWorkData';
+import {useProjectAccess} from '../composables/useProjectAccess';
+const{available:projectAccess,detect:detectProjectAccess}=useProjectAccess();
 
 // 定义可以触发的事件
 const emit = defineEmits(['close']);
@@ -12,6 +14,7 @@ const emit = defineEmits(['close']);
 const { hasAccess: workAccess, detect: detectWorkAccess } = useWorkAccess();
 const { todoCounts, refreshSummary } = useWorkData();
 onMounted(() => {
+  detectProjectAccess();
   if (authSession.getToken()) detectWorkAccess();
 });
 // 有资格即取一次待办计数：抽屉入口与桌面头像下拉同口径（五桶之和）；
@@ -47,6 +50,7 @@ const closeMenu = () => {
         <!-- 可以添加登录/注册/用户中心链接 -->
          <li><router-link to="/user-center/user-info" @click="closeMenu">个人中心</router-link></li>
          <li v-if="authSession.getToken()"><router-link to="/user-center/points" @click="closeMenu">我的积分</router-link></li>
+         <li v-if="projectAccess"><router-link to="/my-projects" @click="closeMenu">我的项目</router-link></li>
          <li v-if="workAccess"><router-link to="/work" @click="closeMenu">内部工作台<span v-if="workTodoCount > 0" class="work-todo-badge">{{ workTodoCount }} 项待办</span></router-link></li>
       </ul>
     </div>

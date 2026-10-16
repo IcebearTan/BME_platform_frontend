@@ -23,6 +23,7 @@ export function isReleaseAnnouncement(item) {
  */
 export function notificationTarget(item) {
   if (!item) return { path: '/notifications' }
+  if(item.source_type==='project_core'&&item.source_id)return{path:`/project-activity/${item.source_id}`}
   // 私信域提醒（新行 category=message，存量行 gratitude）直达私信 tab
   if (item.category === 'message' || item.category === 'gratitude') {
     return MESSAGE_TARGET
