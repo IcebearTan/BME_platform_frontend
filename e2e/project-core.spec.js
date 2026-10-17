@@ -1,5 +1,7 @@
 import {test,expect} from '@playwright/test'
 const BASE='http://127.0.0.1:18096/AMEII'
+// 所有独立项目流程同时检查浏览器没有randomUUID的情况。
+test.beforeEach(async({page})=>{await page.addInitScript(()=>Object.defineProperty(crypto,'randomUUID',{value:undefined,configurable:true}))})
 async function login(page,name='负责人演示'){
   await page.goto(`${BASE}/dev/project-workspace`)
   await page.locator('.preview-roles .dew-card').filter({has:page.getByRole('heading',{name,exact:true})}).getByRole('button',{name:'进入工作台'}).click()

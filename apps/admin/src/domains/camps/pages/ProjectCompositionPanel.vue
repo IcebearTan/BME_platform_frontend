@@ -5,12 +5,13 @@
 import {ref,watch,onBeforeUnmount} from 'vue'
 import {ElMessage,ElMessageBox} from 'element-plus'
 import {DewCard,DewButton,DewSelect,DewDialog} from '@bme/dew-ui'
+import {createRequestKey} from '@bme/api'
 import api from '../../../api'
 const props=defineProps({sid:[String,Number],writable:Boolean}),emit=defineEmits(['changed'])
 const enabled=ref(false),rows=ref([]),error=ref(''),busy=ref(false),dialog=ref(false),selected=ref(null),leaderId=ref(null)
 const labels={requested:'待审批',active:'参营中',ended:'已结束',rejected:'未通过'};let sequence=0
 async function load(){const seq=++sequence;error.value='';try{if(!(await api.get('/project-core/status')).data.enabled)return;enabled.value=true;const d=await api.get(`/project-core/camps/${props.sid}/projects`);if(seq===sequence)rows.value=d.data.projects}catch(e){if(seq===sequence&&enabled.value)error.value=e.response?.data?.message||'项目关联加载失败'}}
-async function act(row,action,leader){if(busy.value||!props.writable)return;let reason;try{reason=(await ElMessageBox.prompt('填写处理依据','项目参营',{inputValidator:v=>!!v?.trim()||'请填写原因'})).value}catch{return}busy.value=true;try{await api.post(`/project-core/projects/${row.project.id}/camps/${row.binding.id}`,{action,reason,expected_version:row.project.version,expected_binding_version:row.binding.version,idempotency_key:crypto.randomUUID(),user_ids:action==='participants'?(row.binding.change_pending&&!leader?row.binding.requested_users:row.binding.participants).map(m=>m.user_id):undefined,leader_user_id:leader||undefined});dialog.value=false;await load();emit('changed');ElMessage.success('本期关联已更新')}catch(e){ElMessage.error(e.response?.data?.message||'操作失败')}finally{busy.value=false}}
+async function act(row,action,leader){if(busy.value||!props.writable)return;let reason;try{reason=(await ElMessageBox.prompt('填写处理依据','项目参营',{inputValidator:v=>!!v?.trim()||'请填写原因'})).value}catch{return}busy.value=true;try{await api.post(`/project-core/projects/${row.project.id}/camps/${row.binding.id}`,{action,reason,expected_version:row.project.version,expected_binding_version:row.binding.version,idempotency_key:createRequestKey(),user_ids:action==='participants'?(row.binding.change_pending&&!leader?row.binding.requested_users:row.binding.participants).map(m=>m.user_id):undefined,leader_user_id:leader||undefined});dialog.value=false;await load();emit('changed');ElMessage.success('本期关联已更新')}catch(e){ElMessage.error(e.response?.data?.message||'操作失败')}finally{busy.value=false}}
 function openLeader(row){selected.value=row;leaderId.value=row.binding.leader_user_id;dialog.value=true}
 function openProject(row){window.open(`${import.meta.env.PROD?'':'/AMEII'}/project-workspace/${row.project.id}?binding=${row.binding.id}&view=camp&tab=assessment&unit=${row.binding.unit_id||''}`,'_blank','noopener')}
 watch(()=>props.sid,()=>{enabled.value=false;rows.value=[];dialog.value=false;load()},{immediate:true});onBeforeUnmount(()=>sequence++)

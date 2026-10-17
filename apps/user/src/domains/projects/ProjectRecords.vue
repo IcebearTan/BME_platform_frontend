@@ -8,16 +8,16 @@ import {ref,reactive,watch,onBeforeUnmount} from 'vue'
 import {useRoute,useRouter} from 'vue-router'
 import {DewButton,DewTag,DewInput,DewSelect,DewDialog,DewSkeleton} from '@bme/dew-ui'
 import {ElMessage,ElMessageBox} from 'element-plus'
-import {projectService,mutation} from './service'
+import {projectService,mutation,createRequestKey} from './service'
 const props=defineProps({project:Object,binding:Object,campView:Boolean}),emit=defineEmits(['changed']),route=useRoute(),router=useRouter()
 const rows=ref([]),bindings=ref([]),loading=ref(true),error=ref(''),dialog=ref(false),busy=ref(false),files=ref([]),form=reactive({}),context=ref(null)
-const operationKey=ref(crypto.randomUUID())
+const operationKey=ref(createRequestKey())
 const kindText={meeting:'项目组会',record:'研发记录',outcome:'项目成果'},stateText={published:'已记录',pending:'待核验',verified:'已核验',rejected:'待补充'}
 const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai'}).format(new Date())
 let sequence=0
 async function load(){const seq=++sequence;loading.value=true;error.value='';rows.value=[];try{const d=await projectService.records(props.project.id,{binding:props.binding?.id,record_id:route.query.record||undefined,camp_view:props.campView?1:undefined});if(seq!==sequence)return;rows.value=d.records;context.value=d.project;if(!props.campView){const b=await projectService.camps(props.project.id);if(seq===sequence)bindings.value=b.bindings}}catch(e){if(seq===sequence)error.value=e.response?.data?.message||'记录加载失败'}finally{if(seq===sequence)loading.value=false}}
 function allRecords(){const query={...route.query};delete query.record;router.push({query})}
-function open(row){operationKey.value=crypto.randomUUID();Object.assign(form,{id:null,kind:'record',title:'',content:'',occurred_on:today,binding_id:'',reason:''},row||{});if(!form.binding_id)form.binding_id='';files.value=[];dialog.value=true}
+function open(row){operationKey.value=createRequestKey();Object.assign(form,{id:null,kind:'record',title:'',content:'',occurred_on:today,binding_id:'',reason:''},row||{});if(!form.binding_id)form.binding_id='';files.value=[];dialog.value=true}
 function selectFiles(e){const selected=[...e.target.files];if(selected.length>20||selected.reduce((n,f)=>n+f.size,0)>48*1024*1024){ElMessage.warning('附件合计不能超过48MB，最多20个');e.target.value='';return}files.value=selected}
 async function save(){if(busy.value)return;busy.value=true;try{await projectService.saveRecord(props.project.id,{...mutation(context.value||props.project,{kind:form.kind,title:form.title,content:form.content,occurred_on:form.occurred_on,binding_id:form.binding_id||null,reason:form.reason}),idempotency_key:operationKey.value},files.value,form.id);dialog.value=false;await load();emit('changed');ElMessage.success('记录已保存')}catch(e){ElMessage.error(e.response?.data?.message||'保存失败')}finally{busy.value=false}}
 async function download(file){try{window.open(await projectService.fileUrl(file.id,props.binding?.id),'_blank','noopener')}catch(e){ElMessage.error(e.response?.data?.message||'附件不可访问')}}

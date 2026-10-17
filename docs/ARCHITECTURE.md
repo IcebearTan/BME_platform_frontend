@@ -185,6 +185,8 @@ const api = createApiClient({
 用户端与管理端分别实现参营组合界面，后端 `/project-core` 统一授权与版本控制，
 `PROJECT_CORE_ENABLED` 默认关闭。发布必须先执行迁移79，即使入口关闭也要满足兼容读取的新表依赖。
 项目通知通过服务端授权解析到具体节点或记录；记录深链不受最近200条列表限制。
+项目请求去重统一使用 `@bme/api` 的 `createRequestKey`，普通HTTP来源不能依赖仅安全上下文提供的 `crypto.randomUUID`。
+该标识只用于请求去重，不用于认证。`e2e/playwright.project-http.config.ts` 使用普通HTTP来源和隔离预览API，检查营期跳转、工作区、D0、节点和研发记录；localhost检查不能代替这一项。
 本次专项配置为 `e2e/playwright.project-core.config.ts`，使用隔离本地API与18096端口；
 只检查新领域、原工作区、看板和交付的直接依赖，不执行全量回归。
 

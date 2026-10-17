@@ -32,7 +32,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useStore } from 'vuex'
 import { DewCard, DewButton, DewInput, DewDialog, DewSelect, DewSkeleton } from '@bme/dew-ui'
 import { ElMessage } from 'element-plus'
-import { projectService, mutation } from './service'
+import { projectService, mutation, createRequestKey } from './service'
 import ProjectMembers from './ProjectMembers.vue'
 import ProjectCalendar from './ProjectCalendar.vue'
 import ProjectRecords from './ProjectRecords.vue'
@@ -51,7 +51,7 @@ const form = reactive({title:'',goal:'',background:'',owner_user_id:''}), edit =
 const statusText = { active:'进行中', paused:'已暂停', completed:'已完成', terminated:'已终止', archived:'已归档' }
 const isAdmin = computed(() => store.state.user?.role === 'super_admin')
 const history=ref([]),publication=reactive({summary:'',description:'',reason:'',confirm_public:false})
-const assessmentDrafts=reactive({}),createKey=ref(crypto.randomUUID())
+const assessmentDrafts=reactive({}),createKey=ref(createRequestKey())
 let sequence = 0
 async function load() {
   const seq = ++sequence; loading.value = true; error.value = ''; project.value = null; createDialog.value = editDialog.value = false
@@ -75,7 +75,7 @@ async function publish(){busy.value=true;try{await projectService.publish(projec
 async function create() { if (busy.value) return; busy.value = true; try { const body = {...form,idempotency_key:createKey.value}; if (form.owner_user_id) body.owner_user_id = Number(form.owner_user_id); else delete body.owner_user_id; const d = await projectService.create(body); await router.push(`/project-workspace/${d.project.id}`) } catch(e) { ElMessage.error(e.response?.data?.message || '创建失败') } finally { busy.value = false } }
 function openEdit() { Object.assign(edit,{title:project.value.title,goal:project.value.goal || '',background:project.value.background || '',status:project.value.status,reason:''}); editDialog.value = true }
 async function save() { if (busy.value) return; busy.value = true; try { await projectService.update(projectId.value,mutation(project.value,{...edit})); editDialog.value = false; await refresh(); ElMessage.success('项目已更新') } catch(e) { ElMessage.error(e.response?.data?.message || '保存失败') } finally { busy.value = false } }
-watch(createDialog,value=>{if(value)createKey.value=crypto.randomUUID()})
+watch(createDialog,value=>{if(value)createKey.value=createRequestKey()})
 watch([projectId,bindingId,()=>route.query.view],load,{immediate:true})
 watch(section,async tab=>{history.value=[];if(tab==='history'&&project.value?.can_manage){try{history.value=(await projectService.history(projectId.value)).events}catch(e){ElMessage.error(e.response?.data?.message||'记录加载失败')}}})
 onBeforeUnmount(() => sequence++)

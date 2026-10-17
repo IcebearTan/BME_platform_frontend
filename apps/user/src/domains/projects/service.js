@@ -1,4 +1,6 @@
 import api,{API_URL} from '../../api'
+import {createRequestKey} from '@bme/api'
+export {createRequestKey}
 const base = '/project-core/projects'
 export const projectService = {
   status: () => api.get('/project-core/status').then(r => r.data),
@@ -33,4 +35,4 @@ export const projectService = {
   publish: (id,data) => api.post(`${base}/${id}/publish`,data).then(r=>r.data),
   bindingArchive: (id,bid) => api.get(`${base}/${id}/camps/${bid}/archive`).then(r=>r.data),
 }
-export const mutation = (project, fields) => ({ ...fields, expected_version: project.version, idempotency_key: crypto.randomUUID() })
+export const mutation = (project, fields) => ({ ...fields, expected_version: project.version, idempotency_key: createRequestKey() })

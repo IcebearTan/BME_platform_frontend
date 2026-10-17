@@ -18,7 +18,7 @@ import {ref,reactive,computed,watch,onBeforeUnmount} from 'vue'
 import {useRoute,useRouter} from 'vue-router'
 import {DewButton,DewButtonBar,DewInput,DewSelect,DewDialog,DewSkeleton} from '@bme/dew-ui'
 import {ElMessage} from 'element-plus'
-import {projectService,mutation} from './service'
+import {projectService,mutation,createRequestKey} from './service'
 const props=defineProps({project:Object,binding:Object,campView:Boolean}),emit=defineEmits(['changed'])
 const route=useRoute(),router=useRouter(),context=ref(null)
 const current=computed(()=>context.value||props.project),writable=computed(()=>current.value.can_manage&&current.value.can_write)
@@ -37,11 +37,11 @@ function move(delta){const d=parse(month.value+'-01');d.setUTCMonth(d.getUTCMont
 let sequence=0
 async function load(){const seq=++sequence;loading.value=true;error.value='';entries.value=[];try{const d=await projectService.calendar(props.project.id,{...range.value,binding:props.binding?.id,camp_view:props.campView?1:undefined});if(seq!==sequence)return;entries.value=d.items;truncated.value=d.truncated;context.value=props.campView?{...d.project,can_manage:false,can_write:false}:d.project;openLinked()}catch(e){if(seq===sequence)error.value=e.response?.data?.message||'日历加载失败'}finally{if(seq===sequence)loading.value=false}}
 const entryDialog=ref(false),form=reactive({}),zeroDialog=ref(false),zeroDate=ref(''),zeroReason=ref(''),preview=ref(null)
-const operationKey=ref(crypto.randomUUID())
+const operationKey=ref(createRequestKey())
 const canEdit=computed(()=>writable.value&&form.can_edit!==false)
-function openEntry(entry){operationKey.value=crypto.randomUUID();Object.assign(form,{id:null,source:'event',type:'milestone',title:'',content:'',schedule_mode:'absolute',due_on:today.value,offset_days:0,status:'planned',actual_on:today.value,reason:'',can_edit:true},entry||{});if(entry)form.type=entry.kind;entryDialog.value=true;if(entry)router.replace({query:{...route.query,entry:entry.key,month:month.value}})}
+function openEntry(entry){operationKey.value=createRequestKey();Object.assign(form,{id:null,source:'event',type:'milestone',title:'',content:'',schedule_mode:'absolute',due_on:today.value,offset_days:0,status:'planned',actual_on:today.value,reason:'',can_edit:true},entry||{});if(entry)form.type=entry.kind;entryDialog.value=true;if(entry)router.replace({query:{...route.query,entry:entry.key,month:month.value}})}
 function openSource(){entryDialog.value=false;const query={...route.query,tab:form.source==='record'?'records':'assessment'};delete query.entry;if(form.source==='record')query.record=form.id;else{query.binding=form.binding_id;query.unit=form.unit_id;query.node=form.id}router.push({query})}
-function openLinked(){const entry=entries.value.find(e=>e.key===route.query.entry);if(entry){operationKey.value=crypto.randomUUID();Object.assign(form,{...entry,type:entry.kind,reason:''})}entryDialog.value=!!entry}
+function openLinked(){const entry=entries.value.find(e=>e.key===route.query.entry);if(entry){operationKey.value=createRequestKey();Object.assign(form,{...entry,type:entry.kind,reason:''})}entryDialog.value=!!entry}
 async function saveEntry(){if(busy.value)return;busy.value=true;try{const source=form.id?form.source:form.type==='milestone'?'milestone':'event';await projectService.saveEntry(props.project.id,source,{...mutation(current.value,{title:form.title,content:form.content,schedule_mode:form.schedule_mode,offset_days:Number(form.offset_days),due_on:form.due_on||null,status:form.status,actual_on:form.status==='done'?form.actual_on:null,kind:form.type==='milestone'?'event':form.type,reason:form.reason}),idempotency_key:operationKey.value},form.id);entryDialog.value=false;const query={...route.query};delete query.entry;await router.replace({query});await load();emit('changed');ElMessage.success('节点已保存')}catch(e){ElMessage.error(e.response?.data?.message||'保存失败')}finally{busy.value=false}}
 function openZero(){zeroDate.value=current.value.zero_date||today.value;zeroReason.value='';preview.value=null;zeroDialog.value=true}
 async function previewZero(){busy.value=true;try{preview.value=await projectService.previewZero(props.project.id,zeroDate.value)}catch(e){ElMessage.error(e.response?.data?.message||'预览失败')}finally{busy.value=false}}
