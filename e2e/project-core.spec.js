@@ -107,6 +107,8 @@ test('营期中的项目、考核、积分和公告保持同一外壳、上下�
   expect(unit).toBeTruthy()
   const frame=await page.locator('.pws-frame').elementHandle()
   const sidebar=await page.locator('.pws-nav').elementHandle()
+  const contextRequests=[]
+  page.on('request',request=>{if(/\/project-core\/projects\/\d+\/context(?:\?|$)/.test(request.url()))contextRequests.push(request.url())})
   async function sameWorkspace(tab){
     await expect(page).toHaveURL(url=>url.pathname.endsWith('/camp')&&url.searchParams.get('sid')===String(health.camps.independent)&&url.searchParams.get('unit')===unit&&url.searchParams.get('tab')===tab)
     expect(await page.locator('.pws-frame').evaluate((current,original)=>current===original,frame)).toBe(true)
@@ -121,7 +123,9 @@ test('营期中的项目、考核、积分和公告保持同一外壳、上下�
   await page.goBack();await expect(page.locator('.camp-points')).toBeVisible();await sameWorkspace('points')
   await page.goBack();await expect(page.locator('.pc-grid')).toBeVisible();await sameWorkspace('calendar')
   await nav('本期考核').click();await expect(page.locator('.submit-box textarea')).toHaveValue('栏目切换保留的本期材料草稿');await sameWorkspace('delivery')
-  await nav('项目日历').click();await page.reload()
+  await nav('项目日历').click();await expect(page.locator('.pc-grid')).toBeVisible()
+  expect(contextRequests,'同一项目切栏目不应重新加载关联或重建侧栏').toEqual([])
+  await page.reload()
   await expect(page.locator('.pc-grid')).toBeVisible()
   await expect(page).toHaveURL(url=>url.pathname.endsWith('/camp')&&url.searchParams.get('sid')===String(health.camps.independent)&&url.searchParams.get('unit')===unit&&url.searchParams.get('tab')==='calendar')
   await expect(page.getByRole('navigation',{name:'项目营功能'})).toBeVisible()

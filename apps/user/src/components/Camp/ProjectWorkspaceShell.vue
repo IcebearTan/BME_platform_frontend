@@ -214,7 +214,7 @@ async function refreshProject() {
 }
 function retry() {if (props.standalone) emit('project-changed'); else load()}
 watch(() => [props.sid,teacher.value,props.session.status],() => load(),{immediate:true})
-watch(() => [loading.value,props.sid,teacher.value,baseSelection.value.scope,baseSelection.value.unit?.unit_id],resolveContext,{immediate:true,flush:'sync'})
+watch(() => JSON.stringify([loading.value,props.sid,teacher.value,baseSelection.value.scope,baseSelection.value.unit?.unit_id]),resolveContext,{immediate:true,flush:'sync'})
 watch(() => [loading.value,props.sid,teacher.value,route.query.node,route.query.unit],resolveLocation,{immediate:true})
 watch(() => [props.sid,teacher.value,props.session.status,props.session.policy?.capabilities?.attendance,props.session.policy?.attendance_mode],async () => {
   const seq = ++attendanceGeneration; weekly.value = null
