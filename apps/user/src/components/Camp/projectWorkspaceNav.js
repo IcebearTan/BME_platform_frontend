@@ -37,3 +37,37 @@ export function resolveProjectWorkspace(query, { teacher, projects, session }) {
   const tab = tabs.some(t => t.key === wanted) ? wanted : 'overview'
   return { scope, unit, tabs, tab, invalidUnit: Boolean(query.unit && !projects.some(p => String(p.unit_id) === String(query.unit))) }
 }
+
+// 旧独立地址与营期地址使用同一组栏目，当前URL只表示当前位置。
+export function canonicalProjectTab(tab, hasBinding = false) {
+  const aliases = { assessment: 'delivery', 'camp-members': 'members', 'camp-meetings': 'meetings', 'camp-outcomes': 'outcomes' }
+  if (tab === 'members' && !hasBinding) return 'team'
+  return aliases[tab] || tab || 'overview'
+}
+export function nativeWorkspaceTabs({ project, binding, teacher, session }) {
+  const tabs = [{ key: 'overview', label: '工作概览', icon: 'House' }]
+  if (project) {
+    tabs.push({ key: 'calendar', label: '项目日历', icon: 'Calendar', group: teacher ? '本期共享' : '长期项目' },
+      { key: 'records', label: '记录与成果', icon: 'Files', group: teacher ? '本期共享' : '长期项目' })
+    if (!teacher && project.my_role) tabs.push({ key: 'team', label: '长期团队', icon: 'User', group: '长期项目' }, { key: 'camps', label: '参加的营期', icon: 'Link', group: '长期项目' })
+  }
+  if (binding?.can_read_work) {
+    tabs.push(...[
+      { key: 'delivery', label: '本期考核', icon: 'DocumentChecked' },
+      { key: 'meetings', label: '本期组会', icon: 'ChatDotRound' },
+      { key: 'members', label: '本期参营人员', icon: 'User' },
+      { key: 'outcomes', label: '本期成果', icon: 'Collection' },
+    ].map(t => ({ ...t, group: binding.status === 'ended' ? '本期档案' : '本期工作' })))
+    if (!teacher && binding.status === 'active' && session.status !== 'archived') {
+      tabs.push({ key: 'activities', label: '活动考勤', icon: 'Calendar', group: '本期工作' })
+      if (session.policy?.capabilities?.attendance && session.policy.attendance_mode === 'weekly' && binding.my_role === 'leader') tabs.push({ key: 'weekly', label: '周考勤', icon: 'DataLine', group: '本期工作' })
+    }
+    if (binding.status === 'active') tabs.push(...projectWorkspaceTabs({ teacher, scope: 'project', session, unitRole: binding.my_role }).filter(t => t.camp).map(t => ({ ...t, group: '营期事务' })))
+  }
+  if (!teacher && project?.can_manage) tabs.push(
+    { key: 'settings', label: '项目设置', icon: 'Setting', group: '项目管理' },
+    { key: 'history', label: '变更记录', icon: 'Clock', group: '项目管理' },
+    { key: 'publish', label: '公开展示', icon: 'Promotion', group: '项目管理' },
+  )
+  return tabs
+}

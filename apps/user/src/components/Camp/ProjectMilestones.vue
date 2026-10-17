@@ -9,7 +9,7 @@
     <div v-else-if="loadError" role="alert"><p>{{ loadError }}</p><DewButton size="sm" @click="load">重试</DewButton></div>
     <template v-else>
       <div v-if="!milestones.length" class="pm-empty">
-        {{ canManage ? '还没有交付节点——先建项目模板（施工图）自动生成，或在下方手动添加' : '负责人尚未配置交付节点' }}
+        {{ emptyMessage }}
       </div>
 
       <!-- 节点列表 -->
@@ -32,6 +32,7 @@
 
         <!-- 展开区：要求 + ① 交付材料 + ② 节点评价 -->
         <div v-if="workspace || expanded.has(m.id)" class="ms-body">
+          <div v-if="nativeProject && canManage && editable" class="ms-plan-tools"><DewButton type="ghost" size="sm" @click="openNodeEdit(m)">编辑本期节点</DewButton></div>
           <p v-if="m.requirement" class="ms-req"><span class="req-label">交付要求：</span>{{ m.requirement }}</p>
           <p v-if="m.description" class="ms-req"><span class="req-label">说明：</span>{{ m.description }}</p>
 
@@ -147,6 +148,15 @@
         </div>
       </div>
 
+      <DewDialog v-model="nodeEditDlg" title="编辑本期节点" width="520px">
+        <div class="node-edit-form">
+          <label>节点名称<DewInput v-model="nodeEditForm.title" maxlength="100" placeholder="本期节点名称" /></label>
+          <label>交付要求<DewInput v-model="nodeEditForm.requirement" type="textarea" :rows="3" placeholder="本期交付要求（选填）" /></label>
+          <label>截止日期<DewInput v-model="nodeEditForm.due_date" type="date" /></label>
+        </div>
+        <template #footer><DewButton type="ghost" :disabled="nodeEditSaving" @click="nodeEditDlg = false">取消</DewButton><DewButton :loading="nodeEditSaving" :disabled="!nodeEditForm.title.trim() || !canManage || !editable" @click="saveNodeEdit">保存节点</DewButton></template>
+      </DewDialog>
+
       <!-- 评价弹窗：分数 0-100 + 评语（已有评价预填，保存=upsert） -->
       <DewDialog v-model="evalDlg" :title="`节点评价 · ${evalTarget.memberName || ''} · ${evalTarget.nodeTitle || ''}`" width="420px">
         <div class="eval-form">
@@ -176,6 +186,7 @@ import { campService } from '../../services/campService';
 const props = defineProps({
   unitId: { type: Number, required: true },
   workspace: Boolean,
+  nativeProject: Boolean,
   draftCache: { type: Object, default: () => ({}) },
   campStatus: { type: String, required: true },
   editable: { type: Boolean, default: true },     // camp archived/unit terminated → false
@@ -205,6 +216,45 @@ const addingSaving = ref(false);
 const addForm = ref({ title: '', requirement: '', due_date: '' });
 
 const canManage = ref(false);   // leader/admin（由接口 my_role 回填）
+const emptyMessage = computed(() => {
+  if (!canManage.value) return '负责人尚未配置交付节点';
+  if (!props.nativeProject) return '还没有交付节点——先建项目模板（施工图）自动生成，或在下方手动添加';
+  return props.editable ? '还没有本期交付节点，可在下方添加。' : '本期尚未配置交付节点。';
+});
+const nodeEditDlg = ref(false);
+const nodeEditSaving = ref(false);
+const nodeEditTarget = ref(null);
+const nodeEditForm = ref({ title: '', requirement: '', due_date: '' });
+
+function openNodeEdit(m) {
+  if (!props.nativeProject || !canManage.value || !props.editable) return;
+  nodeEditTarget.value = { id: m.id, unitId: props.unitId };
+  nodeEditForm.value = { title: m.title, requirement: m.requirement || '', due_date: m.due_date || '' };
+  nodeEditDlg.value = true;
+}
+
+async function saveNodeEdit() {
+  const target = nodeEditTarget.value;
+  if (nodeEditSaving.value || !props.nativeProject || !canManage.value || !props.editable || !target || target.unitId !== props.unitId || !nodeEditForm.value.title.trim()) return;
+  const sequence = loadSequence;
+  nodeEditSaving.value = true;
+  try {
+    await campService.updateMilestone(target.id, {
+      title: nodeEditForm.value.title.trim(),
+      requirement: nodeEditForm.value.requirement.trim() || null,
+      due_date: nodeEditForm.value.due_date || null,
+    });
+    if (sequence !== loadSequence || target.unitId !== props.unitId) return;
+    nodeEditDlg.value = false;
+    await load();
+    emit('changed');
+    ElMessage.success('本期节点已更新');
+  } catch (e) {
+    if (sequence === loadSequence) ElMessage.error(e.response?.data?.message || '节点保存失败');
+  } finally {
+    nodeEditSaving.value = false;
+  }
+}
 
 // ── 评价弹窗 ──
 const evalDlg = ref(false);
@@ -276,6 +326,7 @@ async function load() {
   loading.value = true;
   loadError.value = '';
   adding.value = false;
+  canManage.value = false;
   submissionAllowed.value = false;
   milestones.value = [];
   try {
@@ -308,8 +359,11 @@ watch(() => props.unitId, () => {
   drafts.value = props.draftCache[props.unitId] || {};
   props.draftCache[props.unitId] = drafts.value;
   evalDlg.value = false;
+  nodeEditDlg.value = false;
+  nodeEditTarget.value = null;
   load();
 });
+watch(() => props.editable, value => { if (!value) nodeEditDlg.value = false; });
 onBeforeUnmount(() => loadSequence++);
 defineExpose({ reload: load });
 
@@ -380,7 +434,7 @@ async function saveEval() {
 }
 
 async function addMilestone() {
-  if (addingSaving.value || !addForm.value.title.trim()) return;
+  if (addingSaving.value || !canManage.value || !props.editable || !addForm.value.title.trim()) return;
   addingSaving.value = true;
   try {
     await campService.addMilestone(props.unitId, {
@@ -432,6 +486,9 @@ async function addMilestone() {
 .ms-caret.open { transform: rotate(180deg); }
 
 .ms-body { padding: 0 12px 12px 44px; display: flex; flex-direction: column; gap: 10px; }
+.ms-plan-tools { display: flex; justify-content: flex-end; }
+.node-edit-form, .node-edit-form label { display: flex; flex-direction: column; gap: 10px; }
+.node-edit-form { gap: 18px; }
 .ms-req { font-size: 12.5px; color: var(--dew-text-muted); line-height: 1.6; margin: 0; }
 .req-label { color: var(--dew-text-faint); }
 .ms-sec-label { font-size: 12px; font-weight: 650; color: var(--dew-text-faint); letter-spacing: 0.5px; }

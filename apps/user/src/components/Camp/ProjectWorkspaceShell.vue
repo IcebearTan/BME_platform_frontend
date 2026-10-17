@@ -1,16 +1,16 @@
 <template>
-  <div class="project-workspace">
-    <header class="pws-header"><div class="pws-title"><DewButton type="ghost" size="sm" @click="$emit('back')"><el-icon><ArrowLeft /></el-icon>营期中心</DewButton><h1>{{ session.name }}</h1><DewTag size="sm">{{ statusLabel }}</DewTag></div><div class="pws-top-controls"><DewButton v-if="localPreview" size="sm" type="ghost" @click="openPreview">切换试用身份</DewButton><span>{{ session.start_date }} — {{ session.end_date }}</span><label v-if="perspectives.length > 1">当前视角 <DewSelect :model-value="perspective" :options="perspectives" size="sm" @update:model-value="value => $emit('perspective-change', value)" /></label></div></header>
-    <div class="pws-layout">
-      <aside class="pws-sidebar"><div class="pws-mobile"><span>工作区导航</span><DewButton size="sm" type="ghost" :aria-expanded="menuOpen" @click="menuOpen = !menuOpen">{{ menuOpen ? '收起菜单' : '展开菜单' }}</DewButton></div><label class="pws-scope-label">工作范围</label><DewSelect :model-value="selection.scope === 'camp' ? 'camp' : String(selection.unit?.unit_id || '')" :options="scopeOptions" size="sm" class="pws-scope" :disabled="loading" @update:model-value="changeScope" /><nav :class="['pws-nav', { 'is-open': menuOpen }]" aria-label="项目营功能"><template v-for="(item, index) in selection.tabs" :key="item.key"><div v-if="item.camp && !selection.tabs[index - 1]?.camp" class="pws-nav-group">营期事务</div><button type="button" :aria-current="selection.tab === item.key ? 'page' : undefined" @click="navigate(item.key)"><el-icon><component :is="icons[item.icon]" /></el-icon><span>{{ item.label }}</span></button></template></nav><p class="pws-identity">{{ teacher ? '管理老师 · 项目内容只读' : selection.unit?.my_role === 'leader' ? '本项目负责人' : '项目成员' }}</p></aside>
-      <main class="pws-main">
-        <div v-if="loading || resolvingLocation" class="pws-loading"><DewSkeleton variant="rect" width="100%" height="220" /></div>
-        <div v-else-if="error || locationError" role="alert" class="pws-error"><p>{{ error || locationError }}</p><DewButton size="sm" @click="load()">重试</DewButton></div>
-        <template v-else><div class="pws-breadcrumb">{{ session.name }} / {{ campPage ? '营期事务' : selection.scope === 'camp' ? '全营管理' : selection.unit?.name || '项目工作' }} / {{ activeLabel }}</div><div class="pws-page-heading"><div><h2>{{ activeLabel }}</h2><p v-if="selection.scope === 'project' && selection.unit && !campPage">{{ selection.unit.name }} · {{ selection.unit.member_count }}人<span v-if="selection.unit.status !== 'active'"> · {{ unitStatusText[selection.unit.status] }}</span></p></div><DewTag v-if="session.status === 'archived'" size="sm">已结营 · 只读</DewTag></div>
+  <ProjectWorkspaceFrame :title="workspaceTitle" :subtitle="workspaceSubtitle" :status-label="statusLabel" :status="session.status"
+    :back-label="standalone ? binding ? '返回营期' : '我的项目' : '营期中心'"
+    :scope-value="scopeValue" :scope-options="scopeOptions" :scope-label="standalone ? '项目上下文' : '工作范围'"
+    :tabs="selection.tabs" :active-tab="selection.tab" :nav-label="standalone ? '项目功能' : '项目营功能'"
+    :identity="identity" :breadcrumb="breadcrumb" :section-title="activeLabel" :section-subtitle="sectionSubtitle"
+    :loading="busy" :error="displayError" :perspectives="perspectives" :perspective="perspective || ''"
+    @back="$emit('back')" @navigate="navigate" @scope-change="changeScope" @perspective-change="value => $emit('perspective-change', value)" @retry="retry">
+    <template #header-actions><DewButton v-if="localPreview" size="sm" type="ghost" @click="openPreview">切换试用身份</DewButton></template>
           <ProjectCampInbox v-if="teacher && selection.scope==='camp' && selection.tab==='members' && session.status!=='archived'" :sid="sid" @changed="refreshProject" />
           <p v-if="weekly?.mode === 'weekly'" class="pws-notice pws-attendance">累计出勤 {{ weekly.total_days || 0 }} 次 · {{ weekly.total_hours || 0 }}h</p>
           <p v-if="selection.invalidUnit" class="pws-notice" role="status">原项目不在当前可访问列表中，请从工作范围重新选择项目。</p>
-          <div :key="`${sid}-${selection.scope}-${selection.unit?.unit_id}-${selection.tab}-${teacher}`" class="pws-page">
+          <div :key="`${sid}-${selection.scope}-${selection.unit?.unit_id}-${nativeProject?.id}-${selection.tab}-${teacher}`" class="pws-content">
             <CampPointsPanel v-if="selection.tab === 'points'" :sid="sid" :manage="teacher" />
             <MentorDashboard v-else-if="selection.tab === 'attendance' && teacher" :sid="sid" scope-label="全营" category="project" />
             <component :is="teacher ? MentorLeave : LeaveApply" v-else-if="selection.tab === 'leave'" :sid="sid" />
@@ -26,27 +26,33 @@
               <TeacherMembers v-else-if="selection.tab === 'members'" :sid="sid" category="project" :projects="projects" :camp-status="session.status" :writable="session.my_permissions?.includes('member.manage')" @reviewed="refreshProject" @open-project="project => openProject(project, 'members')" />
               <TeacherAdmissions v-else-if="selection.tab === 'admissions'" :sid="sid" category="project" @reviewed="refreshProject" />
             </template>
+            <ProjectLongTermPanel v-else-if="nativeProject && longSections.includes(selection.tab)" :project="effectiveProject" :binding="binding" :camp-view="nativeCampView" :section="selection.tab" @changed="refreshProject" @navigate="navigate" @open-binding="openBinding" />
+            <ProjectWorkspaceOverview v-else-if="nativeProject && selection.tab === 'overview' && (!teacher || binding?.status === 'ended')" :project="effectiveProject" :binding="binding" :camp-view="nativeCampView" :unit-id="binding?.can_read_work && binding?.status === 'active' ? Number(binding.unit_id) : undefined" :role="binding?.my_role || nativeProject.my_role" :archived="session.status === 'archived'" @navigate="navigate" />
+            <ProjectAssessment v-else-if="binding?.status === 'ended' && ['delivery','members','meetings','outcomes'].includes(selection.tab)" :project="effectiveProject" :binding="binding" :camp-view="nativeCampView" :section="archiveSections[selection.tab]" :draft-cache="draftCache" />
+            <ProjectPeriodMembers v-else-if="binding && selection.tab === 'members'" :project="effectiveProject" :binding="binding" @changed="refreshProject" @manage="manageParticipants" />
             <div v-else-if="!selection.unit" class="pws-empty"><h3>尚未加入项目</h3><p>营期成员加入项目后，这里会出现对应工作区。营期积分与公告仍可从侧栏查看。</p></div>
             <TeacherMeetings v-else-if="teacher && selection.tab === 'meetings'" :sid="sid" category="project" :unit-id="Number(selection.unit.unit_id)" />
             <ProjectWorkspaceRead v-else-if="teacher" :sid="sid" :project-key="selection.unit.key || selection.unit.unit_id" :section="selection.tab" :focus-node="route.query.node" @navigate="navigate" />
             <ProjectWorkspaceArchive v-else-if="selection.unit._archive" :unit="selection.unit._archive" :section="selection.tab" />
             <ProjectWorkspaceOverview v-else-if="selection.tab === 'overview'" :unit-id="Number(selection.unit.unit_id)" :role="selection.unit.my_role" :archived="session.status === 'archived'" @navigate="navigate" />
             <ProjectWorkspaceList v-else-if="selection.tab === 'members' && selection.unit.my_role !== 'leader'" :sid="sid" :unit-id="Number(selection.unit.unit_id)" kind="members" />
-            <ProjectBoard v-else :sid="sid" :session="session" :units="[selection.unit]" :role="selection.unit.my_role" :section="selection.tab" :draft-cache="draftCache" workspace @changed="refreshProject" />
+            <ProjectBoard v-else :sid="sid" :session="workSession" :units="[selection.unit]" :role="selection.unit.my_role" :section="selection.tab" :draft-cache="draftCache" :native-project="!!nativeProject" :editable="!binding || binding.can_write_work" workspace @changed="refreshProject" />
           </div>
-        </template>
-      </main>
-    </div>
-  </div>
+
+  </ProjectWorkspaceFrame>
 </template>
+
 <script setup>
 import { computed, ref, reactive, watch, defineAsyncComponent, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, House, DocumentChecked, ChatDotRound, User, Collection, Grid, Bell, Present, Calendar, DataLine, Edit } from '@element-plus/icons-vue'
-import { DewButton, DewSelect, DewTag, DewSkeleton } from '@bme/dew-ui'
+import { DewButton } from '@bme/dew-ui'
 import { campService } from '../../services/campService'
-import { resolveProjectWorkspace } from './projectWorkspaceNav'
-import {projectService} from '../../domains/projects/service'
+import { resolveProjectWorkspace, nativeWorkspaceTabs, canonicalProjectTab } from './projectWorkspaceNav'
+import { projectService } from '../../domains/projects/service'
+import ProjectWorkspaceFrame from './ProjectWorkspaceFrame.vue'
+const ProjectLongTermPanel = defineAsyncComponent(() => import('../../domains/projects/ProjectLongTermPanel.vue'))
+const ProjectPeriodMembers = defineAsyncComponent(() => import('../../domains/projects/ProjectPeriodMembers.vue'))
+const ProjectAssessment = defineAsyncComponent(() => import('../../domains/projects/ProjectAssessment.vue'))
 const ProjectCampInbox=defineAsyncComponent(()=>import('../../domains/projects/ProjectCampInbox.vue'))
 const ProjectBoard = defineAsyncComponent(() => import('./ProjectBoard.vue'))
 const ProjectWorkspaceOverview = defineAsyncComponent(() => import('./ProjectWorkspaceOverview.vue'))
@@ -64,100 +70,159 @@ const MentorDashboard = defineAsyncComponent(() => import('./MentorDashboard.vue
 const ProjectWorkspaceList = defineAsyncComponent(() => import('./ProjectWorkspaceList.vue'))
 const ProjectApplyCard = defineAsyncComponent(() => import('./ProjectApplyCard.vue'))
 const ProjectHub = defineAsyncComponent(() => import('./ProjectHub.vue'))
-const props = defineProps({ sid: Number, session: Object, perspective: String })
-defineEmits(['back', 'perspective-change'])
-const route = useRoute(), router = useRouter(), projects = ref([]), dashboard = ref({}), loading = ref(true), error = ref(''), menuOpen = ref(false)
+const props = defineProps({ sid: Number, session: { type: Object, default: () => ({}) }, perspective: String, standalone: Boolean, projectContext: Object })
+const emit = defineEmits(['back', 'perspective-change', 'binding-change', 'project-changed'])
+const route = useRoute(), router = useRouter(), projects = ref([]), dashboard = ref({}), loading = ref(!props.standalone), error = ref('')
 const resolvingLocation = ref(false), locationError = ref(''), weekly = ref(null)
+const mappedContext = ref(null), contextLoading = ref(false), contextError = ref('')
 const draftCache = reactive({})
+const longSections = ['calendar', 'records', 'team', 'camps', 'settings', 'history', 'publish']
+const archiveSections = {delivery:'assessment',members:'camp-members',meetings:'camp-meetings',outcomes:'camp-outcomes'}
 const previewPath = import.meta.env.DEV ? '/dev/project-workspace' : ''
 function openPreview() { if (previewPath) router.push(previewPath) }
 const localPreview = computed(() => import.meta.env.DEV && route.query.preview === 'workspace')
-const icons = { House, DocumentChecked, ChatDotRound, User, Collection, Grid, Bell, Present, Calendar, DataLine, Edit }
-const unitStatusText = { paused: '已暂停', terminated: '已终止' }
-const statusLabel = computed(() => ({ draft: '草稿', upcoming: '待开放', selecting: '组队中', running: '进行中', archived: '已结营' }[props.session.status]))
+const nativeContext = computed(() => props.standalone ? props.projectContext : mappedContext.value)
+const nativeProject = computed(() => nativeContext.value?.project)
+const binding = computed(() => nativeContext.value?.binding)
 const teacher = computed(() => props.perspective === 'teacher')
-const perspectives = computed(() => (props.session.available_perspectives || []).map(value => ({ value, label: value === 'teacher' ? '管理老师' : '项目参与者' })))
-const selection = computed(() => resolveProjectWorkspace(route.query, { teacher: teacher.value, projects: projects.value, session: props.session }))
+const nativeCampView = computed(() => teacher.value || Boolean(binding.value && !nativeProject.value?.my_role))
+const effectiveProject = computed(() => nativeCampView.value ? {...nativeProject.value,can_manage:false,can_write:false} : nativeProject.value)
+const workSession = computed(() => binding.value && !binding.value.can_write_work ? {...props.session,status:'archived'} : props.session)
+const statusLabel = computed(() => props.standalone && !binding.value ? ({active:'进行中',paused:'已暂停',completed:'已完成',terminated:'已终止',archived:'已归档'}[nativeProject.value?.status] || '') : ({draft:'草稿',upcoming:'待开放',selecting:'组队中',running:'进行中',archived:'已结营'}[props.session.status] || ''))
+const perspectives = computed(() => (props.session.available_perspectives || []).map(value => ({value,label:value === 'teacher' ? '管理老师' : '项目参与者'})))
+const baseSelection = computed(() => resolveProjectWorkspace(route.query, {teacher:teacher.value,projects:projects.value,session:props.session}))
+const selection = computed(() => {
+  if (!props.standalone && (!nativeProject.value || baseSelection.value.scope === 'camp')) return baseSelection.value
+  const unit = props.standalone ? (binding.value ? {unit_id:binding.value.unit_id,name:nativeProject.value?.title,member_count:binding.value.participants?.length || 0,my_role:binding.value.my_role || 'viewer',leader_user_id:binding.value.leader_user_id,status:binding.value.status === 'active' ? 'active' : 'terminated'} : null) : baseSelection.value.unit
+  const tabs = nativeWorkspaceTabs({project:effectiveProject.value,binding:binding.value,teacher:teacher.value,session:props.session})
+  const wanted = canonicalProjectTab(route.query.tab, Boolean(binding.value))
+  return {scope:'project',unit,tabs,tab:tabs.some(t => t.key === wanted) ? wanted : 'overview',invalidUnit:false}
+})
 const campPage = computed(() => selection.value.tabs.find(t => t.key === selection.value.tab)?.camp)
 const activeLabel = computed(() => selection.value.tabs.find(t => t.key === selection.value.tab)?.label || '工作概览')
-const scopeOptions = computed(() => [...(teacher.value ? [{ value: 'camp', label: '全营管理' }] : []), ...projects.value.map(p => ({ value: String(p.unit_id), label: `${p.name}${teacher.value ? '' : p.my_role === 'leader' ? ' · 负责人' : ' · 成员'}` }))])
+const workspaceTitle = computed(() => props.standalone && !binding.value ? nativeProject.value?.title || '项目工作台' : props.session.name || binding.value?.camp_name || '项目工作台')
+const workspaceSubtitle = computed(() => props.standalone && !binding.value ? nativeProject.value?.code || '' : [props.session.start_date,props.session.end_date].filter(Boolean).join(' — '))
+const scopeValue = computed(() => props.standalone ? binding.value ? String(binding.value.id) : 'project' : selection.value.scope === 'camp' ? 'camp' : String(selection.value.unit?.unit_id || ''))
+const scopeOptions = computed(() => props.standalone ? [...(nativeProject.value?.my_role ? [{value:'project',label:'长期项目'}] : []),...(nativeContext.value?.bindings || (binding.value ? [binding.value] : [])).filter(b => ['active','ended'].includes(b.status)).map(b => ({value:String(b.id),label:b.camp_name + (b.status === 'ended' ? ' · 已结束' : '')}))] : [...(teacher.value ? [{value:'camp',label:'全营管理'}] : []),...projects.value.map(p => ({value:String(p.unit_id),label:`${p.name}${teacher.value ? '' : p.my_role === 'leader' ? ' · 负责人' : ' · 成员'}`}))])
+const identity = computed(() => teacher.value ? '管理老师 · 项目内容只读' : binding.value ? binding.value.my_role === 'leader' ? '本期负责人' : binding.value.is_participant ? '本期项目成员' : '长期项目成员 · 未参加本期' : nativeProject.value?.my_role === 'leader' ? '长期项目负责人' : selection.value.unit?.my_role === 'leader' ? '本项目负责人' : '项目成员')
+const breadcrumb = computed(() => `${workspaceTitle.value} / ${selection.value.scope === 'camp' ? '全营管理' : campPage.value ? '营期事务' : selection.value.unit?.name || nativeProject.value?.title || '项目工作'} / ${activeLabel.value}`)
+const sectionSubtitle = computed(() => longSections.includes(selection.value.tab) ? nativeCampView.value ? '本期共享内容 · 只读' : '长期项目工作 · 跨营期保留' : selection.value.scope === 'project' && selection.value.unit && !campPage.value ? `${selection.value.unit.name} · ${binding.value ? '本期 ' : ''}${selection.value.unit.member_count}人` : '')
+const busy = computed(() => props.standalone ? Boolean(props.projectContext?.loading) : loading.value || resolvingLocation.value || contextLoading.value)
+const displayError = computed(() => props.standalone ? props.projectContext?.error || '' : error.value || locationError.value || contextError.value)
 const attention = computed(() => (dashboard.value.projects || []).filter(p => p.risks?.length && p.status === 'active'))
-let generation = 0, locationGeneration = 0, attendanceGeneration = 0
-let bridgeGeneration=0
-async function load({ silent = false } = {}) {
+let generation = 0, locationGeneration = 0, attendanceGeneration = 0, contextGeneration = 0
+async function load({silent = false} = {}) {
+  if (props.standalone) return
   const seq = ++generation
-  if (!silent) { loading.value = true; projects.value = []; dashboard.value = {} }
+  if (!silent) {loading.value = true; projects.value = []; dashboard.value = {}; mappedContext.value = null}
   error.value = ''
   try {
     if (teacher.value) {
       const d = await campService.fetchProjectDashboard(props.sid)
       if (seq !== generation) return
-      dashboard.value = d; projects.value = (d.projects || []).map(p => ({ ...p, unit_id: p.unit_id || p.key, my_role: 'viewer' }))
+      dashboard.value = d; projects.value = (d.projects || []).map(p => ({...p,unit_id:p.unit_id || p.key,my_role:'viewer'}))
     } else if (props.session.status === 'archived') {
       const d = await campService.fetchArchive(props.sid)
       if (seq !== generation) return
-      projects.value = (d.archive?.snapshot?.units || []).map((u, i) => ({ ...u, unit_id: u.unit_id || `archive-${i}`, name: u.name, member_count: u.members?.filter(m => m.status !== 'ended').length || 0, my_role: 'viewer', _archive: u }))
+      projects.value = (d.archive?.snapshot?.units || []).map((u,i) => ({...u,unit_id:u.unit_id || `archive-${i}`,name:u.name,member_count:u.members?.filter(m => m.status !== 'ended').length || 0,my_role:'viewer',_archive:u}))
     } else {
       const d = await campService.fetchProjectMine(props.sid)
       if (seq !== generation) return
-      projects.value = [...(d.leading || []).map(p => ({ ...p, my_role: 'leader' })), ...(d.joining || []).map(p => ({ ...p, my_role: 'member' }))].filter((p, i, all) => all.findIndex(other => other.unit_id === p.unit_id) === i)
+      projects.value = [...(d.leading || []).map(p => ({...p,my_role:'leader'})),...(d.joining || []).map(p => ({...p,my_role:'member'}))].filter((p,i,all) => all.findIndex(other => other.unit_id === p.unit_id) === i)
     }
-  } catch (e) { if (seq === generation) error.value = e.response?.data?.message || '项目工作区加载失败，请重试' }
-  finally { if (seq === generation) loading.value = false }
+  } catch (e) {if (seq === generation) error.value = e.response?.data?.message || '项目工作区加载失败，请重试'}
+  finally {if (seq === generation) loading.value = false}
+}
+async function resolveContext() {
+  if (props.standalone) return
+  const seq = ++contextGeneration, unit = baseSelection.value.unit?.unit_id
+  contextLoading.value = false; contextError.value = ''; mappedContext.value = null
+  if (loading.value || error.value || baseSelection.value.scope !== 'project' || !unit || props.session.status === 'archived') return
+  contextLoading.value = true
+  try {
+    if (!(await projectService.status()).enabled) return
+    const map = await projectService.resolveLegacy(unit)
+    if (!map.mapped) return
+    const data = await projectService.context(map.project_id,map.binding_id,teacher.value ? 'camp' : undefined)
+    if (seq !== contextGeneration) return
+    if (Number(data.binding?.camp_id) !== Number(props.sid) || Number(data.binding?.unit_id) !== Number(unit)) throw Error('项目与当前营期不匹配，请重新选择工作范围')
+    mappedContext.value = data
+  } catch (e) {if (seq === contextGeneration) contextError.value = e.response?.data?.message || e.message || '项目关联加载失败'}
+  finally {if (seq === contextGeneration) contextLoading.value = false}
 }
 async function resolveLocation() {
+  if (props.standalone) return
   const seq = ++locationGeneration
   resolvingLocation.value = false; locationError.value = ''
   if (loading.value || error.value) return
-  const query = { ...route.query }
+  const query = {...route.query}
   if (query.node && !query.unit) {
     resolvingLocation.value = true
     try {
-      const target = await campService.resolveProjectNode(props.sid, query.node)
+      const target = await campService.resolveProjectNode(props.sid,query.node)
       if (seq !== locationGeneration) return
-      await router.replace({ query: { ...query, scope: 'project', unit: String(target.unit_id), tab: 'delivery' } })
-    } catch (e) { if (seq === locationGeneration) locationError.value = e.response?.data?.message || '通知对应的项目暂不可访问，请重新选择工作范围' }
-    finally { if (seq === locationGeneration) resolvingLocation.value = false }
+      await router.replace({query:{...query,scope:'project',unit:String(target.unit_id),tab:'delivery'}})
+    } catch (e) {if (seq === locationGeneration) locationError.value = e.response?.data?.message || '通知对应的项目暂不可访问，请重新选择工作范围'}
+    finally {if (seq === locationGeneration) resolvingLocation.value = false}
   } else if (!query.unit && !teacher.value && projects.value.length) {
-    await router.replace({ query: { ...query, scope: 'project', unit: String(projects.value[0].unit_id), tab: query.tab || 'overview' } })
+    await router.replace({query:{...query,scope:'project',unit:String(projects.value[0].unit_id),tab:query.tab || 'overview'}})
   }
 }
-function navigate(tab, node) {
-  menuOpen.value = false
-  const query = { ...route.query, scope: selection.value.scope, tab }
-  if (selection.value.scope === 'project' && selection.value.unit) query.unit = String(selection.value.unit.unit_id)
-  else delete query.unit
-  if (node) query.node = String(node); else delete query.node
-  router.push({ query })
+async function navigate(tab,node,source) {
+  if (source?.bindingId && Number(source.bindingId) !== Number(binding.value?.id) && nativeProject.value) {
+    const path = route.fullPath
+    try {
+      const data = await projectService.context(nativeProject.value.id,source.bindingId,teacher.value ? 'camp' : undefined)
+      if (route.fullPath !== path) return
+      if (!data.binding?.can_read_work) throw Error('当前账号无法读取该营期的考核记录')
+      const query = props.standalone ? {...route.query,binding:String(data.binding.id),unit:String(data.binding.unit_id),tab} : {sid:String(data.binding.camp_id),scope:'project',unit:String(data.binding.unit_id),tab,perspective:props.perspective}
+      for (const field of ['node','entry','record','month']) delete query[field]
+      if (node) query.node = String(node)
+      await router.push(props.standalone ? {query} : {path:'/camp',query})
+    } catch (e) { const {ElMessage} = await import('element-plus'); ElMessage.error(e.response?.data?.message || e.message || '来源记录不可访问') }
+    return
+  }
+  const query = {...route.query,tab}
+  if (!props.standalone) {query.scope = selection.value.scope; if (selection.value.scope === 'project' && selection.value.unit) query.unit = String(selection.value.unit.unit_id); else delete query.unit}
+  for (const field of ['node','entry','record','month']) delete query[field]
+  if (node) query.node = String(node)
+  router.push({query})
 }
 function changeScope(value) {
-  menuOpen.value = false
-  const query = { ...route.query, scope: value === 'camp' ? 'camp' : 'project' }
-  if (value === 'camp') { delete query.unit; query.tab = 'overview' }
-  else query.unit = value
-  delete query.node
-  router.push({ query })
+  if (props.standalone) {emit('binding-change',value === 'project' ? null : value);return}
+  const query = {...route.query,scope:value === 'camp' ? 'camp' : 'project'}
+  if (value === 'camp') {delete query.unit; query.tab = 'overview'} else query.unit = value
+  for (const field of ['node','entry','record','month']) delete query[field]
+  router.push({query})
 }
-function openProject(project, tab = 'overview', node = null) { const query = { ...route.query, scope: 'project', unit: String(project.unit_id || project.key), tab: typeof tab === 'string' ? tab : 'overview' }; if (node) query.node = String(node); else delete query.node; router.push({ query }) }
-function refreshProject() { return load({ silent: true }) }
-watch(() => [props.sid, teacher.value, props.session.status], () => load(), { immediate: true })
-watch(() => [loading.value, props.sid, teacher.value, route.query.node, route.query.unit, route.query.tab], resolveLocation, { immediate: true })
-watch(() => [props.sid, teacher.value, props.session.status, props.session.policy?.capabilities?.attendance, props.session.policy?.attendance_mode], async () => {
+function openProject(project,tab = 'overview',node = null) {
+  const query = {...route.query,scope:'project',unit:String(project.unit_id || project.key),tab:typeof tab === 'string' ? tab : 'overview'}
+  for (const field of ['node','entry','record','month']) delete query[field]
+  if (node) query.node = String(node)
+  router.push({query})
+}
+function openBinding(row) {
+  if (props.standalone) {emit('binding-change',row.id,'delivery');return}
+  if (row.status === 'ended') {router.push({path:`/project-workspace/${nativeProject.value.id}`,query:{binding:String(row.id),unit:String(row.unit_id),tab:'delivery',view:teacher.value ? 'camp' : undefined}});return}
+  if (Number(row.camp_id) === Number(props.sid)) {openProject({unit_id:row.unit_id},'delivery');return}
+  router.push({path:'/camp',query:{sid:String(row.camp_id),scope:'project',unit:String(row.unit_id),tab:'delivery',perspective:'student'}})
+}
+function manageParticipants() {router.push({path:'/camp',query:{sid:String(props.sid),scope:'camp',tab:'members',perspective:'teacher'}})}
+async function refreshProject() {
+  if (props.standalone) {emit('project-changed');return}
+  await load({silent:true}); await resolveContext()
+}
+function retry() {if (props.standalone) emit('project-changed'); else load()}
+watch(() => [props.sid,teacher.value,props.session.status],() => load(),{immediate:true})
+watch(() => [loading.value,props.sid,teacher.value,baseSelection.value.scope,baseSelection.value.unit?.unit_id],resolveContext,{immediate:true,flush:'sync'})
+watch(() => [loading.value,props.sid,teacher.value,route.query.node,route.query.unit],resolveLocation,{immediate:true})
+watch(() => [props.sid,teacher.value,props.session.status,props.session.policy?.capabilities?.attendance,props.session.policy?.attendance_mode],async () => {
   const seq = ++attendanceGeneration; weekly.value = null
-  if (teacher.value || props.session.status === 'archived' || !props.session.policy?.capabilities?.attendance || props.session.policy.attendance_mode !== 'weekly') return
-  try { const data = await campService.fetchMyAttendance(props.sid); if (seq === attendanceGeneration) weekly.value = data }
-  catch { /* 不把不可用的出勤数据显示成零 */ }
-}, { immediate: true })
-onBeforeUnmount(() => { generation++; locationGeneration++; attendanceGeneration++ })
-watch(()=>[loading.value,selection.value.scope,selection.value.unit?.unit_id,selection.value.tab],async()=>{
-  const seq=++bridgeGeneration,unit=selection.value.unit?.unit_id,path=route.fullPath
-  if(loading.value||selection.value.scope!=='project'||!unit||campPage.value||props.session.status==='archived')return
-  try{if(!(await projectService.status()).enabled)return;const d=await projectService.resolveLegacy(unit);if(seq!==bridgeGeneration||route.fullPath!==path||!d.mapped)return;const aliases={overview:'overview',delivery:'assessment',members:'camp-members',meetings:'camp-meetings',outcomes:'camp-outcomes'};if(!aliases[selection.value.tab])return;await router.replace({path:`/project-workspace/${d.project_id}`,query:{binding:d.binding_id,unit,tab:aliases[selection.value.tab],node:route.query.node||undefined,view:teacher.value?'camp':undefined}})}catch{/* 未迁移或未开放时保留原营期路径 */}
-})
-onBeforeUnmount(()=>bridgeGeneration++)
+  if (!props.sid || teacher.value || props.session.status === 'archived' || !props.session.policy?.capabilities?.attendance || props.session.policy.attendance_mode !== 'weekly') return
+  try {const data = await campService.fetchMyAttendance(props.sid); if (seq === attendanceGeneration) weekly.value = data} catch { /* 出勤不可用时不展示虚假的零值 */ }
+},{immediate:true})
+onBeforeUnmount(() => {generation++;locationGeneration++;attendanceGeneration++;contextGeneration++})
 </script>
 <style scoped>
-.project-workspace { --pws-line: var(--dew-card-flat-border); color: var(--dew-text); background: var(--dew-card-flat-bg); border: 1px solid var(--pws-line); border-radius: 12px; overflow: clip; min-width: 0; }.pws-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 16px 20px; border-bottom: 1px solid var(--pws-line); flex-wrap: wrap; }.pws-title { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }.pws-title h1 { margin: 0; font-size: 20px; color: var(--dew-text-heading); }.pws-top-controls { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--dew-text-muted); }.pws-top-controls label { display: flex; gap: 8px; align-items: center; }.pws-top-controls :deep(.dew-select) { width: 140px; }.pws-layout { display: grid; grid-template-columns: 218px minmax(0, 1fr); min-height: 600px; }.pws-sidebar { padding: 20px 12px; border-right: 1px solid var(--pws-line); background: var(--dew-card-flat-bg-hover); }.pws-scope-label { display: block; padding: 0 8px; margin-bottom: 8px; font-size: 12px; color: var(--dew-text-muted); }.pws-scope { width: 100%; }.pws-nav { display: flex; flex-direction: column; gap: 4px; margin-top: 22px; }.pws-nav button { display: flex; align-items: center; gap: 10px; padding: 12px; border: 0; border-radius: 8px; background: transparent; color: var(--dew-text); font: inherit; text-align: left; cursor: pointer; }.pws-nav button:hover, .pws-nav button[aria-current=page] { background: var(--color-primary-light); color: var(--color-primary); }.pws-nav-group { color: var(--dew-text-muted); border-top: 1px solid var(--pws-line); padding: 14px 10px 4px; margin-top: 12px; font-size: 12px; }.pws-identity { font-size: 12px; color: var(--dew-text-muted); padding: 18px 10px; }.pws-main { min-width: 0; padding: 24px; }.pws-breadcrumb { color: var(--dew-text-muted); font-size: 12px; overflow-wrap: anywhere; margin-bottom: 14px; }.pws-page-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; gap: 12px; }.pws-page-heading h2 { margin: 0; font-size: 21px; }.pws-page-heading p { color: var(--dew-text-muted); font-size: 12px; }.pws-page { min-width: 0; }.pws-page :deep(.sec-title:first-child) { margin-top: 0; }.pws-page :deep(.sec-card) { border: 0; box-shadow: none; background: transparent; }.pws-page :deep(.sec-card > .dew-card__body) { padding: 0; }.pws-notice, .pws-muted { color: var(--dew-text-muted); font-size: 13px; line-height: 1.7; }.pws-notice { margin-bottom: 20px; }.pws-empty { padding: 40px 0; color: var(--dew-text-muted); }.pws-empty h3 { color: var(--dew-text-heading); }.pws-camp-stats { display: flex; gap: 28px; flex-wrap: wrap; padding-bottom: 22px; }.pws-camp-stats strong { font-size: 25px; }.pws-attention { display: flex; justify-content: space-between; width: 100%; gap: 16px; text-align: left; background: transparent; color: var(--dew-text); border: 0; border-bottom: 1px solid var(--pws-line); padding: 18px 0; font: inherit; cursor: pointer; }.pws-attention small { display: block; color: var(--dew-text-muted); margin-top: 5px; }.pws-mobile { display: none; }
-@media(max-width:760px) { .pws-layout { grid-template-columns: 180px minmax(0, 1fr); }.pws-main { padding: 18px; } }
-@media(max-width:540px) { .pws-layout { display: block; }.pws-sidebar { border-right: 0; border-bottom: 1px solid var(--pws-line); padding: 12px; }.pws-mobile { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 13px; }.pws-nav { display: none; }.pws-nav.is-open { display: flex; }.pws-scope-label, .pws-identity { display: none; }.pws-header { padding: 14px; }.pws-title h1 { font-size: 18px; }.pws-main { padding: 18px 14px; } }
+.pws-content{min-width:0}.pws-empty{padding:40px 0;color:var(--dew-text-muted)}.pws-empty h3{color:var(--dew-text-heading)}.pws-camp-stats{display:flex;gap:28px;flex-wrap:wrap;padding-bottom:22px}.pws-camp-stats strong{font-size:25px}.pws-attention{display:flex;justify-content:space-between;width:100%;gap:16px;text-align:left;background:transparent;color:var(--dew-text);border:0;border-bottom:1px solid var(--dew-card-flat-border);padding:18px 0;font:inherit;cursor:pointer}.pws-attention small{display:block;color:var(--dew-text-muted);margin-top:5px}
 </style>

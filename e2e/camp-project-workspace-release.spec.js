@@ -96,6 +96,13 @@ test('申报与组队入口分阶段展示，组队变更后人数及时刷新',
   await expect(page.locator('.tray-title')).toHaveText('我的项目意向')
   await nav(page, '项目成员').click()
   const candidate = page.locator('.roster-row').filter({ hasText: '双身份演示' })
+  await expect(page.locator('.roster-footer')).toBeVisible()
+  if (await candidate.getByRole('button', { name: '移出', exact: true }).count()) {
+    await candidate.getByRole('button', { name: '移出', exact: true }).click()
+    await page.getByRole('button', { name: '提交变更', exact: true }).click()
+    await expect(page.locator('.pws-page-heading')).toContainText('2人')
+    await expect(candidate.getByRole('button', { name: '加入', exact: true })).toBeVisible()
+  }
   await candidate.getByRole('button', { name: '加入', exact: true }).click()
   await page.getByRole('button', { name: '提交变更', exact: true }).click()
   await expect(page.locator('.pws-page-heading')).toContainText('3人')

@@ -20,16 +20,16 @@
             </span>
           </div>
           <div class="head-actions">
-            <DewButton v-if="role === 'leader'" type="ghost" size="sm"
+            <DewButton v-if="!nativeProject && role === 'leader'" type="ghost" size="sm"
                        :disabled="session.status === 'archived'" @click="openTemplate">项目模板</DewButton>
-            <DewButton v-if="role === 'leader'" type="glass" size="sm" @click="openPublish">发布到项目广场</DewButton>
+            <DewButton v-if="!nativeProject && role === 'leader'" type="glass" size="sm" @click="openPublish">发布到项目广场</DewButton>
           </div>
         </div>
         <p v-if="cur.goal" class="head-goal">{{ cur.goal }}</p>
       </DewCard>
 
       <!-- 成员管理（负责） -->
-      <template v-if="role === 'leader' && visible('members')">
+      <template v-if="!nativeProject && role === 'leader' && visible('members')">
         <div class="sec-title">成员管理</div>
         <DewCard variant="default" :no-hover="true" class="sec-card">
           <ProjectRoster :unit-id="cur.unit_id" :camp-status="session.status" @changed="emitChanged" />
@@ -37,10 +37,10 @@
       </template>
 
       <!-- 节点交付（模板实例化的里程碑：材料提交/审核 + 节点评价；09-14 用户定名「项目进展」） -->
-      <template v-if="visible('delivery')"><div v-if="workspace && role === 'leader'" class="board-tools"><DewButton size="sm" type="ghost" :disabled="session.status === 'archived' || cur.status !== 'active'" @click="openTemplate">管理节点计划</DewButton></div><div v-if="!workspace" class="sec-title">项目进展</div>
+      <template v-if="visible('delivery')"><div v-if="!nativeProject && workspace && role === 'leader'" class="board-tools"><DewButton size="sm" type="ghost" :disabled="!workEditable" @click="openTemplate">管理节点计划</DewButton></div><div v-if="!workspace" class="sec-title">项目进展</div>
       <DewCard variant="default" :no-hover="true" class="sec-card">
         <ProjectMilestones ref="milestonesRef" :unit-id="cur.unit_id" :camp-status="session.status"
-                           :editable="session.status !== 'archived' && cur.status === 'active'"
+                           :editable="workEditable" :native-project="nativeProject"
                            :owner-user-id="cur.leader_user_id" :workspace="workspace" :draft-cache="draftCache" @changed="emitChanged" />
       </DewCard>
 
@@ -48,14 +48,14 @@
       <!-- 活动考勤（09-13 拍板：以项目为单位，负责人发起/勾选出席） -->
       <template v-if="visible('activities')"><div class="sec-title">活动考勤</div>
       <DewCard variant="default" :no-hover="true" class="sec-card">
-        <ProjectActivities :sid="sid" :session="session" :unit-id="cur.unit_id" />
+        <ProjectActivities :sid="sid" :session="workSession" :unit-id="cur.unit_id" />
       </DewCard>
 
       </template>
       <!-- 组会纪要（09-17：负责人提交文字/文件/录像纪要，组员查看；结营只读） -->
       <template v-if="visible('meetings')"><div v-if="!workspace" class="sec-title">组会纪要</div>
       <DewCard variant="default" :no-hover="true" class="sec-card">
-        <CampMeetings :sid="sid" :unit-id="cur.unit_id" :camp-status="session.status" />
+        <CampMeetings :sid="sid" :unit-id="cur.unit_id" :camp-status="workSession.status" />
       </DewCard>
 
       </template>
@@ -72,9 +72,9 @@
       <DewCard variant="default" :no-hover="true" class="sec-card">
         <div class="outcome-head">
           <span class="outcome-title">验收材料与成果</span>
-          <DewButton v-if="role === 'leader' && session.status !== 'archived' && cur.status === 'active'"
+          <DewButton v-if="role === 'leader' && workEditable"
                      type="ghost" size="sm" @click="openOutcome">登记成果</DewButton>
-          <DewButton v-if="workspace && role === 'leader'" type="ghost" size="sm" @click="openPublish">发布到项目广场</DewButton>
+          <DewButton v-if="!nativeProject && workspace && role === 'leader'" type="ghost" size="sm" @click="openPublish">发布到项目广场</DewButton>
         </div>
         <div v-if="!outcomes.length" class="outcome-empty">
           {{ role === 'leader' ? '尚无成果登记——结题材料验收后在此登记，管理员核验后入档' : '负责人尚未登记成果' }}
@@ -91,13 +91,13 @@
     </template>
 
     <!-- 项目模板（三起点+节点编辑） -->
-    <DewDialog v-model="tplDlg" :title="`项目模板 · ${cur?.name || ''}`" width="680px">
+    <DewDialog v-if="!nativeProject" v-model="tplDlg" :title="`项目模板 · ${cur?.name || ''}`" width="680px">
       <TemplateEditor v-if="tplDlg && cur" :unit-id="cur.unit_id" :sid="sid"
                       @close="tplDlg = false" @created="milestonesRef?.reload()" @changed="emitChanged" />
     </DewDialog>
 
     <!-- 发布到项目广场 -->
-    <DewDialog v-model="publishDlg" title="发布到项目广场" width="560px">
+    <DewDialog v-if="!nativeProject" v-model="publishDlg" title="发布到项目广场" width="560px">
       <div class="publish-form">
         <div class="pub-note">
           发布后全站可见（标题与详情自动取自项目档案，下方可覆盖）；结营后自动标「已完成」并挂结营档案引用。
@@ -151,6 +151,8 @@ const props = defineProps({
   sid: { type: Number, required: true },
   section: { type: String, default: null },
   workspace: Boolean,
+  nativeProject: Boolean,
+  editable: { type: Boolean, default: true },
   draftCache: { type: Object, default: () => ({}) },
   session: { type: Object, required: true },
   units: { type: Array, required: true },          // 同一角色的项目列表（mine.leading / mine.joining）
@@ -166,6 +168,9 @@ const OUTCOME_TEXT = { submitted: '待核验', verified: '已核验', rejected: 
 const currentId = ref(null);
 const unitOptions = computed(() => props.units.map((u) => ({ label: u.name, value: u.unit_id })));
 const cur = computed(() => props.units.find((u) => u.unit_id === currentId.value) || props.units[0]);
+const workEditable = computed(() => props.editable && !['archived', 'deleted'].includes(props.session.status) && cur.value?.status === 'active');
+// 已迁入项目的写权限由关联上下文传入，旧子组件通过营期状态接受只读模式。
+const workSession = computed(() => props.nativeProject && !workEditable.value ? { ...props.session, status: 'archived' } : props.session);
 watch(() => props.units, (us) => {
   if (!us.some((u) => u.unit_id === currentId.value)) currentId.value = us[0]?.unit_id ?? null;
 }, { immediate: true });
@@ -209,18 +214,19 @@ async function saveOutcome() {
 
 // ── 项目模板 ──
 const tplDlg = ref(false);
-function openTemplate() { tplDlg.value = true; }
+function openTemplate() { if (!props.nativeProject && workEditable.value) tplDlg.value = true; }
 
 // ── 发布到项目广场 ──
 const publishDlg = ref(false);
 const publishForm = ref({ summary: '', tagsText: '', linksText: '' });
 const publishing = ref(false);
 function openPublish() {
+  if (props.nativeProject) return;
   publishForm.value = { summary: cur.value?.goal || '', tagsText: '', linksText: '' };
   publishDlg.value = true;
 }
 async function doPublish() {
-  if (publishing.value) return;
+  if (props.nativeProject || publishing.value) return;
   publishing.value = true;
   try {
     const links = publishForm.value.linksText.split('\n').map((l) => l.trim()).filter(Boolean)

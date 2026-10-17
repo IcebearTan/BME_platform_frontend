@@ -14,7 +14,7 @@ test('独立项目真实创建、D0、相对节点与实际完成，刷新后保
   const title=`独立项目检查 ${Date.now()}`
   await page.getByPlaceholder('项目名称',{exact:true}).fill(title)
   await page.locator('.dew-dialog').getByRole('button',{name:'创建',exact:true}).click()
-  await expect(page.locator('.pd-head h1')).toHaveText(title)
+  await expect(page.locator('.pws-title h1')).toHaveText(title)
   await page.getByRole('navigation',{name:'项目功能'}).getByRole('button',{name:'项目日历',exact:true}).click()
   await page.getByRole('button',{name:'设置D0',exact:true}).click()
   const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai'}).format(new Date())
@@ -56,7 +56,7 @@ test('普通成员只读日历与窄屏工作区',async({page})=>{
   await expect(page.getByRole('button',{name:'设置D0',exact:true})).toHaveCount(0)
   await expect(page.getByRole('button',{name:'添加关键节点',exact:true})).toHaveCount(0)
   await page.setViewportSize({width:400,height:850})
-  expect(await page.locator('.pd-layout').evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true)
+  expect(await page.locator('.pws-frame').evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true)
   await page.reload();await expect(page.locator('.pc-timeline')).toBeVisible()
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true)
 })
@@ -96,29 +96,159 @@ test('真实项目记录上传附件、下载及通知定位',async({page,reques
   await expect(page.locator('.pr-record').filter({hasText:marker})).toBeVisible()
 })
 
-test('已关联项目的旧营期入口直达，本期材料草稿在栏目切换后保留',async({page,request})=>{
+test('营期中的项目、考核、积分和公告保持同一外壳、上下文与材料草稿',async({page,request})=>{
+  const errors=[];page.on('pageerror',e=>errors.push(e.message))
   const health=await(await request.get('http://127.0.0.1:5016/preview/health')).json()
   await login(page,'成员演示');await page.goto(`${BASE}/camp?sid=${health.camps.independent}`)
-  await expect(page).toHaveURL(/project-workspace/)
-  const nav=name=>page.getByRole('navigation',{name:'项目功能'}).getByRole('button',{name,exact:true})
+  const nav=name=>page.getByRole('navigation',{name:'项目营功能'}).getByRole('button',{name,exact:true})
+  await expect(nav('本期考核')).toBeVisible()
+  await expect(page.locator('.pws-scope')).toContainText('独立项目 · 日历试用')
+  const unit=new URL(page.url()).searchParams.get('unit')
+  expect(unit).toBeTruthy()
+  const frame=await page.locator('.pws-frame').elementHandle()
+  const sidebar=await page.locator('.pws-nav').elementHandle()
+  async function sameWorkspace(tab){
+    await expect(page).toHaveURL(url=>url.pathname.endsWith('/camp')&&url.searchParams.get('sid')===String(health.camps.independent)&&url.searchParams.get('unit')===unit&&url.searchParams.get('tab')===tab)
+    expect(await page.locator('.pws-frame').evaluate((current,original)=>current===original,frame)).toBe(true)
+    expect(await page.locator('.pws-nav').evaluate((current,original)=>current===original,sidebar)).toBe(true)
+  }
   await nav('本期考核').click();await expect(page.locator('.pm-content')).toContainText('本期阶段汇报')
-  await page.locator('.submit-box textarea').fill('本期独立保存的未提交草稿')
-  await nav('项目日历').click();await expect(page.locator('.pc-grid')).toBeVisible()
-  await nav('本期考核').click();await expect(page.locator('.submit-box textarea')).toHaveValue('本期独立保存的未提交草稿')
+  await sameWorkspace('delivery')
+  await page.locator('.submit-box textarea').fill('栏目切换保留的本期材料草稿')
+  await nav('项目日历').click();await expect(page.locator('.pc-grid')).toBeVisible();await sameWorkspace('calendar')
+  await nav('营期积分').click();await expect(page.locator('.camp-points')).toBeVisible();await sameWorkspace('points')
+  await nav('营期公告').click();await expect(page.locator('.pws-page-heading h2')).toHaveText('营期公告');await sameWorkspace('announcements')
+  await page.goBack();await expect(page.locator('.camp-points')).toBeVisible();await sameWorkspace('points')
+  await page.goBack();await expect(page.locator('.pc-grid')).toBeVisible();await sameWorkspace('calendar')
+  await nav('本期考核').click();await expect(page.locator('.submit-box textarea')).toHaveValue('栏目切换保留的本期材料草稿');await sameWorkspace('delivery')
+  await nav('项目日历').click();await page.reload()
+  await expect(page.locator('.pc-grid')).toBeVisible()
+  await expect(page).toHaveURL(url=>url.pathname.endsWith('/camp')&&url.searchParams.get('sid')===String(health.camps.independent)&&url.searchParams.get('unit')===unit&&url.searchParams.get('tab')==='calendar')
+  await expect(page.getByRole('navigation',{name:'项目营功能'})).toBeVisible()
+  expect(errors).toEqual([])
 })
 
-test('本期老师查看已关联项目时只读，不获得长期团队及私有记录',async({page,request})=>{
+test('独立项目关联入口返回原营期的项目与栏目，刷新和浏览器后退均可继续工作',async({page,request})=>{
+  const health=await(await request.get('http://127.0.0.1:5016/preview/health')).json()
+  await login(page,'成员演示')
+  const contextResponse=page.waitForResponse(response=>/\/project-core\/projects\/\d+\/context/.test(response.url()))
+  await page.goto(`${BASE}/camp?sid=${health.camps.independent}`)
+  const context=await(await contextResponse).json(),binding=context.binding
+  expect(binding.camp_id).toBe(health.camps.independent)
+  await page.goto(`${BASE}/project-workspace/${context.project.id}?binding=${binding.id}&unit=${binding.unit_id}&tab=calendar`)
+  await expect(page.locator('.pc-grid')).toBeVisible()
+  await expect(page.getByRole('navigation',{name:'项目功能'})).toBeVisible()
+  await page.getByRole('button',{name:'返回营期',exact:true}).click()
+  const isCampCalendar=url=>url.pathname.endsWith('/camp')&&url.searchParams.get('sid')===String(binding.camp_id)&&url.searchParams.get('unit')===String(binding.unit_id)&&url.searchParams.get('scope')==='project'&&url.searchParams.get('tab')==='calendar'
+  await expect(page).toHaveURL(isCampCalendar)
+  await expect(page.locator('.pc-grid')).toBeVisible()
+  await page.reload();await expect(page).toHaveURL(isCampCalendar)
+  await expect(page.locator('.pc-grid')).toBeVisible()
+  await page.goBack()
+  await expect(page).toHaveURL(url=>url.pathname.endsWith(`/project-workspace/${context.project.id}`)&&url.searchParams.get('binding')===String(binding.id)&&url.searchParams.get('tab')==='calendar')
+  await expect(page.locator('.pc-grid')).toBeVisible()
+  await expect(page.getByRole('navigation',{name:'项目功能'})).toBeVisible()
+})
+
+test('长期项目日历的考核来源进入对应营期关联与节点',async({page,request})=>{
+  const API='http://127.0.0.1:5016'
+  const health=await(await request.get(API+'/preview/health')).json()
+  await login(page,'成员演示')
+  const bearer=await page.evaluate(()=>localStorage.getItem('bme-user-token')),headers={Authorization:'Bearer '+bearer}
+  const bindings=(await(await request.get(`${API}/project-core/projects/1/camps`,{headers})).json()).bindings
+  const binding=bindings.find(row=>row.camp_id===health.camps.independent&&row.status==='active')
+  expect(binding).toBeTruthy()
+  const nodes=(await(await request.get(`${API}/camp/units/${binding.unit_id}/milestones`,{headers})).json()).milestones
+  const node=nodes.find(row=>row.title==='本期阶段汇报')
+  expect(node).toBeTruthy()
+  await page.goto(`${BASE}/project-workspace/1?tab=calendar&month=${node.due_date.slice(0,7)}&entry=assessment:${node.id}`)
+  await expect(page.getByRole('button',{name:'打开原记录',exact:true})).toBeVisible()
+  expect(new URL(page.url()).searchParams.has('binding')).toBe(false)
+  const frame=await page.locator('.pws-frame').elementHandle()
+  await page.getByRole('button',{name:'打开原记录',exact:true}).click()
+  await expect(page).toHaveURL(url=>url.pathname.endsWith('/project-workspace/1')&&url.searchParams.get('binding')===String(binding.id)&&url.searchParams.get('unit')===String(binding.unit_id)&&url.searchParams.get('node')===String(node.id)&&url.searchParams.get('tab')==='delivery')
+  await expect(page.locator('.pm-content')).toContainText('本期阶段汇报')
+  expect(await page.locator('.pws-frame').evaluate((current,original)=>current===original,frame)).toBe(true)
+  await expect(page.locator('.pws-scope')).toContainText(binding.camp_name)
+})
+
+test('本期负责人在原节点工作区新增并编辑节点，保留同一ID且不使用旧模板',async({page,request})=>{
+  const API='http://127.0.0.1:5016'
+  const health=await(await request.get(API+'/preview/health')).json()
+  await login(page);await page.goto(`${BASE}/camp?sid=${health.camps.independent}&scope=project&tab=delivery`)
+  await expect(page.locator('.pm-content')).toContainText('本期阶段汇报')
+  await expect(page.getByRole('button',{name:'管理节点计划',exact:true})).toHaveCount(0)
+  const unit=new URL(page.url()).searchParams.get('unit')
+  const bearer=await page.evaluate(()=>localStorage.getItem('bme-user-token')),headers={Authorization:'Bearer '+bearer}
+  const list=async()=>{
+    const response=await request.get(`${API}/camp/units/${unit}/milestones`,{headers})
+    expect(response.status()).toBe(200)
+    return(await response.json()).milestones
+  }
+  const before=await list(),snapshot=node=>({id:node.id,title:node.title,requirement:node.requirement,due_date:node.due_date})
+  const title=`本期节点编辑检查 ${Date.now()}`,requirement='本地专项新增节点要求',updatedTitle=title+' 已调整',updatedRequirement='本地专项调整后的交付要求'
+  const initialDay=new Date();initialDay.setUTCDate(initialDay.getUTCDate()+7)
+  const updatedDay=new Date();updatedDay.setUTCDate(updatedDay.getUTCDate()+10)
+  const due=initialDay.toISOString().slice(0,10),updatedDue=updatedDay.toISOString().slice(0,10)
+  let createdId
+  try{
+    await page.getByRole('button',{name:'＋ 追加交付节点',exact:true}).click()
+    await page.getByPlaceholder('节点标题（如：中期检查）',{exact:true}).fill(title)
+    await page.getByPlaceholder('交付要求（选填）',{exact:true}).fill(requirement)
+    await page.locator('.pm-add input[type=date]').fill(due)
+    const createdResponse=page.waitForResponse(response=>response.url().endsWith(`/camp/units/${unit}/milestones`)&&response.request().method()==='POST')
+    await page.locator('.pm-add').getByRole('button',{name:'保存节点',exact:true}).click()
+    const created=await createdResponse;expect(created.status()).toBe(200)
+    createdId=(await created.json()).milestone.id
+    expect(createdId).toBeTruthy()
+    await page.getByRole('navigation',{name:'交付节点'}).getByRole('button').filter({hasText:title}).click()
+    await expect(page.locator('.pm-content')).toContainText(requirement)
+    await page.getByRole('button',{name:'编辑本期节点',exact:true}).click()
+    const dialog=page.getByRole('dialog').filter({has:page.getByPlaceholder('本期节点名称',{exact:true})})
+    await expect(dialog.getByPlaceholder('本期节点名称',{exact:true})).toHaveValue(title)
+    await dialog.getByPlaceholder('本期节点名称',{exact:true}).fill(updatedTitle)
+    await dialog.getByPlaceholder('本期交付要求（选填）',{exact:true}).fill(updatedRequirement)
+    await dialog.locator('input[type=date]').fill(updatedDue)
+    const changedResponse=page.waitForResponse(response=>response.url().endsWith(`/camp/milestones/${createdId}`)&&response.request().method()==='PUT')
+    await dialog.getByRole('button',{name:'保存节点',exact:true}).click()
+    const changed=await changedResponse;expect(changed.status()).toBe(200)
+    expect((await changed.json()).milestone.id).toBe(createdId)
+    await expect(page.locator('.pm-content')).toContainText(updatedRequirement)
+    await expect(page.getByRole('navigation',{name:'交付节点'}).getByRole('button').filter({hasText:updatedTitle})).toContainText(updatedDue)
+    await expect(page).toHaveURL(url=>url.pathname.endsWith('/camp')&&url.searchParams.get('sid')===String(health.camps.independent)&&url.searchParams.get('unit')===unit&&url.searchParams.get('node')===String(createdId))
+    const after=await list()
+    expect(after.find(node=>node.id===createdId)).toMatchObject({title:updatedTitle,requirement:updatedRequirement,due_date:updatedDue})
+    expect(after.filter(node=>node.id!==createdId).map(snapshot)).toEqual(before.map(snapshot))
+    await page.reload();await expect(page.locator('.pm-content')).toContainText(updatedRequirement)
+    await expect(page.getByRole('button',{name:'管理节点计划',exact:true})).toHaveCount(0)
+  }finally{
+    if(createdId){
+      const removed=await request.delete(`${API}/camp/milestones/${createdId}`,{headers})
+      expect(removed.status()).toBe(200)
+    }
+  }
+})
+
+test('本期老师在同一工作台只读查看项目，不获得长期团队及私有记录',async({page,request})=>{
   const health=await(await request.get('http://127.0.0.1:5016/preview/health')).json()
   await login(page,'管理老师演示');await page.goto(`${BASE}/camp?sid=${health.camps.independent}&scope=camp&tab=projects`)
+  const frame=await page.locator('.pws-frame').elementHandle()
   await page.locator('.project-dashboard').getByRole('button',{name:'独立项目 · 日历试用',exact:true}).click()
-  await expect(page).toHaveURL(/project-workspace/)
-  await expect(page.locator('.pd-head')).toContainText('老师只读视角')
-  await expect(page.getByRole('button',{name:'长期成员',exact:true})).toHaveCount(0)
-  await page.getByRole('navigation',{name:'项目功能'}).getByRole('button',{name:'记录与成果',exact:true}).click()
+  const nav=name=>page.getByRole('navigation',{name:'项目营功能'}).getByRole('button',{name,exact:true})
+  await expect(nav('项目日历')).toBeVisible()
+  await expect(page).toHaveURL(url=>url.pathname.endsWith('/camp')&&url.searchParams.get('sid')===String(health.camps.independent)&&url.searchParams.get('scope')==='project')
+  expect(await page.locator('.pws-frame').evaluate((current,original)=>current===original,frame)).toBe(true)
+  await expect(page.locator('.pws-identity')).toContainText('管理老师 · 项目内容只读')
+  await expect(nav('长期团队')).toHaveCount(0)
+  await expect(nav('项目设置')).toHaveCount(0)
+  await expect(nav('公开展示')).toHaveCount(0)
+  await nav('记录与成果').click()
+  await expect(page.locator('.project-records')).toBeVisible()
   await expect(page.getByRole('button',{name:'新增记录',exact:true})).toHaveCount(0)
   await expect(page.locator('.pr-record')).toHaveCount(0)
-  await page.getByRole('navigation',{name:'项目功能'}).getByRole('button',{name:'项目日历',exact:true}).click()
+  await nav('项目日历').click();await expect(page.locator('.pc-grid')).toBeVisible()
   await expect(page.getByRole('button',{name:'设置D0',exact:true})).toHaveCount(0)
+  await expect(page.getByRole('button',{name:'添加关键节点',exact:true})).toHaveCount(0)
 })
 
 test('无效营期关联不回落到可写项目',async({page})=>{
@@ -135,7 +265,7 @@ test('真实参营申请、老师批准与结束本期后长期项目继续使�
   const title=`跨期续做检查 ${Date.now()}`
   await page.getByPlaceholder('项目名称',{exact:true}).fill(title)
   await page.locator('.dew-dialog').getByRole('button',{name:'创建',exact:true}).click()
-  await expect(page.locator('.pd-head h1')).toHaveText(title)
+  await expect(page.locator('.pws-title h1')).toHaveText(title)
   const pid=Number(new URL(page.url()).pathname.split('/').pop())
   const bearer=await page.evaluate(()=>localStorage.getItem('bme-user-token'))
   const headers={Authorization:'Bearer '+bearer}
@@ -161,9 +291,21 @@ test('真实参营申请、老师批准与结束本期后长期项目继续使�
   await page.getByRole('dialog').last().getByRole('textbox').fill('本期工作结束，继续长期研发')
   await page.getByRole('dialog').last().getByRole('button',{name:/^(确定|确认|OK)$/}).click()
   await expect(row).toContainText('已结束')
-  await login(page);await page.goto(`${BASE}/project-workspace/${pid}?tab=members`)
+  await login(page);await page.goto(`${BASE}/project-workspace/${pid}?tab=team`)
   await expect(page.locator('.project-members')).toContainText('成员演示')
-  await expect(page.locator('.pd-head')).toContainText('进行中')
+  await expect(page.locator('.pws-header')).toContainText('进行中')
   await page.getByRole('navigation',{name:'项目功能'}).getByRole('button',{name:'记录与成果',exact:true}).click()
   await expect(page.getByRole('button',{name:'新增记录',exact:true})).toBeVisible()
+  const currentToken=await page.evaluate(()=>localStorage.getItem('bme-user-token'))
+  const bindings=(await(await request.get(`${API}/project-core/projects/${pid}/camps`,{headers:{Authorization:'Bearer '+currentToken}})).json()).bindings
+  const ended=bindings.find(binding=>binding.camp_id===health.camps.independent&&binding.status==='ended')
+  expect(ended).toBeTruthy()
+  const liveRequests=[]
+  page.on('request',request=>{if(/\/camp\/units\/\d+\/milestones(?:\?|$)/.test(request.url()))liveRequests.push(request.url())})
+  await page.goto(`${BASE}/project-workspace/${pid}?binding=${ended.id}&unit=${ended.unit_id}&tab=overview`)
+  await expect(page.getByRole('button',{name:'查看本期冻结档案',exact:true})).toBeVisible()
+  expect(liveRequests).toEqual([])
+  await page.getByRole('button',{name:'查看本期冻结档案',exact:true}).click()
+  await expect(page.locator('.project-assessment')).toContainText('本期冻结记录 · 只读')
+  expect(liveRequests).toEqual([])
 })

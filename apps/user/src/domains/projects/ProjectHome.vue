@@ -1,85 +1,270 @@
 <template>
-  <main class="project-domain">
-    <div v-if="loading" class="project-loading"><DewSkeleton variant="rect" width="100%" height="220" /></div>
-    <div v-else-if="error" role="alert"><p>{{ error }}</p><DewButton @click="load">重试</DewButton></div>
-    <template v-else-if="!projectId">
-      <header class="pd-head"><div><h1>我的项目</h1><p>持续记录项目、团队与每一个关键节点。</p></div><DewButton @click="createDialog = true">创建项目</DewButton></header>
-      <ProjectImport v-if="isAdmin" :projects="projects" @changed="load" />
-      <p v-if="!projects.length" class="pd-muted">还没有参与的项目，可以先创建一个项目。</p>
-      <div class="pd-projects"><DewCard v-for="p in projects" :key="p.id" no-hover><h2>{{ p.title }}</h2><p>{{ statusText[p.status] }} · {{ p.member_count }}人 · {{ p.my_role === 'leader' ? '负责人' : p.my_role === 'admin' ? '管理员' : '成员' }}</p><p class="pd-muted">{{ p.code }} · {{ p.zero_date ? 'D0 '+p.zero_date : '正式启动日待确认' }}</p><DewButton @click="router.push(`/project-workspace/${p.id}`)">进入项目</DewButton></DewCard></div>
-    </template>
-    <template v-else-if="project">
-      <header class="pd-head"><div><DewButton type="ghost" size="sm" @click="router.push('/my-projects')">我的项目</DewButton><h1>{{ project.title }}</h1><p>{{ project.code }} · {{ statusText[project.status] }} · {{ project.member_count }}人</p><p v-if="binding">本期：{{ binding.camp_name }} · {{ binding.status==='active'?'参营中':'本期已结束' }}<span v-if="campView"> · {{ binding.can_manage ? '老师只读视角' : '本期只读视角' }}</span></p></div><div><DewButton v-if="binding" size="sm" type="ghost" @click="campPage('projects')">返回营期</DewButton><DewButton v-if="campView && project.my_role" size="sm" @click="projectView">我的项目视角</DewButton><DewButton v-if="effectiveProject.can_manage" size="sm" @click="openEdit">项目设置</DewButton></div></header>
-      <div class="pd-layout"><nav aria-label="项目功能"><button v-for="tab in tabs" :key="tab.key" :aria-current="section === tab.key ? 'page' : undefined" @click="navigate(tab.key)">{{ tab.label }}</button></nav><section class="pd-content">
-        <template v-if="section === 'overview'"><h2>项目概览</h2><p v-if="!campView && project.research_summary">研发节点：{{ project.research_summary.done }} / {{ project.research_summary.total }} 已完成 · {{ project.research_summary.rate===null?'尚未建立计划':project.research_summary.rate+'%' }}</p><p class="pd-muted">{{ project.zero_date ? '正式启动日 D0 · '+project.zero_date : '正式启动日待确认' }}</p><h3>项目目标</h3><p class="pd-text">{{ project.goal || '尚未填写项目目标' }}</p><h3>项目背景</h3><p class="pd-text">{{ project.background || '尚未填写项目背景' }}</p></template>
-        <ProjectMembers v-else-if="section === 'members'" :project="effectiveProject" @changed="refresh" />
-        <ProjectCalendar v-else-if="section === 'calendar'" :project="effectiveProject" :binding="binding" :camp-view="campView" @changed="refresh" />
-        <ProjectRecords v-else-if="section === 'records'" :project="effectiveProject" :binding="binding" :camp-view="campView" @changed="refresh" />
-        <ProjectCamps v-else-if="section === 'camps'" :project="effectiveProject" @changed="refresh" @open-binding="openBinding" />
-        <ProjectAssessment v-else-if="binding && ['assessment','camp-members','camp-meetings','camp-outcomes'].includes(section)" :project="effectiveProject" :binding="binding" :camp-view="campView" :section="section" :draft-cache="assessmentDrafts" />
-        <template v-else-if="section==='history'"><h2>项目变更记录</h2><p v-for="event in history" :key="event.id">{{ event.occurred_at.replace('T',' ') }} · {{ event.actor }} · {{ event.reason }}</p></template>
-        <template v-else-if="section==='publish'"><h2>公开展示</h2><p>确认后，填写的简介和详情会出现在项目广场。</p><div class="pd-form"><label>公开简介<DewInput v-model="publication.summary" /></label><label>公开详情<DewInput v-model="publication.description" type="textarea" :rows="5" /></label><label>发布依据<DewInput v-model="publication.reason" /></label><label><input v-model="publication.confirm_public" type="checkbox">确认向全站公开上述内容</label><DewButton :disabled="!publication.confirm_public||!publication.summary.trim()||!publication.reason.trim()" :loading="busy" @click="publish">发布到项目广场</DewButton></div></template>
-        <div v-if="binding" class="pd-camp-actions"><DewButton size="sm" type="ghost" @click="campPage('points')">本期积分</DewButton><DewButton size="sm" type="ghost" @click="campPage('announcements')">本期公告</DewButton></div>
-      </section></div>
-    </template>
-    <DewDialog v-model="createDialog" title="创建项目" width="580px"><div class="pd-form"><label>项目名称<DewInput v-model="form.title" placeholder="项目名称" /></label><label>项目目标<DewInput v-model="form.goal" type="textarea" :rows="3" /></label><label>项目背景<DewInput v-model="form.background" type="textarea" :rows="3" /></label><label v-if="isAdmin">负责人用户ID<DewInput v-model="form.owner_user_id" type="number" /></label></div><template #footer><DewButton :loading="busy" :disabled="!form.title.trim()" @click="create">创建</DewButton></template></DewDialog>
-    <DewDialog v-model="editDialog" title="项目设置" width="580px"><div class="pd-form"><label>项目名称<DewInput v-model="edit.title" /></label><label>项目目标<DewInput v-model="edit.goal" type="textarea" :rows="3" /></label><label>项目背景<DewInput v-model="edit.background" type="textarea" :rows="3" /></label><label>项目状态<DewSelect v-model="edit.status" :options="Object.entries(statusText).map(([value,label]) => ({value,label}))" /></label><label>变更原因<DewInput v-model="edit.reason" placeholder="请说明本次调整" /></label></div><template #footer><DewButton :loading="busy" :disabled="!edit.title?.trim() || !edit.reason?.trim()" @click="save">保存</DewButton></template></DewDialog>
-  </main>
+  <div :class="['project-domain', 'camp-view', 'dew-page-background', { 'theme-dark': isDarkMode, 'theme-light': !isDarkMode }]">
+    <div class="project-menu-space" />
+    <MenuComponent />
+    <div class="camp-wrap">
+      <ProjectWorkspaceShell v-if="isWorkspace && context.project" standalone
+        :sid="binding?.camp_id || null" :session="session" :perspective="perspective"
+        :project-context="projectContext" @back="back" @binding-change="changeBinding"
+        @perspective-change="changePerspective" @project-changed="refresh" />
+      <template v-else-if="isWorkspace">
+        <div v-if="loading" class="project-loading" role="status" aria-label="正在加载项目工作区"><DewSkeleton variant="rect" width="100%" height="220" /></div>
+        <DewCard v-else variant="flat" no-hover class="project-load-error" role="alert">
+          <h1>项目暂时无法打开</h1><p>{{ error || '该项目当前不可访问。' }}</p>
+          <div class="pd-actions"><DewButton @click="load">重试</DewButton><DewButton type="ghost" @click="router.push('/my-projects')">我的项目</DewButton></div>
+        </DewCard>
+      </template>
+      <main v-else class="project-directory">
+        <header class="pd-head">
+          <div><h1>我的项目</h1><p>查看负责或参与的项目，持续推进研发与团队协作。</p></div>
+          <div class="pd-actions"><DewButton type="ghost" @click="router.push('/camp')">营期中心</DewButton><DewButton :disabled="loading || !!error" @click="createDialog = true"><el-icon><Plus /></el-icon>创建项目</DewButton></div>
+        </header>
+        <div v-if="loading" class="project-loading" role="status" aria-label="正在加载项目列表"><DewSkeleton variant="rect" width="100%" height="220" /></div>
+        <DewCard v-else-if="error" variant="flat" no-hover role="alert"><p>{{ error }}</p><DewButton @click="load">重试</DewButton></DewCard>
+        <template v-else>
+          <ProjectImport v-if="isAdmin" :projects="projects" @changed="load" />
+          <div class="pd-directory-tools">
+            <p class="pd-count">共 <strong>{{ projects.length }}</strong> 个项目<span v-if="leadingCount"> · 我负责 {{ leadingCount }} 个</span></p>
+            <div class="pd-filters"><DewInput v-model="keyword" placeholder="搜索项目名称、编号或负责人" clearable :prefix-icon="Search" /><DewSelect v-model="statusFilter" :options="statusOptions" aria-label="筛选项目状态" /></div>
+          </div>
+          <DewCard v-if="!projects.length" variant="flat" no-hover class="pd-empty">
+            <el-icon class="pd-empty-icon"><FolderOpened /></el-icon><h2>还没有参与的项目</h2><p>创建项目后即可设置正式启动日、安排研发节点并邀请团队成员。</p><DewButton @click="createDialog = true">创建第一个项目</DewButton>
+          </DewCard>
+          <DewCard v-else-if="!filteredProjects.length" variant="flat" no-hover class="pd-empty"><h2>没有匹配的项目</h2><p>试试其他名称、编号，或清除筛选条件。</p><DewButton type="ghost" @click="clearFilters">清除筛选</DewButton></DewCard>
+          <div v-else class="pd-projects">
+            <DewCard v-for="project in filteredProjects" :key="project.id" no-hover class="pd-project-card">
+              <div class="pd-card-top"><span class="pd-code">{{ project.code }}</span><DewTag size="sm">{{ statusText[project.status] || project.status }}</DewTag></div>
+              <h2>{{ project.title }}</h2><p class="pd-goal">{{ project.goal || '项目目标待补充' }}</p>
+              <div class="pd-card-meta"><span><el-icon><User /></el-icon>{{ roleText[project.my_role] || '项目成员' }}</span><span>{{ project.member_count }} 人</span><span v-if="project.owner_name">负责人 {{ project.owner_name }}</span></div>
+              <div class="pd-plan-summary">
+                <p><el-icon><Calendar /></el-icon><span>{{ project.zero_date ? 'D0 · '+project.zero_date : '正式启动日待确认' }}</span></p>
+                <div v-if="project.research_summary?.total" class="pd-progress"><div><span>研发节点</span><span>{{ project.research_summary.done }} / {{ project.research_summary.total }} 已完成</span></div><DewProgress :percentage="project.research_summary.rate ?? 0" size="sm" /></div>
+                <p v-else class="pd-muted"><el-icon><DocumentChecked /></el-icon><span>尚未建立研发节点计划</span></p>
+              </div>
+              <div class="pd-card-footer"><DewButton size="sm" @click="openProject(project)">进入项目<el-icon><ArrowRight /></el-icon></DewButton></div>
+            </DewCard>
+          </div>
+        </template>
+      </main>
+    </div>
+    <DewDialog v-model="createDialog" title="创建项目" width="580px">
+      <div class="pd-form"><label>项目名称<DewInput v-model="form.title" placeholder="项目名称" /></label><label>项目目标<DewInput v-model="form.goal" type="textarea" :rows="3" /></label><label>项目背景<DewInput v-model="form.background" type="textarea" :rows="3" /></label><label v-if="isAdmin">负责人用户ID<DewInput v-model="form.owner_user_id" type="number" /></label></div>
+      <template #footer><DewButton type="ghost" :disabled="busy" @click="createDialog = false">取消</DewButton><DewButton :loading="busy" :disabled="!form.title.trim()" @click="create">创建</DewButton></template>
+    </DewDialog>
+  </div>
 </template>
+
 <script setup>
 import { ref, computed, watch, reactive, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useStore } from 'vuex'
-import { DewCard, DewButton, DewInput, DewDialog, DewSelect, DewSkeleton } from '@bme/dew-ui'
+import { DewCard, DewButton, DewInput, DewDialog, DewSelect, DewSkeleton, DewTag, DewProgress } from '@bme/dew-ui'
+import { ArrowRight, Calendar, DocumentChecked, FolderOpened, Plus, Search, User } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { projectService, mutation, createRequestKey } from './service'
-import ProjectMembers from './ProjectMembers.vue'
-import ProjectCalendar from './ProjectCalendar.vue'
-import ProjectRecords from './ProjectRecords.vue'
-import ProjectCamps from './ProjectCamps.vue'
-import ProjectAssessment from './ProjectAssessment.vue'
+import MenuComponent from '../../components/MenuComponent.vue'
+import ProjectWorkspaceShell from '../../components/Camp/ProjectWorkspaceShell.vue'
+import { campService } from '../../services/campService'
+import { projectService, createRequestKey } from './service'
 import ProjectImport from './ProjectImport.vue'
+
 const route = useRoute(), router = useRouter(), store = useStore()
-const projectId = computed(() => Number(route.params.projectId) || null)
-const bindingId=computed(()=>Number(route.query.binding)||null),binding=ref(null)
-const campView=computed(()=>!!binding.value&&((binding.value.can_manage&&route.query.view==='camp')||!project.value?.my_role))
-const effectiveProject=computed(()=>campView.value?{...project.value,can_manage:false,can_write:false}:project.value)
-const tabs = computed(()=>[{key:'overview',label:'项目概览'},{key:'calendar',label:'项目日历'},{key:'records',label:'记录与成果'},...(!campView.value?[{key:'members',label:'长期成员'},{key:'camps',label:'参加的营期'}]:[]),...(binding.value?[{key:'assessment',label:'本期考核'},{key:'camp-members',label:'本期参营人员'},{key:'camp-meetings',label:'本期组会'},{key:'camp-outcomes',label:'本期成果'}]:[]),...(!campView.value&&project.value?.can_manage?[{key:'history',label:'项目变更记录'},{key:'publish',label:'公开展示'}]:[])])
-const section = computed(() => tabs.value.some(t => t.key === route.query.tab) ? route.query.tab : 'overview')
-const projects = ref([]), project = ref(null), loading = ref(true), error = ref(''), busy = ref(false), createDialog = ref(false), editDialog = ref(false)
-const form = reactive({title:'',goal:'',background:'',owner_user_id:''}), edit = reactive({})
-const statusText = { active:'进行中', paused:'已暂停', completed:'已完成', terminated:'已终止', archived:'已归档' }
+const isWorkspace = computed(() => route.params.projectId !== undefined)
+const isDarkMode = computed(() => store.getters.isDarkMode)
 const isAdmin = computed(() => store.state.user?.role === 'super_admin')
-const history=ref([]),publication=reactive({summary:'',description:'',reason:'',confirm_public:false})
-const assessmentDrafts=reactive({}),createKey=ref(createRequestKey())
+const projects = ref([]), context = ref({}), session = ref({}), loading = ref(true), error = ref('')
+const keyword = ref(''), statusFilter = ref('all'), busy = ref(false), createDialog = ref(false)
+const form = reactive({ title: '', goal: '', background: '', owner_user_id: '' }), createKey = ref(createRequestKey())
+const binding = computed(() => context.value.binding || null)
+const canUseTeacherPerspective = computed(() => !!binding.value?.can_manage && session.value.available_perspectives?.includes('teacher'))
+const campView = computed(() => !!binding.value && ((canUseTeacherPerspective.value && route.query.view === 'camp') || !context.value.project?.my_role))
+const perspective = computed(() => {
+  if (campView.value && canUseTeacherPerspective.value) return 'teacher'
+  return session.value.available_perspectives?.find(value => value !== 'teacher') || 'student'
+})
+const projectContext = computed(() => ({ ...context.value, campView: campView.value, loading: loading.value, error: error.value }))
+const statusText = { active: '进行中', paused: '已暂停', completed: '已完成', terminated: '已终止', archived: '已归档' }
+const roleText = { leader: '我负责', member: '我参与', admin: '项目管理' }
+const statusOptions = [{ value: 'all', label: '全部状态' }, ...Object.entries(statusText).map(([value, label]) => ({ value, label }))]
+const leadingCount = computed(() => projects.value.filter(project => project.my_role === 'leader').length)
+const filteredProjects = computed(() => {
+  const search = keyword.value.trim().toLocaleLowerCase()
+  return projects.value.filter(project => (statusFilter.value === 'all' || project.status === statusFilter.value)
+    && (!search || [project.title, project.code, project.owner_name].some(value => String(value || '').toLocaleLowerCase().includes(search))))
+})
+const aliases = { assessment: 'delivery', 'camp-members': 'members', 'camp-meetings': 'meetings', 'camp-outcomes': 'outcomes' }
+const longTabs = new Set(['overview', 'calendar', 'records', 'team', 'camps', 'history', 'publish', 'settings'])
+const campTabs = new Set([...longTabs, 'delivery', 'members', 'meetings', 'outcomes', 'activities', 'weekly', 'points', 'announcements', 'leave', 'attendance'])
 let sequence = 0
-async function load() {
-  const seq = ++sequence; loading.value = true; error.value = ''; project.value = null; createDialog.value = editDialog.value = false
-  try {
-    if(route.params.projectId && (!Number.isInteger(Number(route.params.projectId))||Number(route.params.projectId)<1))throw Error('项目编号无效')
-    if(route.query.binding && (!Number.isInteger(Number(route.query.binding))||Number(route.query.binding)<1))throw Error('营期关联参数无效')
-    if (!(await projectService.status()).enabled) throw Error('独立项目功能尚未开放')
-    const data = projectId.value ? await projectService.context(projectId.value,bindingId.value,route.query.view) : await projectService.list()
-    if (seq !== sequence) return
-    project.value = data.project || null; projects.value = data.projects || [];binding.value=data.binding||null
-    if(data.binding?.unit_id&&String(route.query.unit)!==String(data.binding.unit_id))await router.replace({query:{...route.query,unit:String(data.binding.unit_id)}})
-  } catch (e) { if (seq === sequence) error.value = e.response?.data?.message || e.message || '项目加载失败' }
-  finally { if (seq === sequence) loading.value = false }
+
+function id(value, message, optional = false) {
+  if ((value === undefined || value === null || value === '') && optional) return null
+  if (Array.isArray(value) || !/^\d+$/.test(String(value)) || !Number.isSafeInteger(Number(value)) || Number(value) < 1) throw Error(message)
+  return Number(value)
 }
-async function refresh() { const id = projectId.value, seq = sequence; try { const d = await projectService.context(id,bindingId.value,route.query.view); if (seq === sequence && projectId.value === id) {project.value = d.project;binding.value=d.binding} } catch (e) { ElMessage.error(e.response?.data?.message || '刷新失败') } }
-function navigate(tab) { const query={...route.query,tab};if(tab!=='assessment')delete query.node;router.push({query}) }
-function openBinding(row){router.push({query:{binding:row.id,unit:row.unit_id||undefined,tab:'assessment'}})}
-function projectView(){const query={...route.query};delete query.view;router.replace({query})}
-function campPage(tab){router.push({path:'/camp',query:{sid:binding.value.camp_id,scope:binding.value.can_manage?'camp':'project',tab:binding.value.can_manage?tab:tab==='projects'?'announcements':tab}})}
-async function publish(){busy.value=true;try{await projectService.publish(projectId.value,mutation(project.value,{...publication}));await refresh();ElMessage.success('已发布到项目广场')}catch(e){ElMessage.error(e.response?.data?.message||'发布失败')}finally{busy.value=false}}
-async function create() { if (busy.value) return; busy.value = true; try { const body = {...form,idempotency_key:createKey.value}; if (form.owner_user_id) body.owner_user_id = Number(form.owner_user_id); else delete body.owner_user_id; const d = await projectService.create(body); await router.push(`/project-workspace/${d.project.id}`) } catch(e) { ElMessage.error(e.response?.data?.message || '创建失败') } finally { busy.value = false } }
-function openEdit() { Object.assign(edit,{title:project.value.title,goal:project.value.goal || '',background:project.value.background || '',status:project.value.status,reason:''}); editDialog.value = true }
-async function save() { if (busy.value) return; busy.value = true; try { await projectService.update(projectId.value,mutation(project.value,{...edit})); editDialog.value = false; await refresh(); ElMessage.success('项目已更新') } catch(e) { ElMessage.error(e.response?.data?.message || '保存失败') } finally { busy.value = false } }
-watch(createDialog,value=>{if(value)createKey.value=createRequestKey()})
-watch([projectId,bindingId,()=>route.query.view],load,{immediate:true})
-watch(section,async tab=>{history.value=[];if(tab==='history'&&project.value?.can_manage){try{history.value=(await projectService.history(projectId.value)).events}catch(e){ElMessage.error(e.response?.data?.message||'记录加载失败')}}})
+function fallbackSession(data) {
+  const current = data.binding
+  if (!current) return { category: 'project', status: 'running', policy: { capabilities: {} }, available_perspectives: [], my_permissions: [] }
+  return {
+    id: current.camp_id, name: current.camp_name, category: 'project', status: 'archived',
+    start_date: '', end_date: '', is_member: false, policy: { capabilities: {} }, my_permissions: [],
+    available_perspectives: current.can_manage ? ['teacher'] : ['student'],
+  }
+}
+async function load(options = {}) {
+  const silent = options?.silent === true, seq = ++sequence
+  const rawProject = route.params.projectId, rawBinding = route.query.binding, view = route.query.view === 'camp' ? 'camp' : undefined
+  if (!silent) loading.value = true
+  error.value = ''
+  if (String(context.value.project?.id || '') !== String(rawProject || '')) { context.value = {}; session.value = {} }
+  try {
+    const pid = rawProject === undefined ? null : id(rawProject, '项目编号无效')
+    const bid = id(rawBinding, '营期关联参数无效', true)
+    if (!(await projectService.status()).enabled) throw Error('独立项目功能尚未开放')
+    if (seq !== sequence) return
+    if (!pid) {
+      const data = await projectService.list()
+      if (seq === sequence) projects.value = data.projects || []
+      return
+    }
+    const data = await projectService.context(pid, bid, view)
+    if (seq !== sequence) return
+    const [campResult, sessionsResult] = await Promise.allSettled([
+      data.project?.my_role ? projectService.camps(pid) : Promise.resolve({ bindings: data.binding ? [data.binding] : [] }),
+      data.binding ? campService.fetchSessions() : Promise.resolve({ sessions: [] }),
+    ])
+    if (seq !== sequence) return
+    if (campResult.status === 'rejected') throw campResult.reason
+    let currentSession = fallbackSession(data), campAccessible = false
+    if (data.binding) {
+      const accessible = sessionsResult.status === 'fulfilled'
+        ? (sessionsResult.value.sessions || []).find(item => Number(item.id) === Number(data.binding.camp_id)) : null
+      if (accessible) { currentSession = accessible; campAccessible = true }
+      else if (data.binding.status !== 'ended') {
+        if (sessionsResult.status === 'rejected') throw sessionsResult.reason
+        throw Error('当前账号暂时无法访问该营期，请重新选择参营范围。')
+      }
+    }
+    const bindings = (campResult.value.bindings || []).map(row => row.id === data.binding?.id ? data.binding : row)
+    if (data.binding && !bindings.some(row => row.id === data.binding.id)) bindings.push(data.binding)
+    session.value = currentSession
+    context.value = { ...data, bindings, campAccessible }
+    if (data.binding?.unit_id && String(route.query.unit) !== String(data.binding.unit_id)) {
+      await router.replace({ query: { ...route.query, unit: String(data.binding.unit_id) } })
+    }
+  } catch (e) {
+    if (seq === sequence) error.value = e.response?.data?.message || e.message || '项目加载失败，请重试。'
+  } finally { if (seq === sequence) loading.value = false }
+}
+function refresh() { return load({ silent: true }) }
+function clearFilters() { keyword.value = ''; statusFilter.value = 'all' }
+function openProject(project) { router.push({ path: `/project-workspace/${project.id}`, query: { tab: 'overview' } }) }
+function canonicalTab(value = route.query.tab) { return aliases[value] || value || 'overview' }
+function back() {
+  if (!binding.value) { router.push('/my-projects'); return }
+  if (binding.value.status === 'ended') {
+    if (!context.value.campAccessible) { router.push('/camp'); return }
+    const query = { sid: String(binding.value.camp_id) }
+    if (canUseTeacherPerspective.value) Object.assign(query, { scope: 'camp', tab: 'overview', perspective: 'teacher' })
+    else if (session.value.is_member) Object.assign(query, { tab: 'overview', perspective: perspective.value })
+    router.push({ path: '/camp', query })
+    return
+  }
+  const tab = canonicalTab(), query = { sid: String(binding.value.camp_id), scope: 'project', unit: String(binding.value.unit_id), tab: campTabs.has(tab) ? tab : 'overview' }
+  query.perspective = campView.value && canUseTeacherPerspective.value ? 'teacher' : perspective.value
+  for (const key of ['node', 'entry', 'month', 'record']) if (route.query[key]) query[key] = route.query[key]
+  router.push({ path: '/camp', query })
+}
+function changeBinding(value, targetTab) {
+  const empty = value === null || value === undefined || value === '', query = { ...route.query }
+  const tab = canonicalTab(targetTab)
+  if (empty) {
+    if (!context.value.project?.my_role) return
+    delete query.binding; delete query.unit; delete query.view
+    query.tab = longTabs.has(tab) ? tab : 'overview'
+  } else {
+    const selected = context.value.bindings?.find(row => String(row.id) === String(value))
+    if (!selected || !['active', 'ended'].includes(selected.status) || !selected.unit_id) { ElMessage.error('该营期关联尚不可进入，请刷新后重试。'); return }
+    query.binding = String(selected.id); query.unit = String(selected.unit_id)
+    query.tab = campTabs.has(tab) ? tab : 'overview'
+    if (query.view === 'camp' && !selected.can_manage) delete query.view
+  }
+  delete query.node; delete query.entry; delete query.record; delete query.month
+  router.push({ query })
+}
+function changePerspective(value) {
+  const query = { ...route.query }
+  if (value === 'teacher' && canUseTeacherPerspective.value) query.view = 'camp'
+  else if (value !== 'teacher' && context.value.project?.my_role) delete query.view
+  else return
+  router.replace({ query })
+}
+async function create() {
+  if (busy.value || !form.title.trim()) return
+  busy.value = true
+  const path = route.fullPath
+  try {
+    const body = { title: form.title.trim(), goal: form.goal.trim(), background: form.background.trim(), idempotency_key: createKey.value }
+    if (form.owner_user_id) body.owner_user_id = id(form.owner_user_id, '负责人用户ID无效')
+    const data = await projectService.create(body)
+    if (route.fullPath !== path) return
+    createDialog.value = false
+    await router.push({ path: `/project-workspace/${data.project.id}`, query: { tab: 'overview' } })
+  } catch (e) { ElMessage.error(e.response?.data?.message || e.message || '创建失败') }
+  finally { busy.value = false }
+}
+watch(createDialog, value => {
+  if (value) { createKey.value = createRequestKey(); Object.assign(form, { title: '', goal: '', background: '', owner_user_id: '' }) }
+})
+watch([() => route.params.projectId, () => route.query.binding, () => route.query.view], () => { createDialog.value = false; load() }, { immediate: true })
 onBeforeUnmount(() => sequence++)
 </script>
+
 <style scoped>
-.project-domain{max-width:1280px;margin:0 auto;padding:32px 24px;color:var(--dew-text)}.pd-head{display:flex;justify-content:space-between;align-items:center;gap:20px;margin-bottom:25px}.pd-head h1{font-size:25px;margin:10px 0}.pd-head p,.pd-muted{color:var(--dew-text-muted);font-size:13px}.pd-projects{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px}.pd-projects h2{font-size:18px}.pd-layout{display:grid;grid-template-columns:190px minmax(0,1fr);border:1px solid var(--dew-card-flat-border);border-radius:12px;background:var(--dew-card-flat-bg);min-height:560px;overflow:clip}.pd-layout nav{display:flex;flex-direction:column;padding:16px 10px;gap:5px;border-right:1px solid var(--dew-card-flat-border)}.pd-layout nav button{padding:13px;border:0;border-radius:8px;background:transparent;color:var(--dew-text);font:inherit;text-align:left;cursor:pointer}.pd-layout nav button[aria-current=page]{background:var(--color-primary-light);color:var(--color-primary)}.pd-content{padding:25px;min-width:0}.pd-content h2{margin-top:0;font-size:21px}.pd-text{white-space:pre-wrap;overflow-wrap:anywhere}.pd-form{display:flex;flex-direction:column;gap:16px}.pd-form label{display:flex;flex-direction:column;gap:7px;font-size:13px}@media(max-width:600px){.project-domain{padding:20px 12px}.pd-layout{grid-template-columns:1fr}.pd-layout nav{flex-direction:row;flex-wrap:wrap;border-right:0;border-bottom:1px solid var(--dew-card-flat-border)}.pd-content{padding:18px}.pd-head{flex-wrap:wrap}}
+.camp-view { min-height: 100vh; color: var(--dew-text); }
+.project-menu-space { height: 60px; }
+.camp-wrap { max-width: 1280px; margin: 0 auto; padding: 24px 20px; }
+.project-loading { padding: 8px 0; }
+.project-load-error h1 { font-size: 21px; color: var(--dew-text-heading); }
+.project-load-error p { color: var(--dew-text-muted); }
+.pd-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 20px; margin-bottom: 26px; }
+.pd-head h1 { margin: 0 0 8px; font-size: 26px; color: var(--dew-text-heading); }
+.pd-head p { margin: 0; font-size: 14px; color: var(--dew-text-muted); line-height: 1.7; }
+.pd-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.pd-directory-tools { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; margin: 24px 0 18px; }
+.pd-count { margin: 0; color: var(--dew-text-muted); font-size: 13px; }
+.pd-count strong { color: var(--dew-text-heading); }
+.pd-filters { display: flex; align-items: center; gap: 10px; max-width: 100%; }
+.pd-filters :deep(.dew-input) { width: 280px; max-width: 100%; }
+.pd-filters :deep(.dew-select) { width: 130px; }
+.pd-projects { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+.pd-project-card { min-width: 0; }
+.pd-project-card :deep(.dew-card__body) { display: flex; flex-direction: column; height: 100%; box-sizing: border-box; }
+.pd-card-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.pd-code { font-size: 11px; color: var(--dew-text-muted); overflow-wrap: anywhere; }
+.pd-project-card h2 { margin: 18px 0 10px; font-size: 19px; line-height: 1.5; color: var(--dew-text-heading); overflow-wrap: anywhere; }
+.pd-goal { margin: 0 0 18px; font-size: 13px; line-height: 1.7; color: var(--dew-text-muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 44px; }
+.pd-card-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; font-size: 12px; color: var(--dew-text-muted); }
+.pd-card-meta span { display: inline-flex; align-items: center; gap: 5px; }
+.pd-card-meta span:first-child { color: var(--color-primary); }
+.pd-plan-summary { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--dew-card-flat-border); }
+.pd-plan-summary p { display: flex; align-items: center; gap: 7px; margin: 0 0 12px; font-size: 12px; }
+.pd-muted { color: var(--dew-text-muted); }
+.pd-progress { display: flex; flex-direction: column; gap: 9px; }
+.pd-progress > div:first-child { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; color: var(--dew-text-muted); }
+.pd-card-footer { display: flex; justify-content: flex-end; margin-top: auto; padding-top: 22px; }
+.pd-empty { text-align: center; padding: 28px 12px; }
+.pd-empty-icon { font-size: 34px; color: var(--dew-text-muted); }
+.pd-empty h2 { font-size: 19px; color: var(--dew-text-heading); }
+.pd-empty p { color: var(--dew-text-muted); font-size: 13px; line-height: 1.8; margin-bottom: 22px; }
+.pd-form { display: flex; flex-direction: column; gap: 16px; }
+.pd-form label { display: flex; flex-direction: column; gap: 7px; font-size: 13px; }
+@media (max-width: 600px) {
+  .camp-wrap { padding: 20px 12px; }
+  .pd-head { align-items: flex-start; }
+  .pd-head h1 { font-size: 23px; }
+  .pd-projects { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .pd-filters { width: 100%; }
+  .pd-filters :deep(.dew-input) { flex: 1; min-width: 0; width: auto; }
+  .pd-filters :deep(.dew-select) { width: 116px; flex-shrink: 0; }
+}
 </style>

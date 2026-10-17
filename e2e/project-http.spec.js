@@ -20,18 +20,24 @@ async function login(page,name='负责人演示'){
   await expect(page.locator('.project-workspace')).toBeVisible()
 }
 
-test('普通HTTP下从营期进入独立项目，栏目切换及刷新保持工作区',async({page,request})=>{
+test('普通HTTP下营期内项目栏目切换及刷新保持同一工作区',async({page,request})=>{
   const errors=[];page.on('pageerror',e=>errors.push(e.message))
   const health=await(await request.get('http://127.0.0.1:5016/preview/health')).json()
   await login(page,'成员演示')
   await page.goto(`${BASE}/camp?sid=${health.camps.independent}`)
-  await expect(page).toHaveURL(/project-workspace/)
-  await expect(page.locator('.pd-head h1')).toHaveText('独立项目 · 日历试用')
-  const nav=label=>page.getByRole('navigation',{name:'项目功能'}).getByRole('button',{name:label,exact:true})
+  await expect(page.getByRole('navigation',{name:'项目营功能'}).getByRole('button',{name:'项目日历',exact:true})).toBeVisible()
+  await expect(page).toHaveURL(url=>url.pathname.endsWith('/camp')&&url.searchParams.get('sid')===String(health.camps.independent))
+  await expect(page.locator('.pws-scope')).toContainText('独立项目 · 日历试用')
+  const frame=await page.locator('.pws-frame').elementHandle(),unit=new URL(page.url()).searchParams.get('unit')
+  const nav=label=>page.getByRole('navigation',{name:'项目营功能'}).getByRole('button',{name:label,exact:true})
   await nav('项目日历').click();await expect(page.locator('.pc-grid')).toBeVisible()
   await nav('记录与成果').click();await expect(page.locator('.project-records')).toBeVisible()
   await nav('本期考核').click();await expect(page.locator('.pm-content')).toContainText('本期阶段汇报')
-  await page.reload();await expect(page.locator('.pd-layout')).toBeVisible()
+  expect(await page.locator('.pws-frame').evaluate((current,original)=>current===original,frame)).toBe(true)
+  await expect(page).toHaveURL(url=>url.pathname.endsWith('/camp')&&url.searchParams.get('sid')===String(health.camps.independent)&&url.searchParams.get('unit')===unit&&url.searchParams.get('tab')==='delivery')
+  expect(await page.evaluate(()=>isSecureContext)).toBe(false)
+  expect(await page.evaluate(()=>typeof crypto.randomUUID)).toBe('undefined')
+  await page.reload();await expect(page.locator('.pws-frame')).toBeVisible()
   await expect(page.locator('.pm-content')).toContainText('本期阶段汇报')
   expect(errors).toEqual([])
 })
@@ -43,7 +49,7 @@ test('普通HTTP下可创建项目、确认D0、保存节点与研发记录',asy
   const title=`HTTP项目检查 ${Date.now()}`
   await page.getByPlaceholder('项目名称',{exact:true}).fill(title)
   await page.locator('.dew-dialog').getByRole('button',{name:'创建',exact:true}).click()
-  await expect(page.locator('.pd-head h1')).toHaveText(title)
+  await expect(page.locator('.pws-title h1')).toHaveText(title)
   const nav=label=>page.getByRole('navigation',{name:'项目功能'}).getByRole('button',{name:label,exact:true})
   await nav('项目日历').click();await page.getByRole('button',{name:'设置D0',exact:true}).click()
   const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai'}).format(new Date())
