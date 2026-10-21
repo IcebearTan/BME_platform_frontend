@@ -1,8 +1,8 @@
 <template>
   <!-- 多人项目由成员交付、负责人评价；单人项目由负责人交付、管理员验收。
        成员仅看本人材料及评价，节点默认展开。 -->
-  <div :class="['pm-wrap', { 'pm-workspace': workspace }]">
-    <nav v-if="workspace && !loading && milestones.length" class="pm-node-nav" aria-label="交付节点"><button v-for="node in milestones" :key="node.id" :aria-current="selectedId === node.id ? 'step' : undefined" @click="selectNode(node.id)"><span>{{ node.title }}</span><small>{{ node.node_complete ? '已完成' : node.due_date || '未设置截止' }}</small></button></nav>
+  <div :class="['pm-wrap', { 'pm-workspace': workspace, 'pm-with-nav': showNodeNav }]">
+    <nav v-if="showNodeNav" class="pm-node-nav" aria-label="交付节点"><button v-for="node in milestones" :key="node.id" :aria-current="selectedId === node.id ? 'step' : undefined" @click="selectNode(node.id)"><span>{{ node.title }}</span><small>{{ node.node_complete ? '已完成' : node.due_date || '未设置截止' }}</small></button></nav>
     <div class="pm-content">
     <p v-if="workspace && invalidNode" class="ms-req" role="alert">指定节点不属于当前项目或已经移除，请从节点列表重新选择。</p>
     <div v-if="loading" class="pm-loading"><DewSkeleton variant="rect" width="100%" height="140" rounded="8px" /></div>
@@ -201,6 +201,9 @@ const route = useRoute(), router = useRouter();
 const selectedId = computed(() => milestones.value.find(m => String(m.id) === String(route.query.node))?.id || milestones.value.find(m => !m.node_complete)?.id || milestones.value[0]?.id);
 const invalidNode = computed(() => props.workspace && route.query.node && !loading.value && !milestones.value.some(m => String(m.id) === String(route.query.node)));
 const visibleMilestones = computed(() => props.workspace ? invalidNode.value ? [] : milestones.value.filter(m => m.id === selectedId.value) : milestones.value);
+// 节点导航与两列布局同生共死：空节点或加载中时没有导航列，内容须独占整行，
+// 否则唯一的 .pm-content 会掉进 190px 首列，全部内容挤在左侧（10-21 修）
+const showNodeNav = computed(() => props.workspace && !loading.value && milestones.value.length > 0);
 function selectNode(id) { router.push({ query: { ...route.query, node: String(id) } }); }
 const evalMembers = ref([]);   // 应评花名册（leader 渲染用）
 const myRole = ref('member');
@@ -455,8 +458,8 @@ async function addMilestone() {
 </script>
 
 <style scoped>
-.pm-wrap.pm-workspace { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 24px; }.pm-content { min-width: 0; }.pm-node-nav { display: flex; flex-direction: column; gap: 8px; align-self: start; }.pm-node-nav button { border: 1px solid var(--dew-card-flat-border); border-radius: 8px; padding: 14px 12px; background: transparent; color: var(--dew-text); font: inherit; text-align: left; cursor: pointer; }.pm-node-nav button[aria-current=step] { border-color: var(--color-primary); background: var(--color-primary-light); }.pm-node-nav small { display: block; font-size: 12px; color: var(--dew-text-muted); margin-top: 6px; }.pm-workspace .ms-row { border: 0; margin-top: 0; }.pm-workspace .ms-head { flex-wrap: wrap; }.pm-workspace .ms-body { padding-inline: 0; }.pm-workspace .ms-caret { display: none; }
-@media(max-width:850px) { .pm-wrap.pm-workspace { grid-template-columns: 1fr; }.pm-node-nav { flex-direction: row; flex-wrap: wrap; }.pm-node-nav button { flex: 1; min-width: 130px; } }
+.pm-wrap.pm-workspace { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; }.pm-content { min-width: 0; }.pm-wrap.pm-workspace.pm-with-nav { grid-template-columns: 190px minmax(0, 1fr); }.pm-node-nav { display: flex; flex-direction: column; gap: 8px; align-self: start; }.pm-node-nav button { border: 1px solid var(--dew-card-flat-border); border-radius: 8px; padding: 14px 12px; background: transparent; color: var(--dew-text); font: inherit; text-align: left; cursor: pointer; }.pm-node-nav button[aria-current=step] { border-color: var(--color-primary); background: var(--color-primary-light); }.pm-node-nav small { display: block; font-size: 12px; color: var(--dew-text-muted); margin-top: 6px; }.pm-workspace .ms-row { border: 0; margin-top: 0; }.pm-workspace .ms-head { flex-wrap: wrap; }.pm-workspace .ms-body { padding-inline: 0; }.pm-workspace .ms-caret { display: none; }
+@media(max-width:850px) { .pm-wrap.pm-workspace, .pm-wrap.pm-workspace.pm-with-nav { grid-template-columns: 1fr; }.pm-node-nav { flex-direction: row; flex-wrap: wrap; }.pm-node-nav button { flex: 1; min-width: 130px; } }
 .pm-wrap { display: flex; flex-direction: column; gap: 8px; }
 .pm-loading, .pm-empty { padding: 6px 0; }
 .pm-empty { font-size: 12.5px; color: var(--dew-text-faint); }
