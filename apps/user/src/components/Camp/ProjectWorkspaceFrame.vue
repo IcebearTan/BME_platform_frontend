@@ -151,7 +151,12 @@ watch(() => [props.activeTab, props.scopeValue], () => { menuOpen.value = false 
 .pws-page-heading p { color: var(--dew-text-muted); font-size: 12px; }
 .pws-page { min-width: 0; }
 .pws-page :deep(.sec-title:first-child) { margin-top: 0; }
-.pws-page :deep(.sec-card) { border: 0; box-shadow: none; background: transparent; }
+.pws-page :deep(.sec-card) { border: 0; box-shadow: none; background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; }
+/* 玻璃特效层一并关闭：仅清透背景会残留折射光晕与高光线，整片右栏像蒙了一层渲染错误（10-21 修） */
+.pws-page :deep(.sec-card > .dew-card__refraction),
+.pws-page :deep(.sec-card > .dew-card__chromatic),
+.pws-page :deep(.sec-card > .dew-card__highlight),
+.pws-page :deep(.sec-card > .dew-card__tint) { display: none; }
 .pws-page :deep(.sec-card > .dew-card__body) { padding: 0; }
 .pws-main :deep(.pws-notice), .pws-main :deep(.pws-muted) { color: var(--dew-text-muted); font-size: 13px; line-height: 1.7; }
 .pws-main :deep(.pws-notice) { margin-bottom: 20px; }
