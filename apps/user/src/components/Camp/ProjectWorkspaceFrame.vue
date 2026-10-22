@@ -1,5 +1,5 @@
 <template>
-  <div class="project-workspace pws-frame">
+  <div ref="workspace" class="project-workspace pws-frame">
     <header class="pws-header">
       <div class="pws-title">
         <DewButton v-if="showBack" type="ghost" size="sm" @click="$emit('back')">
@@ -11,6 +11,9 @@
       <div class="pws-top-controls">
         <span v-if="subtitle">{{ subtitle }}</span>
         <slot name="header-actions" />
+        <DewButton class="pws-guide-trigger" :disabled="loading || !!error" type="ghost" size="sm" @click="guide?.start()">
+          <el-icon><Compass /></el-icon>功能引导
+        </DewButton>
         <label v-if="perspectives.length > 1">
           当前视角
           <DewSelect :model-value="perspective" :options="perspectives" size="sm"
@@ -37,7 +40,7 @@
             <div v-if="groupOf(item) && groupOf(item) !== groupOf(tabs[index - 1])" class="pws-nav-group">
               {{ groupOf(item) }}
             </div>
-            <button type="button" :aria-current="activeTab === item.key ? 'page' : undefined"
+            <button type="button" :data-guide-tab="item.key" :aria-current="activeTab === item.key ? 'page' : undefined"
               @click="navigate(item.key)">
               <el-icon><component :is="icons[item.icon] || Grid" /></el-icon>
               <span>{{ item.label }}</span>
@@ -57,6 +60,9 @@
           </div>
           <DewTag v-if="status === 'archived'" size="sm">已结营 · 只读</DewTag>
         </div>
+        <ProjectWorkspaceGuide ref="guide" :workspace="workspace" :tabs="tabs" :scope-label="scopeLabel"
+          :has-scope="!!scopeOptions.length" :identity="identity" :status="status" :ready="!loading && !error"
+          :context-key="`${title}:${scopeValue}:${identity}:${activeTab}`" @active-change="setGuideActive" />
         <slot name="notice" />
         <div v-if="loading" class="pws-loading" role="status" aria-label="正在加载工作区">
           <DewSkeleton variant="rect" width="100%" height="220" />
@@ -76,9 +82,10 @@ import { ref, watch } from 'vue'
 import {
   ArrowLeft, House, DocumentChecked, ChatDotRound, User, Collection, Grid,
   Bell, Present, Calendar, DataLine, Edit, Setting, Clock, Link, FolderOpened,
-  Files, Tickets, View, InfoFilled, Promotion,
+  Files, Tickets, View, InfoFilled, Promotion, Compass,
 } from '@element-plus/icons-vue'
 import { DewButton, DewSelect, DewTag, DewSkeleton } from '@bme/dew-ui'
+import ProjectWorkspaceGuide from './ProjectWorkspaceGuide.vue'
 
 const props = defineProps({
   title: { type: String, default: '' },
@@ -104,6 +111,12 @@ const props = defineProps({
 })
 const emit = defineEmits(['back', 'navigate', 'scope-change', 'perspective-change', 'retry'])
 const menuOpen = ref(false)
+const workspace = ref(null), guide = ref(null)
+let menuBeforeGuide = false
+function setGuideActive(active) {
+  if (active) { menuBeforeGuide = menuOpen.value; menuOpen.value = true }
+  else menuOpen.value = menuBeforeGuide
+}
 const icons = {
   House, DocumentChecked, ChatDotRound, User, Collection, Grid, Bell, Present,
   Calendar, DataLine, Edit, Setting, Clock, Link, FolderOpened, Files, Tickets,
