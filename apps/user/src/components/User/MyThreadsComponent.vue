@@ -17,7 +17,7 @@ const store = useStore()
 const threads = ref([])
 const loading = ref(true)
 
-const statusText = { normal: '正常', hidden: '已隐藏', locked: '已锁定', deleted: '已删除' }
+const statusText = { normal: '正常', hidden: '已隐藏', locked: '已锁定', deleted: '已删除', closed: '已停止讨论' }
 const statusTag = { normal: 'success', hidden: 'info', locked: 'warning', deleted: 'danger' }
 
 const load = async () => {
@@ -47,12 +47,12 @@ const viewThread = (t) => {
 
 const removeThread = async (t) => {
   try {
-    await DewMessageBox.confirm(`确定删除「${t.title}」？连带回复一起删除，不可恢复。`)
+    await DewMessageBox.confirm(`停止「${t.title}」的讨论？你的正文和图片将隐藏，历史评论继续展示，无法新增回复。此操作不可撤销。`)
   } catch { return }
   try {
     await api({ method: 'delete', url: `/discussions/threads/${t.id}` })
-    DewMessage.success('已删除')
-    threads.value = threads.value.filter((x) => x.id !== t.id)
+    DewMessage.success('已停止讨论')
+    await load()
   } catch (e) {
     DewMessage.error(e?.response?.data?.message || '删除失败')
   }
@@ -98,8 +98,8 @@ onMounted(load)
           <DewButton size="sm" type="ghost" @click="viewThread(t)">
             <el-icon><View /></el-icon>查看
           </DewButton>
-          <DewButton size="sm" type="ghost" @click="removeThread(t)">
-            <el-icon><Delete /></el-icon>删除
+          <DewButton v-if="!['closed','hidden','deleted'].includes(t.status)" size="sm" type="ghost" @click="removeThread(t)">
+            <el-icon><Delete /></el-icon>停止讨论
           </DewButton>
         </div>
       </DewCard>

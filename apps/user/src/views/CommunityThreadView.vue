@@ -41,16 +41,15 @@
             <DewCard variant="flat" size="lg" class="thread-card">
               <div class="t-tags">
                 <DewTag type="neutral" size="sm" round>讨论</DewTag>
-                <DewTag v-if="thread.category_text" type="info" size="sm" round>{{ thread.category_text }}</DewTag>
-                <DewTag v-if="thread.is_essence" type="success" size="sm" round>精华</DewTag>
-                <DewTag v-if="thread.is_pinned" type="warning" size="sm" round>置顶</DewTag>
-                <span v-if="thread.project_title" class="t-project" @click="openTab(`/projects/${thread.project_id}`)">
-                  <el-icon><Grid /></el-icon>{{ thread.project_title }}
+                <button v-for="tag in thread.tags" :key="tag.id" class="tag-link" @click="router.push({ path: '/community', query: { tag: tag.id } })"># {{ tag.name }}</button>
+                <DewTag v-if="thread.is_essence" type="success" size="sm">精选</DewTag>
+                <DewTag v-if="thread.is_closed" type="neutral" size="sm">已停止讨论</DewTag>
+                <span class="owner-actions">
+                  <button v-if="isOwner && !thread.is_closed" class="tag-link" @click="editOpen = true">编辑帖子</button>
+                  <button v-if="canDelete && !thread.is_closed" class="tag-link" @click="handleDelete">{{ isOwner ? '停止讨论' : '删除帖子' }}</button>
                 </span>
-                <button v-if="canDelete" class="t-delete" title="删除帖子" @click="handleDelete">
-                  <el-icon><Delete /></el-icon>
-                </button>
               </div>
+              <div v-if="thread.book" class="book-name">共读 / {{ thread.book.title }}<span v-if="thread.book.author"> · {{ thread.book.author }}</span></div>
               <h1 class="t-title">{{ thread.title }}</h1>
               <div class="t-author" @click="goProfile(thread.author_id)">
                 <el-avatar :size="40" :src="authorAvatar">{{ (thread.author_name || '?').charAt(0) }}</el-avatar>
@@ -59,7 +58,8 @@
                   <div class="t-time">{{ formatTime(thread.created_at) }}</div>
                 </div>
               </div>
-              <div class="t-content">{{ thread.content }}</div>
+              <p v-if="thread.is_closed" class="closed-notice">该帖子已停止讨论。楼主的正文和图片已隐藏，历史评论继续保留。</p>
+              <template v-else><div class="t-content">{{ thread.content }}</div><p class="word-hint">{{ thread.word_count }} 字 · 字数不含空白和标点</p></template>
               <div v-if="images.length" :class="['t-images', `t-images--${Math.min(images.length, 4)}`]">
                 <DewImage v-for="(img, i) in images" :key="img" class="t-images__item"
                           :src="img" ratio="4/3" alt="帖子图片" @click="openViewer(i)" />
@@ -80,42 +80,39 @@
 
             <!-- 回复区 -->
             <DewCard variant="flat" size="lg" class="replies-card">
-              <div class="reply-input-row">
-                <el-avatar :size="32" :src="myAvatar || ''">{{ (myName || '?').charAt(0) }}</el-avatar>
-                <DewInput v-model="replyContent" type="textarea" :rows="2" placeholder="写下你的回复…（至少 2 字）" />
-                <DewButton type="glass" size="sm" :disabled="replying || replyContent.trim().length < 2" @click="submitReply">
-                  {{ replying ? '发布中…' : '回复' }}
-                </DewButton>
+              <h2 class="discussion-heading">一起聊聊 <span>{{ thread.reply_count }} 条评论</span></h2>
+              <p class="word-hint">说说你的想法，一起把讨论聊下去。</p>
+              <div v-if="writable" class="reply-editor">
+                <label for="root-comment">发表评论</label>
+                <DewInput ref="replyInput" id="root-comment" v-model="replyContent" type="textarea" :rows="5" :disabled="replying" placeholder="说说你的想法…" />
+                <div class="editor-footer"><div class="editor-tools"><CommunityEmojiPicker :disabled="replying" @select="replyInput?.insertText($event)" /><span class="word-hint">{{ countWords(replyContent) }} 字<span v-if="readingTag"> · 建议约 {{ readingTag.suggested_words }} 字</span> · {{ contentLength(replyContent) }}/10000 字符</span></div>
+                  <DewButton :loading="replying" :disabled="!validComment(replyContent)" @click="submitReply">发布评论</DewButton></div>
               </div>
-
-              <div v-if="!replies.length" class="empty-hint">还没有回复，抢沙发</div>
-              <div v-else class="reply-list">
-                <div v-for="r in replies" :key="r.id" class="reply-item">
-                  <el-avatar :size="32" :src="r.author_avatar">{{ (r.author_name || '?').charAt(0) }}</el-avatar>
-                  <div class="reply-body">
-                    <div class="reply-head">
-                      <span class="reply-name" @click="goProfile(r.author_id)">{{ r.author_name }}</span>
-                      <span class="reply-time">{{ formatTime(r.created_at) }}</span>
-                    </div>
-                    <div class="reply-text">{{ r.content }}</div>
-                    <button type="button" :class="['t-action', 't-action--sm', { 'is-liked': r.liked }]" @click="toggleReplyLike(r)">
-                      <el-icon><StarFilled v-if="r.liked" /><Star v-else /></el-icon>
-                      <span v-if="r.like_count">{{ r.like_count }}</span>
-                    </button>
-                  </div>
+              <p v-else class="closed-notice">{{ thread.is_closed ? '已停止新增评论与回复，以下是历史讨论。' : '帖子已锁定，暂时无法回复。' }}</p>
+              <p v-if="repliesError" role="alert" class="word-hint">评论加载失败 <button class="tag-link" @click="loadReplies(replies.length === 0)">重试</button></p>
+              <div v-if="repliesLoading && !replies.length"><DewSkeleton variant="text" :lines="5" /></div>
+              <p v-else-if="!replies.length && !repliesError" class="empty-hint">还没有评论，来聊聊吧。</p>
+              <section v-for="r in replies" :key="r.id" class="root-comment">
+                <CommunityComment :comment="r" :writable="writable" @profile="goProfile" @reply="startReply" @edit="startEdit" @delete="deleteReply" />
+                <div v-if="r.children_total" class="children-replies">
+                  <CommunityComment v-for="child in r.children" :key="child.id" :comment="child" child :writable="writable" @profile="goProfile" @reply="startReply" @edit="startEdit" @delete="deleteReply" />
+                  <button v-if="r.children.length < r.children_total" class="tag-link" :disabled="r.childrenLoading" @click="loadChildren(r)">{{ r.childrenLoading ? '加载中…' : `展开更多回复（${r.children_total - r.children.length}）` }}</button>
+                  <p v-if="r.childrenError" role="alert">回复加载失败，请重试。</p>
                 </div>
-                <div v-if="hasMoreReplies" class="load-more-replies">
-                  <DewButton size="sm" type="ghost" :disabled="repliesLoading" @click="loadMoreReplies">
-                    {{ repliesLoading ? '加载中…' : '加载更多回复' }}
-                  </DewButton>
-                </div>
-              </div>
+              </section>
+              <div v-if="hasMoreReplies" class="load-more-replies"><DewButton type="ghost" :disabled="repliesLoading" @click="loadReplies(false)">加载更多评论</DewButton></div>
             </DewCard>
           </template>
         </div>
       </el-main>
     </el-container>
 
+    <CommunityComposer v-if="thread" v-model="editOpen" :tags="tags" :thread="thread" @published="onEdited" />
+    <DewDialog v-model="commentDialog" :title="editingComment ? '编辑评论' : `回复 ${replyTarget?.author_name || ''}`" width="min(680px, 94vw)" :close-on-click-modal="false">
+      <DewInput ref="dialogInput" v-model="dialogContent" type="textarea" :rows="8" :disabled="dialogSaving" placeholder="写下你的想法" />
+      <div class="editor-tools dialog-tools"><CommunityEmojiPicker :disabled="dialogSaving" @select="dialogInput?.insertText($event)" /><p class="word-hint">{{ countWords(dialogContent) }} 字<span v-if="readingTag"> · 建议约 {{ readingTag.suggested_words }} 字</span> · {{ contentLength(dialogContent) }}/10000 字符</p></div>
+      <template #footer><DewButton :disabled="dialogSaving" @click="commentDialog = false">保留草稿并关闭</DewButton><DewButton :loading="dialogSaving" :disabled="!validComment(dialogContent)" @click="saveDialog">{{ editingComment ? '保存修改' : '发布回复' }}</DewButton></template>
+    </DewDialog>
     <!-- 图集大图 -->
     <el-image-viewer v-if="viewerVisible" :url-list="images" :initial-index="viewerIndex"
                      teleported @close="viewerVisible = false" />
@@ -123,186 +120,145 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import { useStore } from 'vuex';
-import { ElMessage } from 'element-plus';
-import { ArrowLeft, View, Star, StarFilled, Delete, Grid } from '@element-plus/icons-vue';
-import { Menu as Expand } from '@element-plus/icons-vue';
-import MenuComponent from '../components/MenuComponent.vue';
-import MobileMenuComponent from '../components/MobileMenuComponent.vue';
-import { DewCard, DewTag, DewInput, DewButton, DewSkeleton, DewImage, DewMessageBox } from '@bme/dew-ui';
-import api from '../api';
-import { assetUrl } from '../services/campService';
-
-const route = useRoute();
-const router = useRouter();
-const store = useStore();
-
-const isDarkMode = computed(() => store.getters.isDarkMode);
-const isMobile = ref(window.innerWidth <= 768);
-const isMobileMenuOpen = ref(false);
-const checkScreenSize = () => {
-  isMobile.value = window.innerWidth <= 768;
-  if (!isMobile.value) isMobileMenuOpen.value = false;
-};
-const toggleMobileMenu = () => { isMobileMenuOpen.value = !isMobileMenuOpen.value; };
-
-const loading = ref(true);
-const thread = ref(null);
-const liked = ref(false);
-const likeCount = ref(0);
-
-const authorAvatar = computed(() => assetUrl(thread.value?.author_avatar || ''));
-const images = computed(() => (thread.value?.images || []).map((u) => assetUrl(u)));
-const viewerVisible = ref(false);
-const viewerIndex = ref(0);
-const openViewer = (i) => { viewerIndex.value = i; viewerVisible.value = true; };
-
-const myAvatar = computed(() => assetUrl(store.state.user?.User_Headshot || ''));
-const myName = computed(() => store.state.user?.User_Name || '');
-
-const canDelete = computed(() => {
-  if (!thread.value) return false;
-  const authorId = Number(thread.value.author_id);
-  if (!Number.isNaN(authorId) && authorId === Number(store.state.user?.User_Id)) return true;
-  return store.getters.role === 'super_admin';
-});
-
-function formatTime(dateStr) {
-  if (!dateStr) return '';
-  const date = new Date(String(dateStr).replace(' ', 'T'));
-  if (isNaN(date.getTime())) return dateStr;
-  const diff = Date.now() - date.getTime();
-  const m = Math.floor(diff / 60000);
-  if (m < 1) return '刚刚';
-  if (m < 60) return `${m}分钟前`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}小时前`;
-  const d = Math.floor(h / 24);
-  if (d < 30) return `${d}天前`;
-  return date.toLocaleDateString('zh-CN');
-}
-
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useStore } from 'vuex'
+import { ElMessage } from 'element-plus'
+import { ArrowLeft, View, Star, StarFilled, Menu as Expand } from '@element-plus/icons-vue'
+import MenuComponent from '../components/MenuComponent.vue'
+import MobileMenuComponent from '../components/MobileMenuComponent.vue'
+import CommunityComment from '../components/Community/CommunityComment.vue'
+import CommunityComposer from '../components/Community/CommunityComposer.vue'
+import CommunityEmojiPicker from '../components/Community/CommunityEmojiPicker.vue'
+const replyInput = ref(), dialogInput = ref()
+import { DewCard, DewTag, DewInput, DewButton, DewSkeleton, DewImage, DewMessageBox, DewDialog } from '@bme/dew-ui'
+import api from '../api'
+import { assetUrl } from '../services/campService'
+import { communityService, countWords, contentLength, newRequestId } from '../services/communityService'
+const route = useRoute(), router = useRouter(), store = useStore()
+const isDarkMode = computed(() => store.getters.isDarkMode)
+const isMobile = ref(window.innerWidth <= 768), isMobileMenuOpen = ref(false)
+const checkScreenSize = () => { isMobile.value = window.innerWidth <= 768 }
+const toggleMobileMenu = () => { isMobileMenuOpen.value = !isMobileMenuOpen.value }
+const loading = ref(true), thread = ref(null), liked = ref(false), likeCount = ref(0), tags = ref([]), editOpen = ref(false)
+const authorAvatar = computed(() => assetUrl(thread.value?.author_avatar || ''))
+const images = computed(() => (thread.value?.images || []).map(assetUrl))
+const viewerVisible = ref(false), viewerIndex = ref(0)
+const openViewer = i => { viewerIndex.value = i; viewerVisible.value = true }
+const isOwner = computed(() => Number(thread.value?.author_id) === Number(store.state.user?.User_Id))
+const canDelete = computed(() => isOwner.value || store.getters.role === 'super_admin')
+const writable = computed(() => thread.value?.status === 'normal' && !thread.value?.is_closed)
+const readingTag = computed(() => thread.value?.tags?.find(t => t.is_reading))
+const formatTime = value => value || ''
+const goProfile = id => { if (id) router.push('/profile/' + id) }
+const goBack = () => router.push({ path: '/community', query: thread.value?.tags?.[0] ? { tag: thread.value.tags[0].id } : {} })
+let sequence = 0
 async function loadThread() {
-  loading.value = true;
+  const current = ++sequence
+  loading.value = true
   try {
-    const res = await api.get(`/discussions/threads/${route.params.id}`);
-    thread.value = res.data?.data || null;
-    liked.value = !!thread.value?.liked;
-    likeCount.value = thread.value?.like_count || 0;
-  } catch (e) {
-    thread.value = null;
-    if (e.response?.status !== 404) ElMessage.error('加载失败');
-  } finally {
-    loading.value = false;
-  }
+    const { data } = await api.get(`/discussions/threads/${route.params.id}`)
+    if (sequence !== current) return
+    thread.value = data.data
+    liked.value = !!thread.value.liked; likeCount.value = thread.value.like_count || 0
+  } catch (e) { if (sequence === current) { thread.value = null; ElMessage.error(e.response?.data?.message || '帖子加载失败，请刷新重试') } }
+  finally { if (sequence === current) loading.value = false }
 }
-
-const replies = ref([]);
-const repliesPage = ref(1);
-const repliesTotal = ref(0);
-const repliesLoading = ref(false);
-const replying = ref(false);
-const replyContent = ref('');
-const hasMoreReplies = computed(() => replies.value.length < repliesTotal.value);
-
+const replies = ref([]), repliesPage = ref(0), repliesTotal = ref(0), repliesLoading = ref(false), repliesError = ref(false)
+const replying = ref(false), replyContent = ref(''), rootRequest = ref(newRequestId())
+watch(replyContent, () => { rootRequest.value = newRequestId() })
+const hasMoreReplies = computed(() => replies.value.length < repliesTotal.value)
+const validComment = value => contentLength(value) >= 2 && contentLength(value) <= 10000
+function mapReply(r) { return { ...r, children: r.children || [], childrenPage: 0, childrenLoading: false, childrenError: false } }
 async function loadReplies(reset = true) {
-  if (reset) { repliesPage.value = 1; replies.value = []; }
-  repliesLoading.value = true;
+  const id = String(route.params.id)
+  if (repliesLoading.value) return
+  const next = reset ? 1 : repliesPage.value + 1
+  repliesLoading.value = true; repliesError.value = false
   try {
-    const res = await api.get(`/discussions/threads/${route.params.id}/replies`, {
-      params: { page: repliesPage.value, per_page: 20 },
-    });
-    const rows = (res.data?.data || []).map((r) => ({
-      id: r.id,
-      author_id: r.author_id,
-      author_name: r.author_name,
-      author_avatar: assetUrl(r.author_avatar || ''),
-      content: r.content,
-      like_count: r.like_count || 0,
-      liked: !!r.liked,
-      created_at: r.created_at,
-    }));
-    replies.value = reset ? rows : replies.value.concat(rows);
-    repliesTotal.value = res.data?.total ?? replies.value.length;
-  } catch { /* 静默空态 */ } finally {
-    repliesLoading.value = false;
-  }
+    const { data } = await api.get(`/discussions/threads/${id}/replies`, { params: { page: next, per_page: 20 } })
+    if (String(route.params.id) !== id) return
+    replies.value = reset ? data.data.map(mapReply) : [...replies.value, ...data.data.filter(r => !replies.value.some(old => old.id === r.id)).map(mapReply)]
+    repliesPage.value = next; repliesTotal.value = data.total
+    if (thread.value) thread.value.reply_count = data.reply_count
+  } catch { repliesError.value = true }
+  finally { repliesLoading.value = false }
 }
-function loadMoreReplies() {
-  repliesPage.value += 1;
-  loadReplies(false);
+async function loadChildren(root) {
+  if (root.childrenLoading) return
+  root.childrenLoading = true; root.childrenError = false
+  const page = root.childrenPage + 1
+  try {
+    const { data } = await api.get(`/discussions/replies/${root.id}/children`, { params: { page, per_page: 10 } })
+    root.children = page === 1 ? data.data : [...root.children, ...data.data.filter(c => !root.children.some(old => old.id === c.id))]
+    root.childrenPage = page; root.children_total = data.total
+  } catch { root.childrenError = true }
+  finally { root.childrenLoading = false }
 }
-
 async function submitReply() {
-  if (replying.value || replyContent.value.trim().length < 2) return;
-  replying.value = true;
+  if (replying.value || !validComment(replyContent.value)) return
+  replying.value = true
   try {
-    const res = await api.post(`/discussions/threads/${route.params.id}/replies`, {
-      content: replyContent.value.trim(),
-    });
-    if (res.data?.code === 201) {
-      ElMessage.success('回复成功');
-      replyContent.value = '';
-      if (thread.value) thread.value.reply_count += 1;
-      loadReplies(true);
+    const { data } = await api.post(`/discussions/threads/${thread.value.id}/replies`, { content: replyContent.value.trim(), client_request_id: rootRequest.value })
+    replyContent.value = ''
+    // Keep the posted comment visible even when there are many existing pages.
+    const newRow = mapReply({ ...data.data, children_total: 0 })
+    if (!replies.value.some(r => r.id === newRow.id)) { replies.value.push(newRow); repliesTotal.value++; thread.value.reply_count++ }
+    ElMessage.success('评论已发布')
+  } catch (e) { ElMessage.error(e.response?.data?.message || '发布失败，内容已保留') }
+  finally { replying.value = false }
+}
+const commentDialog = ref(false), editingComment = ref(null), replyTarget = ref(null), dialogContent = ref(''), dialogSaving = ref(false), dialogRequest = ref(newRequestId())
+watch(dialogContent, () => { dialogRequest.value = newRequestId() })
+const drafts = new Map()
+function stashDialog() { const key = editingComment.value ? 'edit' + editingComment.value.id : 'reply' + replyTarget.value?.id; drafts.set(key, dialogContent.value) }
+watch(commentDialog, value => { if (!value) stashDialog() })
+function startReply(comment) { stashDialog(); editingComment.value = null; replyTarget.value = comment; dialogContent.value = drafts.get('reply' + comment.id) || ''; commentDialog.value = true }
+function startEdit(comment) { stashDialog(); editingComment.value = comment; replyTarget.value = null; dialogContent.value = drafts.get('edit' + comment.id) ?? comment.content; commentDialog.value = true }
+async function saveDialog() {
+  if (dialogSaving.value || !validComment(dialogContent.value)) return
+  dialogSaving.value = true
+  try {
+    if (editingComment.value) {
+      const { data } = await api.put(`/discussions/replies/${editingComment.value.id}`, { content: dialogContent.value.trim() })
+      Object.assign(editingComment.value, data.data)
+    } else {
+      const { data } = await api.post(`/discussions/threads/${thread.value.id}/replies`, { content: dialogContent.value.trim(), parent_reply_id: replyTarget.value.id, client_request_id: dialogRequest.value })
+      const root = replies.value.find(r => r.id === (replyTarget.value.root_reply_id || replyTarget.value.id))
+      if (root && !root.children.some(c => c.id === data.data.id)) {
+        // Reload existing child pages before inserting the new reply so pagination stays complete.
+        root.childrenPage = 0; await loadChildren(root)
+        if (!root.children.some(c => c.id === data.data.id)) root.children.push(data.data)
+      }
+      thread.value.reply_count++
     }
-  } catch (e) {
-    ElMessage.error(e.response?.data?.message || '回复失败');
-  } finally {
-    replying.value = false;
-  }
+    dialogContent.value = ''; commentDialog.value = false; ElMessage.success('已保存')
+  } catch (e) { ElMessage.error(e.response?.data?.message || '保存失败，内容已保留') }
+  finally { dialogSaving.value = false }
 }
-
+async function deleteReply(comment) {
+  try { await DewMessageBox.confirm('删除这条评论？其他人的回复仍会保留。', '删除评论') } catch { return }
+  try { await api.delete(`/discussions/replies/${comment.id}`); await loadReplies(true); ElMessage.success('评论已删除') }
+  catch (e) { ElMessage.error(e.response?.data?.message || '删除失败') }
+}
+const liking = ref(false)
 async function toggleLike() {
-  try {
-    const res = await api.post('/discussions/reactions', {
-      target_type: 'thread', target_id: thread.value.id, reaction_type: 'like',
-    });
-    liked.value = res.data?.data?.liked;
-    likeCount.value += liked.value ? 1 : -1;
-  } catch { /* 静默 */ }
+  if (liking.value) return
+  liking.value = true
+  try { const { data } = await api.post('/discussions/reactions', { target_type: 'thread', target_id: thread.value.id, reaction_type: 'like' }); const next = !!data.data.liked; likeCount.value += next === liked.value ? 0 : next ? 1 : -1; liked.value = next }
+  catch (e) { ElMessage.error(e.response?.data?.message || '点赞失败') }
+  finally { liking.value = false }
 }
-
-async function toggleReplyLike(r) {
-  try {
-    const res = await api.post('/discussions/reactions', {
-      target_type: 'reply', target_id: r.id, reaction_type: 'like',
-    });
-    r.liked = res.data?.data?.liked;
-    r.like_count = (r.like_count || 0) + (r.liked ? 1 : -1);
-  } catch { /* 静默 */ }
-}
-
 async function handleDelete() {
-  try {
-    await DewMessageBox.confirm('确定删除这篇帖子？连带回复一起删除，不可恢复。');
-  } catch { return; }
-  try {
-    await api.delete(`/discussions/threads/${thread.value.id}`);
-    ElMessage.success('已删除');
-    router.push('/community');
-  } catch (e) {
-    ElMessage.error(e.response?.data?.message || '删除失败');
-  }
+  try { await DewMessageBox.confirm(isOwner.value ? '停止讨论后，你的正文和图片将隐藏，所有历史评论继续展示，无法新增回复。此操作不可撤销。' : '删除此帖子后，普通用户将无法访问。', isOwner.value ? '停止讨论' : '管理员删除') } catch { return }
+  try { const { data } = await api.delete(`/discussions/threads/${thread.value.id}`); if (data.data?.is_closed) thread.value = data.data; else router.push('/community'); ElMessage.success(isOwner.value ? '已停止讨论' : '已删除') }
+  catch (e) { ElMessage.error(e.response?.data?.message || '操作失败') }
 }
-
-const goProfile = (id) => { if (id != null) router.push('/profile/' + id); };
-// XLAB 项目 chip：新开标签页（详情页原地保留）
-const openTab = (path) => window.open(router.resolve(path).href, '_blank', 'noopener');
-const goBack = () => {
-  if (window.history.length > 1) router.back();
-  else router.push('/community');
-};
-
-onMounted(() => {
-  checkScreenSize();
-  window.addEventListener('resize', checkScreenSize);
-  loadThread();
-  loadReplies(true);
-});
-onUnmounted(() => window.removeEventListener('resize', checkScreenSize));
+async function onEdited(data) { thread.value = data; editOpen.value = false }
+async function initialize() { replies.value = []; repliesPage.value = 0; await loadThread(); if (thread.value) await loadReplies(true) }
+onMounted(() => { window.addEventListener('resize', checkScreenSize); initialize(); communityService.tags().then(rows => { tags.value = rows }).catch(() => {}) })
+watch(() => route.params.id, initialize)
+onUnmounted(() => { sequence++; window.removeEventListener('resize', checkScreenSize) })
 </script>
 
 <style scoped>
@@ -364,7 +320,7 @@ onUnmounted(() => window.removeEventListener('resize', checkScreenSize));
 .t-author { display: flex; align-items: center; gap: 10px; cursor: pointer; margin-bottom: 16px; }
 .t-author-name { font-size: 14px; font-weight: 600; color: var(--dew-text-heading, #222); }
 .t-time { font-size: 12px; color: var(--dew-text-faint, #999); margin-top: 2px; }
-.t-content { font-size: 15px; line-height: 1.85; color: var(--dew-text-heading, #1f2937); white-space: pre-wrap; }
+.t-content { overflow-wrap: anywhere; font-size: 15px; line-height: 1.85; color: var(--dew-text-heading, #1f2937); white-space: pre-wrap; }
 
 .t-images { display: grid; gap: 8px; margin-top: 14px; }
 .t-images--1 { grid-template-columns: minmax(0, 480px); }
@@ -402,4 +358,20 @@ onUnmounted(() => window.removeEventListener('resize', checkScreenSize));
   .thread-main-container { padding: 14px 14px 48px; }
   .t-title { font-size: 20px; }
 }
+.tag-link { border: 0; background: transparent; color: var(--dew-text-muted); cursor: pointer; padding: 5px; font: inherit; font-size: 13px; }
+.tag-link:hover { color: var(--color-primary); }
+.owner-actions { margin-left: auto; display: flex; gap: 8px; }
+.book-name { margin-top: 24px; color: var(--dew-text-muted); font-size: 13px; }
+.discussion-heading { color: var(--dew-text-heading); font-size: 20px; margin: 0 0 10px; }
+.discussion-heading span { font-size: 13px; font-weight: 400; color: var(--dew-text-muted); margin-left: 10px; }
+.word-hint { color: var(--dew-text-muted); font-size: 12px; line-height: 1.8; }
+.closed-notice { padding: 16px; border: 1px solid var(--dew-card-flat-border); border-radius: 12px; color: var(--dew-text-muted); line-height: 1.8; }
+.reply-editor { margin: 24px 0; display: grid; gap: 12px; }
+.reply-editor label { font-size: 14px; color: var(--dew-text-heading); }
+.editor-tools { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; min-width: 0; }
+.dialog-tools { margin-top: 10px; }
+.editor-footer { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: center; }
+.root-comment { border-top: 1px solid var(--dew-card-flat-border); }
+.children-replies { background: var(--dew-ghost-hover-bg); border-radius: 12px; margin: 0 0 20px 44px; padding: 0 16px 12px; }
+@media (max-width: 600px) { .children-replies { margin-left: 24px; padding: 0 12px 12px; } .owner-actions { width: 100%; margin: 8px 0 0; } }
 </style>

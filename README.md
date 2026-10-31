@@ -67,6 +67,22 @@ dev server 下两端登录页有「测试账号面板」入口（仅 dev 构建�
 3. 按「环境变量」一节手动创建 `.env.development`
 4. `pnpm install` 后 `pnpm dev:user` / `pnpm dev:admin`
 
+## 社区标签与阅读周整合
+
+前后端须成套整合。后端先执行 `migrate_82_community_reading.py`、`migrate_83_community_discovery.py`，操作说明见后端 `docs/deploy/community-reading.md`。管理端「社区标签」维护专题与书单；帖子治理中的精选操作控制右栏前三个位置。普通社区文案保持通用，阅读标签才显示书名配图要求和建议字数。
+
+正文、评论和回复共用 DewUI 表情选择器，原生 Unicode 内容随文字保存，不请求外网资源。不同操作系统的表情外观可能不同；系统界面图标仍使用图标库。热帖采用滚动 24 小时互动、15 分钟缓存，不需要每五小时运行任务。
+
+隔离真实接口测试使用同级 `backend` 目录，也可用 `READING_BACKEND_DIR`、`READING_PYTHON` 指定后端与 Python。安装后端 `requirements-reading-local.txt` 后，构建测试资源（两端 `VITE_API_BASE_URL=http://127.0.0.1:5003`）：
+
+```sh
+pnpm --filter @bme/user exec vite build --outDir dist-reading
+pnpm --filter @bme/admin exec vite build --outDir dist-reading
+pnpm exec playwright test -c e2e/playwright.reading.config.ts
+```
+
+测试自动启动独立 SQLite / fakeredis API，使用 5003、18093、15193 端口；截图和报告写入忽略的 `test-results/`，数据库写入后端忽略的 `data/reading-local/`。不要把测试构建部署到线上。常规验证：`pnpm check:no-emoji`、`pnpm build`、`pnpm test:e2e e2e/community-redesign.spec.js`。
+
 ## 分支
 
 - `master` — 稳定主线

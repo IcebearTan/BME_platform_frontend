@@ -12,10 +12,12 @@
       <DewTag v-if="discussion.topic" type="info" size="sm" round>{{ discussion.topic }}</DewTag>
       <DewTag v-if="discussion.isEssence" type="success" size="sm" round>精华</DewTag>
       <DewTag v-if="discussion.isHot" type="warning" size="sm" round>置顶</DewTag>
+      <button v-for="tag in discussion.tags" :key="tag.id" class="dc-tag-link" @click.stop="router.push({ path: '/community', query: { tag: tag.id } })"># {{ tag.name }}</button>
+      <DewTag v-if="discussion.is_closed" size="sm" type="neutral">已停止讨论</DewTag>
       <button
-        v-if="canDelete"
+        v-if="canDelete && !discussion.is_closed"
         class="dc-delete"
-        title="删除帖子"
+        :title="isOwner ? '停止讨论' : '删除帖子'"
         @click.stop="handleDelete"
       >
         <el-icon><Delete /></el-icon>
@@ -23,6 +25,7 @@
     </div>
 
     <!-- 标题 -->
+    <p v-if="discussion.book" class="dc-book">共读 / {{ discussion.book.title }}</p>
     <h3 class="dc-title">{{ discussion.title }}</h3>
 
     <!-- 作者信息 -->
@@ -56,6 +59,7 @@
          点击整卡新开标签页进项目详情，不再回退顶部名称胶囊 -->
     <LinkedProjectCard v-if="discussion.project" :project="discussion.project" />
 
+<p v-if="!discussion.is_closed" class="dc-time">{{ discussion.word_count ?? '' }} 字 · 阅读全文与评论</p>
     <!-- 操作按钮 -->
     <div class="dc-actions">
       <button
@@ -95,7 +99,7 @@ import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
 import { ChatDotRound, View, Star, StarFilled, Delete } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { DewCard, DewTag, DewMessageBox } from '@bme/dew-ui'
+import { DewCard, DewTag, DewMessageBox, DewImage } from '@bme/dew-ui'
 import LinkedProjectCard from './LinkedProjectCard.vue'
 import api from '../../api'
 
@@ -139,6 +143,7 @@ const displayContent = computed(() =>
 
 // 是否可删除：本人发的帖 或 管理员
 // 注意：登录存的 User_Id 是 zfill(7) 字符串（如 "0000001"），帖子 author_id 是原始整数，比较前都转 Number
+const isOwner = computed(() => Number(props.discussion.authorId) === Number(store.state.user?.User_Id))
 const canDelete = computed(() => {
   const authorId = Number(props.discussion.authorId)
   if (!Number.isNaN(authorId) && authorId === Number(store.state.user?.User_Id)) return true
@@ -181,8 +186,8 @@ const handleLike = async () => {
 const handleDelete = async () => {
   // 二次确认（DewUI 弹窗）：取消会 reject，直接返回
   try {
-    await DewMessageBox.confirm('确定删除这条帖子吗？删除后不可恢复。', '删除帖子', {
-      confirmText: '删除',
+    await DewMessageBox.confirm(isOwner.value ? '停止后隐藏你的正文和图片，历史评论继续展示，无法新增回复。此操作不可撤销。' : '删除后普通用户将无法访问此帖。', isOwner.value ? '停止讨论' : '删除帖子', {
+      confirmText: isOwner.value ? '停止讨论' : '删除',
       cancelText: '取消',
     })
   } catch (e) {
@@ -195,7 +200,7 @@ const handleDelete = async () => {
       method: 'DELETE',
     })
     if (res.data.code === 200) {
-      ElMessage.success('已删除')
+      ElMessage.success(isOwner.value ? '已停止讨论' : '已删除')
       emit('delete', props.discussion)
     } else {
       ElMessage.error(res.data.message || '删除失败')
@@ -218,6 +223,7 @@ const handleDelete = async () => {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
   margin-bottom: 12px;
 }
 
@@ -413,4 +419,7 @@ const handleDelete = async () => {
     margin-left: 0;
   }
 }
+.dc-tag-link { border: 0; background: var(--dew-ghost-hover-bg); color: var(--dew-text-muted); border-radius: 16px; padding: 4px 9px; cursor: pointer; font-size: 12px; }
+.dc-book { font-size: 12px; color: var(--dew-text-muted); margin: 0 0 6px; }
+.dc-title, .dc-content { overflow-wrap: anywhere; }
 </style>

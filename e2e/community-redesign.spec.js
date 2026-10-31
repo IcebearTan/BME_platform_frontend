@@ -21,7 +21,7 @@ const FEED = {
       author_id: 11, author_name: '陈嘉树', author_avatar: '', author_badge: '社长',
       created_at: '2026-09-18 09:00:00', reply_count: 2, like_count: 1, view_count: 9,
       is_pinned: false,
-      replies: [{ id: 1, author_id: 12, author_name: '林知遥', author_avatar: '', content: '第一条回复内容', like_count: 0, liked: false, created_at: '2026-09-18 10:00:00' }] },
+      replies: [{ id: 1, status: 'normal', word_count: 7, author_id: 12, author_name: '林知遥', author_avatar: '', content: '第一条回复内容', like_count: 0, liked: false, created_at: '2026-09-18 10:00:00' }] },
     { type: 'article', id: 61, article_id: 61, article_version: 2, title: '带封面文章',
       summary: '封面左图右文中卡', cover: '/media/articles/61/c.webp', cover_thumb: '/media/articles/61/c_thumb.webp',
       images: [],
@@ -96,14 +96,17 @@ async function mockCommunity(page) {
       if (limit) projects = projects.slice(0, Number(limit))
       return route.fulfill({ json: { ...PROJECTS, projects, total: projects.length } })
     }
+    if (url.includes('/community/tags')) return route.fulfill({ json: { code: 200, data: [] } })
+    if (url.includes('/community/discovery')) return route.fulfill({ json: { code: 200, data: { featured: [{ id: 51, title: '带图帖子' }], hot: [{ id: 52, title: '另一个热帖' }] } } })
     if (url.includes('/community/feed')) {
       return route.fulfill({ json: FEED })
     }
     if (/\/discussions\/threads\/51\/replies/.test(url)) {
+      if (route.request().method() === 'POST') return route.fulfill({ status: 201, json: { code: 201, data: { id: 3, status: 'normal', author_id: 11, author_name: '陈嘉树', content: route.request().postDataJSON().content, word_count: 7, children: [], children_total: 0 } } })
       return route.fulfill({ json: { code: 200, data: [
-        { id: 1, author_id: 12, author_name: '林知遥', author_avatar: '', content: '第一条回复内容',
+        { id: 1, status: 'normal', word_count: 7, author_id: 12, author_name: '林知遥', author_avatar: '', content: '第一条回复内容',
           like_count: 0, liked: false, created_at: '2026-09-18 10:00:00' },
-        { id: 2, author_id: 13, author_name: '周启航', author_avatar: '', content: '第二条回复内容',
+        { id: 2, status: 'normal', word_count: 7, author_id: 13, author_name: '周启航', author_avatar: '', content: '第二条回复内容',
           like_count: 1, liked: false, created_at: '2026-09-18 11:00:00' },
       ], total: 2, page: 1, per_page: 20, pages: 1 } })
     }
@@ -176,88 +179,44 @@ test('社区重设计：分层混排卡片（文章封面 / 帖子图集 / 回�
   ])
   await expect(threadTab).toHaveURL(/\/community\/thread\/51$/)
   await expect(threadTab.locator('.t-title')).toHaveText('带图帖子')
-  await expect(threadTab.locator('.reply-item')).toHaveCount(2)
+  await expect(threadTab.locator('.root-comment')).toHaveCount(2)
   // 详情页回复提交
-  await threadTab.locator('.reply-input-row textarea').fill('详情页回复联调')
+  await threadTab.locator('.reply-editor textarea').fill('详情页回复联调')
   const replyReq = threadTab.waitForRequest((req) =>
     /\/discussions\/threads\/51\/replies$/.test(req.url()) && req.method() === 'POST')
-  await threadTab.locator('.reply-input-row button', { hasText: '回复' }).click()
-  expect((await replyReq).postDataJSON()).toEqual({ content: '详情页回复联调' })
+  await threadTab.getByRole('button', { name: '发布评论', exact: true }).click()
+  expect((await replyReq).postDataJSON()).toMatchObject({ content: '详情页回复联调' })
   await threadTab.close()
 
   expect(errors).toEqual([])
 })
 
-test('社区 XLAB 信号面板：主/次项目 + 排序切换 + 导流', async ({ page }) => {
-  const errors = []
-  page.on('pageerror', (e) => errors.push(e.message))
+test('社区发现：两区同时展示、单行标题与帖子导流', async ({ page }) => {
   await mockCommunity(page)
-
-  await page.goto(`${BASE}/community`, { waitUntil: 'domcontentloaded' })
-  const panel = page.locator('.community-xlab-panel')
-  await expect(panel).toBeVisible()
-
-  // 默认 latest：created_at 新者（802 宿舍门锁）为主项目，801 为唯一次项目
-  await expect(panel.locator('.cxp-main')).toContainText('宿舍门锁')
-  await expect(panel.locator('.cxp-rest__btn')).toHaveCount(1)
-  await expect(panel.locator('.cxp-rest__btn')).toContainText('智能输液监护')
-
-  // 主项目点击：新开标签页进 XLAB 详情，社区页原地保留
-  const [projTab] = await Promise.all([
-    page.waitForEvent('popup'),
-    panel.locator('.cxp-main').click(),
-  ])
-  await expect(projTab).toHaveURL(/\/lab\?project=802$/)
-  await projTab.close()
-  await expect(page).toHaveURL(/\/community$/)
-
-  // 切「最多浏览」：请求带 sort=popular + limit=3，主项目变为浏览量更高的 801
-  const popularReq = page.waitForRequest((req) =>
-    req.url().includes('/showcase/projects') && req.url().includes('sort=popular'))
-  await panel.getByRole('button', { name: '最多浏览' }).click()
-  const popularUrl = (await popularReq).url()
-  expect(popularUrl).toContain('project_status=ongoing')
-  expect(popularUrl).toContain('limit=3')
-  await expect(panel.locator('.cxp-main')).toContainText('智能输液监护')
-
-  // 品牌行点击：进 XLAB 列表页（新标签页）
-  const [xlabTab] = await Promise.all([
-    page.waitForEvent('popup'),
-    panel.locator('.cxp-brand').click(),
-  ])
-  await expect(xlabTab).toHaveURL(/\/lab$/)
-  await xlabTab.close()
-
-  expect(errors).toEqual([])
+  await page.goto(`${BASE}/community`)
+  const panel = page.locator('.community-picks')
+  await expect(panel.locator('.picks-section')).toHaveCount(2)
+  await expect(panel.locator('.picks-section').first()).toContainText('带图帖子')
+  await expect(panel.locator('.picks-section').last()).toContainText('另一个热帖')
+  await expect(panel.locator('.picks-title').first()).toHaveCSS('white-space', 'nowrap')
+  const [tab] = await Promise.all([page.waitForEvent('popup'), panel.locator('.picks-list a').first().click()])
+  await expect(tab).toHaveURL(/\/community\/thread\/51$/)
+  await tab.close()
 })
 
-test('社区 XLAB 信号面板：错误态重试 + reduced-motion', async ({ page }) => {
-  const errors = []
-  page.on('pageerror', (e) => errors.push(e.message))
+test('社区发现：失败重试保留页面', async ({ page }) => {
   await mockCommunity(page)
-
-  // 首次请求失败 → 面板内错误态（非全局 Toast），点重试恢复
-  let failFirst = true
-  await page.route(/\/showcase\/projects/, (route) => {
-    if (failFirst) { failFirst = false; return route.fulfill({ status: 500, json: { code: 500 } }) }
+  let failed = false
+  await page.route(/\/community\/discovery/, route => {
+    if (!failed) { failed = true; return route.fulfill({ status: 500, json: { message: 'offline' } }) }
     return route.fallback()
   })
-  await page.goto(`${BASE}/community`, { waitUntil: 'domcontentloaded' })
-  const panel = page.locator('.community-xlab-panel')
-  await expect(panel.locator('.cxp-state')).toContainText('项目推荐暂时无法加载')
-  await panel.getByRole('button', { name: '重试' }).click()
-  await expect(panel.locator('.cxp-main')).toContainText('宿舍门锁')
-
-  // reduced-motion：品牌状态点动画关停。
-  await page.emulateMedia({ reducedMotion: 'reduce' })
-  const dot = panel.locator('.cxp-brand__dot')
-  await expect(dot).toBeVisible()
-  const anim = await dot.evaluate((el) => getComputedStyle(el).animationName)
-  expect(anim).toBe('none')
-
-  expect(errors).toEqual([])
+  await page.goto(`${BASE}/community`)
+  const panel = page.locator('.community-picks')
+  await expect(panel).toContainText('暂时没能加载内容')
+  await panel.getByRole('button', { name: '重试' }).first().click()
+  await expect(panel.locator('.picks-list').first()).toContainText('带图帖子')
 })
-
 
 test('社区：发帖弹层（无话题发帖 + 候选全量）', async ({ page }) => {
   const errors = []
@@ -271,14 +230,14 @@ test('社区：发帖弹层（无话题发帖 + 候选全量）', async ({ page 
   await expect(dlg).toBeVisible()
   const publish = dlg.getByRole('button', { name: '发布', exact: true })
   await expect(publish).toBeDisabled()
-  await dlg.getByPlaceholder('标题（至少 4 字）').fill('联调发帖标题')
+  await dlg.getByPlaceholder(/用一句话说说/).fill('联调发帖标题')
   await dlg.getByPlaceholder(/分享你的想法/).fill('这条帖子内容满足十个字的门槛')
   await expect(publish).toBeEnabled()
   const post = page.waitForRequest((req) =>
     req.url().includes('/discussions/threads') && req.method() === 'POST')
   await publish.click()
   const body = (await post).postDataJSON()
-  expect(body).toEqual({ title: '联调发帖标题', content: '这条帖子内容满足十个字的门槛',
+  expect(body).toMatchObject({ title: '联调发帖标题', content: '这条帖子内容满足十个字的门槛',
     scope_type: 'global', scope_id: null, category: null, project_id: null, images: [] })
   await expect(page.getByText('发布成功')).toBeVisible()
 
@@ -286,7 +245,7 @@ test('社区：发帖弹层（无话题发帖 + 候选全量）', async ({ page 
 })
 
 
-test('社区 XLAB 面板与关联卡：约 400px 窄屏不溢出', async ({ page }) => {
+test('社区发现与关联卡：约 400px 窄屏不溢出', async ({ page }) => {
   const errors = []
   page.on('pageerror', (e) => errors.push(e.message))
   await mockCommunity(page)
@@ -294,8 +253,8 @@ test('社区 XLAB 面板与关联卡：约 400px 窄屏不溢出', async ({ page
   await page.setViewportSize({ width: 400, height: 800 })
   await page.goto(`${BASE}/community`, { waitUntil: 'domcontentloaded' })
   // 右栏上移：只展示主项目（次项目隐藏），关联卡封面上文字在下
-  await expect(page.locator('.community-xlab-panel .cxp-main')).toContainText('宿舍门锁')
-  await expect(page.locator('.community-xlab-panel .cxp-rest')).toBeHidden()
+  await page.locator('.mobile-picks summary').click()
+  await expect(page.locator('.community-picks .picks-list').first()).toContainText('带图帖子')
   const lpc = page.locator('.linked-project-card').first()
   await expect(lpc).toBeVisible()
   // 约 400px 无横向溢出（§12.2.14）
@@ -355,10 +314,10 @@ test('社区 Phase 2：帖子话题/项目 chip + 发帖选话题关联项目', 
   await page.locator('.post-entry').click()
   const dlg = page.locator('.dew-dialog').filter({ hasText: '发布新帖' })
   await expect(dlg).toBeVisible()
-  await dlg.getByPlaceholder('标题（至少 4 字）').fill('招前端搭档联调帖')
+  await dlg.getByPlaceholder(/用一句话说说/).fill('招前端搭档联调帖')
   await dlg.getByPlaceholder(/分享你的想法/).fill('这篇帖子内容满足十个字的门槛')
   dlg.getByRole('button', { name: '招人' }).click()
-  const projSelect = dlg.locator('.create-dlg__select')
+  const projSelect = dlg.locator('select')
   await expect(projSelect).toBeVisible()
   await projSelect.selectOption('801')
   const publish = dlg.getByRole('button', { name: '发布', exact: true })
@@ -413,15 +372,19 @@ test('个人中心：我的帖子列表与操作', async ({ page }) => {
   await expect(tab).toHaveURL(/\/community\/thread\/51$/)
   await tab.close()
 
-  // 删除：确认后列表移除
-  await page.route('**/discussions/threads/52', (route) => {
-    if (route.request().method() === 'DELETE') return route.fulfill({ json: { code: 200 } })
+  // 停止讨论后仍保留历史入口；模拟服务端返回更新后的状态。
+  await page.route('**/discussions/threads/51', route => {
+    if (route.request().method() === 'DELETE') return route.fulfill({ json: { code: 200, data: { is_closed: true } } })
     return route.fallback()
   })
-  await page.locator('.thread-row').nth(1).getByRole('button', { name: '删除' }).click()
-  // DewMessageBox 确认弹层：面板内第二个按钮为确认
-  await page.locator('.dew-dialog-panel').getByRole('button').last().click()
-  await expect(page.locator('.thread-row')).toHaveCount(1)
+  await page.context().route(/\/discussions\/threads\?.*author_id=11/, route => route.fulfill({ json: { code: 200, data: [
+    { id: 51, title: '已停止的讨论', status: 'closed', reply_count: 2, is_closed: true },
+    { id: 52, title: '被隐藏的帖子', status: 'hidden' },
+  ] } }))
+  await row.getByRole('button', { name: '停止讨论' }).click()
+  await page.getByRole('dialog').getByRole('button', { name: '确认', exact: true }).click()
+  await expect(row).toContainText('已停止讨论')
+  await expect(page.locator('.thread-row')).toHaveCount(2)
 
   expect(errors).toEqual([])
 })
