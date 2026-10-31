@@ -14,6 +14,8 @@ function scanDirectory(directory) {
       continue
     }
     if (!entry.isFile() || !extensions.has(extname(entry.name))) continue
+    // Explicitly requested user-content palette; UI icons remain covered by this check.
+    if (relative(process.cwd(), path).replaceAll('\\', '/') === 'apps/user/src/components/Community/communityEmoji.js') continue
 
     const lines = readFileSync(path, 'utf8').split(/\r?\n/)
     lines.forEach((line, index) => {

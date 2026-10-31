@@ -175,6 +175,11 @@ export const miscRoutes = [
     meta: { title: '社区治理', domain: 'operations', navGroup: 'operations', navOrder: 40, showInMenu: true, icon: 'ChatDotRound' },
   },
   {
+    path: '/operations/community-tags', name: 'operations_community_tags',
+    component: () => import('../../components/CommunityTagManage.vue'),
+    meta: { title: '社区标签与书单', domain: 'operations', navGroup: 'operations', navOrder: 42, showInMenu: true, icon: 'Collection' },
+  },
+  {
     path: '/operations/showcase',
     name: 'operations_showcase',
     component: loadShowcaseManage,

@@ -11,6 +11,7 @@ When this repository is inside the AMEII workspace, also read `../开发AMELL项
 Mandatory rules:
 
 - Do not use emoji in new UI, user-visible copy, icons, Toast messages, logs, or source comments.
+- Exception: the user-requested inline emoji palette in `apps/user/src/components/Community/communityEmoji.js` contains user-content choices. Keep interface icons on the icon library.
 - Use `@element-plus/icons-vue` or an existing SVG asset for icons.
 - Do not develop from `BK备份/` or legacy repositories.
 - Keep `.env.development` on the real API at `http://127.0.0.1:5001`.

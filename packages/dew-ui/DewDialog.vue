@@ -101,6 +101,8 @@ function isTopDialog() {
 
 function onKeydown(e) {
   if (!isTopDialog()) return
+  // A teleported control with its own keyboard scope handles Escape and Tab first.
+  if (e.target instanceof Element && e.target.closest('[data-dew-focus-scope]')) return
   if (e.key === 'Escape' && props.closeOnPressEscape) {
     close()
     return
@@ -150,7 +152,7 @@ watch(
 
 onBeforeUnmount(() => {
   document.body.style.overflow = ''
-  document.removeEventListener('keydown', onKeydown)
+  document.removeEventListener('keydown', onKeydown, true)
 })
 </script>
 

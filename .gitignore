@@ -12,6 +12,7 @@ dist
 dist.zip
 dist_frontend
 dist-ssr
+dist-reading/
 *.local
 .env
 .env.development

@@ -19,8 +19,8 @@ export default {
       currentPage: 1,
       pageSize: 15,
       loading: false,
-      statusText: { normal: '正常', hidden: '已隐藏', locked: '已锁定', deleted: '已删除' },
-      statusTag: { normal: 'success', hidden: 'info', locked: 'warning', deleted: 'danger' },
+      statusText: { normal: '正常', hidden: '已隐藏', locked: '已锁定', deleted: '已删除', closed: '已停止讨论' },
+      statusTag: { normal: 'success', hidden: 'info', locked: 'warning', deleted: 'danger', closed: 'info' },
       categories: [
         { value: 'chat', label: '闲聊' }, { value: 'ask', label: '提问' },
         { value: 'share', label: '分享' }, { value: 'recruit', label: '招人' },
@@ -133,7 +133,7 @@ export default {
 
     async handleDelete(row) {
       try {
-        await ElMessageBox.confirm('确定删除这篇帖子？连带回复一起删除，不可恢复。', '提示', {
+        await ElMessageBox.confirm('管理员删除后，普通用户将无法访问此帖。确认删除？', '提示', {
           confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning',
         });
       } catch { return; }
@@ -160,7 +160,7 @@ export default {
           <el-option label="全部状态" value="all" />
           <el-option label="正常" value="normal" />
           <el-option label="已隐藏" value="hidden" />
-          <el-option label="已锁定" value="locked" />
+          <el-option label="已锁定" value="locked" /><el-option label="已停止讨论" value="closed" />
         </el-select>
         <el-select v-model="categoryFilter" placeholder="话题" clearable style="width: 110px; margin-left: 12px;" @change="fetchThreads">
           <el-option v-for="c in categories" :key="c.value" :label="c.label" :value="c.value" />
@@ -219,7 +219,7 @@ export default {
               <el-button :type="row.pinned_effective ? 'warning' : 'primary'" size="small" @click="togglePin(row)">
                 {{ row.pinned_effective ? '取消置顶' : '置顶' }}
               </el-button>
-              <el-button :type="row.status === 'locked' ? 'success' : 'warning'" size="small" @click="toggleLock(row)">
+              <el-button :disabled="row.is_closed" :type="row.status === 'locked' ? 'success' : 'warning'" size="small" @click="toggleLock(row)">
                 {{ row.status === 'locked' ? '解锁' : '锁定' }}
               </el-button>
               <el-button :type="row.is_essence ? 'info' : 'success'" size="small" @click="toggleEssence(row)">

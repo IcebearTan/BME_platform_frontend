@@ -57,9 +57,12 @@
               <div class="filter-bar__left">
                 <DewButtonBar :items="typeOptions" v-model="contentType" size="md" />
                 <DewButtonBar v-if="topicOptions.length" :items="topicOptions" v-model="topicFilter" size="md" />
+                <CommunityTagPicker :tags="pickerTags" :model-value="tagId ? [Number(tagId)] : []" @update:model-value="ids => selectTag(ids[0] || '')" />
+                <DewButton v-if="tagError" type="ghost" size="sm" @click="fetchTags">重试标签</DewButton>
               </div>
               <DewButtonBar :items="sortOptions" v-model="sortType" size="md" />
             </div>
+            <details v-if="isMobile" class="mobile-picks"><summary>社区发现 · 精选推荐与今日热帖</summary><CommunityPicksPanel :key="picksVersion" :tag-id="tagId" /></details>
 
             <!-- 信息流（讨论帖 + 文章帖混合） -->
             <div class="feed-list">
@@ -82,10 +85,11 @@
                 </DewCard>
               </template>
 
+              <DewCard v-else-if="feedError" variant="flat" size="lg"><div class="community-feed-error" role="alert">内容暂时加载失败<DewButton size="sm" @click="fetchThreads(true)">重新加载</DewButton></div></DewCard>
               <!-- 空状态 -->
               <DewCard v-else-if="feedItems.length === 0" variant="flat" size="lg">
                 <div style="text-align: center; padding: 48px 0; color: var(--dew-text-faint); font-size: 14px;">
-                  还没有内容，发个帖或写篇文章吧
+                  {{ selectedTag ? '这里还没有分享，来开启第一场讨论吧。' : '还没有内容，发个帖或写篇文章吧' }}
                 </div>
               </DewCard>
 
@@ -118,7 +122,7 @@
             </div>
           </main>
 
-          <!-- 右侧栏 - 发帖入口 + 写文章 + XLAB 引流（09-19 重构：发帖改弹层，加项目现场） -->
+          <!-- 右侧栏：创作入口与社区内容推荐 -->
           <aside class="right-sidebar">
             <!-- 发帖入口：单一按钮（点击打开发帖弹层；不再伪装输入框） -->
             <DewButton class="post-entry" type="glass" @click="openCreateDlg">
@@ -140,13 +144,7 @@
               </div>
             </DewCard>
 
-            <!-- XLAB 引流（XLab 引流优化 09-21）：右栏信号面板——发现项目，
-                 最新/最多浏览排序，主项目 + 次项目层级，路由行为由页面层 openTab 承载 -->
-            <CommunityXlabPanel
-              class="community-xlab-slot"
-              @open-project="(id) => openTab(`/projects/${id}`)"
-              @open-xlab="() => openTab('/projects')"
-            />
+            <CommunityPicksPanel v-if="!isMobile" :key="picksVersion" :tag-id="tagId" />
           </aside>
         </div>
       </el-main>
@@ -156,63 +154,23 @@
       </el-footer> -->
     </el-container>
 
-    <!-- 发帖弹层（09-19）：右栏入口/移动端入口点击打开，支持图片 ≤4 张 -->
-    <DewDialog v-model="createDlg" title="发布新帖" width="560px">
-      <div class="create-dlg__form">
-        <DewInput v-model="newThread.title" placeholder="标题（至少 4 字）" />
-        <DewInput v-model="newThread.content" type="textarea" :rows="5"
-                  placeholder="分享你的想法（至少 10 字）…" />
-        <div class="create-dlg__row">
-          <span class="create-dlg__label">话题</span>
-          <div class="create-dlg__chips">
-            <button v-for="c in CATEGORIES" :key="c.value" type="button"
-                    :class="['create-dlg__chip', { on: newThread.category === c.value }]"
-                    @click="newThread.category = newThread.category === c.value ? '' : c.value">{{ c.label }}</button>
-          </div>
-        </div>
-        <div v-if="newThread.category === 'recruit'" class="create-dlg__row">
-          <span class="create-dlg__label">关联项目</span>
-          <select v-model="newThread.project_id" class="create-dlg__select">
-            <option :value="null">不关联</option>
-            <option v-for="prj in linkableProjects" :key="prj.id" :value="prj.id">
-              {{ prj.title }}（{{ prj.project_status_text }}）
-            </option>
-          </select>
-          <span class="create-dlg__hint-inline">招人帖关联 XLAB 项目，读者直达项目页</span>
-        </div>
-        <div class="create-dlg__images">
-          <div v-for="(img, i) in pendingImages" :key="img.url" class="create-dlg__img-cell">
-            <img :src="img.url" alt="待传图片" />
-            <button type="button" class="create-dlg__img-del" @click="removePendingImage(i)">×</button>
-          </div>
-          <button v-if="pendingImages.length < 4" type="button" class="create-dlg__img-add"
-                  :disabled="imgUploading" @click="postImgInput?.click()">
-            {{ imgUploading ? '上传中…' : '+ 图片' }}
-          </button>
-        </div>
-        <div class="create-dlg__hint">图片最多 4 张，jpg/png/webp ≤10MB</div>
-      </div>
-      <template #footer>
-        <DewButton type="ghost" :disabled="createLoading" @click="createDlg = false">取消</DewButton>
-        <DewButton type="glass" :disabled="createLoading || !canSubmitThread" @click="submitNewThread">
-          {{ createLoading ? '发布中…' : '发布' }}
-        </DewButton>
-      </template>
-    </DewDialog>
-    <input ref="postImgInput" type="file" accept="image/jpeg,image/png,image/webp" hidden @change="onPostImgPick" />
+    <CommunityComposer v-model="createDlg" :tags="tags" :initial-tag-id="tagId" @published="onPublished" />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useStore } from 'vuex'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import MenuComponent from '../components/MenuComponent.vue'
 import MobileMenuComponent from '../components/MobileMenuComponent.vue'
 import DiscussionCard from '../components/Community/DiscussionCard.vue'
 import ArticleCard from '../components/Community/ArticleCard.vue'
-import CommunityXlabPanel from '../components/Community/CommunityXlabPanel.vue'
-import { DewButtonBar, DewCard, DewInput, DewButton, DewSkeleton, DewDialog, DewImage } from '@bme/dew-ui'
+import CommunityPicksPanel from '../components/Community/CommunityPicksPanel.vue'
+import CommunityComposer from '../components/Community/CommunityComposer.vue'
+import CommunityTagPicker from '../components/Community/CommunityTagPicker.vue'
+import { communityService } from '../services/communityService'
+import { DewButtonBar, DewCard, DewButton, DewSkeleton, DewImage } from '@bme/dew-ui'
 import api from '../api'
 import { assetUrl } from '../services/campService'
 import { showcaseService } from '../services/showcaseService'
@@ -223,6 +181,28 @@ import { ElMessage } from 'element-plus'
 
 const store = useStore()
 const router = useRouter()
+const route = useRoute()
+const tags = ref([])
+const tagError = ref(false)
+const tagId = computed(() => String(route.query.tag || ''))
+const historyTag = ref(null)
+const selectedTag = computed(() => tags.value.find(t => String(t.id) === tagId.value) || historyTag.value)
+const pickerTags = computed(() => historyTag.value ? [...tags.value, historyTag.value] : tags.value)
+watch([tagId, tags], async () => {
+  const requested = tagId.value
+  historyTag.value = null
+  if (requested && !tags.value.some(t => String(t.id) === requested)) {
+    try { const tag = await communityService.tag(requested); if (tagId.value === requested) historyTag.value = tag } catch { /* The feed presents invalid tag errors. */ }
+  }
+}, { immediate: true })
+async function fetchTags() {
+  tagError.value = false
+  try { tags.value = await communityService.tags() } catch { tagError.value = true }
+}
+function selectTag(id) {
+  router.push({ path: '/community', query: { ...route.query, tag: id ? String(id) : undefined, type: undefined } })
+}
+
 
 // 主题状态
 const isDarkMode = computed(() => store.getters.isDarkMode)
@@ -243,8 +223,8 @@ const toggleMobileMenu = () => {
 }
 
 // 类型分类 × 排序 双控件（正交：任一变化都重置到第 1 页重拉）
-const contentType = ref('all')
-const sortType = ref('hot')
+const contentType = ref(String(route.query.type || 'all'))
+const sortType = ref(String(route.query.sort || 'hot'))
 const typeOptions = [
   { label: '全部', value: 'all' },
   { label: '文章', value: 'article' },
@@ -257,29 +237,36 @@ const sortOptions = [
 const currentPage = ref(1)
 const totalPages = ref(1)
 // 话题筛选（Phase 2 09-20）：''=全部；服务端有带话题的帖子才显示这组 chip
-const topicFilter = ref('')
-const topicOptions = ref([])
+const topicFilter = ref(String(route.query.category || ''))
+const topicOptions = [{ label: '所有分类', value: '' }, { label: '闲聊', value: 'chat' }, { label: '提问', value: 'ask' }, { label: '分享', value: 'share' }, { label: '招人', value: 'recruit' }]
+const feedError = ref(false)
+let feedSequence = 0
 
 // 加载社区信息流（讨论帖 + 文章帖混合，来自聚合接口 /community/feed）
 // reset=true：切类型/排序或发帖后重置到第 1 页；reset=false：加载更多追加下一页
 const fetchThreads = async (reset = false) => {
+  const sequence = ++feedSequence
+  const requestedPage = reset ? 1 : currentPage.value + 1
   loading.value = true
+  feedError.value = false
   try {
     if (reset) {
       currentPage.value = 1
       feedItems.value = []
-    } else {
-      currentPage.value += 1
     }
     const res = await api.get('/community/feed', {
       params: {
-        page: currentPage.value,
+        page: requestedPage,
         per_page: 20,
         sort: sortType.value,
         type: contentType.value,
-        ...(topicFilter.value ? { category: topicFilter.value } : {})
+        ...(topicFilter.value ? { category: topicFilter.value } : {}),
+        ...(tagId.value ? { tag_id: tagId.value } : {}),
+        ...(route.query.q ? { q: String(route.query.q) } : {})
       }
     })
+    if (sequence !== feedSequence) return
+    currentPage.value = requestedPage
     const raw = (res.data && res.data.data) || []
     totalPages.value = res.data?.pages || 1
     hasMore.value = currentPage.value < totalPages.value
@@ -317,6 +304,7 @@ const fetchThreads = async (reset = false) => {
         summary: item.summary,
         images: (item.images || []).map(u => assetUrl(u)),
         topic: item.category_text || '',
+        tags: item.tags || [], book: item.book, is_closed: item.is_closed, word_count: item.word_count,
         isEssence: !!item.is_essence,
         projectId: item.project_id,
         projectTitle: item.project_title || '',
@@ -362,17 +350,6 @@ const fetchThreads = async (reset = false) => {
 
     feedItems.value = reset ? items : feedItems.value.concat(items)
 
-    // 话题筛选 chips：从 feed 聚合出现过的 topic（reset 时重建，翻页追加）
-    const seen = new Set(topicOptions.value.map(o => o.value))
-    if (reset) { topicOptions.value = []; seen.clear() }
-    items.forEach((i) => {
-      if (i.type === 'discussion' && i.topic && !seen.has(i.topic)) {
-        seen.add(i.topic)
-        const def = CATEGORIES.find(c => c.label === i.topic)
-        if (def) topicOptions.value.push({ label: i.topic, value: def.value })
-      }
-    })
-
     // 当前页讨论帖批量上报浏览（幂等去重），对实际计数的帖乐观 +1，让浏览数即时反馈
     const discussionIds = items.filter(i => i.type === 'discussion').map(i => i.id)
     if (discussionIds.length) {
@@ -390,9 +367,9 @@ const fetchThreads = async (reset = false) => {
         .catch(() => {})
     }
   } catch (error) {
-    console.error('获取社区信息流失败:', error)
+    if (sequence === feedSequence) feedError.value = true
   } finally {
-    loading.value = false
+    if (sequence === feedSequence) loading.value = false
   }
 }
 
@@ -455,74 +432,9 @@ const hasMore = ref(true)
 
 // ── 发帖弹层（09-19，替代右栏整卡表单；图片先传图床拿 URL 再随帖提交） ──
 const createDlg = ref(false)
-const createLoading = ref(false)
-const CATEGORIES = [
-  { value: 'chat', label: '闲聊' }, { value: 'ask', label: '提问' },
-  { value: 'share', label: '分享' }, { value: 'recruit', label: '招人' },
-]
-const newThread = ref({ title: '', content: '', scope_type: 'global', scope_id: null, category: '', project_id: null })
-const pendingImages = ref([])         // [{ url }]（已传图床的相对 URL）
-const imgUploading = ref(false)
-const postImgInput = ref(null)
-
-const canSubmitThread = computed(() =>
-  newThread.value.title.trim().length >= 4 && newThread.value.content.trim().length >= 10)
-
-function openCreateDlg() {
-  newThread.value = { title: '', content: '', scope_type: 'global', scope_id: null, category: '', project_id: null }
-  pendingImages.value = []
-  createDlg.value = true
-  // 项目下拉数据：按需拉全量可见项目（社团级数据量），右栏面板数据互不相干
-  if (!allProjects.value.length) fetchAllProjects()
-}
-function removePendingImage(i) {
-  pendingImages.value.splice(i, 1)
-}
-async function onPostImgPick(e) {
-  const file = e.target.files?.[0]
-  e.target.value = ''
-  if (!file || imgUploading.value) return
-  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-    ElMessage.error('图片仅支持 jpg/png/webp'); return
-  }
-  if (file.size > 10 * 1024 * 1024) { ElMessage.error('图片不能超过 10MB'); return }
-  imgUploading.value = true
-  try {
-    const fd = new FormData()
-    fd.append('image', file)
-    const res = await api.post('/discussions/upload_image', fd)
-    pendingImages.value.push({ url: res.data.url })
-  } catch (err) {
-    ElMessage.error(err.response?.data?.message || '图片上传失败')
-  } finally {
-    imgUploading.value = false
-  }
-}
-
-// 提交新帖子（带图集）
-const submitNewThread = async () => {
-  if (!canSubmitThread.value || createLoading.value) return
-  createLoading.value = true
-  try {
-    const { category, project_id, ...threadBody } = newThread.value
-    const res = await api.post('/discussions/threads', {
-      ...threadBody,
-      category: category || null,
-      project_id: category === 'recruit' ? (project_id || null) : null,
-      images: pendingImages.value.map(x => x.url),
-    })
-    if (res.data && res.data.code === 201) {
-      ElMessage.success('发布成功')
-      createDlg.value = false
-      fetchThreads(true) // 刷新列表（重置到第1页）
-    }
-  } catch (error) {
-    ElMessage.error(error.response?.data?.message || '发布失败')
-  } finally {
-    createLoading.value = false
-  }
-}
-
+const picksVersion = ref(0)
+function openCreateDlg() { createDlg.value = true }
+function onPublished() { fetchThreads(true); fetchTags(); picksVersion.value++ }
 
 const loadMore = () => {
   if (!loading.value && hasMore.value) fetchThreads(false)
@@ -544,30 +456,30 @@ const goProfile = (id) => {
 }
 
 // 删除帖子成功后，从信息流里移除（按 类型+id 精确匹配，避免与文章 id 冲突）
-const handleDeleteThread = (discussion) => {
-  feedItems.value = feedItems.value.filter(
-    item => !(item.type === 'discussion' && item.id === discussion.id)
-  )
-}
+const handleDeleteThread = () => { fetchThreads(true); fetchTags(); picksVersion.value++ }
 
 onMounted(() => {
   checkScreenSize()
   window.addEventListener('resize', checkScreenSize)
   fetchThreads(true)
+  fetchTags()
   fetchNoticeBar()
   fetchSpotlight()
 })
 
 // 监听类型/排序/话题变化：重置到第 1 页并重拉
 watch([contentType, sortType, topicFilter], () => {
+  router.replace({ query: { ...route.query, type: contentType.value === 'all' ? undefined : contentType.value, sort: sortType.value === 'hot' ? undefined : sortType.value, category: topicFilter.value || undefined } })
+})
+watch(() => route.query, () => {
+  contentType.value = String(route.query.type || 'all')
+  sortType.value = String(route.query.sort || 'hot')
+  topicFilter.value = String(route.query.category || '')
   fetchThreads(true)
 })
 
 // 切换离开「招人」话题时清空待提交的 project_id（XLab 引流优化 §9.5）：
 // 关联项目行随话题隐藏，残留的选中值不再随隐藏字段误提交
-watch(() => newThread.value.category, (cat) => {
-  if (cat !== 'recruit') newThread.value.project_id = null
-})
 
 onUnmounted(() => {
   window.removeEventListener('resize', checkScreenSize)
@@ -575,6 +487,7 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+
 /* 背景和布局 —— 液态玻璃需要的彩色极光底（亮/暗各一套） */
 .community-view-container {
   min-height: 100vh;
@@ -1651,7 +1564,7 @@ onUnmounted(() => {
   }
   .right-sidebar .post-entry { grid-column: 1 / -1; margin-bottom: 0; }
   .right-sidebar .write-entry { margin-bottom: 0; }
-  .right-sidebar .community-xlab-slot { grid-column: 1 / -1; }
+  .right-sidebar .community-picks { grid-column: 1 / -1; }
 
   .spotlight-track { grid-template-columns: 1fr; }
 
@@ -1869,4 +1782,17 @@ onUnmounted(() => {
 .create-thread-form {
   padding: 10px 0;
 }
+.mobile-picks { margin-bottom: 18px; color: var(--dew-text-muted); font-size: 13px; }
+.mobile-picks summary { padding: 12px 4px; cursor: pointer; }
+@media (max-width: 900px) {
+  .community-main-container { padding-top: 24px; }
+  .right-sidebar { display: flex; gap: 12px; align-items: stretch; }
+  .right-sidebar .post-entry, .right-sidebar .write-entry { flex: 1; margin: 0; }
+  .right-sidebar .write-entry__desc { display: none; }
+  .right-sidebar .write-entry :deep(.dew-card__body) { padding: 12px; }
+}
+
+.community-feed-error { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--dew-text-muted); }
+.filter-bar__left { flex-wrap: wrap; }
+@media (max-width: 600px) { .filter-bar { gap: 12px; } }
 </style>
