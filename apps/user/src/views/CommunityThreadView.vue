@@ -23,7 +23,7 @@
           </button>
 
           <!-- 加载骨架 / 不存在 -->
-          <DewCard v-if="loading" variant="flat" size="lg">
+          <DewCard v-if="loading" glass no-hover size="lg">
             <div style="display: flex; gap: 12px; align-items: flex-start;">
               <DewSkeleton variant="circle" :size="40" />
               <div style="flex: 1; display: flex; flex-direction: column; gap: 10px;">
@@ -32,13 +32,13 @@
               </div>
             </div>
           </DewCard>
-          <DewCard v-else-if="!thread" variant="flat" size="lg">
+          <DewCard v-else-if="!thread" glass no-hover size="lg">
             <div class="empty-hint">帖子不存在或已删除</div>
           </DewCard>
 
           <template v-else>
             <!-- 帖子本体 -->
-            <DewCard variant="flat" size="lg" class="thread-card">
+            <DewCard glass no-hover size="lg" class="thread-card">
               <div class="t-tags">
                 <DewTag type="neutral" size="sm" round>讨论</DewTag>
                 <button v-for="tag in thread.tags" :key="tag.id" class="tag-link" @click="router.push({ path: '/community', query: { tag: tag.id } })"># {{ tag.name }}</button>
@@ -59,7 +59,7 @@
                 </div>
               </div>
               <p v-if="thread.is_closed" class="closed-notice">该帖子已停止讨论。楼主的正文和图片已隐藏，历史评论继续保留。</p>
-              <template v-else><div class="t-content">{{ thread.content }}</div><p class="word-hint">{{ thread.word_count }} 字 · 字数不含空白和标点</p></template>
+              <template v-else><div class="t-content">{{ thread.content }}</div><p class="word-hint">{{ thread.word_count }} 字</p></template>
               <div v-if="images.length" :class="['t-images', `t-images--${Math.min(images.length, 4)}`]">
                 <DewImage v-for="(img, i) in images" :key="img" class="t-images__item"
                           :src="img" ratio="4/3" alt="帖子图片" @click="openViewer(i)" />
@@ -79,9 +79,8 @@
             </DewCard>
 
             <!-- 回复区 -->
-            <DewCard variant="flat" size="lg" class="replies-card">
+            <DewCard glass no-hover size="lg" class="replies-card">
               <h2 class="discussion-heading">一起聊聊 <span>{{ thread.reply_count }} 条评论</span></h2>
-              <p class="word-hint">说说你的想法，一起把讨论聊下去。</p>
               <div v-if="writable" class="reply-editor">
                 <label for="root-comment">发表评论</label>
                 <DewInput ref="replyInput" id="root-comment" v-model="replyContent" type="textarea" :rows="5" :disabled="replying" placeholder="说说你的想法…" />
@@ -291,6 +290,12 @@ onUnmounted(() => { sequence++; window.removeEventListener('resize', checkScreen
 
 .thread-main-container { flex: 1; padding: 24px 20px 60px; max-width: 860px; margin: 0 auto; width: 100%; box-sizing: border-box; }
 .thread-col { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+.thread-col > .dew-card {
+  --dew-card-glass-bg-hover: var(--dew-card-glass-bg);
+  --dew-card-glass-shadow-hover: var(--dew-card-glass-shadow);
+}
+.thread-col > .dew-card :deep(.dew-card__refraction),
+.thread-col > .dew-card :deep(.dew-card__chromatic) { display: none; }
 
 .back-link {
   display: inline-flex; align-items: center; gap: 5px; align-self: flex-start;
