@@ -6,14 +6,14 @@
       </div>
       <section v-if="readingTag" class="composer-book">
         <label>书名 <span class="required">必填</span></label>
-        <DewInput ref="bookInput" v-model="bookSearchModel" placeholder="搜索书名，或填写书单外的书籍" clearable @focus="bookSuggestionsOpen = true" @keydown.esc="bookSuggestionsOpen = false" />
+        <DewInput class="community-input" ref="bookInput" v-model="bookSearchModel" placeholder="搜索书名，或填写书单外的书籍" clearable @focus="bookSuggestionsOpen = true" @keydown.esc="bookSuggestionsOpen = false" />
         <div v-if="bookSuggestionsOpen && bookOptions.length" class="composer-book-options" role="listbox" aria-label="书名联想"><button v-for="book in bookOptions" :key="book.id" type="button" role="option" :aria-selected="draft.book_id === book.id" @click="chooseBook(book)"><strong>{{ book.title }}</strong><span>{{ book.author }}</span></button></div>
-        <DewInput v-if="!draft.book_id" v-model="draft.book_author" placeholder="作者（选填）" />
+        <DewInput class="community-input" v-if="!draft.book_id" v-model="draft.book_author" placeholder="作者（选填）" />
         <div v-if="bookThreads.length" class="composer-book-topics"><span>这本书已有讨论，可以直接去评论：</span><a v-for="topic in bookThreads.slice(0, 2)" :key="topic.id" :href="router.resolve(`/community/thread/${topic.id}`).href" target="_blank" rel="noopener">{{ topic.title }}<el-icon><ArrowRight /></el-icon></a></div>
         <span class="composer-hint">首帖需要书名和至少一张图片。已经读过这本书的同学可以直接在帖下评论。</span>
       </section>
-      <div class="composer-field"><label>分享标题</label><DewInput v-model="draft.title" placeholder="用一句话说说，你想分享什么（至少 4 字）" /></div>
-      <div class="composer-field"><label>{{ readingTag ? '我的阅读心得' : '正文' }}</label><DewInput ref="contentInput" v-model="draft.content" type="textarea" :rows="7" :placeholder="readingTag ? '哪一段让你停下来思考？它让你想起了什么？' : '分享你的想法（至少 10 字）'" />
+      <div class="composer-field"><label>分享标题</label><DewInput class="community-input" v-model="draft.title" placeholder="用一句话说说，你想分享什么（至少 4 字）" /></div>
+      <div class="composer-field"><label>{{ readingTag ? '我的阅读心得' : '正文' }}</label><DewInput class="community-input" ref="contentInput" v-model="draft.content" type="textarea" :rows="7" :placeholder="readingTag ? '哪一段让你停下来思考？它让你想起了什么？' : '分享你的想法（至少 10 字）'" />
         <div class="composer-tools"><CommunityEmojiPicker :disabled="submitting" @select="contentInput?.insertText($event)" /><div class="composer-counter" aria-live="polite"><span>已输入 {{ countWords(draft.content) }} 字<span v-if="readingTag"> · 建议约 {{ readingTag.suggested_words }} 字</span></span><span :class="{ over: contentLength(draft.content) > 10000 }">{{ contentLength(draft.content) }} / 10000 字符</span></div></div>
         <small class="composer-hint">字数不含空白和标点<span v-if="readingTag">；不足建议字数也可以发布</span>。</small>
       </div>
@@ -124,6 +124,10 @@ async function submit(allowDuplicate) {
 </script>
 
 <style scoped>
+/* Keep community editor sizing local, including inputs teleported into dialogs. */
+.community-input, .community-input :deep(.dew-input__inner) { box-sizing: border-box; min-width: 0; }
+.community-input :deep(.dew-input__textarea) { max-width: 100%; overflow-wrap: anywhere; }
+
 .composer-tools{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.composer-tools .composer-counter{flex:1;min-width:180px}
 .composer-fields{border:0;padding:0;margin:0;min-width:0;display:flex;flex-direction:column;gap:21px}.community-composer{display:flex;flex-direction:column;gap:21px}.composer-field{display:flex;flex-direction:column;gap:9px}.composer-field label,.composer-book label{font-size:13px;font-weight:650;color:var(--dew-text-heading)}label span{margin-left:7px;font-weight:400;font-size:11px;color:var(--dew-text-faint)}.required{color:var(--dew-text-muted)}
 .composer-chips{display:flex;gap:8px;flex-wrap:wrap}.composer-chips button{display:flex;gap:5px;align-items:center;border:1px solid var(--dew-card-flat-border);border-radius:20px;padding:7px 13px;font-size:12px;cursor:pointer;color:var(--dew-text-muted);background:var(--dew-card-flat-bg)}.composer-chips button.selected{background:var(--dew-text-heading);color:var(--dew-card-flat-bg);border-color:var(--dew-text-heading)}
