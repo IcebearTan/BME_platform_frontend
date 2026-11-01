@@ -3,7 +3,7 @@
     <DewPopover v-model="open" width="min(264px, calc(100vw - 24px))" :show-arrow="false" :offset="8">
       <template #trigger><DewButton class="picker-trigger" size="sm" :active="!!modelValue.length" :aria-expanded="open" aria-haspopup="listbox"><span class="picker-label">{{ label }}</span><el-icon class="picker-chevron" :class="{ 'is-open': open }"><ArrowDown /></el-icon></DewButton></template>
       <section class="tag-picker-menu" @keydown.esc.stop="open = false">
-        <div class="tag-picker-search"><DewInput v-model="query" size="sm" :prefix-icon="Search" placeholder="搜索标签" clearable /></div>
+        <div class="tag-picker-search"><DewInput class="community-input" v-model="query" size="sm" :prefix-icon="Search" placeholder="搜索标签" clearable /></div>
         <div class="tag-picker-options" role="listbox" aria-label="选择社区标签" :aria-multiselectable="multiple">
           <button v-if="!multiple" type="button" class="tag-picker-option tag-picker-all" role="option" :aria-selected="!modelValue.length" @click="select(null)">
             <span class="tag-picker-symbol" aria-hidden="true"><el-icon><Grid /></el-icon></span>
@@ -44,6 +44,10 @@ watch(open, () => { query.value = '' })
 </script>
 
 <style scoped>
+/* Keep community editor sizing local, including inputs teleported into dialogs. */
+.community-input, .community-input :deep(.dew-input__inner) { box-sizing: border-box; min-width: 0; }
+.community-input :deep(.dew-input__textarea) { max-width: 100%; overflow-wrap: anywhere; }
+
 .community-tag-picker { display: inline-flex; align-items: center; gap: 3px; min-width: 0; }
 .picker-trigger { height: 34px; }
 .picker-trigger :deep(.dew-btn__content), .picker-trigger :deep(.dew-btn__measure) { font-size: 13px; font-weight: 500; letter-spacing: normal; }

@@ -83,7 +83,7 @@
               <h2 class="discussion-heading">一起聊聊 <span>{{ thread.reply_count }} 条评论</span></h2>
               <div v-if="writable" class="reply-editor">
                 <label for="root-comment">发表评论</label>
-                <DewInput ref="replyInput" id="root-comment" v-model="replyContent" type="textarea" :rows="5" :disabled="replying" placeholder="说说你的想法…" />
+                <DewInput class="community-input" ref="replyInput" id="root-comment" v-model="replyContent" type="textarea" :rows="5" :disabled="replying" placeholder="说说你的想法…" />
                 <div class="editor-footer"><div class="editor-tools"><CommunityEmojiPicker :disabled="replying" @select="replyInput?.insertText($event)" /><span class="word-hint">{{ countWords(replyContent) }} 字<span v-if="readingTag"> · 建议约 {{ readingTag.suggested_words }} 字</span> · {{ contentLength(replyContent) }}/10000 字符</span></div>
                   <DewButton :loading="replying" :disabled="!validComment(replyContent)" @click="submitReply">发布评论</DewButton></div>
               </div>
@@ -108,7 +108,7 @@
 
     <CommunityComposer v-if="thread" v-model="editOpen" :tags="tags" :thread="thread" @published="onEdited" />
     <DewDialog v-model="commentDialog" :title="editingComment ? '编辑评论' : `回复 ${replyTarget?.author_name || ''}`" width="min(680px, 94vw)" :close-on-click-modal="false">
-      <DewInput ref="dialogInput" v-model="dialogContent" type="textarea" :rows="8" :disabled="dialogSaving" placeholder="写下你的想法" />
+      <DewInput class="community-input" ref="dialogInput" v-model="dialogContent" type="textarea" :rows="8" :disabled="dialogSaving" placeholder="写下你的想法" />
       <div class="editor-tools dialog-tools"><CommunityEmojiPicker :disabled="dialogSaving" @select="dialogInput?.insertText($event)" /><p class="word-hint">{{ countWords(dialogContent) }} 字<span v-if="readingTag"> · 建议约 {{ readingTag.suggested_words }} 字</span> · {{ contentLength(dialogContent) }}/10000 字符</p></div>
       <template #footer><DewButton :disabled="dialogSaving" @click="commentDialog = false">保留草稿并关闭</DewButton><DewButton :loading="dialogSaving" :disabled="!validComment(dialogContent)" @click="saveDialog">{{ editingComment ? '保存修改' : '发布回复' }}</DewButton></template>
     </DewDialog>
@@ -261,6 +261,10 @@ onUnmounted(() => { sequence++; window.removeEventListener('resize', checkScreen
 </script>
 
 <style scoped>
+/* Keep community editor sizing local, including inputs teleported into dialogs. */
+.community-input, .community-input :deep(.dew-input__inner) { box-sizing: border-box; min-width: 0; }
+.community-input :deep(.dew-input__textarea) { max-width: 100%; overflow-wrap: anywhere; }
+
 /* 与社区主页同款降噪极光底（CommunityView 同源口径） */
 .community-view-container { min-height: 100vh; }
 .theme-light.community-view-container {

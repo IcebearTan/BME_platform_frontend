@@ -261,8 +261,6 @@ defineExpose({ focus, insertText })
 
 <style scoped>
 .dew-input {
-  box-sizing: border-box;
-  min-width: 0;
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -431,8 +429,6 @@ defineExpose({ focus, insertText })
 
 /* ━━━━ 输入框 ━━━━ */
 .dew-input__inner {
-  box-sizing: border-box;
-  min-width: 0;
   position: relative;
   z-index: 3;
   width: 100%;
@@ -528,8 +524,6 @@ defineExpose({ focus, insertText })
 .dew-input__textarea {
   display: block;
   width: 100%;
-  max-width: 100%;
-  overflow-wrap: anywhere;
   min-height: 80px;
   resize: vertical;
   border: none;
