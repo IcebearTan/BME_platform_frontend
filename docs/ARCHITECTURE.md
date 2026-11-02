@@ -1,8 +1,9 @@
 # BME 平台前端架构设计指南
 
-> 版本:2026-09-11(营期重构 1a/阶段1/2 + jiayuanpush 合并后校准;首版 2026-08-24)
+> 版本:2026-11-01 规范入口与现行实现校准；历史领域增补保留原日期（首版 2026-08-24）
 > 读者:后续开发者与维护成员;也供 AI 辅助开发时作为权威上下文
-> 定位:本文件是前端架构的**单一权威源**。仓内 `docs/` 只放被 git 跟踪并持续维护的规格(本文 + 营期IA规范 + 营期重构设计方案);计划/参考/记录/归档在本地根目录 `../docs/`(不入库,跨机手动同步),与本文冲突处以本文与代码为准。
+> 定位:本文件负责前端架构与领域边界。完整规范入口见 [docs/README.md](README.md)，编码助手工作流见 [AGENTS.md](../AGENTS.md)，接口、视觉与验收分别在 `docs/standards/` 维护。计划/参考/记录/归档在工作区 `../docs/`；文档与实现冲突须核对并校准，不能直接复制历史规则。
+> 日期段落中的“本轮仅检查”“不执行全量”等是当时的执行记录，不是新任务的永久限制；当前验证范围以 [QUALITY.md](standards/QUALITY.md) 和本次用户要求为准。
 
 ---
 
@@ -30,12 +31,12 @@ BME_platform_frontend/
 │   ├── user/      # 用户端(不 import admin 的任何东西)
 │   └── admin/     # 管理端(不 import user 的任何东西)
 ├── packages/      # 共享层,依赖只能向下
-│   ├── styles/    # @bme/styles   tokens.css(310 变量)+ article-content.css + 自托管高亮资产
-│   ├── dew-ui/    # @bme/dew-ui   19 个液态玻璃组件(零业务知识)
+│   ├── styles/    # @bme/styles   tokens.css + backgrounds.css + article-content.css + 自托管高亮资产
+│   ├── dew-ui/    # @bme/dew-ui   共享视觉组件，实际导出以 index.js 为准
 │   ├── api/       # @bme/api      axios 客户端工厂 + 401 处理器(零 UI 框架硬依赖)
 │   └── editor/    # @bme/editor   md-editor-v3 自托管配置(side-effect 模块)
 ├── e2e/           # Playwright 冒烟安全网(双 webServer)
-└── docs/          # 规格层(git 跟踪):本指南 + 营期IA规范 + 营期重构设计方案
+└── docs/          # 规格层(git 跟踪):索引、架构、standards 与领域规格
 ```
 
 **依赖方向**(只允许向下,禁止横向与反向):
@@ -63,7 +64,7 @@ apps/admin ┘   @bme/editor
 ### 4.1 核心配方
 
 - **玻璃卡片四层结构**(DewCard 内置):毛玻璃底(`backdrop-filter: blur(20px) saturate(1.4)` + `--dew-card-bg`)+ 鼠标跟随折射层 + 色散层 + 顶部高光线;弹性动效统一 `--dew-bounce` 曲线。
-- **极光衬底**:玻璃卡片依赖父层衬底出彩。admin 的衬底单源是 `global.css` 的 `.aurora-bg`(布局、登录、注册页共用);user 端以 HomeView 为准。**不要在玻璃卡下面再垫纯色块**。
+- **极光衬底**:玻璃卡片依赖父层衬底出彩。admin 的衬底单源是 `global.css` 的 `.aurora-bg`(布局、登录、注册页共用);user 通用页面背景已提取到 `@bme/styles/backgrounds.css` 的 `.dew-page-background`，新增页面直接复用，不再复制 HomeView 配方。实心内容区按可读性需要使用，不给玻璃容器另垫装饰性纯色层。
 - **flat 变体**:阅读/文档场景用 `variant="flat"`(纯色、无 glass、hover 零反馈),避免长文本在玻璃上晃动。
 - **深色模式**:选择器约定 `.theme-dark`(挂在 body 与根 div),tokens 在 `.theme-dark` 下重定义。写组件样式时必须同时考虑两态。
 
@@ -82,7 +83,7 @@ apps/admin ┘   @bme/editor
 </style>
 ```
 
-### 4.3 组件速查(19 个,均在 `@bme/dew-ui`)
+### 4.3 组件速查（公共导出以 `packages/dew-ui/index.js` 为准）
 
 | 组件 | 关键 props | 用途 |
 |---|---|---|
@@ -91,9 +92,9 @@ apps/admin ┘   @bme/editor
 | DewInput | v-model、type(含 password 显隐)、size、prefixIcon/suffixIcon、clearable、error | 表单输入,配 el-form-item 使用 |
 | DewDialog / DewMessageBox / DewMessage | v-model / 命令式 | 弹窗与 Toast(Toast 极简:单图标+色,不加彩色底) |
 | DewSelect / DewSwitch / DewDropdown / DewPopover | v-model 系 | 表单与浮层 |
-| DewTag / DewBadge / DewProgress / DewSkeleton | type/size 系 | 状态展示;列表加载态一律 DewSkeleton |
+| DewTag / DewBadge / DewProgress / DewSkeleton / DewImage | 各组件 props 见源码 | 状态展示、数据骨架与图片三态 |
 | DewIsland / DewIslandGroup | items | user 端首页岛栏 |
-| DewSidebar / DewSidebarNode | items、collapsible | 侧栏树 |
+| DewSidebar | 实际 props 见源码 | 侧栏树；DewSidebarNode 是内部组件，不从包根导出 |
 | DewButtonBar / DewPostCard | items / post | 按钮组与帖子卡 |
 
 ### 4.4 Element Plus 桥接策略(两端各自的"EP 皮肤")
@@ -107,7 +108,7 @@ EP 是结构层,不做逐个替换;通过全局 CSS 把 EP 拉进设计系统:
 
 ### 4.5 UI 硬约束(多条返训沉淀,违反必返工)
 
-1. 图标一律 `@element-plus/icons-vue` 或 SVG，**杜绝 emoji**。禁令同时覆盖界面、用户文案、Toast、日志和源码注释；提交前运行 `pnpm check:no-emoji`。用户明确要求的正文表情选择器是内容输入工具，其唯一数据文件 `apps/user/src/components/Community/communityEmoji.js` 例外；按钮仍用图标库。
+1. 图标一律 `@element-plus/icons-vue` 或 SVG，**杜绝 emoji**。禁令同时覆盖界面、用户文案、Toast、日志和源码注释；提交前运行 `pnpm check:no-emoji`。
 2. **禁止默认蓝紫渐变**装饰;用中性色/玻璃/语义色。
 3. DewMessage/Toast 极简:单图标 + 色。
 4. 新 Dew 组件先上 `UiShowcaseView`(user 端)验证再接业务。
@@ -130,7 +131,8 @@ EP 是结构层,不做逐个替换;通过全局 CSS 把 EP 拉进设计系统:
 
 ### 5.1 @bme/styles
 
-- `tokens.css`:`--dew-*` 玻璃配方与 `--color-*` 的**权威源**,两端 main.js 首先引入;
+- `tokens.css`:`--dew-*` 玻璃配方与 `--color-*` 的**权威源**，两端由 main.js 引入；admin 后续加载 variables/global 桥接；
+- `backgrounds.css`:用户端通用 `.dew-page-background` 明暗页面衬底，由 user main.js 引入；
 - `article-content.css`:文章正文样式单源;`copy-to-public.mjs` 在各 app `predev`/`prebuild` 时把产物复制进 `public/`(生成物已 gitignore);
 - admin 额外有 `apps/admin/src/styles/variables.css`(结构变量:spacing/字号/阴影/`--primary-color`),与 tokens.css 形成**双轨**:玻璃配方看 tokens,结构节奏看 variables——这是清债后的既成事实,新样式优先用已有变量,不新造。
 
@@ -170,7 +172,7 @@ const api = createApiClient({
 - **主题**:`store.isDarkMode` → body 与 `#app` 同步挂 `theme-dark/theme-light`(App.vue watch);
 - **路由守卫**:`meta.requiresAuth` 未登录跳登录页并带 `redirect` 回跳;已登录禁入 login/register;
 - **文章双轨**:v1(ArticleView/ArticleEditorView)与 v2(ArticleViewV2/ArticleEditorV2,md-editor-v3)并存,新功能一律 v2;v1 下线是既定清债项(见 §11)。
-- **营期域**(2026-09 重构后):规范源= `docs/营期模块-设计与IA规范.md`(IA/状态渲染,唯一规范来源)与 `docs/营期升级重构-设计方案.md` v1.2(数据模型/流程,阶段3项目营未实施)。要点:视角纪律=看**营内角色**(`sessions` 回包 `my_roles` / `available_perspectives`，`my_role` 仅兼容旧单身份)而非全局 role(1a 身份解耦后全局仅 super_admin/user,旧 mentor/student 比较一律无效);营期中心 `/camp` 纯导航(五分组卡片),报名唯一入口=营期工作台内 CampJoin;导生市集 `/camp/:sid/market` 是营期域内全出血子路由(IA 规范 §1.2 例外);学员收藏与志愿窗口同门禁(collecting)。
+- **营期域**:规范源为 `docs/营期模块-设计与IA规范.md` 的现行口径与本指南领域补充；`docs/营期升级重构-设计方案.md` 保留阶段设计，当前项目营/独立项目以 §7 已落地契约为准。视角看**营内角色**(`sessions` 回包 `my_roles` / `available_perspectives`，`my_role` 仅兼容旧单身份)而非全局 role(全局仅 super_admin/user)；营期中心 `/camp` 纯导航(五分组卡片)，报名入口在营期工作台内 CampJoin；导生市集 `/camp/:sid/market` 是营期域内全出血子路由；学员收藏与志愿窗口同门禁(collecting)。
 
 ## 7. admin 端架构要点
 
@@ -267,15 +269,15 @@ ProjectBoard 作为可按 section 挂载的业务适配器，ProjectMilestones �
 - 旧路径兼容用**函数式 redirect 记录**保 query/params(集中在各域 routes.js 的 `*Redirects` 导出);
 - 营期工作区:`/camps/:campId/*` 嵌套叶子 + provide/inject 上下文(`domains/camps/context/campContext.js`)+ `workspaceNav.js` 谓词单源(导航可见性/路由守卫/blocked 原因共用)。
 
-### 7.4 已知的"只读页"
+### 7.4 用户管理当前能力
 
-`UserManage` 是只读列表——后端暂无 admin 用户管理接口(`admin.py` 仅 /overview),**不要在前端恢复编辑/删除按钮**,除非后端先补接口(见 §11 债务表)。
+`UserManage.vue` 已有编辑与封禁/解封能力，分别调用 `PUT /admin/users/<id>` 与 `/status`，不是只读列表。封禁保留既有内容与业务归属；不恢复物理删除入口。具体字段和权限核对组件与后端 `admin` 路由，不沿用早期“暂无接口”的审查结论。
 
 ## 8. 状态与键名规范
 
 - Vuex + `vuex-persistedstate`;**持久化键**:`bme-user-state` / `bme-admin-state`;**token 键**:`bme-user-token` / `bme-admin-token`;
 - 两 app 同域,任何新 localStorage 键必须带 `-user-`/`-admin-` 段;
-- 登录态真相源:localStorage token(store 从中初始化);页面级权限以 `/user/user_index` 拉取的 user 为准。
+- 登录态真相源为 `authSession`，守卫先 bootstrap；cookie 模式 access 仅内存，compat 的 localStorage 读写由门面封装，store 消费同步结果。旧裸 `token` 键及“组件直读 localStorage 判登录”规则不再适用；身份与业务权限使用接口返回的当前字段。
 
 ## 9. 工程化
 
@@ -289,19 +291,19 @@ ProjectBoard 作为可按 section 挂载的业务适配器，ProjectMilestones �
 
 - **不要在仓库根直接 `npx vite`**:app 的 vite.config 依赖 cwd 读各自 package.json 注入 `__APP_VERSION__`;一律走根 scripts 或进 `apps/*` 目录;
 - env:`.env.development` 被 gitignore(内容 `VITE_API_BASE_URL=http://127.0.0.1:5001`),新 clone 后两 app 各建一份;`.env.preview` 仅指向 5002 演示 API,禁止混用;`.env.test` 固定 5001 并使用独立前端端口;
-- Windows 开发机:Node ≥ 18 手动切换,重新 clone 本仓,按 README 建 env;
-- 提交规范:中文 conventional commits(`feat(camp): …`/`refactor(admin): …`);分支模型:`master`(稳定)+ `Icebear_develop`(日常开发,稳定后合回)。**不做一批次一分支**;
-- **项目级 Claude skills 随仓库分发**(`.claude/skills/`,已放行 gitignore;个人 `settings.local.json` 仍忽略):`bme-admin-page`(新增管理页)、`bme-dewui`(DewUI/视觉调整)、`bme-e2e`(测试编写)。它们是本指南的程序性投影,权威源仍是本文——改架构先改文档再改 skill。
+- Windows 开发机:使用与 packageManager 及工具链兼容的 Node/pnpm，按 README 建 env；本仓当前未提供 `.nvmrc`，旧 Node ≥18 说明不能作为现行最低要求；
+- 提交规范:中文 conventional commits(`feat(camp): …`/`refactor(admin): …`)；分支与发布按 [团队协作约定](../CONTRIBUTING.md)：功能进入 develop 共享测试，release 留存版本，master 供生产发布，现场修复使用 hotfix 并回流。Icebear 本次维护工作区使用 `hotfix/server-maintenance`，其他贡献者不必切入；旧远端维护入口暂留协作；不自动同步 master。优先复用适用的 checkout/worktree；分支清理先核对包含关系、未推送提交与 worktree 状态及归属；
+- **项目级 Claude skills 随仓库分发**(`.claude/skills/`,个人 `settings.local.json` 仍忽略):`bme-admin-page`、`bme-dewui`、`bme-e2e` 提供历史流程模板，部分数量与示例待逐项更新。Codex 与其他助手统一从 AGENTS 和 docs 索引读取现行规则，不依赖特定工具识别 `.claude/skills/`；通用设计 skill 不覆盖 BME 的栈、字体、资源与视觉要求。
 
 ## 10. 质量保障
 
-### 10.1 e2e 冒烟网(32 条,6 个 spec,`e2e/*.spec.js`)
+### 10.1 e2e 安全网（用例与配置以 `e2e/` 实际文件为准）
 
 - user/admin 测试服务使用独立端口 18081/15173,不复用 8081/5173 的开发或预览进程;
 - 5002 预览 API 有独立契约测试:关键管理数据结构、已知空列表结构、未知路由必须 404;
-- **不依赖后端**:`page.route` 拦截全部 API——user 端 mock 登录态恒 `role:'user'`、admin 端 mock `super_admin`(两级角色,**勿再用旧 teacher/mentor/student 角色值,会掩盖漂移**);营期用例的 `sessions` 回包带 `my_role`,其余统一 200 空数据;
-- 用例覆盖:两端登录页渲染、user 路由跳转、DewUI 展示页、admin 布局壳、md-editor 挂载、用户管理页只读、营期中心五分组与报名选组/占位卡/申请撤回、导生市集状态机(志愿收集/结果门禁/打烊/导生勾选)、邮箱式通知收件箱与感谢信(直达/写信/频控),以及预览 API 契约;
-- **新增页面请配一条用例**;pageerror 断言是抓"模板引用不存在绑定"类事故的利器(批次 6 教训)。
+- 多数页面用例通过 `page.route` 隔离 API：全局角色 user 使用 `user`、admin 使用 `super_admin`；营内职责字段仍使用真实职责值。鉴权测试显式覆盖 cookie/compat，营期按真实契约提供 `my_roles` / `available_perspectives`。目标接口不能仅用统一 200 空对象兜底，需校验结构、参数与失败行为；专项配置的服务启动要求各自确认。
+- 用例分布覆盖双端页面、鉴权、DewUI 展示、营期/项目、社区、通知、积分、工作台入口及预览 API 契约等；具体范围通过默认/专项配置的 `--list` 查看，不用旧数量和早期“只读用户管理”清单描述当前覆盖；
+- 新页面与关键行为补相应风险的用例；交互收集并断言 pageerror，避免只验证挂载而漏掉点击后的模板错误。验证范围和完成标准统一见 [QUALITY.md](standards/QUALITY.md)。
 
 ### 10.2 变更检查清单(提交前自查)
 
@@ -314,15 +316,15 @@ ProjectBoard 作为可按 section 挂载的业务适配器，ProjectMilestones �
 - [ ] 无 console.log 残留、无注释掉的死代码块
 - [ ] 新组件/页面无 emoji 图标、无蓝紫渐变
 
-## 11. 已知债务与路线图(2026-09-11 校准)
+## 11. 已知债务与路线图（历史盘点；已核对项注明现状）
 
 > 全量待办(含非架构项、跨仓项)见本地根目录 `../docs/待办总账.md`(不入库);下表只列架构相关且仍有效的项。
 
 | 优先级 | 项 | 说明 |
 |---|---|---|
 | 中 | user 端 v1 文章双轨下线 | **v1 不是死码**——旧格式文章(articleVersion≠2)的现役渲染器,StudyHub/收藏夹按版本分流;下线需先做旧文内容迁移(后端配合) |
-| 中 | LLM 三页深色模式 | 纯浅色硬编码(111 处色值),需整体 token 化重设计 |
-| 低 | admin EP 按需引入 | manualChunks 已拆 vendor(主 chunk 2462→1277 kB,09-11);unplugin 按需引入属工程化批 |
+| 中 | LLM 三页深色模式 | 2026-09 历史盘点存在纯浅色硬编码，具体余量需重新核对；新增/改造区域按当前视觉规范处理 |
+| 已完成 | 双端 EP 按需引入 | 当前两端 main.js 与 Vite 已使用 unplugin-vue-components；不要按旧待办重复引入或恢复全量注册 |
 
 (2026-09-11 处置:admin 用户管理已落地——编辑+封禁取代删除(flask 9a4fda8/前端 437494d),UserManage 操作列恢复——剔除;MedalManage `:rules` 已补+validate 前置,勋章图实测由前端同域静态服务不 404——剔除;注册即登录已闭环(a7a6f6f)——剔除;HomeView routeMap 已补 /editor、/public、/llm/*——剔除;导生双选后端分叉(camp_ms 已收敛 flask)——剔除;LearningProgress「课程进度设置」按遗留下线——入口 v-if="false" 禁用,整链代码休眠保留,恢复去掉该开关即可。)**注意:休眠入口代码不是可删死码,动 LearningProgress 前先看本条。**
 
@@ -332,7 +334,7 @@ ProjectBoard 作为可按 section 挂载的业务适配器，ProjectMilestones �
 2. 起 Flask 后端(另仓,5001)→ `pnpm dev:all`;
 3. 通读本文件 §2/§5/§7 → 跑 `pnpm test:e2e` 确认环境绿;
 4. 第一个任务建议从"给某管理页加一列"开始,套 §7.1 骨架;
-5. 深入设计语言:对照 `UiShowcaseView.vue` 实例(DewUI 设计语言全文在本地根目录 `../docs/记录/dev-memories/`,未随库分发);
+5. 深入设计语言:读 `docs/standards/UI-DESIGN.md` 并对照 `UiShowcaseView.vue` 与真实业务页面；核心规则已随库分发，工作区开发记忆仅供追溯；
 6. 历史背景:git log(批次提交信息即变更日志);其余计划/归档/记忆都在本地根目录 `../docs/`(计划/参考/记录/归档四区,未随库分发,跨机手动同步)。
 
 ---

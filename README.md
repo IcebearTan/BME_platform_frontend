@@ -2,6 +2,8 @@
 
 BME 平台前端 monorepo（pnpm workspace），由 `BME_frontend`（用户端）与 `BME_backend`（admin 管理端）两仓于 2026-08 合并而来，完整保留两仓 git 历史。
 
+开发前阅读 [AGENTS.md](AGENTS.md)、[团队协作约定](CONTRIBUTING.md) 与 [规范索引](docs/README.md)。
+
 ## 结构
 
 ```
@@ -85,8 +87,14 @@ pnpm exec playwright test -c e2e/playwright.reading.config.ts
 
 ## 分支
 
-- `master` — 稳定主线
-- `Icebear_develop` — 日常开发分支，稳定后合回 master
+- `master` — 生产发布主线；实际运行版本以部署提交记录为准。本次未移动旧 master，首次按新流程发布前先核对生产基线。
+- `develop` — 团队开发集成、共享测试的来源；初始指向 2026-11-02 最新已提交维护线，不表示已经部署测试环境。
+- `Icebear` — Icebear 的可选个人分支，替代 `Icebear_develop`；其他贡献者分支由本人管理。
+- `feature/*` — 功能或阶段任务；AI 日程、营期现有工作分支保留。
+- `release/<版本号>` — 每个版本候选与发布留存，发布后冻结。
+- `hotfix/*` — 服务器现场修复；本次 Icebear 维护工作区检出为 `hotfix/server-maintenance`，保留原工作内容；其他贡献者不必切入。远端 `codex/server-maintenance` 暂留给现有协作，不自动退役。
+
+开发、发布、hotfix 回流、个人规则与分支清理统一见 [CONTRIBUTING.md](CONTRIBUTING.md)。不自动同步 master 或部署；已有同事分支保持原状，本地分支、远端分支和失效跟踪引用分别管理。
 
 （2026-08 清债批次 1–6 历史为线性提交，全部包含于 master；原 debt/N-* 中间分支与 legacy/admin-master 存档线已清理，后者头部提交为 86b48b9，如需找回见本地 reflog。）
 
