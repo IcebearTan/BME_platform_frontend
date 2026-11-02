@@ -1,0 +1,10 @@
+/* 保留报 Bug 胶囊原有绿色玻璃与发光配方，仅作用于全站反馈入口。 */
+.feedback-float {
+  --dew-btn-lit-bg: rgba(34, 197, 94, 0.22);
+  --dew-btn-lit-bg-hover: rgba(34, 197, 94, 0.32);
+  --dew-btn-lit-border: rgba(34, 197, 94, 0.45);
+  --dew-btn-lit-color: #16a34a;
+  --dew-btn-lit-shadow: 0 0 18px rgba(34, 197, 94, 0.4), 0 2px 10px rgba(0, 0, 0, 0.05);
+  --dew-btn-lit-shadow-hover: 0 0 28px rgba(34, 197, 94, 0.55), 0 6px 20px rgba(0, 0, 0, 0.08);
+  --dew-btn-lit-text-shadow: 0 0 8px rgba(34, 197, 94, 0.4);
+}

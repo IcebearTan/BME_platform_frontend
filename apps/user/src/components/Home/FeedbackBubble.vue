@@ -1,273 +1,213 @@
 <template>
-  <div>
-    <!-- 反馈气泡（DewButton active 玻璃风格） -->
-    <div class="feedback-float">
-      <DewButton :active="true" size="md" :style="greenLitStyle" @click="openFeedbackDialog" @mouseover="handleMouseOver" @mouseleave="handleMouseLeave">
-        {{ bubbleText }}
+  <Teleport to="body">
+    <div class="feedback-float" data-feedback-ui>
+      <DewButton :active="true" size="md" aria-label="报个Bug" @click="openFeedbackDialog"
+        @mouseenter="bubbleHovered = true" @mouseleave="bubbleHovered = false">
+        {{ bubbleHovered ? '(^_^)' : '报个Bug' }}
       </DewButton>
     </div>
-
-    <!-- 反馈对话框 -->
-    <DewDialog v-model="dialogVisible" title="问题反馈" :width="500">
-      <el-form
-        ref="feedbackFormRef"
-        :model="feedbackForm"
-        :rules="rules"
-        label-position="top"
-        novalidate
-      >
-        <el-form-item label="问题标题" prop="title">
-          <DewInput v-model="feedbackForm.title" placeholder="请输入问题标题" />
-        </el-form-item>
-
-        <el-form-item label="反馈类型">
-          <el-select v-model="feedbackForm.category" style="width: 100%;">
-            <el-option label="问题故障（Bug）" value="bug" />
-            <el-option label="功能建议" value="feature_request" />
-            <el-option label="内容问题" value="content_issue" />
-            <el-option label="账号问题" value="account_issue" />
-            <el-option label="其他反馈" value="other" />
-          </el-select>
-        </el-form-item>
-
-        <el-form-item label="问题描述" prop="content">
-          <DewInput
-            v-model="feedbackForm.content"
-            type="textarea"
-            :rows="5"
-            placeholder="请详细描述您遇到的问题..."
-          />
-        </el-form-item>
-
-        <el-form-item label="相关图片">
-          <el-upload
-            v-model:file-list="fileList"
-            :on-preview="handlePreview"
-            :on-remove="handleRemove"
-            :before-upload="beforeUpload"
-            list-type="picture-card"
-            :limit="1"
-            accept="image/*"
-            :auto-upload="false"
-          >
-            <el-icon><Plus /></el-icon>
-            <template #tip>
-              <div class="el-upload__tip">
-                只能上传jpg/png/gif文件，且不超过2MB，最多1张
-              </div>
-            </template>
-          </el-upload>
-        </el-form-item>
-      </el-form>
-
-      <template #footer>
-        <DewButton @click="handleClose">取消</DewButton>
-        <DewButton :active="true" :disabled="isSubmitting" @click="submitFeedback">
-          {{ isSubmitting ? '提交中…' : '提交反馈' }}
-        </DewButton>
-      </template>
-    </DewDialog>
-
-    <!-- 图片预览对话框 -->
-    <DewDialog v-model="previewVisible" title="图片预览" :width="600">
-      <img :src="previewImageUrl" style="width: 100%; height: auto; border-radius: 12px;" />
-    </DewDialog>
-  </div>
+  </Teleport>
+  <el-dialog v-model="dialogVisible" title="问题反馈" width="min(560px, calc(100vw - 24px))"
+    :z-index="REPORTER_LAYER + 1" modal-class="feedback-report-overlay" class="feedback-report-dialog"
+    :close-on-click-modal="false" :before-close="closeDialog">
+    <el-alert v-if="!isLoggedIn" title="登录后即可提交反馈，已填写的内容会在当前窗口保留。" type="info" :closable="false" />
+    <el-alert v-if="submitError" :title="submitError" type="error" :closable="false" />
+    <el-form ref="feedbackFormRef" :model="form" :rules="rules" label-position="top" novalidate :disabled="isSubmitting">
+      <el-form-item label="问题标题" prop="title">
+        <DewInput v-model="form.title" :disabled="isSubmitting" placeholder="一句话描述遇到的问题" />
+      </el-form-item>
+      <el-form-item label="反馈类型">
+        <el-select v-model="form.category" :teleported="false" style="width: 100%">
+          <el-option v-for="option in categories" :key="option.value" :value="option.value" :label="option.label" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="问题描述" prop="content">
+        <DewInput v-model="form.content" type="textarea" :rows="4" :disabled="isSubmitting"
+          placeholder="刚才进行了什么操作？期望与实际结果分别是什么？" />
+      </el-form-item>
+      <section class="feedback-snapshot" aria-label="页面快照">
+        <div class="feedback-snapshot-head">
+          <strong>页面快照</strong>
+          <DewButton v-if="snapshotUrl" type="ghost" size="sm" :disabled="isSubmitting" @click="removeSnapshot">移除</DewButton>
+          <DewButton v-else type="ghost" size="sm" :loading="capturing" :disabled="isSubmitting" @click="takeSnapshot">重新采集</DewButton>
+        </div>
+        <div v-if="capturing" role="status"><DewSkeleton variant="rect" width="100%" :height="100" />正在生成当前页面快照…</div>
+        <button v-else-if="snapshotUrl" type="button" class="feedback-snapshot-preview" aria-label="预览页面快照" :disabled="isSubmitting" @click="preview(snapshotUrl)">
+          <DewImage :src="snapshotUrl" alt="当前页面快照" width="100%" :height="132" fit="contain" :lazy="false" />
+        </button>
+        <p v-else class="feedback-muted" role="status">{{ snapshotError || '未附带页面快照，可继续提交或手动上传图片。' }}</p>
+        <p class="feedback-muted">自动记录打开反馈时的可见页面，可预览或移除；仅在提交时发送。</p>
+        <p v-if="pageContext" class="feedback-source">来源：{{ pageContext.url }}</p>
+      </section>
+      <el-form-item label="补充图片（可选）">
+        <el-upload v-model:file-list="fileList" :auto-upload="false" :limit="1"
+          accept="image/jpeg,image/png,image/webp,image/gif" list-type="picture"
+          :on-change="validateFile" :on-preview="previewUpload" :on-exceed="uploadExceeded">
+          <DewButton size="sm" :disabled="isSubmitting">上传图片</DewButton>
+          <template #tip><span class="feedback-muted">JPG / PNG / WebP / GIF，最多 1 张、5MB；不占用页面快照名额。</span></template>
+        </el-upload>
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <DewButton :disabled="isSubmitting" @click="closeDialog()">取消</DewButton>
+      <DewButton v-if="!isLoggedIn" :active="true" @click="login">登录后提交</DewButton>
+      <DewButton v-else :active="true" :loading="isSubmitting" :disabled="capturing" @click="submitFeedback">提交反馈</DewButton>
+    </template>
+  </el-dialog>
+  <el-dialog v-model="previewVisible" title="图片预览" width="min(960px, calc(100vw - 24px))"
+    :z-index="REPORTER_LAYER + 3" modal-class="feedback-report-overlay" class="feedback-report-dialog">
+    <DewImage :src="previewUrl" alt="反馈图片预览" width="100%" height="60vh" fit="contain" :lazy="false" />
+  </el-dialog>
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
-import { ElForm, ElFormItem, ElUpload, ElIcon, ElMessage, ElSelect, ElOption } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
-import DewDialog from '@bme/dew-ui/DewDialog.vue'
-import DewButton from '@bme/dew-ui/DewButton.vue'
-import DewInput from '@bme/dew-ui/DewInput.vue'
-import { DewMessageBox } from '@bme/dew-ui/DewMessageBox.js'
-import api from '../../api'
+import { computed, onBeforeUnmount, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { useStore } from 'vuex'
+import { ElMessage } from 'element-plus'
+import { DewButton, DewInput, DewImage, DewSkeleton } from '@bme/dew-ui'
+import { authSession } from '../../api'
+import { feedbackService } from '../../services/feedbackService'
+import { capturePageSnapshot, feedbackPageContext } from '../../utils/pageSnapshot'
+import '../../styles/feedback.css'
 
-// 响应式数据
-const bubbleText = ref('报个Bug')
-
-// 绿色 lit 覆盖（报个 Bug 胶囊专属：把 DewButton 的白色 lit token 覆盖成绿色）
-const greenLitStyle = {
-  '--dew-btn-lit-bg': 'rgba(34, 197, 94, 0.22)',
-  '--dew-btn-lit-bg-hover': 'rgba(34, 197, 94, 0.32)',
-  '--dew-btn-lit-border': 'rgba(34, 197, 94, 0.45)',
-  '--dew-btn-lit-color': '#16a34a',
-  '--dew-btn-lit-shadow': '0 0 18px rgba(34,197,94,0.4), 0 2px 10px rgba(0,0,0,0.05)',
-  '--dew-btn-lit-shadow-hover': '0 0 28px rgba(34,197,94,0.55), 0 6px 20px rgba(0,0,0,0.08)',
-  '--dew-btn-lit-text-shadow': '0 0 8px rgba(34,197,94,0.4)',
-}
+const REPORTER_LAYER = 2147483000
+const router = useRouter()
+const store = useStore()
+const isLoggedIn = computed(() => Boolean(store.state.token))
+const bubbleHovered = ref(false)
 const dialogVisible = ref(false)
 const isSubmitting = ref(false)
 const feedbackFormRef = ref(null)
 const fileList = ref([])
+const form = reactive({ title: '', content: '', category: 'bug' })
+const categories = [
+  { value: 'bug', label: '问题故障（Bug）' }, { value: 'feature_request', label: '功能建议' },
+  { value: 'content_issue', label: '内容问题' }, { value: 'account_issue', label: '账号问题' }, { value: 'other', label: '其他反馈' },
+]
+const rules = {
+  title: [{ required: true, message: '请输入问题标题', trigger: 'blur' }, { min: 2, max: 100, message: '标题长度为 2–100 字', trigger: 'blur' }],
+  content: [{ required: true, message: '请输入问题描述', trigger: 'blur' }, { min: 10, max: 1000, message: '描述长度为 10–1000 字', trigger: 'blur' }],
+}
+const capturing = ref(false)
+const snapshotFile = ref(null)
+const snapshotUrl = ref('')
+const pageContext = ref(null)
+const snapshotError = ref('')
 const previewVisible = ref(false)
-const previewImageUrl = ref('')
+const previewUrl = ref('')
+const submitError = ref('')
+let captureSequence = 0
+let captureTimer
 
-// 表单数据
-const feedbackForm = reactive({
-  title: '',
-  content: '',
-  category: 'bug'
-})
-
-// 表单验证规则
-const rules = reactive({
-  title: [
-    { required: true, message: '请输入问题标题', trigger: 'blur' },
-    { min: 2, max: 100, message: '标题长度应在2-100个字符之间', trigger: 'blur' }
-  ],
-  content: [
-    { required: true, message: '请输入问题描述', trigger: 'blur' },
-    { min: 10, max: 1000, message: '描述长度应在10-1000个字符之间', trigger: 'blur' }
-  ]
-})
-
-// 气泡悬停效果
-const handleMouseOver = () => {
-  bubbleText.value = '(^_^)'
+function removeSnapshot() {
+  captureSequence += 1
+  clearTimeout(captureTimer)
+  capturing.value = false
+  if (snapshotUrl.value) URL.revokeObjectURL(snapshotUrl.value)
+  snapshotUrl.value = ''
+  snapshotFile.value = null
 }
-
-const handleMouseLeave = () => {
-  bubbleText.value = '报个Bug'
-}
-
-// 打开反馈对话框
-const openFeedbackDialog = () => {
-  dialogVisible.value = true
-}
-
-// 关闭对话框（DewMessageBox 确认）
-const handleClose = async () => {
+async function takeSnapshot() {
+  if (capturing.value) return
+  removeSnapshot()
+  const sequence = ++captureSequence
+  pageContext.value = feedbackPageContext()
+  capturing.value = true
+  snapshotError.value = ''
+  submitError.value = ''
+  const timeout = new Promise((_, reject) => { captureTimer = setTimeout(() => reject(new Error('快照生成超时，可手动上传图片或继续提交。')), 8000) })
   try {
-    await DewMessageBox.confirm('确定要关闭反馈窗口吗？未保存的内容将丢失。', '确认关闭')
-    resetForm()
-    dialogVisible.value = false
-  } catch {
-    // 用户取消关闭
+    const result = await Promise.race([capturePageSnapshot(), timeout])
+    if (sequence !== captureSequence) return
+    snapshotFile.value = result.file
+    pageContext.value = result.context
+    snapshotUrl.value = URL.createObjectURL(result.file)
+  } catch (error) {
+    if (sequence === captureSequence) snapshotError.value = error.message || '快照生成失败，可手动上传图片。'
+  } finally {
+    if (sequence === captureSequence) { clearTimeout(captureTimer); capturing.value = false }
   }
 }
-
-// 重置表单
-const resetForm = () => {
-  if (feedbackFormRef.value) {
-    feedbackFormRef.value.resetFields()
-  }
-  feedbackForm.title = ''
-  feedbackForm.content = ''
-  feedbackForm.category = 'bug'
+function openFeedbackDialog() {
+  if (dialogVisible.value) return
+  removeSnapshot()
+  dialogVisible.value = true
+  takeSnapshot()
+}
+function closeDialog(done) {
+  if (isSubmitting.value) return
+  previewVisible.value = false
+  dialogVisible.value = false
+  if (typeof done === 'function') done()
+}
+function resetForm() {
+  form.title = ''; form.content = ''; form.category = 'bug'
   fileList.value = []
+  removeSnapshot()
+  pageContext.value = null
+  snapshotError.value = ''
+  submitError.value = ''
+  feedbackFormRef.value?.clearValidate()
 }
-
-// 图片上传前验证
-const beforeUpload = (file) => {
-  const isImage = file.type.startsWith('image/')
-  const isLt2M = file.size / 1024 / 1024 < 2
-
-  if (!isImage) {
-    ElMessage.error('只能上传图片文件!')
-    return false
-  }
-  if (!isLt2M) {
-    ElMessage.error('图片大小不能超过 2MB!')
-    return false
-  }
-  return true
-}
-
-// 移除图片
-const handleRemove = (file) => {
-  const index = fileList.value.findIndex(item => item.uid === file.uid)
-  if (index > -1) {
-    fileList.value.splice(index, 1)
+function validateFile(file) {
+  if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.raw?.type) || file.size > 5 * 1024 * 1024) {
+    fileList.value = fileList.value.filter(item => item.uid !== file.uid)
+    submitError.value = '请上传 JPG / PNG / WebP / GIF 图片，大小不超过 5MB'
   }
 }
-
-// 预览图片
-const handlePreview = (file) => {
-  previewImageUrl.value = file.url || file.response?.data?.url || ''
-  previewVisible.value = true
+const uploadExceeded = () => { submitError.value = '最多上传 1 张补充图片，请先移除已有图片' }
+const preview = url => { previewUrl.value = url; previewVisible.value = true }
+const previewUpload = file => preview(file.url)
+function login() {
+  closeDialog()
+  router.push({ path: '/login', query: { redirect: router.currentRoute.value.fullPath } })
 }
-
-// 提交反馈
-const submitFeedback = async () => {
-  if (!feedbackFormRef.value) return
-
-  feedbackFormRef.value.validate(async (valid) => {
-    if (!valid) {
-      ElMessage.error('请检查表单填写')
-      return
-    }
-
-    isSubmitting.value = true
-
-    try {
-      const imageFile = fileList.value[0]?.raw
-      const formData = new FormData()
-      formData.append('title', feedbackForm.title)
-      formData.append('description', feedbackForm.content)
-      formData.append('category', feedbackForm.category)
-      if (imageFile) formData.append('image', imageFile)
-
-      // 2026-09-21 起走工单闭环（旧 /information/error/add 保留兼容期）
-      const response = await api({
-        url: '/feedback-tickets',
-        method: 'post',
-        data: formData,
-        headers: { 'Content-Type': 'multipart/form-data' }
-      })
-
-      if (response.data.code === 200) {
-        ElMessage.success('反馈提交成功，处理进度可在「我的反馈」查看')
-        resetForm()
-        dialogVisible.value = false
-      } else {
-        ElMessage.error(response.data.message || '提交失败，请重试')
-      }
-    } catch (error) {
-      ElMessage.error('提交失败，请检查网络后重试')
-    } finally {
-      isSubmitting.value = false
-    }
-  })
+async function submitFeedback() {
+  if (isSubmitting.value || capturing.value) return
+  isSubmitting.value = true
+  submitError.value = ''
+  try {
+    if (!await feedbackFormRef.value?.validate().catch(() => false)) return
+    await authSession.bootstrap()
+    if (!authSession.getToken()) { submitError.value = '请先登录后提交反馈'; return }
+    const data = new FormData()
+    data.append('title', form.title.trim()); data.append('description', form.content.trim()); data.append('category', form.category)
+    data.append('page_context', JSON.stringify(pageContext.value || feedbackPageContext()))
+    if (snapshotFile.value) data.append('snapshot', snapshotFile.value)
+    if (fileList.value[0]?.raw) data.append('image', fileList.value[0].raw)
+    const result = await feedbackService.create(data)
+    if (result.code !== 200) throw new Error(result.message || '提交失败，请重试')
+    ElMessage.success('反馈已提交，处理进度可在「我的反馈」查看')
+    dialogVisible.value = false
+    resetForm()
+  } catch (error) {
+    submitError.value = error.response?.data?.message || error.message || '提交失败，请稍后重试'
+  } finally { isSubmitting.value = false }
 }
+let reporterId = store.state.user?.User_Id || store.state.user?.id || store.state.user?.User_Email
+let hadSession = Boolean(store.state.token)
+const unsubscribe = store.subscribe(() => {
+  const next = store.state.user?.User_Id || store.state.user?.id || store.state.user?.User_Email
+  if ((reporterId && next !== reporterId) || (hadSession && !store.state.token)) { resetForm(); dialogVisible.value = false }
+  reporterId = next
+  hadSession = Boolean(store.state.token)
+})
+onBeforeUnmount(() => { removeSnapshot(); unsubscribe() })
 </script>
 
-<style scoped>
-/* 浮动定位容器 */
-.feedback-float {
-  position: fixed;
-  bottom: 60px;
-  right: 60px;
-  /* 高于内容区（.right-section 等为 z-index:2），低于弹层/弹出（Element 系 2000+）。
-     2026-10-03 修：此前压到 1 被右侧信息栏整块盖住，只有滚到页脚才可点。 */
-  z-index: 10;
-}
-
-/* 中小屏信息密度高，反馈入口进入正常文档流，不能遮住轮播或信息卡。 */
-@media (max-width: 1200px) {
-  .feedback-float {
-    position: static;
-    display: flex;
-    justify-content: flex-end;
-    margin: 20px 24px;
-  }
-}
-
-/* 移动端适配 */
-@media (max-width: 768px) {
-  .feedback-float {
-    margin: 16px;
-  }
-}
-
-/* 上传组件样式优化 */
-:deep(.el-upload-list--picture-card .el-upload-list__item) {
-  margin: 0 8px 8px 0;
-}
-
-:deep(.el-upload--picture-card) {
-  --el-upload-picture-card-size: 104px;
-}
+<style>
+.feedback-float { position: fixed; right: max(20px, env(safe-area-inset-right)); bottom: calc(24px + env(safe-area-inset-bottom)); z-index: 2147483000; }
+.feedback-report-dialog { --el-dialog-bg-color: var(--dew-popover-bg); --el-text-color-primary: var(--dew-text-heading); --el-text-color-regular: var(--dew-text); --el-border-color: var(--dew-card-flat-border); --el-fill-color-blank: var(--dew-card-flat-bg); --el-text-color-placeholder: var(--dew-text-muted); --el-color-info-light-9: var(--color-bg-muted); --el-color-info: var(--dew-text-muted); --el-color-error-light-9: var(--color-danger-light); --el-color-error: var(--color-danger); border-radius: var(--radius-lg); display: flex; flex-direction: column; max-height: calc(100dvh - 32px); margin: 16px auto; }
+.feedback-report-dialog .el-dialog__body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.feedback-report-dialog .el-dialog__header, .feedback-report-dialog .el-dialog__footer { flex-shrink: 0; }
+.feedback-report-dialog .el-alert { margin-bottom: var(--space-lg); }
+.feedback-report-dialog .el-dialog__footer { display: flex; justify-content: flex-end; gap: var(--space-sm); }
+.feedback-snapshot { margin-bottom: var(--space-lg); border: 1px solid var(--dew-card-flat-border); border-radius: var(--radius-md); padding: var(--space-md); }
+.feedback-snapshot-head { display: flex; align-items: center; justify-content: space-between; color: var(--dew-text-heading); margin-bottom: var(--space-sm); }
+.feedback-snapshot-preview { display: block; padding: 0; border: 0; width: 100%; cursor: zoom-in; background: var(--dew-skeleton-bg); border-radius: var(--radius-sm); overflow: hidden; }
+.feedback-snapshot-preview:disabled { cursor: default; }
+.feedback-muted { font-size: var(--text-sm); line-height: 1.5; color: var(--dew-text-muted); margin: var(--space-sm) 0 0; }
+.feedback-source { color: var(--dew-text-muted); font-size: var(--text-sm); overflow-wrap: anywhere; margin-bottom: 0; }
+@media (max-width: 768px) { .feedback-float { right: max(12px, env(safe-area-inset-right)); bottom: calc(16px + env(safe-area-inset-bottom)); } }
 </style>

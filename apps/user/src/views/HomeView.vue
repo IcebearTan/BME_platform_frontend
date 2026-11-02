@@ -5,7 +5,6 @@ import { useStore } from 'vuex';
 import { ElMessage } from 'element-plus';
 import api from "../api";
 import PageFooterComponent from "../components/PageFooterComponent.vue";
-import FeedbackBubble from "../components/Home/FeedbackBubble.vue";
 import LivePanel from "../components/Home/LivePanel.vue";
 import AttenceRankComponent from "../components/Attendence/AttenceRankComponent.vue";
 import MiniCalendar from "../components/Attendence/MiniCalendar.vue";
@@ -133,7 +132,6 @@ const handleEntryClick = (entry) => {
   </div>
 
   <!-- 反馈气泡组件 -->
-  <FeedbackBubble />
 </template>
 
 <style scoped>

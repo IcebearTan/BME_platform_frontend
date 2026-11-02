@@ -98,6 +98,10 @@ pnpm exec playwright test -c e2e/playwright.reading.config.ts
 
 （2026-08 清债批次 1–6 历史为线性提交，全部包含于 master；原 debt/N-* 中间分支与 legacy/admin-master 存档线已清理，后者头部提交为 86b48b9，如需找回见本地 reflog。）
 
+## 反馈工单
+
+全站反馈入口、自动页面快照、补充图片与管理员处理流程见 [反馈工单说明](docs/反馈工单-接口与流程.md)。保留原有绿色发光与悬停表情交互；需配套兼容后端，无新增数据库迁移，发布时先后端再前端。
+
 ## 独立项目
 
 独立项目入口为 `/my-projects`，项目工作区为 `/project-workspace/:projectId`，长期团队、D0及研发日历跨营期保留。营期按显式关联组合项目，本期考核与积分仍沿用营期范围。配套后端需先执行迁移79，再按灰度范围开启 `PROJECT_CORE_ENABLED`。实现约束见 `docs/ARCHITECTURE.md` 的项目营交付契约；本次只执行独立项目、原工作区及相关看板/交付专项检查。
