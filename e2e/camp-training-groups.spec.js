@@ -112,7 +112,9 @@ for (const app of ['user', 'admin']) {
     await expect.poll(() => writes.length).toBe(3)
     expect(writes[2]).toMatchObject({ method: 'DELETE', data: { user_id: 201, role: 'learner', course_id: 101, expected_version: 3 } })
     await page.setViewportSize({ width: 390, height: 844 })
-    if (app === 'admin') await page.locator('.sidebar-toggle').click()
+    if (app === 'admin') {
+      await expect(page.locator('.sidebar-toggle')).toHaveAttribute('aria-expanded', 'false')
+    }
     await panel.getByRole('button', { name: '添加职责', exact: true }).first().click()
     dialog = page.getByRole('dialog').filter({ hasText: '添加职责 · Web 开发组' })
     await expect(dialog).toBeVisible()

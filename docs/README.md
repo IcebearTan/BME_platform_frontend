@@ -27,6 +27,7 @@
 | 管理端导航与管理页 | 架构 §7.1–§7.3 | admin `router/manifest.js`、`app/navigation/`、`styles/pages.css` |
 | XLAB 项目广场 | 架构 §4.6 的局部主题与导航约定 | user `views/ProjectSquareView.vue`、`styles/xlab.css` |
 | 积分 | 架构末尾积分补充与 UI 规范局部主题约定 | user `services/pointsService.js`、`styles/points.css` |
+| 反馈工单 | [接口与处理流程](反馈工单-接口与流程.md) | user 全局 `FeedbackBubble`、admin `domains/feedback/` |
 | 首页 banner | [运营规范](首页banner-运营规范.md) | user 首页相关组件和 admin banner 管理 |
 | 独立工作台入口 | 架构末尾“独立工作台入口”契约；内部工作台本体在兄弟仓库 | user `composables/useWorkAccess.js`、`views/WorkbenchAuthorizeView.vue` |
 

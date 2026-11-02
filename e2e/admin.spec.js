@@ -1491,7 +1491,7 @@ test('工单详情：内部备注标记 + 受理 + 公开回复 + 状态迁移�
     req.url().includes('/admin/feedback-tickets/501/messages') && req.method() === 'POST')
   await page.locator('textarea[placeholder*="公开回复"]').fill('已复现，正在排查')
   await page.getByRole('button', { name: '发送', exact: true }).click()
-  expect((await replyReq).postDataJSON()).toEqual({ body: '已复现，正在排查', visibility: 'public' })
+  expect((await replyReq).postDataJSON()).toEqual({ body: '已复现，正在排查', visibility: 'public', expected_status: 'new' })
 
   // 受理（new 状态 → triage 走 PATCH triage）
   const triageReq = page.waitForRequest((req) =>
