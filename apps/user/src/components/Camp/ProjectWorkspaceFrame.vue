@@ -86,6 +86,7 @@ import {
 } from '@element-plus/icons-vue'
 import { DewButton, DewSelect, DewTag, DewSkeleton } from '@bme/dew-ui'
 import ProjectWorkspaceGuide from './ProjectWorkspaceGuide.vue'
+import '../../styles/project-workspace.css'
 
 const props = defineProps({
   title: { type: String, default: '' },

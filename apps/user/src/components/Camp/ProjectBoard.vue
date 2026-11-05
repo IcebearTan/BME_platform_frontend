@@ -67,26 +67,12 @@
         </DewCard>
       </template>
 
-      <!-- 成果 -->
       <template v-if="visible('outcomes')"><div v-if="!workspace" class="sec-title">项目成果</div>
-      <DewCard variant="default" :no-hover="true" class="sec-card">
-        <div class="outcome-head">
-          <span class="outcome-title">验收材料与成果</span>
-          <DewButton v-if="role === 'leader' && workEditable"
-                     type="ghost" size="sm" @click="openOutcome">登记成果</DewButton>
-          <DewButton v-if="!nativeProject && workspace && role === 'leader'" type="ghost" size="sm" @click="openPublish">发布到项目广场</DewButton>
-        </div>
-        <div v-if="!outcomes.length" class="outcome-empty">
-          {{ role === 'leader' ? '尚无成果登记——结题材料验收后在此登记，管理员核验后入档' : '负责人尚未登记成果' }}
-        </div>
-        <div v-else class="outcome-list">
-          <div v-for="o in outcomes" :key="o.id" class="outcome-item">
-            <span class="outcome-name">{{ o.title }}</span>
-            <span :class="['outcome-status', `os-${o.status}`]">{{ OUTCOME_TEXT[o.status] || o.status }}</span>
-            <span v-if="o.reject_reason" class="outcome-reason">驳回原因：{{ o.reject_reason }}</span>
-          </div>
-        </div>
-      </DewCard>
+        <DewCard variant="default" :no-hover="true" class="sec-card">
+          <ProjectOutcomes :unit-id="cur.unit_id" :editable="role === 'leader' && workEditable" @changed="emitChanged">
+            <template #actions><DewButton v-if="!nativeProject && workspace && role === 'leader'" type="ghost" size="sm" @click="openPublish">发布到项目广场</DewButton></template>
+          </ProjectOutcomes>
+        </DewCard>
       </template>
     </template>
 
@@ -115,22 +101,6 @@
       </div>
     </DewDialog>
 
-    <!-- 登记成果 -->
-    <DewDialog v-model="outcomeDlg" title="登记项目成果" width="520px">
-      <div class="outcome-form">
-        <div class="field-label">成果标题 <span class="field-req">必填</span></div>
-        <DewInput v-model="outcomeForm.title" size="lg" placeholder="如：样机一台 / 论文一篇 / 开源仓库" />
-        <div class="field-label">说明</div>
-        <DewInput v-model="outcomeForm.description" type="textarea" :rows="3"
-                  placeholder="成果形态与完成情况（核验与结营档案可见）" />
-        <div class="outcome-note">提交后由管理员核验；未核验的成果不进入结营档案。</div>
-        <div class="outcome-actions">
-          <DewButton type="ghost" @click="outcomeDlg = false">取消</DewButton>
-          <DewButton type="glass" :loading="outcomeSaving" :disabled="!outcomeForm.title.trim()"
-                     @click="saveOutcome">提交登记</DewButton>
-        </div>
-      </div>
-    </DewDialog>
   </div>
 </template>
 
@@ -141,6 +111,7 @@ import { DewCard, DewButton, DewInput, DewTag, DewDialog, DewSelect } from '@bme
 import { campService } from '../../services/campService';
 import { showcaseService } from '../../services/showcaseService';
 import ProjectRoster from './ProjectRoster.vue';
+import ProjectOutcomes from '../../domains/projects/ProjectOutcomes.vue';
 import ProjectMilestones from './ProjectMilestones.vue';
 import ProjectActivities from './ProjectActivities.vue';
 import CampMeetings from './CampMeetings.vue';
@@ -163,7 +134,6 @@ const milestonesRef = ref(null);
 const visible = section => !props.section || props.section === section;
 
 const unitStatusText = { active: '进行中', paused: '已暂停', terminated: '已终止' };
-const OUTCOME_TEXT = { submitted: '待核验', verified: '已核验', rejected: '已驳回' };
 
 const currentId = ref(null);
 const unitOptions = computed(() => props.units.map((u) => ({ label: u.name, value: u.unit_id })));
@@ -180,37 +150,6 @@ const emitChanged = () => emit('changed');
 // 项目营周考勤开关（与 ProjectHub 顶部状态条同口径）
 const weeklyOn = computed(() => !!props.session.policy?.capabilities?.attendance
   && props.session.policy?.attendance_mode === 'weekly');
-
-// ── 成果 ──
-const outcomes = ref([]);
-async function loadOutcomes() {
-  if (!cur.value || !visible('outcomes')) return;
-  try {
-    const d = await campService.fetchOutcomes(cur.value.unit_id);
-    outcomes.value = d.outcomes || [];
-  } catch { outcomes.value = []; }
-}
-watch(() => cur.value?.unit_id, loadOutcomes, { immediate: true });
-
-const outcomeDlg = ref(false);
-const outcomeForm = ref({ title: '', description: '' });
-const outcomeSaving = ref(false);
-function openOutcome() { outcomeForm.value = { title: '', description: '' }; outcomeDlg.value = true; }
-async function saveOutcome() {
-  if (outcomeSaving.value || !outcomeForm.value.title.trim()) return;
-  outcomeSaving.value = true;
-  try {
-    const r = await campService.registerOutcome(cur.value.unit_id, {
-      title: outcomeForm.value.title.trim(),
-      description: outcomeForm.value.description.trim() || null,
-    });
-    ElMessage.success(r.message || '已登记，等待核验');
-    outcomeDlg.value = false;
-    loadOutcomes();
-  } catch (e) {
-    ElMessage.error(e.response?.data?.message || '登记失败');
-  } finally { outcomeSaving.value = false; }
-}
 
 // ── 项目模板 ──
 const tplDlg = ref(false);
@@ -265,22 +204,6 @@ async function doPublish() {
 
 .sec-title { font-size: 14.5px; font-weight: 700; color: var(--dew-text-heading); margin-top: 6px; }
 .sec-card { padding-block: 12px; }
-
-.outcome-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-.outcome-title { font-size: 13.5px; font-weight: 650; color: var(--dew-text-heading); }
-.outcome-empty { font-size: 12.5px; color: var(--dew-text-faint); }
-.outcome-list { display: flex; flex-direction: column; gap: 6px; }
-.outcome-item { display: flex; align-items: center; gap: 10px; font-size: 13px; flex-wrap: wrap; }
-.outcome-name { font-weight: 600; color: var(--dew-text-heading); }
-.outcome-status { font-size: 12px; font-weight: 600; }
-.os-submitted { color: var(--color-warning); }
-.os-verified { color: var(--color-success); }
-.os-rejected { color: var(--color-danger, #e5484d); }
-.outcome-reason { font-size: 12px; color: var(--dew-text-faint); }
-
-.outcome-form { display: flex; flex-direction: column; gap: 10px; }
-.outcome-note { font-size: 12px; color: var(--dew-text-faint); }
-.outcome-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
 
 .publish-form { display: flex; flex-direction: column; gap: 10px; }
 .pub-note { font-size: 12px; color: var(--dew-text-faint); line-height: 1.6; }

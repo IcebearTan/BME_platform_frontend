@@ -1,0 +1,41 @@
+/* 项目工作台小字号状态文字；强调色背景继续复用全站语义变量。 */
+:root {
+  --pws-accent-text: #1d4ed8;
+  --pws-success-text: #047857;
+  --pws-warning-text: #92400e;
+  --pws-danger-text: #b91c1c;
+  --pws-field-border: #cbd5e1;
+}
+.theme-dark {
+  --pws-accent-text: #93c5fd;
+  --pws-success-text: #6ee7b7;
+  --pws-warning-text: #fcd34d;
+  --pws-danger-text: #fca5a5;
+  --pws-field-border: #4b5563;
+}
+.project-workspace { --dew-text-faint: var(--dew-text-muted); color-scheme: light; }
+.theme-dark .project-workspace { color-scheme: dark; }
+.project-workspace.pws-frame .pws-nav button:hover,
+.project-workspace.pws-frame .pws-nav button[aria-current="page"],
+.project-workspace.pws-frame .pwo-label,
+.project-workspace.pws-frame .att-link,
+.project-workspace.pws-frame .eval-score { color: var(--pws-accent-text); }
+.project-workspace.pws-frame .st-submitted,
+.project-workspace.pws-frame .st-done,
+.project-workspace.pws-frame .chain-st.submitted { color: var(--pws-success-text); }
+.project-workspace.pws-frame .chain-note { color: var(--pws-warning-text); }
+.project-record-filters input[type="date"],
+.pr-form input[type="date"],
+.pr-form input[type="file"] { border-color: var(--pws-field-border); }
+.theme-dark .pr-form input { color-scheme: dark; }
+.project-record-filters,
+.pr-form,
+.po-form {
+  --dew-input-bg: var(--dew-card-flat-bg);
+  --dew-input-bg-hover: var(--dew-card-flat-bg);
+  --dew-input-bg-focus: var(--dew-card-flat-bg);
+  --dew-input-border: var(--pws-field-border);
+  --dew-input-border-hover: var(--pws-field-border);
+  --dew-input-border-focus: var(--pws-accent-text);
+  --dew-text-faint: var(--dew-text-muted);
+}

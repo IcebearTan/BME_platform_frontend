@@ -110,17 +110,17 @@ onMounted(() => { clockTimer = window.setInterval(updateClock, 60000); document.
 onBeforeUnmount(() => { sequence++; daySequence++; window.clearInterval(clockTimer); document.removeEventListener('visibilitychange', updateClock) })
 </script>
 <style scoped>
-.pwo { display: flex; flex-direction: column; gap: 24px; }.pwo-summary { display: flex; align-items: baseline; gap: 12px 28px; flex-wrap: wrap; }.pwo-summary-item { display: inline-flex; align-items: baseline; flex-wrap: wrap; gap: 4px; margin: 0; font-size: 14px; line-height: 22px; }.pwo-summary-label { color: var(--dew-text-muted); }.pwo-summary-value { color: var(--dew-text-heading); font-weight: 600; }.pwo-next { border: 1px solid var(--dew-card-flat-border); }.pwo-next h3 { margin: 12px 0; font-size: 18px; }.pwo-next p { color: var(--dew-text-muted); font-size: 13px; margin-bottom: 18px; }.pwo-label { color: var(--color-primary); font-size: 12px; }.pwo h3 { font-size: 16px; }.pwo-node { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 16px; border: 0; border-bottom: 1px solid var(--dew-card-flat-border); padding: 16px 0; color: var(--dew-text); background: transparent; text-align: left; cursor: pointer; font: inherit; }.pwo-node small { display: block; color: var(--dew-text-muted); margin-top: 4px; }
+.pwo { display: flex; flex-direction: column; gap: 24px; }.pwo-summary { display: flex; align-items: baseline; gap: 12px 28px; flex-wrap: wrap; }.pwo-summary-item { display: inline-flex; align-items: baseline; flex-wrap: wrap; gap: 4px; margin: 0; font-size: 14px; line-height: 22px; }.pwo-summary-label { color: var(--dew-text-muted); }.pwo-summary-value { color: var(--dew-text-heading); font-weight: 600; }.pwo-next { border: 1px solid var(--dew-card-flat-border); }.pwo-next h3 { margin: 12px 0; font-size: 18px; }.pwo-next p { color: var(--dew-text-muted); font-size: 13px; margin-bottom: 18px; }.pwo-label { color: var(--pws-accent-text, var(--color-primary)); font-size: 12px; }.pwo h3 { font-size: 16px; }.pwo-node { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 16px; border: 0; border-bottom: 1px solid var(--dew-card-flat-border); padding: 16px 0; color: var(--dew-text); background: transparent; text-align: left; cursor: pointer; font: inherit; }.pwo-node small { display: block; color: var(--dew-text-muted); margin-top: 4px; }
 .pwo-native-summary { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 16px; }
 .pwo-day-card { --day-accent: var(--dew-text-heading); --day-ink: color-mix(in srgb, var(--day-accent) 60%, var(--dew-text-heading)); --day-bg: var(--dew-card-flat-bg-hover); --day-border: var(--dew-card-flat-border); }
-.pwo-day-card.is-launch, .pwo-day-card.is-complete { --day-accent: var(--color-success); --day-bg: var(--color-success-light); --day-border: var(--color-success); }
-.pwo-day-card.is-milestone { --day-accent: var(--color-primary); --day-bg: var(--color-primary-light); --day-border: var(--color-primary); }
-.pwo-day-card.is-assessment { --day-accent: var(--color-warning); --day-bg: var(--color-warning-light); --day-border: var(--color-warning); }
+.pwo-day-card.is-launch, .pwo-day-card.is-complete { --day-accent: var(--pws-success-text, var(--color-success)); --day-bg: var(--color-success-light); --day-border: var(--pws-success-text, var(--color-success)); }
+.pwo-day-card.is-milestone { --day-accent: var(--pws-accent-text, var(--color-primary)); --day-bg: var(--color-primary-light); --day-border: var(--pws-accent-text, var(--color-primary)); }
+.pwo-day-card.is-assessment { --day-accent: var(--pws-warning-text, var(--color-warning)); --day-bg: var(--color-warning-light); --day-border: var(--pws-warning-text, var(--color-warning)); }
 .pwo-day-layout { display: grid; grid-template-columns: 128px minmax(0, 1fr); gap: 20px; align-items: center; min-height: 144px; }
 .pwo-day-layout.without-day { grid-template-columns: 1fr; }
 .pwo-day-square { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; width: 128px; aspect-ratio: 1; padding: 12px 8px; border: 1px solid var(--day-border); border-radius: 16px; background: var(--day-bg); color: var(--day-ink, var(--day-accent)); font: inherit; cursor: pointer; }
 .pwo-day-square:hover { border-color: var(--day-accent); }
-.pwo-day-square:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 4px; }
+.pwo-day-square:focus-visible { outline: 2px solid var(--pws-accent-text, var(--color-primary)); outline-offset: 4px; }
 .pwo-day-eyebrow { font-size: 10px; font-weight: 600; letter-spacing: 1.6px; line-height: 1; }
 .pwo-day-number { font-size: 48px; font-weight: 700; letter-spacing: -2px; line-height: 1; font-variant-numeric: tabular-nums; }
 .pwo-day-number.is-long { font-size: 30px; letter-spacing: -1px; }
@@ -138,7 +138,7 @@ onBeforeUnmount(() => { sequence++; daySequence++; window.clearInterval(clockTim
 .pwo-muted { color: var(--dew-text-muted); font-size: 13px; line-height: 1.7; margin-bottom: 0; }
 .pwo-quick-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 .pwo-progress { height: 5px; overflow: hidden; background: var(--dew-card-flat-border); border-radius: 4px; margin-top: 14px; }
-.pwo-progress span { display: block; height: 100%; background: var(--color-primary); border-radius: inherit; }
+.pwo-progress span { display: block; height: 100%; background: var(--pws-accent-text, var(--color-primary)); border-radius: inherit; }
 .pwo-brief { padding-bottom: 8px; border-bottom: 1px solid var(--dew-card-flat-border); }
 .pwo-brief h3 { margin: 0 0 10px; }
 .pwo-brief details { margin: 18px 0 12px; }
