@@ -50,19 +50,15 @@
 
       <!-- 日期文件夹：按「会议日期」分组折叠，今天置顶 -->
       <div v-else class="folder-list">
-        <DewCard v-for="g in grouped" :key="g.date" variant="inset" size="md"
-                 :no-hover="true" :tinted="g.isToday" :accent="g.isToday ? 'warning' : null"
-                 class="folder" :class="{ 'is-collapsed': !expanded.has(g.date), 'is-today': g.isToday }">
+        <DewCard v-for="g in grouped" :key="g.date" variant="flat" size="md"
+                 :no-hover="true" class="folder" :class="{ 'is-collapsed': !expanded.has(g.date) }">
           <template #header>
-            <div class="folder-head" @click="toggle(g.date)">
-              <span class="folder-marker">
-                <DewBadge v-if="g.isToday" type="warning">今日</DewBadge>
-                <span v-else class="folder-dot" :class="{ 'is-future': g.isFuture }"></span>
-              </span>
+            <button type="button" class="folder-head" :aria-expanded="expanded.has(g.date)" @click="toggle(g.date)">
               <span class="folder-date">{{ formatDateHeader(g.date) }}</span>
+              <DewTag v-if="g.isToday" type="neutral" size="sm">今日</DewTag>
               <span class="folder-count">{{ g.items.length }} 场</span>
-              <span class="folder-arrow" :class="{ open: expanded.has(g.date) }"></span>
-            </div>
+              <span aria-hidden="true" class="folder-arrow" :class="{ open: expanded.has(g.date) }"></span>
+            </button>
           </template>
           <div v-for="m in visibleItems(g)" :key="m.id" class="mtg-row" @click="openDetail(m)">
             <DewTag size="sm" :round="true" :type="m.has_minutes ? 'success' : 'warning'">
@@ -118,7 +114,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue';
-import { DewBadge, DewButton, DewCard, DewDialog, DewInput, DewSkeleton, DewTag } from '@bme/dew-ui';
+import { DewButton, DewCard, DewDialog, DewInput, DewSkeleton, DewTag } from '@bme/dew-ui';
 import MentorTeamFilter from './MentorTeamFilter.vue';
 import { campService, todayLocal } from '../../services/campService';
 import MeetingDetail from './MeetingDetail.vue';
@@ -176,7 +172,7 @@ const grouped = computed(() => {
     items.sort((a, b) => String(a.meeting_date).localeCompare(String(b.meeting_date)));
   }
   return [...map.entries()]
-    .map(([date, items]) => ({ date, items, isToday: date === today, isFuture: date > today }))
+    .map(([date, items]) => ({ date, items, isToday: date === today }))
     .sort((a, b) => {
       if (a.isToday !== b.isToday) return a.isToday ? -1 : 1;
       return b.date.localeCompare(a.date);
@@ -401,20 +397,15 @@ function timeOf(m) {
 /* ── 日期文件夹 ── */
 .folder-list { display: flex; flex-direction: column; gap: 10px; }
 .folder.is-collapsed :deep(.dew-card__body) { display: none; }
-/* 今天文件夹：强化淡橙底 + 暖色描边，突出「今日」 */
-.folder.is-today { border-color: color-mix(in srgb, var(--color-warning) 45%, var(--dew-card-border)); }
-.folder.is-today :deep(.dew-card__tint) { opacity: 0.6; }
 .folder-head {
   display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none;
+  width: calc(100% + 32px); box-sizing: border-box; font: inherit; text-align: left;
+  border: 0; background: transparent;
   /* 撑满 DewCard md 尺寸 header 的 padding（上14 左右16 下12），让整条 header（含边缘）都可点击 */
   margin: -14px -16px -12px;
   padding: 14px 16px 12px;
 }
-/* 左侧标记：今天=「今日」徽标，其余=时间线圆点（居中于「今日」中心；过去灰、未来绿）；
-   固定宽度保证日期左对齐同一列 */
-.folder-marker { display: inline-flex; align-items: center; justify-content: center; width: 40px; flex-shrink: 0; }
-.folder-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dew-text-muted); }
-.folder-dot.is-future { background: var(--color-success); }
+.folder-head:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -3px; }
 /* 日期：字体/大小与组会条「组会名称」一致，顶格左对齐 */
 .folder-date { font-size: 14px; font-weight: 600; color: var(--dew-text-heading); }
 /* 数量：字体/大小与组会条末尾的「任务 N」一致，右对齐 */
