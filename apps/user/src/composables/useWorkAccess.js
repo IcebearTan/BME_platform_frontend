@@ -1,5 +1,5 @@
 // 内部工作台资格探测 — 模块级单例状态（范式对齐 useNotificationTabs 的导生探测）。
-// /work/me 是探测端点：无资格回 200 空形；探测失败静默（仅失去入口，不影响页面主流程）。
+// 独立工作台使用 /workbench-sso/me 探测资格，不依赖构建时环境变量。
 // 消费方：服务台入口卡 / 顶栏入口 / 组织架构页「进入工作区」按钮 / 通知中心「工作」tab。
 import { ref } from 'vue'
 import { authSession } from '../api';
@@ -36,7 +36,7 @@ export function useWorkAccess() {
         const data = res?.data || {}
         me.value = data
         // 入口判据：有可进入的工作区，或持有治理身份（治理人员可能暂无组工作区）
-        hasAccess.value = Boolean(data.workspaces?.length) || Boolean(data.is_governance)
+        hasAccess.value = Boolean(data.external_url && data.eligibility) || Boolean(data.workspaces?.length) || Boolean(data.is_governance)
         isGovernance.value = Boolean(data.is_governance)
         probedAt = Date.now()   // 成功也记时戳：TTL 过期后下一次 detect 自动重探
       })

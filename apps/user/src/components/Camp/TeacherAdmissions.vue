@@ -13,15 +13,15 @@
           <div class="app-row">
             <span class="app-user">{{ row.username }}</span>
             <DewTag :type="row.apply_role === 'mentor' ? 'warning' : 'neutral'" size="sm" :round="true">
-              {{ row.apply_role === 'mentor' ? '导生报名' : '学员报名' }}
+              {{ isProject ? '成员报名' : row.apply_role === 'mentor' ? '导生报名' : '学员报名' }}
             </DewTag>
-            <span class="app-date">承诺出勤 {{ dayCount(row) }} 天</span>
+            <span v-if="!isProject" class="app-date">承诺出勤 {{ dayCount(row) }} 天</span>
             <span class="app-time">{{ (row.created_at || '').slice(0, 10) }}</span>
           </div>
           <div class="app-reason">{{ row.reason || '（未填写事由）' }}</div>
           <div class="app-actions">
             <!-- 未启用选导生的营期可预分配导生；启用选导生时归属由开营前活动决定 -->
-            <DewSelect v-if="row.apply_role !== 'mentor' && !msEnabled" v-model="row._mentor"
+            <DewSelect v-if="!isProject && row.apply_role !== 'mentor' && !msEnabled" v-model="row._mentor"
               placeholder="预分配导生（可选）" size="sm" style="width: 180px;"
               :options="mentors.map((m) => ({ label: m.username, value: m.user_id }))" />
             <div class="app-buttons">
@@ -44,7 +44,9 @@ import { campService } from '../../services/campService';
 const props = defineProps({
   sid: { type: [Number, String], required: true },
   msEnabled: { type: Boolean, default: false },
+  category: { type: String, default: 'learning' },
 });
+const isProject = computed(() => props.category === 'project');
 const emit = defineEmits(['reviewed']);
 
 const pending = ref([]);
@@ -73,7 +75,7 @@ async function approve(row) {
   if (busy.value) return;
   busy.value = true;
   try {
-    const r = await campService.approveCampJoin(row.id, row._mentor || null);
+    const r = await campService.approveCampJoin(row.id, isProject.value ? null : row._mentor || null);
     ElMessage.success(r.message || '已批准');
     emit('reviewed');
     load();

@@ -3,6 +3,7 @@
        各课章节进度由导生按章认证（含 0-100 评分，课程均分聚合展示）。
        09-14 章节材料：每章可提交文字+附件（追加式、提交即可见），导生认证时查看。 -->
   <div class="camp-study">
+    <DewSelect v-if="data.groups?.length > 1" v-model="selectedGroup" :options="[{ label: '全部学习组', value: null }, ...data.groups.map(g => ({ label: g.name, value: g.unit_id }))]" placeholder="全部学习组" @change="loadDirection" />
     <DewCard v-if="!direction || !courses.length" variant="inset" size="lg" :no-hover="true" class="study-card">
       <div class="study-title">学习方向</div>
       <div class="study-hint">{{ hint || '尚未确定学习方向——归属导生后将自动继承其方向与全部课程。' }}</div>
@@ -13,7 +14,8 @@
         <div class="study-head-main">
           <div class="study-title">{{ direction }}</div>
           <div class="study-hint">
-            方向随归属导生{{ mentorName ? `（${mentorName}）` : '' }}继承；完成章节学习后由导生认证进度。
+            <template v-if="!data.groups">方向随归属导生{{ mentorName ? `（${mentorName}）` : '' }}继承；完成章节学习后由导生认证进度。</template>
+            <template v-else>完成章节学习后，由对应教学组的导生认证进度。</template>
           </div>
         </div>
         <span class="course-count">{{ courses.length }} 门课程</span>
@@ -24,6 +26,7 @@
           <div class="course-info">
             <div class="course-name">
               {{ c.course_title }}
+              <span v-if="data.groups" class="study-hint"> · {{ c.group_name || '责任组待分配' }}</span>
               <span v-if="c.course_status === 'completed'" class="study-badge done">已完成</span>
             </div>
             <div class="course-meta">
@@ -63,7 +66,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElIcon } from 'element-plus';
 import { ArrowDown } from '@element-plus/icons-vue';
-import { DewCard, DewButton } from '@bme/dew-ui';
+import { DewSelect, DewCard, DewButton } from '@bme/dew-ui';
 import { campService } from '../../services/campService';
 import ChapterMaterialPanel from './ChapterMaterialPanel.vue';
 
@@ -72,6 +75,7 @@ const props = defineProps({ sid: { type: [Number, String], required: true } });
 const router = useRouter();
 const loading = ref(true);
 const data = ref({});
+const selectedGroup = ref(null);
 
 const direction = computed(() => data.value.direction);
 const courses = computed(() => data.value.courses || []);
@@ -87,7 +91,7 @@ function goStudy(course) {
 }
 
 async function loadDirection() {
-  const r = await campService.fetchMyDirection(props.sid);
+  const r = await campService.fetchMyDirection(props.sid, selectedGroup.value || undefined);
   data.value = r.data || r;   // 后端顶层字段（direction/courses/hint）
 }
 

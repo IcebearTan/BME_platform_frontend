@@ -94,7 +94,7 @@ const fieldsOf = (link) => {
     </div>
     <p v-else class="biz-empty">暂无关联；可把课程/营期/工单挂到本事项作为工作上下文</p>
 
-    <el-dialog v-model="addVisible" title="添加关联对象" width="420px">
+    <el-dialog v-model="addVisible" title="添加关联对象" width="420px" append-to-body>
       <el-form label-width="80px">
         <el-form-item label="类型">
           <el-select v-model="form.sourceType" :loading="typesLoading" style="width: 100%;"

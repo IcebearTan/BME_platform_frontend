@@ -1,24 +1,26 @@
 <template>
-  <!-- 项目交付节点区（09-14 成员提交制，用户复盘定）：节点时间轴，展开区两块——
-       ① 交付材料：只有成员交付（负责人不提交——他看材料+直接评价，无通过/退回审核）；
-          提交即全员可见，重提=新版本；节点头带提交状态（负责人=已交 x/y，成员=已提交/未提交）；
-       ② 节点评价：负责人对每位成员打分 0-100 + 评语（成员仅见本人），评齐即完。
-       材料=过程，评价=结果；节点默认全展开（09-14 用户定）。 -->
-  <div class="pm-wrap">
+  <!-- 多人项目由成员交付、负责人评价；单人项目由负责人交付、管理员验收。
+       成员仅看本人材料及评价，节点默认展开。 -->
+  <div :class="['pm-wrap', { 'pm-workspace': workspace, 'pm-with-nav': showNodeNav }]">
+    <nav v-if="showNodeNav" class="pm-node-nav" aria-label="交付节点"><button v-for="node in milestones" :key="node.id" :aria-current="selectedId === node.id ? 'step' : undefined" @click="selectNode(node.id)"><span>{{ node.title }}</span><small>{{ node.node_complete ? '已完成' : node.due_date || '未设置截止' }}</small></button></nav>
+    <div class="pm-content">
+    <p v-if="workspace && invalidNode" class="ms-req" role="alert">指定节点不属于当前项目或已经移除，请从节点列表重新选择。</p>
     <div v-if="loading" class="pm-loading"><DewSkeleton variant="rect" width="100%" height="140" rounded="8px" /></div>
+    <div v-else-if="loadError" role="alert"><p>{{ loadError }}</p><DewButton size="sm" @click="load">重试</DewButton></div>
     <template v-else>
       <div v-if="!milestones.length" class="pm-empty">
-        {{ canManage ? '还没有交付节点——先建项目模板（施工图）自动生成，或在下方手动添加' : '负责人尚未配置交付节点' }}
+        {{ emptyMessage }}
       </div>
 
       <!-- 节点列表 -->
-      <div v-for="m in milestones" :key="m.id" :class="['ms-row', `ms-${m.status}`, { 'ms-done': m.node_complete }]">
-        <button type="button" class="ms-head" @click="toggleExpand(m.id)">
+      <div v-for="m in visibleMilestones" :key="m.id" :class="['ms-row', `ms-${m.status}`, { 'ms-done': m.node_complete }]">
+        <button type="button" class="ms-head" @click="!workspace && toggleExpand(m.id)">
           <span class="ms-order">{{ m.order_no }}</span>
           <span class="ms-title">{{ m.title }}</span>
           <span v-if="m.due_date" class="ms-due">{{ m.due_date }}</span>
           <span class="ms-status">
-            <span v-if="canManage">已交 {{ submittedCount(m) }}/{{ m.member_count }} · 已评 {{ m.evaluated_count }}/{{ m.member_count }}</span>
+            <span v-if="m.completion_mode === 'leader_review'">{{ m.node_complete ? '管理员已验收' : '单人项目 · 待管理员验收' }}</span>
+            <span v-else-if="canManage">已交 {{ submittedCount(m) }}/{{ m.member_count }} · 已评 {{ m.evaluated_count }}/{{ m.member_count }}</span>
             <span v-else>
               <span :class="{ 'st-submitted': hasMySubmission(m) }">{{ hasMySubmission(m) ? '已提交' : '未提交' }}</span>
                · {{ myEval(m) ? `我的评价 ${myEval(m).score} 分` : '待评价' }}
@@ -29,16 +31,17 @@
         </button>
 
         <!-- 展开区：要求 + ① 交付材料 + ② 节点评价 -->
-        <div v-if="expanded.has(m.id)" class="ms-body">
+        <div v-if="workspace || expanded.has(m.id)" class="ms-body">
+          <div v-if="nativeProject && canManage && editable" class="ms-plan-tools"><DewButton type="ghost" size="sm" @click="openNodeEdit(m)">编辑本期节点</DewButton></div>
           <p v-if="m.requirement" class="ms-req"><span class="req-label">交付要求：</span>{{ m.requirement }}</p>
           <p v-if="m.description" class="ms-req"><span class="req-label">说明：</span>{{ m.description }}</p>
 
           <!-- 交付与评价合框（09-14 用户定：评价就在交付行上，别拆两处）——
                负责人视角按成员分组：左=该成员版本链（没交=未提交），右=评价（无分=「评价」按钮，有分=分数+评语+修改）；
                成员视角：自己的版本链+提交盒，下接本人评价自见 -->
-          <div class="ms-sec-label">{{ canManage ? '成员交付与评价' : '我的交付' }}</div>
+          <div class="ms-sec-label">{{ m.completion_mode === 'leader_review' ? '负责人交付 · 管理员验收' : canManage ? '成员交付与评价' : '我的交付' }}</div>
 
-          <template v-if="canManage">
+          <template v-if="canManage && m.completion_mode !== 'leader_review'">
             <div v-if="!evalMembers.length" class="eval-empty">项目暂无其他成员可交付/评价</div>
             <div v-for="g in memberGroups(m)" :key="g.member.user_id" class="mem-row">
               <div class="mem-deliver">
@@ -46,6 +49,7 @@
                   {{ g.member.username }}
                   <span v-if="!g.subs.length" class="mem-nosub">未提交</span>
                 </div>
+                <DewButton v-if="workspace && g.total > 1" size="sm" type="ghost" @click="toggleHistory(m.id, g.member.user_id)">{{ historyOpen.has(`${m.id}:${g.member.user_id}`) ? '收起历史版本' : `历史版本（${g.total}）` }}</DewButton>
                 <div v-for="s in g.subs" :key="s.id" :class="['chain-item', `cs-${s.status}`]">
                   <div class="chain-line">
                     <span class="chain-ver">v{{ s.version }}</span>
@@ -76,14 +80,18 @@
           </template>
 
           <template v-else>
-            <div v-for="s in m.submissions" :key="s.id" :class="['chain-item', `cs-${s.status}`]">
+            <DewButton v-if="workspace && m.submissions.length > 1" size="sm" type="ghost" @click="toggleHistory(m.id)">{{ historyOpen.has(`${m.id}:self`) ? '收起历史版本' : `历史版本（${m.submissions.length}）` }}</DewButton>
+            <div v-for="s in visibleSubmissions(m)" :key="s.id" :class="['chain-item', `cs-${s.status}`]">
               <div class="chain-line">
                 <span class="chain-ver">v{{ s.version }}</span>
                 <span v-if="s.status === 'submitted'" class="chain-st submitted">已提交</span>
                 <span v-else-if="s.status === 'superseded'" class="chain-st superseded">已被新版替代</span>
+                <span v-else-if="s.status === 'approved'" class="chain-st">已验收</span>
+                <span v-else-if="s.status === 'returned'" class="chain-st">已退回</span>
                 <span class="chain-time">{{ (s.created_at || '').slice(0, 16).replace('T', ' ') }}</span>
               </div>
               <p v-if="s.content" class="chain-content">{{ s.content }}</p>
+              <p v-if="s.review_note" class="chain-content">审核说明：{{ s.review_note }}</p>
               <div v-if="s.attachments?.length" class="chain-atts">
                 <button v-for="a in s.attachments" :key="a.id" type="button"
                         class="att-link" @click="downloadAtt(a)">{{ a.filename }}{{ a.size ? `（${Math.round(a.size / 1024)}KB）` : '' }}</button>
@@ -91,10 +99,11 @@
             </div>
             <div v-if="!m.submissions.length" class="chain-empty">尚无提交</div>
 
-            <!-- 提交区（仅成员——负责人不交付，他看材料+评价；approved/归档关闭） -->
+            <!-- 提交资格由后端返回，已完成及归档节点只读。 -->
             <div v-if="canSubmit(m)" class="submit-box">
               <DewInput v-model="drafts[m.id].content" type="textarea" :rows="2"
                         placeholder="我的交付说明（做了什么/材料清单）" />
+              <p class="ms-req">附件合计不超过48MB，最多20个；交付说明不超过64KB。</p>
               <div class="submit-row">
                 <input :ref="(el) => (fileEls[m.id] = el)" type="file" multiple class="file-input-hidden"
                        @change="(e) => onFiles(m.id, e)" />
@@ -111,7 +120,7 @@
             <div v-else-if="m.status === 'approved'" class="submit-closed">已验收通过，节点关闭</div>
 
             <!-- 本人评价自见（与我的交付同框） -->
-            <div class="eval-self">
+            <div v-if="m.completion_mode !== 'leader_review'" class="eval-self">
               <template v-if="myEval(m)">
                 <span class="eval-score big">{{ myEval(m).score }} 分</span>
                 <span v-if="myEval(m).comment" class="eval-comment">{{ myEval(m).comment }}</span>
@@ -139,6 +148,15 @@
         </div>
       </div>
 
+      <DewDialog v-model="nodeEditDlg" title="编辑本期节点" width="520px">
+        <div class="node-edit-form">
+          <label>节点名称<DewInput v-model="nodeEditForm.title" maxlength="100" placeholder="本期节点名称" /></label>
+          <label>交付要求<DewInput v-model="nodeEditForm.requirement" type="textarea" :rows="3" placeholder="本期交付要求（选填）" /></label>
+          <label>截止日期<DewInput v-model="nodeEditForm.due_date" type="date" /></label>
+        </div>
+        <template #footer><DewButton type="ghost" :disabled="nodeEditSaving" @click="nodeEditDlg = false">取消</DewButton><DewButton :loading="nodeEditSaving" :disabled="!nodeEditForm.title.trim() || !canManage || !editable" @click="saveNodeEdit">保存节点</DewButton></template>
+      </DewDialog>
+
       <!-- 评价弹窗：分数 0-100 + 评语（已有评价预填，保存=upsert） -->
       <DewDialog v-model="evalDlg" :title="`节点评价 · ${evalTarget.memberName || ''} · ${evalTarget.nodeTitle || ''}`" width="420px">
         <div class="eval-form">
@@ -153,11 +171,13 @@
         </div>
       </DewDialog>
     </template>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { ArrowDown } from '@element-plus/icons-vue';
 import { DewButton, DewInput, DewDialog, DewSkeleton } from '@bme/dew-ui';
@@ -165,6 +185,9 @@ import { campService } from '../../services/campService';
 
 const props = defineProps({
   unitId: { type: Number, required: true },
+  workspace: Boolean,
+  nativeProject: Boolean,
+  draftCache: { type: Object, default: () => ({}) },
   campStatus: { type: String, required: true },
   editable: { type: Boolean, default: true },     // camp archived/unit terminated → false
   ownerUserId: { type: Number, default: null },   // 兼容 ProjectBoard 传参（成员提交制后暂未使用）
@@ -173,16 +196,68 @@ const emit = defineEmits(['changed']);
 
 const loading = ref(true);
 const milestones = ref([]);
+const loadError = ref('');
+const route = useRoute(), router = useRouter();
+const selectedId = computed(() => milestones.value.find(m => String(m.id) === String(route.query.node))?.id || milestones.value.find(m => !m.node_complete)?.id || milestones.value[0]?.id);
+const invalidNode = computed(() => props.workspace && route.query.node && !loading.value && !milestones.value.some(m => String(m.id) === String(route.query.node)));
+const visibleMilestones = computed(() => props.workspace ? invalidNode.value ? [] : milestones.value.filter(m => m.id === selectedId.value) : milestones.value);
+// 节点导航与两列布局同生共死：空节点或加载中时没有导航列，内容须独占整行，
+// 否则唯一的 .pm-content 会掉进 190px 首列，全部内容挤在左侧（10-21 修）
+const showNodeNav = computed(() => props.workspace && !loading.value && milestones.value.length > 0);
+function selectNode(id) { router.push({ query: { ...route.query, node: String(id) } }); }
 const evalMembers = ref([]);   // 应评花名册（leader 渲染用）
 const myRole = ref('member');
+const submissionAllowed = ref(false);
+const uploadLimits = ref({ total_bytes: 48 * 1024 * 1024, max_files: 20, content_bytes: 64 * 1024 });
 const expanded = ref(new Set());
-const drafts = ref({});
+const historyOpen = ref(new Set());
+const drafts = ref(props.draftCache[props.unitId] || {});
+props.draftCache[props.unitId] = drafts.value;
 const submitting = ref(null);
 const adding = ref(false);
 const addingSaving = ref(false);
 const addForm = ref({ title: '', requirement: '', due_date: '' });
 
 const canManage = ref(false);   // leader/admin（由接口 my_role 回填）
+const emptyMessage = computed(() => {
+  if (!canManage.value) return '负责人尚未配置交付节点';
+  if (!props.nativeProject) return '还没有交付节点——先建项目模板（施工图）自动生成，或在下方手动添加';
+  return props.editable ? '还没有本期交付节点，可在下方添加。' : '本期尚未配置交付节点。';
+});
+const nodeEditDlg = ref(false);
+const nodeEditSaving = ref(false);
+const nodeEditTarget = ref(null);
+const nodeEditForm = ref({ title: '', requirement: '', due_date: '' });
+
+function openNodeEdit(m) {
+  if (!props.nativeProject || !canManage.value || !props.editable) return;
+  nodeEditTarget.value = { id: m.id, unitId: props.unitId };
+  nodeEditForm.value = { title: m.title, requirement: m.requirement || '', due_date: m.due_date || '' };
+  nodeEditDlg.value = true;
+}
+
+async function saveNodeEdit() {
+  const target = nodeEditTarget.value;
+  if (nodeEditSaving.value || !props.nativeProject || !canManage.value || !props.editable || !target || target.unitId !== props.unitId || !nodeEditForm.value.title.trim()) return;
+  const sequence = loadSequence;
+  nodeEditSaving.value = true;
+  try {
+    await campService.updateMilestone(target.id, {
+      title: nodeEditForm.value.title.trim(),
+      requirement: nodeEditForm.value.requirement.trim() || null,
+      due_date: nodeEditForm.value.due_date || null,
+    });
+    if (sequence !== loadSequence || target.unitId !== props.unitId) return;
+    nodeEditDlg.value = false;
+    await load();
+    emit('changed');
+    ElMessage.success('本期节点已更新');
+  } catch (e) {
+    if (sequence === loadSequence) ElMessage.error(e.response?.data?.message || '节点保存失败');
+  } finally {
+    nodeEditSaving.value = false;
+  }
+}
 
 // ── 评价弹窗 ──
 const evalDlg = ref(false);
@@ -209,9 +284,9 @@ function toggleExpand(id) {
   }
 }
 
-// 成员提交制（09-14 用户复盘定）：只有成员交付；负责人不提交（看材料+评价）
+// 单人/多人提交资格由接口决定，旧回包仅兼容普通成员。
 function canSubmit(m) {
-  return myRole.value === 'member' && m.status !== 'approved' && props.editable;
+  return submissionAllowed.value && !m.node_complete && m.status !== 'approved' && props.editable;
 }
 // 现行版本（非 superseded）才算「已提交」；负责人视角按提交人去重计数
 function hasMySubmission(m) {
@@ -231,43 +306,79 @@ function evalOf(m, uid) {
 function myEval(m) {
   return (m.evaluations || [])[0] || null;   // 成员视角后端只回本人行
 }
+function toggleHistory(mid, uid = 'self') { const next = new Set(historyOpen.value), key = `${mid}:${uid}`; next.has(key) ? next.delete(key) : next.add(key); historyOpen.value = next; }
+function visibleSubmissions(m, uid = 'self') {
+  const rows = (m.submissions || []).filter(s => uid === 'self' || s.submitted_by === uid);
+  if (!props.workspace) return rows;
+  const ordered = [...rows].sort((a, b) => b.version - a.version);
+  return historyOpen.value.has(`${m.id}:${uid}`) ? ordered : ordered.slice(0, 1);
+}
 // 负责人视角按成员分组（09-14 合框）：左=该成员版本链，右=评价；没交的成员也占一行（未提交）
 function memberGroups(m) {
   return evalMembers.value.map((t) => ({
     member: t,
-    subs: (m.submissions || []).filter((s) => s.submitted_by === t.user_id),
+    subs: visibleSubmissions(m, t.user_id),
+    total: (m.submissions || []).filter(s => s.submitted_by === t.user_id).length,
     eval: evalOf(m, t.user_id),
   }));
 }
 
+let loadSequence = 0;
 async function load() {
+  const sequence = ++loadSequence;
   loading.value = true;
+  loadError.value = '';
   adding.value = false;
+  canManage.value = false;
+  submissionAllowed.value = false;
+  milestones.value = [];
   try {
     const d = await campService.fetchMilestones(props.unitId);
+    if (sequence !== loadSequence) return;
     milestones.value = d.milestones || [];
     evalMembers.value = d.eval_members || [];
     myRole.value = d.my_role || 'member';
+    submissionAllowed.value = d.can_submit ?? myRole.value === 'member';
+    uploadLimits.value = d.upload_limits || uploadLimits.value;
     canManage.value = myRole.value === 'leader';
     // 默认全展开（09-14 用户定）；drafts 就位防模板空引用
     milestones.value.forEach((m) => {
       if (!drafts.value[m.id]) drafts.value[m.id] = { content: '', files: [] };
     });
     expanded.value = new Set(milestones.value.map((m) => m.id));
+    if (props.workspace && !route.query.node && String(route.query.unit) === String(props.unitId)) {
+      const selected = milestones.value.find(m => !m.node_complete) || milestones.value[0];
+      if (selected) await router.replace({ query: { ...route.query, node: String(selected.id) } });
+    }
   } catch (e) {
-    ElMessage.error(e.response?.data?.message || '加载交付节点失败');
+    if (sequence === loadSequence) loadError.value = e.response?.data?.message || '加载交付节点失败';
   } finally {
-    loading.value = false;
+    if (sequence === loadSequence) loading.value = false;
   }
 }
 onMounted(load);
 // 看板切换项目（unitId 变化）须重载——多项目时 DewSelect 切换不重挂载组件
-watch(() => props.unitId, load);
+watch(() => props.unitId, () => {
+  drafts.value = props.draftCache[props.unitId] || {};
+  props.draftCache[props.unitId] = drafts.value;
+  evalDlg.value = false;
+  nodeEditDlg.value = false;
+  nodeEditTarget.value = null;
+  load();
+});
+watch(() => props.editable, value => { if (!value) nodeEditDlg.value = false; });
+onBeforeUnmount(() => loadSequence++);
+defineExpose({ reload: load });
 
 // ── 交付材料：提交（multipart）──
 function onFiles(mid, e) {
-  drafts.value[mid].files = [...e.target.files];
+  const files = [...e.target.files];
   e.target.value = '';
+  if (files.length > uploadLimits.value.max_files || files.reduce((sum, f) => sum + f.size, 0) > uploadLimits.value.total_bytes) {
+    ElMessage.warning('附件合计不能超过48MB，且最多20个');
+    return;
+  }
+  drafts.value[mid].files = files;
 }
 // 隐藏原生 file input，由 DewButton 触发选择
 const fileEls = {};
@@ -275,6 +386,10 @@ function pickFiles(mid) { fileEls[mid]?.click(); }
 async function submit(m) {
   const d = drafts.value[m.id];
   if (submitting.value || (!d.content.trim() && !d.files.length)) return;
+  if (new TextEncoder().encode(d.content.trim()).length > uploadLimits.value.content_bytes) {
+    ElMessage.warning('交付说明不能超过64KB');
+    return;
+  }
   submitting.value = m.id;
   try {
     const r = await campService.submitMilestone(m.id, d.content.trim(), d.files);
@@ -322,7 +437,7 @@ async function saveEval() {
 }
 
 async function addMilestone() {
-  if (addingSaving.value || !addForm.value.title.trim()) return;
+  if (addingSaving.value || !canManage.value || !props.editable || !addForm.value.title.trim()) return;
   addingSaving.value = true;
   try {
     await campService.addMilestone(props.unitId, {
@@ -343,6 +458,8 @@ async function addMilestone() {
 </script>
 
 <style scoped>
+.pm-wrap.pm-workspace { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; }.pm-content { min-width: 0; }.pm-wrap.pm-workspace.pm-with-nav { grid-template-columns: 190px minmax(0, 1fr); }.pm-node-nav { display: flex; flex-direction: column; gap: 8px; align-self: start; }.pm-node-nav button { border: 1px solid var(--dew-card-flat-border); border-radius: 8px; padding: 14px 12px; background: transparent; color: var(--dew-text); font: inherit; text-align: left; cursor: pointer; }.pm-node-nav button[aria-current=step] { border-color: var(--color-primary); background: var(--color-primary-light); }.pm-node-nav small { display: block; font-size: 12px; color: var(--dew-text-muted); margin-top: 6px; }.pm-workspace .ms-row { border: 0; margin-top: 0; }.pm-workspace .ms-head { flex-wrap: wrap; }.pm-workspace .ms-body { padding-inline: 0; }.pm-workspace .ms-caret { display: none; }
+@media(max-width:850px) { .pm-wrap.pm-workspace, .pm-wrap.pm-workspace.pm-with-nav { grid-template-columns: 1fr; }.pm-node-nav { flex-direction: row; flex-wrap: wrap; }.pm-node-nav button { flex: 1; min-width: 130px; } }
 .pm-wrap { display: flex; flex-direction: column; gap: 8px; }
 .pm-loading, .pm-empty { padding: 6px 0; }
 .pm-empty { font-size: 12.5px; color: var(--dew-text-faint); }
@@ -372,6 +489,9 @@ async function addMilestone() {
 .ms-caret.open { transform: rotate(180deg); }
 
 .ms-body { padding: 0 12px 12px 44px; display: flex; flex-direction: column; gap: 10px; }
+.ms-plan-tools { display: flex; justify-content: flex-end; }
+.node-edit-form, .node-edit-form label { display: flex; flex-direction: column; gap: 10px; }
+.node-edit-form { gap: 18px; }
 .ms-req { font-size: 12.5px; color: var(--dew-text-muted); line-height: 1.6; margin: 0; }
 .req-label { color: var(--dew-text-faint); }
 .ms-sec-label { font-size: 12px; font-weight: 650; color: var(--dew-text-faint); letter-spacing: 0.5px; }

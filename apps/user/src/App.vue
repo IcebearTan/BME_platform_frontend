@@ -4,9 +4,11 @@ import { authSession } from './api';
 import { watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useWorkAccess } from './composables/useWorkAccess';
+import FeedbackBubble from './components/Home/FeedbackBubble.vue';
 
 export default {
   name: 'App',
+  components: { FeedbackBubble },
   setup() {
     // 内部工作台入口（feature/work-collab）：路由切换时低频重探资格。
     // detect 带 5 分钟 TTL（见 useWorkAccess），窗口内复用缓存不重复发请求；
@@ -40,6 +42,7 @@ export default {
 <template>
   <div id="app" :class="isDarkMode ? 'theme-dark' : 'theme-light'">
     <router-view />
+    <FeedbackBubble />
   </div>
 </template>
 

@@ -115,7 +115,7 @@ export function useCourseLearningData(courseIdRef, { campSidRef = null } = {}) {
       const sid = unref(campSidRef)
       // 章节/课时为主请求（失败即失败）；进度与课程信息失败不致命
       const [chapterRes, lessonRes, progressRes, infoRes] = await Promise.all([
-        api({ url: '/course/chapter_list', method: 'get', params: { Course_Id: cid } }),
+        api({ url: '/course/chapter_list', method: 'get', params: { Course_Id: cid, camp_session_id: unref(campSidRef) } }),
         api({ url: '/course/lesson/list', method: 'get', params: { Course_Id: cid } }),
         api({
           url: '/learningProgress/lesson/list',
@@ -151,7 +151,7 @@ export function useCourseLearningData(courseIdRef, { campSidRef = null } = {}) {
           method: 'get',
           params: { Course_Id: cid }
         }).catch(() => null)
-        if (!(check?.data?.code === 200 && check.data.data?.can_learn)) {
+        if (!(check?.data?.code === 200 && check.data.data?.can_learn && !check.data.data?.camp_context_required)) {
           pageState.value = 'forbidden'
           return
         }

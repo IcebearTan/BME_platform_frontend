@@ -1,4 +1,5 @@
 import axios from 'axios'
+export { createRequestKey } from './requestKey.js'
 
 // BME 共享 axios 客户端工厂：统一 baseURL / token 注入 / 401 静默续期 / 可选 401 钩子。
 // UI 行为（弹窗文案、跳转目标）由各 app 通过 onUnauthorized 注入；包本身零 UI 框架依赖，

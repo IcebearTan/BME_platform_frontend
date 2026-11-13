@@ -2,6 +2,8 @@
 
 BME 平台前端 monorepo（pnpm workspace），由 `BME_frontend`（用户端）与 `BME_backend`（admin 管理端）两仓于 2026-08 合并而来，完整保留两仓 git 历史。
 
+开发前阅读 [AGENTS.md](AGENTS.md)、[团队协作约定](CONTRIBUTING.md) 与 [规范索引](docs/README.md)。
+
 ## 结构
 
 ```
@@ -85,7 +87,39 @@ pnpm exec playwright test -c e2e/playwright.reading.config.ts
 
 ## 分支
 
-- `master` — 稳定主线
-- `Icebear_develop` — 日常开发分支，稳定后合回 master
+- `master` — 生产发布主线；实际运行版本以部署提交记录为准。本次未移动旧 master，首次按新流程发布前先核对生产基线。
+- `develop` — 团队开发集成、共享测试的来源；初始指向 2026-11-02 最新已提交维护线，不表示已经部署测试环境。
+- `Icebear` — Icebear 的可选个人分支，替代 `Icebear_develop`；其他贡献者分支由本人管理。
+- `feature/*` — 功能或阶段任务；AI 日程、营期现有工作分支保留。
+- `release/<版本号>` — 每个版本候选与发布留存，发布后冻结。
+- `hotfix/*` — 服务器现场修复；本次 Icebear 维护工作区检出为 `hotfix/server-maintenance`，保留原工作内容；其他贡献者不必切入。远端 `codex/server-maintenance` 暂留给现有协作，不自动退役。
+
+开发、发布、hotfix 回流、个人规则与分支清理统一见 [CONTRIBUTING.md](CONTRIBUTING.md)。不自动同步 master 或部署；已有同事分支保持原状，本地分支、远端分支和失效跟踪引用分别管理。
 
 （2026-08 清债批次 1–6 历史为线性提交，全部包含于 master；原 debt/N-* 中间分支与 legacy/admin-master 存档线已清理，后者头部提交为 86b48b9，如需找回见本地 reflog。）
+
+## 反馈工单
+
+全站反馈入口、自动页面快照、补充图片与管理员处理流程见 [反馈工单说明](docs/反馈工单-接口与流程.md)。保留原有绿色发光与悬停表情交互；需配套兼容后端，无新增数据库迁移，发布时先后端再前端。
+
+## 独立项目
+
+独立项目入口为 `/my-projects`，项目工作区为 `/project-workspace/:projectId`，长期团队、D0及研发日历跨营期保留。营期按显式关联组合项目，本期考核与积分仍沿用营期范围。配套后端需先执行迁移79，再按灰度范围开启 `PROJECT_CORE_ENABLED`。实现约束见 `docs/ARCHITECTURE.md` 的项目营交付契约；本次只执行独立项目、原工作区及相关看板/交付专项检查。
+
+## 积分功能
+
+用户端 `/user-center/points` 提供余额、平台常驻获取途径和已到账收支；
+每日打卡、发布帖子未配置奖励时显示待开放。营期任务与发放进度移至 `/camp?sid=&tab=points`。
+管理端 `/operations/points` 管理规则、审核及异常，营期老师/导生在各自营期工作台处理提报与审核。
+页面复用 DewUI，说明使用问号提示。商城消费明细暂从商城入口查看。
+后端需迁移 78 并配置 `POINTS_REWARDS_ENABLED` 后才启用奖励规则与发放。
+
+## 项目工作台功能引导
+
+项目营和独立项目工作台提供首次使用提示与顶栏“功能引导”入口。导览按当前可见栏目及身份
+介绍功能，支持跳过、重看、手机和深浅色主题；完成或关闭状态按浏览器中的当前账号记忆。
+导览不切换栏目或提交业务数据，退出后恢复原来的工作位置。
+
+专项检查：启动后端隔离预览 API 5016 和用户端 18096 后，运行
+`pnpm exec playwright test -c e2e/playwright.project-guide.config.ts`。这是用户端静态更新，
+不需要数据库迁移、后端更新或新增环境配置。

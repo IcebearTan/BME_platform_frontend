@@ -53,23 +53,33 @@ import { onMounted, ref, nextTick, onBeforeMount, computed } from 'vue'
 import { ClickOutside as vClickOutside } from 'element-plus'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Calendar, User, SwitchButton } from '@element-plus/icons-vue'
+import { Calendar, User, SwitchButton, Coin } from '@element-plus/icons-vue'
 import api, { session } from '../api'
 import { assetUrl } from '../services/campService'
 import NotificationBell from './Notification/NotificationBell.vue'
 import campLogo from '../assets/秋季学期营.png'
-import DewPopover from '@bme/dew-ui/DewPopover.vue'
+import { DewPopover, DewButton } from '@bme/dew-ui'
+import { usePoints } from '../composables/usePoints'
+import {useProjectAccess} from '../composables/useProjectAccess'
+import { usePointsStore } from '../composables/usePointsStore'
+import PointsHelp from './Points/PointsHelp.vue'
+const { summary: pointsSummary, balanceLabel, failed: pointsFailed, refresh: refreshPoints } = usePoints()
+const { pointsStoreLoading, openPointsStore } = usePointsStore()
+const goPoints = (tab = 'earn') => router.push({ path: '/user-center/points', query: { tab } })
 
 const buttonRef = ref()
 const popoverRef = ref()
 const store = useStore()
 const router = useRouter()
 const route = useRoute()
+const {available:projectAccess,detect:detectProjectAccess}=useProjectAccess()
+onMounted(()=>detectProjectAccess())
 
 // 内部工作台快速入口（feature/work-collab）：位于头像下拉（与营期中心/个人资料
 // 同组，属个人域操作），仅已开通工作人员可见；待办徽标随探测与下拉打开（@show）刷新。
 // 单例探测 /work/me（与服务台卡/组织页按钮/个人中心分组/通知工作 tab 共用）
 import { watch } from 'vue'
+watch(()=>store.state.isLogin,()=>detectProjectAccess())
 import { Briefcase } from '@element-plus/icons-vue'
 import { useWorkAccess } from '../composables/useWorkAccess'
 import { useWorkData } from '../composables/useWorkData'
@@ -86,6 +96,7 @@ const workTodoTotal = computed(() =>
   + (todoCounts.value.overdue || 0))
 // 下拉每次打开即刷新计数（挂机会话徽标不再长期陈旧）；无资格者不额外发请求
 const onAvatarPopShow = () => {
+  refreshPoints(true)
   if (workAccess.value) refreshSummary().catch(() => {})
 }
 const goWorkbench = () => {
@@ -190,6 +201,7 @@ onMounted(() => {
     if (isLogin) {
         refreshAvatar()
         refreshUserLevel()
+        refreshPoints()
     }
 })
 
@@ -273,6 +285,10 @@ const handleUserInfo = () => {
             <NotificationBell />
         </el-menu-item>
 
+        <button v-if="isLogin && !isAuthRoute" type="button" class="points-nav" aria-label="我的积分" @click="goPoints()">
+            <el-icon><Coin /></el-icon><span>{{ balanceLabel }}</span>
+        </button>
+
         <!-- 主题切换按钮 -->
         <el-menu-item class="custom-menu-item theme-menu-item" :class="{ 'theme-dark': isDarkMode, 'theme-light': !isDarkMode }">
             <button type="button"
@@ -292,7 +308,7 @@ const handleUserInfo = () => {
 
         <el-menu-item v-if="isLogin && !isAuthRoute" class="custom-menu-item theme-menu-item" :class="{ 'theme-dark': isDarkMode, 'theme-light': !isDarkMode }">
             <div class="user-avatar" style="cursor: pointer;">
-                <DewPopover trigger="click" placement="bottom" :width="260" :offset="6" :show-arrow="true" @show="onAvatarPopShow">
+                <DewPopover trigger="click" placement="bottom" :width="320" :offset="6" :show-arrow="true" @show="onAvatarPopShow">
                     <template #trigger>
                         <el-avatar :src="User_Avatar" alt="头像" />
                     </template>
@@ -307,6 +323,13 @@ const handleUserInfo = () => {
                                 </div>
                             </div>
                         </div>
+                        <div class="avatar-pop__wallet">
+                            <div class="avatar-pop__wallet-head"><span>可用积分</span><PointsHelp text="积分与商城共用，等级不受兑换影响。待到账奖励不计入余额。" /><button type="button" @click="goPoints('records')">收支明细</button></div>
+                            <strong class="avatar-pop__balance">{{ balanceLabel }}</strong>
+                            <span v-if="pointsFailed" class="avatar-pop__points-state">暂未更新</span>
+                            <span v-else-if="pointsSummary?.status === 'unlinked'" class="avatar-pop__points-state">未关联积分账户</span>
+                            <div class="avatar-pop__wallet-actions"><DewButton size="sm" @click="goPoints()">我的积分</DewButton><DewButton size="sm" :loading="pointsStoreLoading" @click="openPointsStore">去商城</DewButton></div>
+                        </div>
                         <div class="avatar-pop__actions">
                             <div v-if="workAccess" class="avatar-pop__action" @click="goWorkbench">
                                 <el-icon><Briefcase /></el-icon>
@@ -319,6 +342,7 @@ const handleUserInfo = () => {
                                 <el-icon><Calendar /></el-icon>
                                 <span>营期中心</span>
                             </div>
+                            <div v-if="projectAccess" class="avatar-pop__action" @click="router.push('/my-projects')"><el-icon><Calendar /></el-icon><span>我的项目</span></div>
                             <div class="avatar-pop__action" @click="handleUserInfo">
                                 <el-icon><User /></el-icon>
                                 <span>个人资料</span>
@@ -1055,6 +1079,14 @@ const handleUserInfo = () => {
     color: #cccccc;
 }
 
+.points-nav { display: inline-flex; align-items: center; gap: 6px; padding: 7px 10px; border: 0; border-radius: var(--radius-full); color: var(--color-warning); background: var(--color-warning-light); font: 600 13px var(--dew-font); font-variant-numeric: tabular-nums; cursor: pointer; }
+.avatar-pop__wallet { margin: 12px 0 6px; padding: 14px; border-radius: var(--radius-md); background: var(--color-warning-light); }
+.avatar-pop__wallet-head { display: flex; align-items: center; font-size: 12px; color: var(--dew-text-muted); }
+.avatar-pop__wallet-head > button { margin-left: auto; padding: 0; border: 0; background: transparent; color: var(--dew-text-muted); font: inherit; cursor: pointer; }
+.avatar-pop__balance { display: block; margin: 8px 0 12px; font-size: 28px; color: var(--dew-text-heading); font-variant-numeric: tabular-nums; }
+.avatar-pop__points-state { display: block; margin: -8px 0 10px; font-size: 12px; color: var(--dew-text-muted); }
+.avatar-pop__wallet-actions { display: flex; gap: 8px; }
+.avatar-pop__wallet-actions > * { flex: 1; }
 /* ── 头像弹窗（DewPopover 内容，浮层本体由 DewPopover 提供） ── */
 .avatar-pop {
   padding: 8px;

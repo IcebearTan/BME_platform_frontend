@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 
 import { routeProgressStart, routeProgressDone } from './utils/routeProgress';
 import { authSession } from './api';
+import { workService } from './services/workService';
 
 // ── 落地三页保持同步打包（登录前后首屏直达，不做异步分包）：门户 /、主应用 /home、登录页 ──
 import HomeView from './views/HomeView.vue'
@@ -73,6 +74,8 @@ const router = createRouter({
         return { top: 0 }
     },
     routes: [
+        { path: '/workbench-login', name: 'workbench-authorize',
+          component: () => import('./views/WorkbenchAuthorizeView.vue'), meta: { requiresAuth: true } },
         // ── UI 组件展示（开发用）──
         {
             path: '/ui-showcase',
@@ -114,6 +117,10 @@ const router = createRouter({
             name: 'dev-accounts',
             component: () => import('./views/DevAccountsView.vue'),
             meta: { authPage: true }
+        }, {
+            path: '/dev/project-workspace',
+            name: 'dev-project-workspace',
+            component: () => import('./views/ProjectWorkspacePreviewView.vue'),
         }] : []),
         {
             path: '/register',
@@ -140,6 +147,9 @@ const router = createRouter({
         },
 
         // ── 需要登录的路由 ──
+        { path: '/my-projects', name: 'my-projects', component: () => import('./domains/projects/ProjectHome.vue'), meta: { requiresAuth: true } },
+        { path: '/project-workspace/:projectId', name: 'project-core-workspace', component: () => import('./domains/projects/ProjectHome.vue'), meta: { requiresAuth: true } },
+        { path: '/project-activity/:eventId', name: 'project-core-activity', component: () => import('./domains/projects/ProjectActivityTarget.vue'), meta: { requiresAuth: true } },
         {
             path: '/',
             name: 'profile',
@@ -178,6 +188,7 @@ const router = createRouter({
             component: loadUserCenter,
             meta: { requiresAuth: true },
             children: [
+                { path: '/user-center/points', name: 'my-points', component: () => import('./components/Points/MyPoints.vue') },
                 {
                     path: '/user-center/user-info',
                     name: 'user-info',
@@ -471,6 +482,21 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to, from, next) => {
+    if (to.path === '/work' || to.path.startsWith('/work/')) {
+        try {
+            const externalWork = await workService.fetchEntryUrl()
+            if (externalWork) {
+                window.location.assign(externalWork + to.fullPath)
+                next(false)
+                return
+            }
+        } catch {
+            const { ElMessage } = await import('element-plus')
+            ElMessage.error('工作台入口暂时无法获取，请稍后重试')
+            next({ path: '/service-hall' })
+            return
+        }
+    }
     // 路由顶部进度条：分包 chunk 首载期遮羞（同步导航瞬时完成，进度条一闪而过）
     routeProgressStart()
 

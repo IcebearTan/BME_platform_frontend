@@ -10,7 +10,7 @@
 
     <template v-if="cur">
       <!-- 看板头 -->
-      <DewCard variant="inset" size="lg" :no-hover="true" class="board-head">
+      <DewCard v-if="!workspace" variant="inset" size="lg" :no-hover="true" class="board-head">
         <div class="head-row">
           <div class="head-main">
             <span class="head-name">{{ cur.name }}</span>
@@ -20,16 +20,16 @@
             </span>
           </div>
           <div class="head-actions">
-            <DewButton v-if="role === 'leader'" type="ghost" size="sm"
+            <DewButton v-if="!nativeProject && role === 'leader'" type="ghost" size="sm"
                        :disabled="session.status === 'archived'" @click="openTemplate">项目模板</DewButton>
-            <DewButton v-if="role === 'leader'" type="glass" size="sm" @click="openPublish">发布到项目广场</DewButton>
+            <DewButton v-if="!nativeProject && role === 'leader'" type="glass" size="sm" @click="openPublish">发布到项目广场</DewButton>
           </div>
         </div>
         <p v-if="cur.goal" class="head-goal">{{ cur.goal }}</p>
       </DewCard>
 
       <!-- 成员管理（负责） -->
-      <template v-if="role === 'leader'">
+      <template v-if="!nativeProject && role === 'leader' && visible('members')">
         <div class="sec-title">成员管理</div>
         <DewCard variant="default" :no-hover="true" class="sec-card">
           <ProjectRoster :unit-id="cur.unit_id" :camp-status="session.status" @changed="emitChanged" />
@@ -37,62 +37,53 @@
       </template>
 
       <!-- 节点交付（模板实例化的里程碑：材料提交/审核 + 节点评价；09-14 用户定名「项目进展」） -->
-      <div class="sec-title">项目进展</div>
+      <template v-if="visible('delivery')"><div v-if="!nativeProject && workspace && role === 'leader'" class="board-tools"><DewButton size="sm" type="ghost" :disabled="!workEditable" @click="openTemplate">管理节点计划</DewButton></div><div v-if="!workspace" class="sec-title">项目进展</div>
       <DewCard variant="default" :no-hover="true" class="sec-card">
-        <ProjectMilestones :unit-id="cur.unit_id" :camp-status="session.status"
-                           :editable="session.status !== 'archived' && cur.status === 'active'"
-                           :owner-user-id="cur.leader_user_id" @changed="emitChanged" />
+        <ProjectMilestones ref="milestonesRef" :unit-id="cur.unit_id" :camp-status="session.status"
+                           :editable="workEditable" :native-project="nativeProject"
+                           :owner-user-id="cur.leader_user_id" :workspace="workspace" :draft-cache="draftCache" @changed="emitChanged" />
       </DewCard>
 
+      </template>
       <!-- 活动考勤（09-13 拍板：以项目为单位，负责人发起/勾选出席） -->
-      <div class="sec-title">活动考勤</div>
+      <template v-if="visible('activities')"><div class="sec-title">活动考勤</div>
       <DewCard variant="default" :no-hover="true" class="sec-card">
-        <ProjectActivities :sid="sid" :session="session" :unit-id="cur.unit_id" />
+        <ProjectActivities :sid="sid" :session="workSession" :unit-id="cur.unit_id" />
       </DewCard>
 
+      </template>
       <!-- 组会纪要（09-17：负责人提交文字/文件/录像纪要，组员查看；结营只读） -->
-      <div class="sec-title">组会纪要</div>
+      <template v-if="visible('meetings')"><div v-if="!workspace" class="sec-title">组会纪要</div>
       <DewCard variant="default" :no-hover="true" class="sec-card">
-        <CampMeetings :sid="sid" :unit-id="cur.unit_id" :camp-status="session.status" />
+        <CampMeetings :sid="sid" :unit-id="cur.unit_id" :camp-status="workSession.status" />
       </DewCard>
 
+      </template>
       <!-- 周考勤（09-13：项目营开了周打卡后负责人的成员×周面板，两区并显不并口径） -->
-      <template v-if="role === 'leader' && weeklyOn">
+      <template v-if="role === 'leader' && weeklyOn && visible('weekly')">
         <div class="sec-title">周考勤</div>
         <DewCard variant="default" :no-hover="true" class="sec-card">
           <ProjectWeeklyAttendance :unit-id="cur.unit_id" />
         </DewCard>
       </template>
 
-      <!-- 成果 -->
-      <div class="sec-title">项目成果</div>
-      <DewCard variant="default" :no-hover="true" class="sec-card">
-        <div class="outcome-head">
-          <span class="outcome-title">验收材料与成果</span>
-          <DewButton v-if="role === 'leader' && session.status !== 'archived' && cur.status === 'active'"
-                     type="ghost" size="sm" @click="openOutcome">登记成果</DewButton>
-        </div>
-        <div v-if="!outcomes.length" class="outcome-empty">
-          {{ role === 'leader' ? '尚无成果登记——结题材料验收后在此登记，管理员核验后入档' : '负责人尚未登记成果' }}
-        </div>
-        <div v-else class="outcome-list">
-          <div v-for="o in outcomes" :key="o.id" class="outcome-item">
-            <span class="outcome-name">{{ o.title }}</span>
-            <span :class="['outcome-status', `os-${o.status}`]">{{ OUTCOME_TEXT[o.status] || o.status }}</span>
-            <span v-if="o.reject_reason" class="outcome-reason">驳回原因：{{ o.reject_reason }}</span>
-          </div>
-        </div>
-      </DewCard>
+      <template v-if="visible('outcomes')"><div v-if="!workspace" class="sec-title">项目成果</div>
+        <DewCard variant="default" :no-hover="true" class="sec-card">
+          <ProjectOutcomes :unit-id="cur.unit_id" :editable="role === 'leader' && workEditable" @changed="emitChanged">
+            <template #actions><DewButton v-if="!nativeProject && workspace && role === 'leader'" type="ghost" size="sm" @click="openPublish">发布到项目广场</DewButton></template>
+          </ProjectOutcomes>
+        </DewCard>
+      </template>
     </template>
 
     <!-- 项目模板（三起点+节点编辑） -->
-    <DewDialog v-model="tplDlg" :title="`项目模板 · ${cur?.name || ''}`" width="680px">
+    <DewDialog v-if="!nativeProject" v-model="tplDlg" :title="`项目模板 · ${cur?.name || ''}`" width="680px">
       <TemplateEditor v-if="tplDlg && cur" :unit-id="cur.unit_id" :sid="sid"
-                      @close="tplDlg = false" @changed="emitChanged" />
+                      @close="tplDlg = false" @created="milestonesRef?.reload()" @changed="emitChanged" />
     </DewDialog>
 
     <!-- 发布到项目广场 -->
-    <DewDialog v-model="publishDlg" title="发布到项目广场" width="560px">
+    <DewDialog v-if="!nativeProject" v-model="publishDlg" title="发布到项目广场" width="560px">
       <div class="publish-form">
         <div class="pub-note">
           发布后全站可见（标题与详情自动取自项目档案，下方可覆盖）；结营后自动标「已完成」并挂结营档案引用。
@@ -110,22 +101,6 @@
       </div>
     </DewDialog>
 
-    <!-- 登记成果 -->
-    <DewDialog v-model="outcomeDlg" title="登记项目成果" width="520px">
-      <div class="outcome-form">
-        <div class="field-label">成果标题 <span class="field-req">必填</span></div>
-        <DewInput v-model="outcomeForm.title" size="lg" placeholder="如：样机一台 / 论文一篇 / 开源仓库" />
-        <div class="field-label">说明</div>
-        <DewInput v-model="outcomeForm.description" type="textarea" :rows="3"
-                  placeholder="成果形态与完成情况（核验与结营档案可见）" />
-        <div class="outcome-note">提交后由管理员核验；未核验的成果不进入结营档案。</div>
-        <div class="outcome-actions">
-          <DewButton type="ghost" @click="outcomeDlg = false">取消</DewButton>
-          <DewButton type="glass" :loading="outcomeSaving" :disabled="!outcomeForm.title.trim()"
-                     @click="saveOutcome">提交登记</DewButton>
-        </div>
-      </div>
-    </DewDialog>
   </div>
 </template>
 
@@ -136,6 +111,7 @@ import { DewCard, DewButton, DewInput, DewTag, DewDialog, DewSelect } from '@bme
 import { campService } from '../../services/campService';
 import { showcaseService } from '../../services/showcaseService';
 import ProjectRoster from './ProjectRoster.vue';
+import ProjectOutcomes from '../../domains/projects/ProjectOutcomes.vue';
 import ProjectMilestones from './ProjectMilestones.vue';
 import ProjectActivities from './ProjectActivities.vue';
 import CampMeetings from './CampMeetings.vue';
@@ -144,18 +120,27 @@ import TemplateEditor from './TemplateEditor.vue';
 
 const props = defineProps({
   sid: { type: Number, required: true },
+  section: { type: String, default: null },
+  workspace: Boolean,
+  nativeProject: Boolean,
+  editable: { type: Boolean, default: true },
+  draftCache: { type: Object, default: () => ({}) },
   session: { type: Object, required: true },
   units: { type: Array, required: true },          // 同一角色的项目列表（mine.leading / mine.joining）
   role: { type: String, default: 'member' },       // leader / member
 });
 const emit = defineEmits(['changed']);
+const milestonesRef = ref(null);
+const visible = section => !props.section || props.section === section;
 
 const unitStatusText = { active: '进行中', paused: '已暂停', terminated: '已终止' };
-const OUTCOME_TEXT = { submitted: '待核验', verified: '已核验', rejected: '已驳回' };
 
 const currentId = ref(null);
 const unitOptions = computed(() => props.units.map((u) => ({ label: u.name, value: u.unit_id })));
 const cur = computed(() => props.units.find((u) => u.unit_id === currentId.value) || props.units[0]);
+const workEditable = computed(() => props.editable && !['archived', 'deleted'].includes(props.session.status) && cur.value?.status === 'active');
+// 已迁入项目的写权限由关联上下文传入，旧子组件通过营期状态接受只读模式。
+const workSession = computed(() => props.nativeProject && !workEditable.value ? { ...props.session, status: 'archived' } : props.session);
 watch(() => props.units, (us) => {
   if (!us.some((u) => u.unit_id === currentId.value)) currentId.value = us[0]?.unit_id ?? null;
 }, { immediate: true });
@@ -166,51 +151,21 @@ const emitChanged = () => emit('changed');
 const weeklyOn = computed(() => !!props.session.policy?.capabilities?.attendance
   && props.session.policy?.attendance_mode === 'weekly');
 
-// ── 成果 ──
-const outcomes = ref([]);
-async function loadOutcomes() {
-  if (!cur.value) return;
-  try {
-    const d = await campService.fetchOutcomes(cur.value.unit_id);
-    outcomes.value = d.outcomes || [];
-  } catch { outcomes.value = []; }
-}
-watch(() => cur.value?.unit_id, loadOutcomes, { immediate: true });
-
-const outcomeDlg = ref(false);
-const outcomeForm = ref({ title: '', description: '' });
-const outcomeSaving = ref(false);
-function openOutcome() { outcomeForm.value = { title: '', description: '' }; outcomeDlg.value = true; }
-async function saveOutcome() {
-  if (outcomeSaving.value || !outcomeForm.value.title.trim()) return;
-  outcomeSaving.value = true;
-  try {
-    const r = await campService.registerOutcome(cur.value.unit_id, {
-      title: outcomeForm.value.title.trim(),
-      description: outcomeForm.value.description.trim() || null,
-    });
-    ElMessage.success(r.message || '已登记，等待核验');
-    outcomeDlg.value = false;
-    loadOutcomes();
-  } catch (e) {
-    ElMessage.error(e.response?.data?.message || '登记失败');
-  } finally { outcomeSaving.value = false; }
-}
-
 // ── 项目模板 ──
 const tplDlg = ref(false);
-function openTemplate() { tplDlg.value = true; }
+function openTemplate() { if (!props.nativeProject && workEditable.value) tplDlg.value = true; }
 
 // ── 发布到项目广场 ──
 const publishDlg = ref(false);
 const publishForm = ref({ summary: '', tagsText: '', linksText: '' });
 const publishing = ref(false);
 function openPublish() {
+  if (props.nativeProject) return;
   publishForm.value = { summary: cur.value?.goal || '', tagsText: '', linksText: '' };
   publishDlg.value = true;
 }
 async function doPublish() {
-  if (publishing.value) return;
+  if (props.nativeProject || publishing.value) return;
   publishing.value = true;
   try {
     const links = publishForm.value.linksText.split('\n').map((l) => l.trim()).filter(Boolean)
@@ -249,22 +204,6 @@ async function doPublish() {
 
 .sec-title { font-size: 14.5px; font-weight: 700; color: var(--dew-text-heading); margin-top: 6px; }
 .sec-card { padding-block: 12px; }
-
-.outcome-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-.outcome-title { font-size: 13.5px; font-weight: 650; color: var(--dew-text-heading); }
-.outcome-empty { font-size: 12.5px; color: var(--dew-text-faint); }
-.outcome-list { display: flex; flex-direction: column; gap: 6px; }
-.outcome-item { display: flex; align-items: center; gap: 10px; font-size: 13px; flex-wrap: wrap; }
-.outcome-name { font-weight: 600; color: var(--dew-text-heading); }
-.outcome-status { font-size: 12px; font-weight: 600; }
-.os-submitted { color: var(--color-warning); }
-.os-verified { color: var(--color-success); }
-.os-rejected { color: var(--color-danger, #e5484d); }
-.outcome-reason { font-size: 12px; color: var(--dew-text-faint); }
-
-.outcome-form { display: flex; flex-direction: column; gap: 10px; }
-.outcome-note { font-size: 12px; color: var(--dew-text-faint); }
-.outcome-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
 
 .publish-form { display: flex; flex-direction: column; gap: 10px; }
 .pub-note { font-size: 12px; color: var(--dew-text-faint); line-height: 1.6; }

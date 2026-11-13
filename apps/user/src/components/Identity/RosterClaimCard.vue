@@ -113,6 +113,13 @@ const close = () => {
 </template>
 
 <style scoped>
+/* EP 变量桥接 dew tokens：暗色模式下 el-input 不再白底（同 VerificationWizard） */
+.claim-card {
+  --el-text-color-regular: var(--dew-text, #374151);
+  --el-fill-color-blank: var(--dew-card-flat-bg, #ffffff);
+  --el-border-color: var(--dew-card-flat-border, rgba(0, 0, 0, 0.06));
+  --el-color-primary: var(--color-primary, #3b82f6);
+}
 .claim-header { display: flex; align-items: center; justify-content: space-between; font-weight: 600; }
 .claim-info { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; font-size: 14px; }
 .claim-line { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }

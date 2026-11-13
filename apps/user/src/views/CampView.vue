@@ -17,12 +17,12 @@
       <!-- 工作台：具体营期内容；其他营期统一回中心选择 -->
       <div v-else-if="sessions.length" class="camp-layout">
         <div class="camp-main">
-          <DewButton type="ghost" size="sm" class="back-center" @click="backToCenter">
+          <DewButton v-if="!projectWorkspaceActive" type="ghost" size="sm" class="back-center" @click="backToCenter">
             <el-icon><ArrowLeft /></el-icon>
             <span>营期中心</span>
           </DewButton>
           <!-- 营期头部：无卡片样式，置于最上；tabs 切换条紧随其下 -->
-          <header v-if="current" class="camp-hero">
+          <header v-if="current && !projectWorkspaceActive" class="camp-hero">
             <h1 class="hero-title">{{ current.name }}</h1>
             <!-- 信息行：状态·日期·规则（左） + 选导生阶段胶囊（右） -->
             <div class="hero-meta-row">
@@ -66,7 +66,8 @@
 
           <!-- ── 老师视角（阶段 1，CampStaff）：负责人工作台——先于成员判定，
                staff 非成员也能进自己的营 ── -->
-          <template v-if="current && perspective === 'teacher'">
+          <ProjectWorkspaceShell v-if="projectWorkspaceActive" :key="sid" :sid="sid" :session="current" :perspective="perspective" @back="backToCenter" @perspective-change="switchPerspective" />
+          <template v-else-if="current && perspective === 'teacher'">
             <TeacherWorkspace :sid="sid" :session="current" />
           </template>
 
@@ -125,9 +126,10 @@
 
           <!-- 09-13 项目营拍板：营期层「看板/项目」tab 退役——成员工作台直接渲染 ProjectHub，
                其自带 buttonbar（项目意向=选择期临时 / 我负责的 / 我参加的 / 请假） -->
-          <DewButtonBar v-else-if="!isProject" v-model="tab" :items="tabItems" style="margin: 16px 0;" />
-          <CampOverview v-if="tab === 'overview' && !isProject && current && current.is_member" :sid="sid" :my-role="current.my_role" :att-enabled="!!caps.attendance" />
-          <template v-if="isProject && current?.is_member">
+          <div v-else-if="!isProject" class="camp-tabs-scroll"><DewButtonBar v-model="tab" :items="tabItems" /></div>
+          <CampOverview :key="`${sid}-${perspective}`" v-if="tab === 'overview' && !isProject && current && current.is_member" :sid="sid" :my-role="perspective || current.my_role" :att-enabled="!!caps.attendance" />
+          <CampPointsPanel v-if="tab === 'points' && !isProject && current?.is_member && perspective !== 'teacher'" :key="`${sid}-${perspective}`" :sid="sid" :manage="isMentor" />
+          <template v-if="isProject && current?.is_member && !projectWorkspaceActive">
             <ProjectHub :sid="sid" :session="current" style="margin-top: 16px;" />
           </template>
           <template v-else-if="isMentor && current?.is_member">
@@ -168,11 +170,13 @@ import MentorDashboard from '../components/Camp/MentorDashboard.vue';
 import MentorLeave from '../components/Camp/MentorLeave.vue';
 import MentorMembers from '../components/Camp/MentorMembers.vue';
 import TeacherWorkspace from '../components/Camp/TeacherWorkspace.vue';
+import CampPointsPanel from '../components/Camp/CampPointsPanel.vue';
 import MsStudentPick from '../components/Camp/MsStudentPick.vue';
 import MsMentorDesk from '../components/Camp/MsMentorDesk.vue';
 import CampCenter from '../components/Camp/CampCenter.vue';
 import CampJoin from '../components/Camp/CampJoin.vue';
 import ProjectHub from '../components/Camp/ProjectHub.vue';
+import ProjectWorkspaceShell from '../components/Camp/ProjectWorkspaceShell.vue';
 import ProjectApplyCard from '../components/Camp/ProjectApplyCard.vue';
 
 const store = useStore();
@@ -190,10 +194,12 @@ const isStaff = computed(() => store.getters.role === 'super_admin');
 // 注意：studentTabs/mentorTabs 依赖 current，tab 初始化（tabItems.value）在 setup 期立即求值，
 // 故 current 必须声明在它们之前，否则 TDZ 报错 Cannot access 'current' before initialization
 const current = computed(() => sessions.value.find((s) => s.id === sid.value));
-const isMentor = computed(() => current.value?.my_role === 'mentor');
+const perspective = ref(null);
+const isMentor = computed(() => (perspective.value || current.value?.my_role) === 'mentor');
 // v1.3 category 组装：项目营=身份中性视图（负责人身份在单元层，由 ProjectHub 自行区分）；
 // 考勤/请假 tab 由 policy capabilities 决定（learning 默认开、project 首期关，营期行可覆盖）
 const isProject = computed(() => current.value?.category === 'project');
+const projectWorkspaceActive = computed(() => isProject.value && (current.value?.is_member || perspective.value === 'teacher'));
 const caps = computed(() => current.value?.policy?.capabilities || {});
 // 看板为默认 tab（营期概要+仪表盘，自 CampHome 成员视图迁入）；
 // 选导生为开营前置阶段，启用时紧随看板（session 数据来自 _session_dict 的 mentor_selection_enabled）
@@ -215,6 +221,7 @@ const studentTabs = computed(() => {
   ];
   if (caps.value.attendance) t.push({ value: 'attendance', label: '我的考勤' });
   if (caps.value.leave) t.push({ value: 'leave', label: '请假' });
+  t.push({ value: 'points', label: '营期积分' });
   if (current.value?.mentor_selection_enabled) t.splice(1, 0, { value: 'ms', label: msOver.value ? '我的导生' : '选导生' });
   return t;
 });
@@ -227,6 +234,7 @@ const mentorTabs = computed(() => {
   ];
   if (caps.value.attendance) t.push({ value: 'dashboard', label: '团队考勤' });
   if (caps.value.leave) t.push({ value: 'leave', label: '请假审批' });
+  t.push({ value: 'points', label: '积分奖励' });
   if (current.value?.mentor_selection_enabled) t.splice(1, 0, { value: 'ms', label: msOver.value ? '我的学员' : '选导生' });
   return t;
 });
@@ -240,7 +248,7 @@ const tab = ref((tabItems.value.find((t) => t.value === route.query.tab)
 // 解析顺序：深链 perspective 参数 → 本营记住的最后视角 → 首个可用视角（teacher 职责最高）。
 // 切换只改变界面组织，后端授权每次独立校验；非多视角营不显示切换器。
 const PERSPECTIVE_LABEL = { teacher: '老师', mentor: '导生', student: '学员' };
-const perspective = ref(null);
+
 const multiPerspective = computed(
   () => (current.value?.available_perspectives?.length || 0) > 1);
 function resolvePerspective() {
@@ -264,7 +272,7 @@ function switchPerspective(p) {
 // 选导生胶囊：老师视角下点击 = 切回成员视角再进 ms tab（阶段胶囊属学员/导生域）
 function goMsFromHero() {
   if (perspective.value === 'teacher' && current.value?.is_member) {
-    switchPerspective(isMentor.value ? 'mentor' : 'student');
+    switchPerspective(current.value?.available_perspectives?.includes('mentor') ? 'mentor' : 'student');
   }
   tab.value = 'ms';
 }
@@ -435,6 +443,8 @@ async function loadPendingRequests() {
 </script>
 
 <style scoped>
+.camp-tabs-scroll { max-width: 100%; overflow-x: auto; margin: 16px 0; scrollbar-width: none; }
+.camp-tabs-scroll :deep(.dew-bar) { min-width: max-content; }
 .camp-view { min-height: 100vh; }
 /* 页面内容宽度 */
 .camp-wrap { max-width: 1280px; margin: 0 auto; padding: 24px 20px; }

@@ -5,10 +5,10 @@ import { useStore } from 'vuex';
 import { ElMessage } from 'element-plus';
 import api from "../api";
 import PageFooterComponent from "../components/PageFooterComponent.vue";
-import FeedbackBubble from "../components/Home/FeedbackBubble.vue";
 import LivePanel from "../components/Home/LivePanel.vue";
 import AttenceRankComponent from "../components/Attendence/AttenceRankComponent.vue";
 import MiniCalendar from "../components/Attendence/MiniCalendar.vue";
+import PointsTasksPanel from "../components/Points/PointsTasksPanel.vue";
 import StudyHub from "../components/Home/StudyHub.vue";
 
 import MobileMenuComponent from "../components/MobileMenuComponent.vue";//添加这个竖屏版本的菜单
@@ -25,9 +25,9 @@ const isDarkMode = computed(() => store.getters.isDarkMode);
 // 未核验首页强提醒（R0 收紧批 2026-10-02，用户拍板强弹不可关）：
 // /home 为路由级组件，每次回到首页都会重挂载 → 每次都弹，核验完成自然消失。
 // 超管跳过（管理员不核验）；组件内自探通道，通道关闭不弹。
-// 2026-10-09 紧急下线首页未核验强弹框（用户拍板）：总闸置 false 彻底不弹。
-// 后端通道开关 IDENTITY_UI_ENABLED 已同步关闭（探测兜底）。恢复=改回 true。
-const VERIFY_REMIND_TOTAL_SWITCH = false;
+// 2026-10-09 上午曾紧急下线（总闸 false + 后端 IDENTITY_UI_ENABLED=false），
+// 同日中午用户拍板恢复上线。
+const VERIFY_REMIND_TOTAL_SWITCH = true;
 const showVerifyRemind = ref(false);
 
 ////////新增竖屏检测和组件初始化以及非竖屏销毁//////////////////////////////////////////////////
@@ -113,9 +113,10 @@ const handleEntryClick = (entry) => {
               <StudyHub @banner-click="handleBannerClick" @entry-click="handleEntryClick" />
             </div>
             
-            <!-- 右侧分区 - 迷你日历 + 出勤排行榜 -->
+            <!-- 右侧分区 - 迷你日历 + 积分任务 + 出勤排行榜 -->
             <div class="right-section">
               <MiniCalendar />
+              <PointsTasksPanel />
               <AttenceRankComponent />
             </div>
           </div>
@@ -131,7 +132,6 @@ const handleEntryClick = (entry) => {
   </div>
 
   <!-- 反馈气泡组件 -->
-  <FeedbackBubble />
 </template>
 
 <style scoped>

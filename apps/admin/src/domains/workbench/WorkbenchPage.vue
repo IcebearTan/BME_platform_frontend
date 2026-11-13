@@ -169,7 +169,7 @@ const todoGroups = computed(() => {
     // 内部工作台（feature/work-collab）：需接管事项（处理入口=组织架构→协作授权）
     { key: 'work_takeover', label: '内部协作', count: countOf('work_takeover'),
       to: '/organization/work-grants', detail: '需接管事项' },
-  ]
+  ].filter((group) => !(import.meta.env.VITE_WORKBENCH_URL && group.key === 'work_takeover'))
 })
 
 const selectedItems = computed(() => {

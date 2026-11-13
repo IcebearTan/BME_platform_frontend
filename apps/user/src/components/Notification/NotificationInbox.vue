@@ -30,6 +30,7 @@ import NotificationListComponent from './NotificationListComponent.vue'
 import NoticeDetailPane from './NoticeDetailPane.vue'
 import GratitudeLetterDetail from '../Gratitude/GratitudeLetterDetail.vue'
 import { useNotificationTabs } from '../../composables/useNotificationTabs'
+import { useNotifications } from '../../composables/useNotifications'
 
 const route = useRoute()
 const router = useRouter()
@@ -66,6 +67,22 @@ watch(() => route.query.tab, (tab) => {
   const next = VALID_TABS.includes(tab) ? tab : 'all'
   if (next !== activeTab.value) activeTab.value = next
 })
+
+// 铃铛深链 ?id=：列表就绪后直接选中该通知（切到所属分类 tab + 右栏展示详情），
+// 免去进收件箱后再手动点一次；消费后清掉 query，避免返回时重复选中
+const { notificationList } = useNotifications()
+function applyDeepLinkSelection() {
+  const id = Number(route.query.id)
+  if (!id) return
+  const row = notificationList.value.find((n) => n.id === id)
+  if (!row) return   // 列表未就绪：notificationList 变化时再触发
+  const cat = row.category === 'gratitude' ? 'message' : row.category
+  if (VALID_TABS.includes(cat) && cat !== 'all') activeTab.value = cat
+  selectedNotice.value = row
+  router.replace({ query: { ...route.query, id: undefined } })
+}
+watch(() => route.query.id, () => applyDeepLinkSelection(), { immediate: true })
+watch(notificationList, () => applyDeepLinkSelection())
 </script>
 
 <style scoped>

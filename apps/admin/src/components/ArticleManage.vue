@@ -20,6 +20,7 @@ export default {
         { prop: 'id', label: 'ID', width: '80px' },
         { prop: 'title', label: '标题', minWidth: '220px' },
         { prop: 'author_name', label: '作者', width: '130px' },
+        { prop: 'submitted_at', label: '提交时间', width: '170px' },
         { prop: 'updated_at', label: '更新时间', width: '170px' },
       ],
     };
@@ -132,6 +133,52 @@ export default {
         ElMessage.error(e?.response?.data?.message || '操作失败');
       }
     },
+
+    // 审核通过：公开文章并入队过审积分
+    async approveArticle(row) {
+      try {
+        await ElMessageBox.confirm(
+          `确定通过《${row.title || '无题文章'}》？通过后立即公开。`, '审核通过', {
+            confirmButtonText: '通过',
+            cancelButtonText: '取消',
+            type: 'info',
+          });
+      } catch {
+        return;
+      }
+      try {
+        await api.post(`/v2/article/admin/${row.id}/review`, { action: 'approve' });
+        ElMessage.success('已通过并公开');
+        this.fetchArticles();
+      } catch (e) {
+        ElMessage.error(e?.response?.data?.message || '操作失败');
+      }
+    },
+
+    // 审核驳回：回草稿并通知作者（必填原因）
+    async rejectArticle(row) {
+      let reason;
+      try {
+        const result = await ElMessageBox.prompt(
+          `驳回《${row.title || '无题文章'}》，请填写原因（作者可见）：`, '驳回文章', {
+            confirmButtonText: '驳回',
+            cancelButtonText: '取消',
+            inputType: 'textarea',
+            inputPlaceholder: '例如：内容与训练营无关 / 排版需调整',
+            inputValidator: (v) => ((v || '').trim() ? true : '驳回原因不能为空'),
+          });
+        reason = (result.value || '').trim();
+      } catch {
+        return;
+      }
+      try {
+        await api.post(`/v2/article/admin/${row.id}/review`, { action: 'reject', reason });
+        ElMessage.success('已驳回，作者可修改后重新提交');
+        this.fetchArticles();
+      } catch (e) {
+        ElMessage.error(e?.response?.data?.message || '操作失败');
+      }
+    },
   },
 };
 </script>
@@ -156,6 +203,7 @@ export default {
       <div class="header-actions">
         <el-select v-model="statusFilter" placeholder="状态" style="width: 120px;" @change="handleStatusFilter">
           <el-option label="全部" value="all" />
+          <el-option label="待审核" value="pending_review" />
           <el-option label="已发布" value="published" />
           <el-option label="草稿" value="draft" />
         </el-select>
@@ -200,11 +248,15 @@ export default {
             :min-width="item.minWidth || 125"
             show-overflow-tooltip
           />
-          <el-table-column label="状态" width="100">
+          <el-table-column label="状态" width="110">
             <template #default="{ row }">
-              <el-tag :type="row.status === 'draft' ? 'info' : 'success'" size="small">
-                {{ row.status === 'draft' ? '草稿' : '已发布' }}
-              </el-tag>
+              <el-tooltip v-if="row.status === 'draft' && row.reject_reason"
+                :content="`上次驳回原因：${row.reject_reason}`" placement="top">
+                <el-tag type="danger" size="small">已驳回</el-tag>
+              </el-tooltip>
+              <el-tag v-else-if="row.status === 'pending_review'" type="warning" size="small">审核中</el-tag>
+              <el-tag v-else-if="row.status === 'draft'" type="info" size="small">草稿</el-tag>
+              <el-tag v-else type="success" size="small">已发布</el-tag>
             </template>
           </el-table-column>
           <el-table-column label="推文" width="90">
@@ -222,16 +274,21 @@ export default {
           <el-table-column fixed="right" label="操作" min-width="380">
             <template #default="{ row }">
               <el-button type="primary" size="small" @click="handleEdit(row)">编辑</el-button>
-              <el-button :type="row.is_official ? 'info' : 'warning'" size="small"
+              <template v-if="row.status === 'pending_review'">
+                <el-button type="success" size="small" @click="approveArticle(row)">通过</el-button>
+                <el-button type="danger" size="small" @click="rejectArticle(row)">驳回</el-button>
+              </template>
+              <el-button v-else :type="row.is_official ? 'info' : 'warning'" size="small"
                          :disabled="row.content_type === 'html' && row.is_official"
                          :title="row.content_type === 'html' ? '官方富文本推文不能取消官方标记' : ''"
                          @click="toggleOfficial(row)">
                 {{ row.is_official ? '取消推文' : '设为推文' }}
               </el-button>
-              <el-button :type="row.is_essence ? 'info' : 'success'" size="small" @click="toggleEssence(row)">
+              <el-button v-if="row.status !== 'pending_review'" :type="row.is_essence ? 'info' : 'success'" size="small" @click="toggleEssence(row)">
                 {{ row.is_essence ? '取消精华' : '精华' }}
               </el-button>
               <el-button
+                v-if="row.status !== 'pending_review'"
                 :type="row.status === 'draft' ? 'success' : 'warning'"
                 size="small"
                 @click="togglePublish(row)"

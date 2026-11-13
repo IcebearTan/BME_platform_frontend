@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useStore } from 'vuex'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -16,7 +16,16 @@ const router = useRouter()
 const route = useRoute()
 const { menuSections } = useMenu()
 
-const sidebarCollapsed = ref(false)
+const narrowMedia = window.matchMedia('(max-width: 1024px)')
+const narrowScreen = ref(narrowMedia.matches)
+const sidebarCollapsed = ref(narrowMedia.matches)
+function resizeNavigation(event) {
+  narrowScreen.value = event.matches
+  if (event.matches) sidebarCollapsed.value = true
+}
+narrowMedia.addEventListener('change', resizeNavigation)
+onBeforeUnmount(() => narrowMedia.removeEventListener('change', resizeNavigation))
+watch(() => route.path, () => { if (narrowScreen.value) sidebarCollapsed.value = true })
 
 function toggleSidebar() {
   sidebarCollapsed.value = !sidebarCollapsed.value
@@ -98,6 +107,8 @@ onMounted(async () => {
           text
           size="large"
           class="sidebar-toggle"
+          :aria-label="sidebarCollapsed ? '展开导航' : '收起导航'"
+          :aria-expanded="!sidebarCollapsed"
         />
         <div class="breadcrumb-container">
           <el-breadcrumb separator="/">
@@ -134,6 +145,7 @@ onMounted(async () => {
       </div>
     </div>
 
+    <button v-if="narrowScreen && !sidebarCollapsed" type="button" class="sidebar-backdrop" aria-label="关闭导航" @click="toggleSidebar" />
     <!-- 侧边栏 -->
     <div class="sidebar-container" :class="{ collapsed: sidebarCollapsed }">
       <div class="sidebar-header">
@@ -630,6 +642,14 @@ onMounted(async () => {
   margin-top: 64px;
   transition: margin-left var(--transition-normal);
   min-height: calc(100vh - 64px);
+}
+
+.admin-layout .sidebar-backdrop {
+  position: fixed;
+  inset: 64px 0 0;
+  z-index: 998;
+  border: 0;
+  background: var(--el-mask-color);
 }
 
 .admin-layout .main-container.sidebar-collapsed {

@@ -129,9 +129,11 @@ const submitEmail = async () => {
     })
     if (res.data.code == 200) {
       session.save(res.data)
+      ElMessage.success('验证码已发送到您的邮箱，请查收')
+    } else {
+      ElMessage.error(res.data.message || '验证码发送失败')
+      return
     }
-
-    ElMessage.success('验证码已发送到您的邮箱，请查收')
 
     const countDown = setInterval(() => {
       if (count.value < 1) {
@@ -147,7 +149,7 @@ const submitEmail = async () => {
       }
     }, 1000)
   } catch (error) {
-    ElMessage.error('验证码发送失败')
+    ElMessage.error(error.response?.data?.message || '验证码发送失败')
   }
 }
 
@@ -171,10 +173,10 @@ const submitForm = async () => {
       ElMessage.success('重置密码成功')
       router.push('/login')
     } else {
-      ElMessage.error('重置失败，检查验证码')
+      ElMessage.error(res.data.message || '重置失败，检查验证码')
     }
   } catch (err) {
-    ElMessage.error('重置失败')
+    ElMessage.error(err.response?.data?.message || '重置失败')
   }
 }
 </script>

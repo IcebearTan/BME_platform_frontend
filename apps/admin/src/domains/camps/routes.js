@@ -17,6 +17,7 @@ const loadMentorMatching = () => import('./pages/CampMentorMatchingPage.vue')
 const loadProgress = () => import('./pages/CampProgressPage.vue')
 const loadProjectApplications = () => import('./pages/CampProjectApplicationsPage.vue')
 const loadProjectFormation = () => import('./pages/CampProjectFormationPage.vue')
+const loadProjectDashboard = () => import('./pages/CampProjectDashboardPage.vue')
 const loadProjectDeliveries = () => import('./pages/CampProjectDeliveriesPage.vue')
 const loadProjectArchive = () => import('./pages/CampProjectArchivePage.vue')
 const loadSettings = () => import('./pages/CampSettingsPage.vue')
@@ -98,6 +99,7 @@ export const campsRoutes = [
       { path: 'learning/mentor-matching', name: 'camp.learning.mentorMatching', component: loadMentorMatching, meta: leaf('导生招募与匹配') },
       { path: 'learning/progress', name: 'camp.learning.progress', component: loadProgress, meta: leaf('学习进度') },
 
+      { path: 'project/dashboard', name: 'camp.project.dashboard', component: loadProjectDashboard, meta: leaf('项目总览') },
       { path: 'project/applications', name: 'camp.project.applications', component: loadProjectApplications, meta: leaf('项目申报') },
       { path: 'project/formation', name: 'camp.project.formation', component: loadProjectFormation, meta: leaf('项目组队') },
       { path: 'project/deliveries', name: 'camp.project.deliveries', component: loadProjectDeliveries, meta: leaf('交付审核') },

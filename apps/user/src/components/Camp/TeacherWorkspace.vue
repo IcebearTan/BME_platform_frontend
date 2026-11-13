@@ -8,15 +8,18 @@
       <span class="ws-hint">{{ stageHint }}</span>
     </div>
 
-    <DewButtonBar v-model="section" :items="sectionItems" style="margin: 14px 0;" />
+    <div class="ws-nav-scroll"><DewButtonBar v-model="section" :items="sectionItems" /></div>
 
-    <TeacherOverview v-if="section === 'overview'" ref="overviewRef" :sid="sid" @navigate="goSection" />
+    <TeacherProjectDashboard v-if="section === 'projects'" :sid="sid" />
+    <TeacherOverview v-else-if="section === 'overview'" ref="overviewRef" :sid="sid" @navigate="goSection" />
     <TeacherAdmissions v-else-if="section === 'admissions'" ref="admissionsRef" :sid="sid"
       :ms-enabled="!!session?.mentor_selection_enabled" @reviewed="refreshOverview" />
     <TeacherMsAssign v-else-if="section === 'ms'" :sid="sid" @reviewed="refreshOverview" />
     <TeacherMembers v-else-if="section === 'members'" :sid="sid"
       :att-enabled="caps.attendance" @reviewed="refreshOverview" />
+    <TrainingGroups v-else-if="section === 'groups'" :sid="sid" :session="session" />
     <TeacherAnnouncements v-else-if="section === 'announcements'" :sid="sid" />
+    <CampPointsPanel v-else-if="section === 'points'" :key="sid" :sid="sid" manage />
     <TeacherProgress v-else-if="section === 'progress'" :sid="sid" />
     <TeacherMeetings v-else-if="section === 'meetings'" :sid="sid" :category="session?.category" />
     <MentorDashboard v-else-if="section === 'attendance'" :sid="sid" scope-label="全营" />
@@ -26,16 +29,20 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { DewButtonBar, DewTag } from '@bme/dew-ui';
 import TeacherOverview from './TeacherOverview.vue';
+import TeacherProjectDashboard from './TeacherProjectDashboard.vue';
 import TeacherAdmissions from './TeacherAdmissions.vue';
 import TeacherMsAssign from './TeacherMsAssign.vue';
 import TeacherMembers from './TeacherMembers.vue';
+import TrainingGroups from './TrainingGroups.vue';
 import TeacherAnnouncements from './TeacherAnnouncements.vue';
 import TeacherProgress from './TeacherProgress.vue';
 import TeacherMeetings from './TeacherMeetings.vue';
 import MentorDashboard from './MentorDashboard.vue';
 import MentorLeave from './MentorLeave.vue';
+import CampPointsPanel from './CampPointsPanel.vue';
 
 const props = defineProps({
   sid: { type: [Number, String], required: true },
@@ -44,6 +51,7 @@ const props = defineProps({
 });
 
 // 外壳只做子页导航（方案 §6.2：不能长成包含所有表格的超大组件）。
+const route = useRoute(), router = useRouter();
 const section = ref('overview');
 const caps = computed(() => props.session?.policy?.capabilities || {});
 
@@ -57,20 +65,28 @@ const msTabVisible = computed(() =>
 
 const sectionItems = computed(() => {
   const items = [
-    { value: 'overview', label: '概览' },
+    props.session?.category === 'project'
+      ? { value: 'projects', label: '项目总览' }
+      : { value: 'overview', label: '概览' },
     { value: 'admissions', label: '报名审批' },
   ];
   if (msTabVisible.value) {
     items.push({ value: 'ms', label: '选导生收官' });
   }
   items.push({ value: 'members', label: '成员管理' });
+  if (props.session?.category === 'learning') items.push({ value: 'groups', label: '培训小组' });
   items.push({ value: 'announcements', label: '营期公告' });
-  items.push({ value: 'progress', label: '学习进度' });
+  if (props.session?.category !== 'project') items.push({ value: 'progress', label: '学习进度' });
   items.push({ value: 'meetings', label: '组会总览' });
   if (caps.value.attendance) items.push({ value: 'attendance', label: '全营考勤' });
   items.push({ value: 'leaves', label: '请假审批' });
+  if ((props.session?.my_permissions || []).includes('reward.issue')) items.push({ value: 'points', label: '积分奖励' });
   return items;
 });
+
+watch(() => [props.sid, props.session?.category], () => {
+  section.value = props.session?.category === 'project' ? 'projects' : 'overview';
+}, { immediate: true });
 
 // 营期状态刷新后失效的子页自动回落：停在 ms 时营期进入 running → Tab 消失即回概览，
 // 不残留一个后端已 409 的子页
@@ -78,9 +94,25 @@ watch(msTabVisible, (visible) => {
   if (!visible && section.value === 'ms') section.value = 'overview';
 });
 
+watch(sectionItems, items => { if (!items.some(item => item.value === section.value)) section.value = 'overview' });
+watch(() => route.query.tab, (value, previous) => {
+  if (value === 'points' && sectionItems.value.some(item => item.value === 'points')) section.value = 'points';
+  else if (previous === 'points' && section.value === 'points') section.value = 'overview';
+}, { immediate: true });
+watch(section, value => {
+  const query = { ...route.query };
+  if (value === 'points' && query.tab !== 'points') router.replace({ query: { ...query, tab: 'points' } });
+  else if (value !== 'points' && query.tab === 'points') { delete query.tab; router.replace({ query }); }
+});
+
 // 顶部提示随阶段变化：running 后不再提「选导生」类暗示仍可操作的文案
 const stageHint = computed(() => {
   const st = props.session?.status;
+  if (props.session?.category === 'project') {
+    if (st === 'archived') return '营期已结营，在项目总览查看冻结的进度与成果';
+    if (st === 'running') return '在项目总览检查全营节点进度、待评价材料和逾期项目';
+    return '项目申报与组队阶段，项目总览展示已建项目及节点配置';
+  }
   if (st === 'selecting') {
     return '报名审批、选导生收官、成员与请假运营在本工作台处理；开营后选导生入口自动收起，补分组转「成员管理」';
   }
@@ -113,6 +145,8 @@ function goSection(key) {
 </script>
 
 <style scoped>
+.ws-nav-scroll { max-width: 100%; overflow-x: auto; margin: 14px 0; scrollbar-width: none; }
+.ws-nav-scroll :deep(.dew-bar) { min-width: max-content; }
 .ws-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .ws-hint { font-size: 12px; color: var(--dew-text-faint); }
 </style>

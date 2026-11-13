@@ -29,6 +29,11 @@ const loadLearningProgress = () => import('../../components/LearningProgress.vue
 const keep = (to, target) => ({ ...target, query: { ...to.query } })
 
 export const miscRoutes = [
+  {
+    path: '/operations/points', name: 'operations_points',
+    component: () => import('../../components/PointsManage.vue'),
+    meta: { title: '积分管理', domain: 'operations', navGroup: 'operations', navOrder: 35, showInMenu: true, icon: 'Tickets', staffOnly: true },
+  },
   // ── 系统与基础设施 ─────────────────────────────────────────────
   {
     path: '/system/accounts',

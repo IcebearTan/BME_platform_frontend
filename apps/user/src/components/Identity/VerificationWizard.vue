@@ -1,7 +1,7 @@
 <script setup>
 // 身份核验向导（D4）：草稿 → 邮箱验证码 → 提交审核。验证码只存运行内存，
 // 不写 localStorage/Vuex/URL（规格 12.1）。
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { CircleCheck } from '@element-plus/icons-vue'
 import api from '../../api'
@@ -15,6 +15,18 @@ const props = defineProps({
 const emit = defineEmits(['refresh'])
 
 const form = ref({ school_id: '', claimed_name: '', claimed_identifier: '', contact_email: '' })
+
+// 草稿回填（2026-10-26 修复）：此前有草稿时表单既不回填又整体禁用，
+// 草稿用户看到的是一排空且点不动的输入框（线上反馈「全都无法交互」）。
+// 服务端本就支持改草稿（create_or_update_application），回填后放行编辑。
+watch(() => props.applications, (apps) => {
+  const draft = apps.find(a => a.status === 'draft')
+  if (!draft) return
+  form.value.school_id = draft.school_id || form.value.school_id
+  form.value.claimed_name = draft.claimed_name || ''
+  form.value.claimed_identifier = draft.claimed_identifier || ''
+  form.value.contact_email = draft.contact_email || ''
+}, { immediate: true })
 
 // 外校学校（无个人域配置）：学号选填、任意联系邮箱、无 NetID-邮箱映射（规格 5.2）
 const selectedSchool = computed(() =>
@@ -86,6 +98,19 @@ const errMsg = (error, fallback) => {
   if (typeof m === 'string' && m) return m
   if (m && typeof m === 'object') return Object.values(m)[0]?.[0] || fallback
   return fallback
+}
+
+const saving = ref(false)
+const saveDraft = async () => {
+  saving.value = true
+  try {
+    await ensureDraft()
+    ElMessage.success('草稿已保存')
+  } catch (error) {
+    ElMessage.error(errMsg(error, '保存失败，请稍后重试'))
+  } finally {
+    saving.value = false
+  }
 }
 
 const sendCode = async () => {
@@ -244,30 +269,31 @@ const withdraw = async (row) => {
     </div>
 
     <template v-else-if="enabled">
+      <div v-if="activeDraft" class="draft-hint">
+        已保存草稿，以下信息可修改后「保存修改」；改动 NetID 或邮箱后需重新完成邮箱验证；
+        如需更换学校，请先在下方「我的申请」撤回草稿再重新填写。
+      </div>
       <el-form class="verify-form" label-position="top" @submit.prevent>
         <div class="form-row">
           <el-form-item label="学校">
             <el-select v-model="form.school_id" placeholder="选择学校" class="w-full"
-                       :disabled="!!activeDraft">
+                       popper-class="verify-school-popper" :disabled="!!activeDraft">
               <el-option v-for="s in schools" :key="s.school_id"
                          :label="s.name" :value="s.school_id" />
             </el-select>
           </el-form-item>
           <el-form-item label="待核验姓名">
-            <el-input v-model="form.claimed_name" placeholder="与名册一致的姓名"
-                      :disabled="!!activeDraft" />
+            <el-input v-model="form.claimed_name" placeholder="与名册一致的姓名" />
           </el-form-item>
         </div>
         <div class="form-row">
           <el-form-item :label="isExternal ? '学号（选填）' : 'NetID / 学号'">
             <el-input v-model="form.claimed_identifier"
-                      :placeholder="isExternal ? '如有可填写，便于名册核对' : '学生邮箱 @ 前面的部分，如 zhangsan01'"
-                      :disabled="!!activeDraft" />
+                      :placeholder="isExternal ? '如有可填写，便于名册核对' : '学生邮箱 @ 前面的部分，如 zhangsan01'" />
           </el-form-item>
           <el-form-item :label="isExternal ? '联系邮箱' : '个人学生邮箱'">
             <el-input v-model="form.contact_email"
-                      :placeholder="isExternal ? '常用个人邮箱（接收验证码与后续联系）' : 'NetID@mail2.sysu.edu.cn（@ 前与上一格一致）'"
-                      :disabled="!!activeDraft" />
+                      :placeholder="isExternal ? '常用个人邮箱（接收验证码与后续联系）' : 'NetID@mail2.sysu.edu.cn（@ 前与上一格一致）'" />
           </el-form-item>
         </div>
 
@@ -288,7 +314,7 @@ const withdraw = async (row) => {
         <el-input v-model="code" placeholder="6 位验证码" maxlength="6"
                   class="code-input" @keyup.enter="verifyCode" />
         <el-button :loading="verifying" @click="verifyCode">验证</el-button>
-        <el-button type="primary" plain @click="ensureDraft">保存修改</el-button>
+        <el-button type="primary" plain :loading="saving" @click="saveDraft">保存修改</el-button>
       </div>
 
       <div class="submit-line">
@@ -326,6 +352,31 @@ const withdraw = async (row) => {
 </template>
 
 <style scoped>
+/* EP 变量桥接 dew tokens（对齐 TrainingGroups.training-form 惯例）：
+ * Element Plus 未启用官方暗色主题，el-input/el-select 在暗色模式下保持白底；
+ * dew tokens 随 .theme-dark 翻转，桥接后亮暗两态都与页面底色协调。 */
+.verify-wizard {
+  --el-text-color-primary: var(--dew-text-heading, #1f2937);
+  --el-text-color-regular: var(--dew-text, #374151);
+  --el-fill-color-blank: var(--dew-card-flat-bg, #ffffff);
+  --el-fill-color-light: var(--dew-input-bg, rgba(255, 255, 255, 0.15));
+  --el-border-color: var(--dew-card-flat-border, rgba(0, 0, 0, 0.06));
+  --el-color-primary: var(--color-primary, #3b82f6);
+}
+/* 学校下拉浮层 teleport 到 body（body 带主题类，dew 变量可解析），单独桥接 */
+:global(.verify-school-popper) {
+  --el-bg-color-overlay: var(--dew-card-flat-bg, #ffffff);
+  --el-border-color-light: var(--dew-card-flat-border, rgba(0, 0, 0, 0.06));
+  --el-text-color-regular: var(--dew-text, #374151);
+  --el-fill-color-light: var(--dew-input-bg, rgba(255, 255, 255, 0.15));
+  --el-color-primary: var(--color-primary, #3b82f6);
+}
+.draft-hint {
+  color: var(--dew-text-muted, #94a3b8);
+  font-size: 13px;
+  line-height: 1.7;
+  margin-bottom: 12px;
+}
 .verify-form { margin-top: 4px; }
 .form-row { display: flex; gap: 16px; }
 .mismatch-alert { margin-bottom: 16px; }

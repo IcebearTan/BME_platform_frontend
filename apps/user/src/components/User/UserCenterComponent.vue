@@ -6,7 +6,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRouter, useRoute } from 'vue-router'
 import { useStore } from 'vuex';
-import { Message, User, Setting, Calendar, Collection, EditPen, Document, ChatDotRound, Notebook, Postcard } from '@element-plus/icons-vue';
+import { Message, User, Setting, Calendar, Collection, EditPen, Document, ChatDotRound, Notebook, Postcard, Coin } from '@element-plus/icons-vue';
 import { Briefcase } from '@element-plus/icons-vue';
 import { useWorkAccess } from '../../composables/useWorkAccess';
 import { DewCard, DewSidebar } from '@bme/dew-ui'
@@ -29,6 +29,7 @@ const navItems = computed(() => {
   const groups = [
   {
     label: '账户与反馈', children: [
+      { value: '/user-center/points', label: '我的积分', icon: Coin },
       { value: '/user-center/user-info', label: '个人资料', icon: User },
       { value: '/user-center/identity', label: '身份与账号', icon: Postcard },
       { value: '/user-center/settings', label: '偏好设置', icon: Setting },
@@ -122,6 +123,7 @@ const userLevel = computed(() => User_Info.value.level ?? store.getters.level ??
 // 计算当前应该高亮的菜单项
 const getActiveMenuIndex = (currentPath) => {
   // 处理user-info的子路由
+  if (currentPath.startsWith('/user-center/points')) return '/user-center/points'
   if (currentPath.startsWith('/user-center/user-info')) {
     return '/user-center/user-info'
   }
@@ -179,7 +181,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="uc-layout">
+  <div class="uc-layout" :class="{ 'uc-layout--points': route.path === '/user-center/points' }">
     <!-- 左：个人资料 + 导航 -->
     <aside class="uc-sidebar">
       <DewCard size="lg" divided class="uc-sidebar-card">
@@ -276,6 +278,7 @@ onMounted(() => {
 
 /* 响应式：窄屏堆叠 */
 @media (max-width: 900px) {
+  .uc-layout--points .uc-sidebar { display: none; }
   .uc-layout {
     grid-template-columns: 1fr;
   }

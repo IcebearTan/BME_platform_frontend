@@ -5,6 +5,8 @@
       <el-select v-if="!hideSelector" v-model="sid" placeholder="选择营期" @change="onSessionChange" style="width: 220px">
         <el-option v-for="s in sessions" :key="s.id" :label="s.name" :value="s.id" />
       </el-select>
+      <el-checkbox v-if="board.can_include_history" v-model="includeHistory" :disabled="loading" @change="fetchBoard">包含历史名单</el-checkbox>
+      <span v-if="board.include_history">当前含历史记录</span>
       <!-- 日期范围仅每日模式有意义；按周累计固定营期范围 -->
       <el-date-picker v-if="board.mode !== 'weekly'" v-model="dateRange" type="daterange" range-separator="至"
         start-placeholder="开始日期" end-placeholder="结束日期" value-format="YYYY-MM-DD"
@@ -91,6 +93,7 @@ const sessions = ref([]);
 const sid = ref(props.campId);
 const dateRange = ref(null);   // [from, to] YYYY-MM-DD
 const board = ref({});
+const includeHistory = ref(false);
 const loading = ref(false);
 
 const GLYPH = {
@@ -158,7 +161,7 @@ async function exportCsv() {
   if (!sid.value) { ElMessage.warning('请先选择营期'); return; }
   exporting.value = true;
   try {
-    const params = {};
+    const params = { include_history: includeHistory.value ? 1 : undefined };
     if (board.value.mode !== 'weekly' && dateRange.value && dateRange.value.length === 2) {
       params.from = dateRange.value[0];
       params.to = dateRange.value[1];
@@ -215,7 +218,7 @@ async function fetchBoard() {
   if (!sid.value) return;
   loading.value = true;
   try {
-    const params = {};
+    const params = { include_history: includeHistory.value ? 1 : undefined };
     if (dateRange.value && dateRange.value.length === 2) {
       params.from = dateRange.value[0];
       params.to = dateRange.value[1];

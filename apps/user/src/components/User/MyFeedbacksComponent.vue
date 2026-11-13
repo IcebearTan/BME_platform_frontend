@@ -72,7 +72,7 @@
       <div v-else-if="!loading" class="empty-state">
         <el-icon class="empty-icon"><Document /></el-icon>
         <span class="empty-text">暂无反馈记录</span>
-        <DewButton :active="true" @click="$router.push('/')">去首页提交反馈</DewButton>
+        <span class="muted">点击右下角“报个Bug”即可提交反馈</span>
       </div>
     </DewCard>
 
@@ -85,6 +85,11 @@
             {{ STATUS_META[current.status]?.label || current.status }}
           </DewTag>
         </div>
+        <el-alert v-if="current.resolution_summary" :title="'处理结果：' + current.resolution_summary"
+          :type="current.status === 'rejected' ? 'warning' : 'success'" :closable="false" />
+        <div v-if="current.page_context?.url" class="detail-item column">
+          <label>反馈所在页面：</label><span class="content">{{ current.page_context.url }}</span>
+        </div>
         <div class="detail-item">
           <label>问题描述：</label>
           <p class="content">{{ current.description || '—' }}</p>
@@ -92,16 +97,17 @@
         <div class="detail-item" v-if="current.attachments?.length">
           <label>相关图片：</label>
           <div class="images-grid">
-            <el-image
-              v-for="(a, index) in current.attachments"
-              :key="a.id"
-              :src="attachmentUrl(a)"
-              style="width: 80px; height: 80px; border-radius: 8px"
-              fit="cover"
-              :preview-src-list="current.attachments.map(attachmentUrl)"
-              :initial-index="index"
-              :preview-teleported="true"
-            />
+            <div v-for="(a, index) in current.attachments" :key="a.id" class="feedback-attachment">
+              <el-image
+                :src="attachmentUrl(a)"
+                style="width: 80px; height: 80px; border-radius: 8px"
+                fit="cover"
+                :preview-src-list="current.attachments.map(attachmentUrl)"
+                :initial-index="index"
+                :preview-teleported="true"
+              />
+              <span class="muted">{{ a.kind === 'snapshot' ? '页面快照' : '补充图片' }}</span>
+            </div>
           </div>
         </div>
 
@@ -421,6 +427,8 @@ onMounted(() => {
   flex-direction: column;
   gap: 16px;
 }
+
+.feedback-attachment { display: flex; flex-direction: column; gap: var(--space-xs); font-size: var(--text-sm); }
 
 .detail-head {
   display: flex;

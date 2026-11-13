@@ -72,7 +72,7 @@ const fetchCourseInfo = async () => {
       url: '/course/search',
       method: 'get',
       params: {
-        Course_Id: courseId.value
+        Course_Id: courseId.value, camp_session_id: router.currentRoute.value.query.sid
       }
     })
 
@@ -249,6 +249,7 @@ const isEnrolled = ref(false)
 // 可学性（migrate_52 can_learn 口径）：open 恒真；camp 需营期选课行/营内分配。
 // A14 前的全局自助行 isEnrolled=true 但 canLearn=false——入口与目录点按都认 canLearn
 const canLearn = ref(false)
+const campContextRequired = ref(false)
 
 // 学习方式（migrate_52）：open=自主学（登录即学，无需加入）；camp=营期学
 const learningMode = computed(() => (courseInfo.value?.Learning_Mode === 'open' ? 'open' : 'camp'))
@@ -272,7 +273,8 @@ const checkEnrollment = async () => {
       isEnrolled.value = true
     }
     if (res.data.code === 200 && res.data.data?.can_learn != null) {
-      canLearn.value = res.data.data.can_learn
+      campContextRequired.value = !!res.data.data.camp_context_required
+      canLearn.value = res.data.data.can_learn && !campContextRequired.value
     }
     if (res.data.code === 200 && res.data.data?.camp_session_id) {
       campStamp.value = res.data.data.camp_session_id
@@ -470,7 +472,8 @@ const goBack = () => {
                 {{ courseInfo.Introduction }}
               </div>
               <!-- 营期学且无学习权限：信息列内部的弱化说明（克制文案，无实体色底） -->
-              <div v-if="learningMode === 'camp' && !canLearn" class="camp-note" :class="themeClass">
+              <div v-if="campContextRequired" class="camp-note" :class="themeClass">这门课在多个营期修读，请从对应营期的学习页面进入。</div>
+              <div v-else-if="learningMode === 'camp' && !canLearn" class="camp-note" :class="themeClass">
                 本课程通过营期学习，加入对应学习方向后开放。
               </div>
               <!-- 操作区：信息列底部（桌面端与封面底边对齐；移动端自然换行） -->

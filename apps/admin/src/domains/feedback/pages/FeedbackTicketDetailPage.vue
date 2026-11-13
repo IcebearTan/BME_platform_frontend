@@ -1,461 +1,222 @@
 <template>
-  <div class="ticket-detail-page">
-    <div class="page-header">
-      <div class="page-title">工单 #{{ ticketId }}</div>
-      <div class="header-actions">
-        <el-button @click="goBack">返回列表</el-button>
-      </div>
+  <div class="ticket-detail-page selectable">
+    <div class="page-header"><div class="page-title">工单 #{{ ticketId }}</div><div class="header-actions"><DewButton :loading="loading" @click="fetchDetail">刷新</DewButton><DewButton type="ghost" @click="goBack">返回列表</DewButton></div></div>
+    <el-alert v-if="error" :title="error" type="error" :closable="false"><DewButton size="sm" @click="fetchDetail">重新加载</DewButton></el-alert>
+    <DewSkeleton v-if="loading && !ticket" variant="rect" width="100%" :height="300" />
+    <div v-if="ticket" class="ticket-detail-grid">
+      <main class="ticket-detail-main">
+        <DewCard variant="flat" no-hover>
+          <template #header><div class="ticket-card-heading"><h1>{{ ticket.title }}</h1><el-tag :type="STATUS_META[ticket.status]?.tag || 'info'">{{ STATUS_META[ticket.status]?.label || ticket.status }}</el-tag></div></template>
+          <div class="ticket-meta"><span>提交人：{{ ticket.reporter_name || '#' + ticket.reporter_user_id }}</span><span>类型：{{ CATEGORY_LABELS[ticket.category] || ticket.category }}</span><span>影响级别：{{ SEVERITY_LABELS[ticket.severity] || ticket.severity }}</span><span>{{ formatTime(ticket.created_at) }}</span></div>
+          <p class="ticket-description">{{ ticket.description || '未提供问题描述' }}</p>
+          <el-alert v-if="ticket.resolution_summary" :title="(RESOLUTION_LABELS[ticket.resolution_code] || '处理结果') + '：' + ticket.resolution_summary" type="success" :closable="false" />
+        </DewCard>
+        <DewCard v-if="ticket.page_context?.url || ticket.attachments?.length" variant="flat" no-hover>
+          <template #header><strong>问题现场</strong></template>
+          <dl v-if="ticket.page_context?.url" class="ticket-context">
+            <dt>所在页面</dt><dd><a :href="safeSourceUrl" target="_blank" rel="noopener noreferrer">{{ ticket.page_context.url }}</a></dd>
+            <dt>页面环境</dt><dd>{{ ticket.page_context.viewport_width }} × {{ ticket.page_context.viewport_height }} · {{ ticket.page_context.theme === 'dark' ? '深色' : '浅色' }} · 版本 {{ ticket.page_context.app_version || '未记录' }}</dd>
+            <dt>浏览器</dt><dd>{{ ticket.page_context.user_agent || '未记录' }}</dd>
+          </dl>
+          <div class="ticket-attachments">
+            <button v-for="attachment in ticket.attachments" :key="attachment.id" type="button" @click="preview(attachment)" class="ticket-attachment" :class="{ snapshot: attachment.kind === 'snapshot' }">
+              <DewImage :src="attachmentUrl(attachment)" :alt="attachment.kind === 'snapshot' ? '页面快照' : attachment.original_name" width="100%" :height="attachment.kind === 'snapshot' ? 220 : 110" fit="contain" :lazy="false" />
+              <span>{{ attachment.kind === 'snapshot' ? '页面快照' : '补充图片' }} · 点击放大</span>
+            </button>
+          </div>
+        </DewCard>
+        <DewCard no-hover>
+          <template #header><strong>沟通与处理记录</strong></template>
+          <ol v-if="timeline.length" class="ticket-timeline">
+            <li v-for="entry in timeline" :key="entry.key" :class="{ note: entry.visibility === 'internal', event: entry.kind === 'event' }">
+              <div class="ticket-timeline-heading"><strong>{{ entry.title }}</strong><el-tag v-if="entry.visibility === 'internal'" size="small" type="warning">内部</el-tag><span>{{ entry.author_name || '系统' }} · {{ formatTime(entry.created_at) }}</span></div>
+              <p v-if="entry.body">{{ entry.body }}</p>
+            </li>
+          </ol>
+          <p v-else class="ticket-detail-hint">暂无处理记录</p>
+          <section class="ticket-reply">
+            <h2>添加回复</h2>
+            <el-radio-group v-model="replyVisibility" :disabled="busy" size="small"><el-radio-button value="public">公开回复</el-radio-button><el-radio-button value="internal">内部备注</el-radio-button></el-radio-group>
+            <p class="ticket-detail-hint">{{ replyVisibility === 'public' ? '用户可见，发送后会通知提交人。' : '仅管理端可见，不会通知提交人。' }}</p>
+            <el-input v-model="replyBody" :disabled="busy" type="textarea" :rows="3" maxlength="5000" placeholder="公开回复对用户可见；内部备注仅管理端可见" />
+            <DewButton :loading="busy" :disabled="!replyBody.trim() || planDirty" @click="sendReply">发送</DewButton>
+          </section>
+        </DewCard>
+      </main>
+      <aside class="ticket-action-panel">
+        <DewCard no-hover>
+          <template #header><strong>下一步处理</strong></template>
+          <p class="ticket-detail-hint">{{ STATUS_META[ticket.status]?.hint }}</p>
+          <el-alert v-if="planDirty && ticket.status !== 'new'" title="处理安排有修改，请先保存安排再推进或回复。" type="info" :closable="false" />
+          <div class="ticket-action-buttons">
+            <DewButton v-if="ticket.status === 'new'" :active="true" :loading="busy" @click="savePlan">受理</DewButton>
+            <DewButton v-for="to in nextStatuses" :key="to" :active="to === primaryAction" :disabled="busy || loading || planDirty" :type="to === 'rejected' ? 'ghost' : 'glass'" @click="chooseAction(to)">{{ ACTIONS[to] || to }}</DewButton>
+          </div>
+        </DewCard>
+        <DewCard no-hover>
+          <template #header><strong>处理安排</strong></template>
+          <el-form label-position="top" :disabled="busy || !canTriage">
+            <el-form-item label="反馈类型"><el-select v-model="plan.category"><el-option v-for="(label, key) in CATEGORY_LABELS" :key="key" :value="key" :label="label" /></el-select></el-form-item>
+            <el-form-item label="优先级"><el-select v-model="plan.priority"><el-option v-for="(label, key) in PRIORITY_LABELS" :key="key" :value="key" :label="label" /></el-select></el-form-item>
+            <el-form-item label="处理人"><el-select v-model="plan.assignee_user_id" clearable filterable placeholder="待分派"><el-option v-for="staff in staffOptions" :key="staff.id" :label="staff.username" :value="staff.id" /></el-select></el-form-item>
+          </el-form>
+          <p v-if="staffError" class="ticket-detail-hint">处理人列表加载失败。<button type="button" class="ticket-link-button" @click="fetchStaff">重试</button></p>
+          <DewButton v-if="canTriage && ticket.status !== 'new'" :loading="busy" @click="savePlan">保存安排</DewButton>
+          <p class="ticket-detail-hint">{{ canTriage ? '更改后需保存；保存安排不会额外推进处理状态。' : '已完成工单只读，重新打开后可调整。' }}</p>
+        </DewCard>
+      </aside>
     </div>
 
-    <div v-if="t" class="detail-body">
-      <!-- 工单主体 -->
-      <DewCard no-hover class="main-card">
-        <template #header>
-          <div class="card-head">
-            <span class="t-title">{{ t.title }}</span>
-            <el-tag :type="STATUS_META[t.status]?.tag || 'info'" size="small">{{ STATUS_META[t.status]?.label || t.status }}</el-tag>
-          </div>
-        </template>
-        <div class="t-meta">
-          <span>提交人：{{ t.reporter_name || '#' + t.reporter_user_id }}</span>
-          <span>类型：{{ CATEGORY_LABELS[t.category] || t.category }}</span>
-          <span>影响级别：{{ SEVERITY_LABELS[t.severity] || t.severity }}</span>
-          <span>提交于 {{ formatTime(t.created_at) }}</span>
-        </div>
-        <p class="t-desc">{{ t.description || '（无描述）' }}</p>
-        <div v-if="t.attachments?.length" class="t-attachments">
-          <el-image v-for="a in t.attachments" :key="a.id" :src="attachmentUrl(a)"
-            style="width: 96px; height: 96px; border-radius: 8px" fit="cover"
-            :preview-src-list="t.attachments.map(attachmentUrl)" :preview-teleported="true" />
-        </div>
-        <el-alert v-if="t.resolution_summary" type="success" :closable="false" class="t-resolution"
-          :title="`${RESOLUTION_LABELS[t.resolution_code] || t.resolution_code || '处理结果'}：${t.resolution_summary}`" />
-      </DewCard>
-
-      <!-- 处理操作（受理/分派/回复/状态迁移） -->
-      <DewCard no-hover class="side-card">
-        <template #header><div class="card-head">处理操作</div></template>
-
-        <!-- 受理与分派 -->
-        <div class="op-section">
-          <div class="op-title">优先级与处理人</div>
-          <div class="op-row">
-            <el-select :model-value="t.priority" size="small" style="width: 110px;" @change="setPriority">
-              <el-option v-for="(label, p) in PRIORITY_LABELS" :key="p" :label="label" :value="p" />
-            </el-select>
-            <el-select :model-value="t.assignee_user_id" size="small" clearable filterable
-              placeholder="分派处理人" style="flex: 1;" @change="assign">
-              <el-option v-for="u in staffOptions" :key="u.id" :label="u.username" :value="u.id" />
-            </el-select>
-            <el-button size="small" type="primary" plain @click="triage" :loading="opSubmitting">
-              {{ t.status === 'new' ? '受理' : '保存' }}
-            </el-button>
-          </div>
-        </div>
-
-        <!-- 回复 -->
-        <div class="op-section">
-          <div class="op-title">回复</div>
-          <el-input v-model="replyBody" type="textarea" :rows="3"
-            placeholder="公开回复对用户可见并通知对方；内部备注仅管理端可见" />
-          <div class="op-row">
-            <el-radio-group v-model="replyVisibility" size="small">
-              <el-radio-button value="public">公开回复</el-radio-button>
-              <el-radio-button value="internal">内部备注</el-radio-button>
-            </el-radio-group>
-            <el-button size="small" type="primary" :disabled="!replyBody.trim()"
-              :loading="opSubmitting" @click="sendReply">发送</el-button>
-          </div>
-        </div>
-
-        <!-- 状态迁移（状态机后端校验；当前状态的合法去向动态渲染） -->
-        <div class="op-section">
-          <div class="op-title">状态迁移</div>
-          <div class="op-row wrap">
-            <el-button v-for="to in nextStatuses" :key="to" size="small"
-              :type="ACTION_META[to]?.tag || 'default'" plain @click="doTransition(to)">
-              {{ ACTION_META[to]?.label || to }}
-            </el-button>
-            <span v-if="!nextStatuses.length" class="hint">当前状态无可执行迁移</span>
-          </div>
-        </div>
-      </DewCard>
-
-      <!-- 沟通时间线（公开 + 内部）与状态轨迹 -->
-      <DewCard no-hover class="main-card">
-        <template #header><div class="card-head">沟通与轨迹</div></template>
-        <div class="timeline">
-          <div v-for="m in t.messages" :key="`m${m.id}`" class="tl-row"
-            :class="{ internal: m.visibility === 'internal' }">
-            <div class="tl-meta">
-              <b>{{ m.author_name || '#' + m.author_user_id }}</b>
-              <el-tag v-if="m.visibility === 'internal'" size="small" type="warning" effect="plain">内部</el-tag>
-              <span class="hint">{{ formatTime(m.created_at) }}</span>
-            </div>
-            <p class="tl-body">{{ m.body }}</p>
-          </div>
-          <div v-for="e in t.events" :key="`e${e.id}`" class="tl-row event">
-            <div class="tl-meta">
-              <b>{{ EVENT_LABELS[e.event_type] || e.event_type }}</b>
-              <span v-if="e.from_status || e.to_status" class="hint">
-                {{ STATUS_META[e.from_status]?.label || e.from_status || '—' }} →
-                {{ STATUS_META[e.to_status]?.label || e.to_status || '—' }}
-              </span>
-              <span class="hint">{{ e.actor_name || '#' + e.actor_user_id }} · {{ formatTime(e.created_at) }}</span>
-            </div>
-          </div>
-        </div>
-      </DewCard>
-    </div>
-
-    <div v-else class="hint" style="padding: 40px 0;" v-loading="loading">工单加载中…</div>
-
-    <!-- 标记解决弹窗：解决方式 + 用户可见说明 -->
-    <el-dialog v-model="resolveDlg.visible" title="标记解决" width="440px">
-      <el-form label-width="80px">
-        <el-form-item label="解决方式" required>
-          <el-select v-model="resolveDlg.code" style="width: 100%;">
-            <el-option v-for="[code, label] in RESOLUTION_OPTIONS" :key="code" :label="label" :value="code" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="处理说明">
-          <el-input v-model="resolveDlg.summary" type="textarea" :rows="2"
-            placeholder="对用户可见（可选），如：已修复并于今日上线" />
-        </el-form-item>
+    <el-dialog v-model="action.visible" :title="ACTIONS[action.to] || '处理工单'" width="min(500px, calc(100vw - 24px))" :close-on-click-modal="false" :before-close="closeAction">
+      <el-form label-position="top" :disabled="busy">
+        <el-form-item v-if="action.to === 'resolved'" label="解决方式" required><el-select v-model="action.code"><el-option v-for="code in resolutionCodes" :key="code" :value="code" :label="RESOLUTION_LABELS[code]" /></el-select></el-form-item>
+        <el-form-item v-if="['resolved', 'rejected', 'waiting_user'].includes(action.to)" :label="action.to === 'waiting_user' ? '需要用户补充什么' : '处理说明'" required><el-input v-model="action.summary" type="textarea" :rows="4" maxlength="5000" placeholder="写明用户可见的说明，便于继续跟进" /></el-form-item>
+        <p v-else>确定执行「{{ ACTIONS[action.to] }}」吗？操作会记录在处理时间线中。</p>
+        <p v-if="action.to === 'waiting_user'" class="ticket-detail-hint">说明会作为公开回复发送，用户补充后自动继续处理。</p>
       </el-form>
-      <template #footer>
-        <el-button @click="resolveDlg.visible = false">取消</el-button>
-        <el-button type="primary" :loading="resolveDlg.submitting" @click="submitResolve">确定</el-button>
-      </template>
+      <template #footer><DewButton :disabled="busy" @click="action.visible = false">取消</DewButton><DewButton :active="true" :loading="busy" :disabled="requiresSummary && !action.summary.trim()" @click="submitAction">确认</DewButton></template>
     </el-dialog>
+    <el-dialog v-model="previewVisible" title="附件预览" width="min(1100px, calc(100vw - 24px))"><DewImage :src="previewUrl" alt="工单附件预览" width="100%" height="65vh" fit="contain" :lazy="false" /></el-dialog>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { DewCard } from '@bme/dew-ui'
-import api, { API_URL } from '../../../api'
+import { ElMessage } from 'element-plus'
+import { DewButton, DewCard, DewImage, DewSkeleton } from '@bme/dew-ui'
+import { assetUrl } from '../../../api'
+import { feedbackService, feedbackError } from '../service'
+import { STATUS_META, CATEGORY_LABELS, SEVERITY_LABELS, PRIORITY_LABELS, RESOLUTION_LABELS, ACTIONS, TRANSITIONS, formatTime, ticketTimeline } from '../presentation'
 
 const route = useRoute()
 const router = useRouter()
-
-const ticketId = route.params.ticketId
-const t = ref(null)
+const ticketId = computed(() => route.params.ticketId)
+const ticket = ref(null)
 const loading = ref(false)
-const opSubmitting = ref(false)
+const error = ref('')
+const busy = ref(false)
 const replyBody = ref('')
 const replyVisibility = ref('public')
 const staffOptions = ref([])
-
-const STATUS_META = {
-  new: { label: '新提交', tag: 'danger' },
-  reopened: { label: '重新打开', tag: 'danger' },
-  triaged: { label: '已受理', tag: 'warning' },
-  in_progress: { label: '处理中', tag: 'primary' },
-  waiting_user: { label: '待用户补充', tag: 'warning' },
-  resolved: { label: '已解决', tag: 'success' },
-  closed: { label: '已关闭', tag: 'info' },
-  rejected: { label: '未予受理', tag: 'info' },
-}
-const CATEGORY_LABELS = {
-  bug: '问题故障', feature_request: '功能建议', content_issue: '内容问题',
-  account_issue: '账号问题', other: '其他',
-}
-const SEVERITY_LABELS = { low: '轻微', normal: '一般', high: '较严重', critical: '严重' }
-const PRIORITY_LABELS = { low: '低', medium: '中', high: '高', urgent: '紧急' }
-const RESOLUTION_LABELS = {
-  fixed: '已修复', wont_fix: '不予修复', duplicate: '重复工单',
-  need_more_info: '信息不足', not_reproducible: '无法复现', by_design: '按设计运作',
-  withdrawn: '提交人撤回', rejected: '未予受理',
-}
-const EVENT_LABELS = {
-  created: '工单创建', triaged: '受理/调整', assigned: '分派',
-  public_replied: '公开回复', internal_noted: '内部备注',
-  status_changed: '状态迁移', withdrawn: '撤回', reopened: '重新打开',
-}
-// 状态机（与后端 VALID_TRANSITIONS 同步）：当前状态 → 可执行动作
-const TRANSITIONS = {
-  new: ['rejected'],
-  triaged: ['in_progress', 'rejected'],
-  in_progress: ['waiting_user', 'resolved', 'rejected'],
-  waiting_user: ['resolved'],
-  resolved: ['closed', 'reopened'],
-  closed: ['reopened'],
-  reopened: ['in_progress', 'rejected'],
-}
-const ACTION_META = {
-  in_progress: { label: '开始处理', tag: 'primary' },
-  waiting_user: { label: '要求用户补充', tag: 'warning' },
-  resolved: { label: '标记解决', tag: 'success' },
-  closed: { label: '关闭工单', tag: 'info' },
-  rejected: { label: '不予受理', tag: 'danger' },
-  reopened: { label: '重新打开', tag: 'warning' },
-}
-
-const nextStatuses = computed(() => (t.value ? (TRANSITIONS[t.value.status] || []) : []))
+const staffError = ref(false)
+const plan = reactive({ priority: 'medium', category: 'bug', assignee_user_id: null })
+const action = reactive({ visible: false, to: '', code: 'fixed', summary: '' })
+const previewVisible = ref(false)
+const previewUrl = ref('')
+const resolutionCodes = ['fixed', 'wont_fix', 'duplicate', 'need_more_info', 'not_reproducible', 'by_design']
+const requiresSummary = computed(() => ['resolved', 'rejected', 'waiting_user'].includes(action.to))
+const canTriage = computed(() => ticket.value && (ticket.value.can_triage ?? !['resolved', 'closed', 'rejected'].includes(ticket.value.status)))
+const planDirty = computed(() => ticket.value && (plan.priority !== ticket.value.priority || plan.category !== ticket.value.category || (plan.assignee_user_id || null) !== (ticket.value.assignee_user_id || null)))
+const nextStatuses = computed(() => {
+  const allowed = ticket.value ? ticket.value.allowed_transitions || TRANSITIONS[ticket.value.status] || [] : []
+  return Object.keys(ACTIONS).filter(to => allowed.includes(to))
+})
+const primaryAction = computed(() => ({ triaged: 'in_progress', reopened: 'in_progress', in_progress: 'resolved', waiting_user: 'in_progress', resolved: 'closed', closed: 'reopened', rejected: 'reopened' }[ticket.value?.status]))
+const timeline = computed(() => ticket.value ? ticketTimeline(ticket.value) : [])
+const safeSourceUrl = computed(() => { const url = ticket.value?.page_context?.url || ''; return /^https?:\/\//i.test(url) ? url : undefined })
+const attachmentUrl = attachment => /^https?:\/\//i.test(attachment.url) ? attachment.url : assetUrl(attachment.url)
+const preview = attachment => { previewUrl.value = attachmentUrl(attachment); previewVisible.value = true }
+let sequence = 0
+let navigation = 0
+let staffSequence = 0
 
 async function fetchDetail() {
+  const request = ++sequence
+  const id = ticketId.value
   loading.value = true
+  error.value = ''
   try {
-    const res = await api.get(`/admin/feedback-tickets/${ticketId}`)
-    t.value = res.data?.ticket || null
-  } catch (e) {
-    ElMessage.error(e.response?.data?.message || '加载工单失败')
-  } finally {
-    loading.value = false
-  }
+    const result = await feedbackService.detail(id)
+    if (request !== sequence || ticketId.value !== id) return
+    if (!result.ticket) throw new Error('工单不存在或无权访问')
+    ticket.value = result.ticket
+    Object.assign(plan, { priority: result.ticket.priority, category: result.ticket.category, assignee_user_id: result.ticket.assignee_user_id })
+  } catch (failure) { if (request === sequence) error.value = feedbackError(failure) }
+  finally { if (request === sequence) loading.value = false }
 }
-
 async function fetchStaff() {
-  // 处理人候选：管理员名单（super_admin）——走用户搜索补一批
+  const request = ++staffSequence
   try {
-    const res = await api.get('/user/user_list')
-    staffOptions.value = (Array.isArray(res.data) ? res.data : [])
-      .filter((u) => u.role === 'super_admin')
-      .map((u) => ({ id: u.User_Id, username: u.User_Name }))
-  } catch { staffOptions.value = [] }
+    const result = await feedbackService.staff()
+    if (request === staffSequence) { staffOptions.value = result.staff || []; staffError.value = false }
+  } catch { if (request === staffSequence) staffError.value = true }
 }
-
-async function triage() {
-  opSubmitting.value = true
+async function runOperation(operation, success) {
+  if (busy.value || loading.value || !ticket.value) return
+  const currentNavigation = navigation
+  const id = ticketId.value
+  const status = ticket.value.status
+  busy.value = true
   try {
-    await api.patch(`/admin/feedback-tickets/${ticketId}/triage`, {
-      priority: t.value.priority,
-      assignee_user_id: t.value.assignee_user_id,
-    })
-    ElMessage.success(t.value.status === 'new' ? '已受理' : '已保存')
-    fetchDetail()
-  } catch (e) {
-    ElMessage.error(e.response?.data?.message || '操作失败')
-  } finally {
-    opSubmitting.value = false
-  }
+    const result = await operation(id, status)
+    if (currentNavigation !== navigation) return
+    success?.()
+    ElMessage.success(result.message || '操作已完成')
+    await fetchDetail()
+  } catch (failure) {
+    if (currentNavigation !== navigation) return
+    ElMessage.error(feedbackError(failure))
+    if (failure.response?.status === 409) await fetchDetail()
+  } finally { if (currentNavigation === navigation) busy.value = false }
 }
-
-async function setPriority(p) {
-  t.value.priority = p
+function savePlan() {
+  return runOperation((id, status) => feedbackService.triage(id, { ...plan, assignee_user_id: plan.assignee_user_id || null, expected_status: status }))
 }
-
-async function assign(uid) {
-  t.value.assignee_user_id = uid
-}
-
-async function sendReply() {
+function sendReply() {
   if (!replyBody.value.trim()) return
-  opSubmitting.value = true
-  try {
-    const res = await api.post(`/admin/feedback-tickets/${ticketId}/messages`, {
-      body: replyBody.value.trim(), visibility: replyVisibility.value,
-    })
-    ElMessage.success(res.data?.message || '已发送')
-    replyBody.value = ''
-    fetchDetail()
-  } catch (e) {
-    ElMessage.error(e.response?.data?.message || '发送失败')
-  } finally {
-    opSubmitting.value = false
-  }
+  return runOperation((id, status) => feedbackService.message(id, { body: replyBody.value.trim(), visibility: replyVisibility.value, expected_status: status }), () => { replyBody.value = '' })
 }
-
-async function doTransition(to) {
-  try {
-    let body = { to }
-    if (to === 'resolved') {
-      resolveDlg.visible = true
-      resolveDlg.code = 'fixed'
-      resolveDlg.summary = ''
-      return   // 解决走独立弹窗（submitResolve 提交）
-    } else if (to === 'rejected') {
-      const { value } = await ElMessageBox.prompt('不予受理原因（用户可见，必填）：', '不予受理', {
-        confirmButtonText: '确定', cancelButtonText: '取消',
-        inputValidator: (v) => !!(v && v.trim()) || '原因必填',
-      })
-      body.reason = value.trim()
-    } else {
-      const labels = { in_progress: '开始处理', waiting_user: '要求用户补充', closed: '关闭工单', reopened: '重新打开' }
-      await ElMessageBox.confirm(`确定执行「${labels[to] || to}」吗？`, '状态迁移', { type: 'warning' })
-    }
-    const res = await api.post(`/admin/feedback-tickets/${ticketId}/transitions`, body)
-    ElMessage.success(res.data?.message || '已迁移')
-    fetchDetail()
-  } catch (e) {
-    if (e === 'cancel' || e === 'close') return
-    ElMessage.error(e.response?.data?.message || '迁移失败')
-  }
+function chooseAction(to) {
+  action.to = to; action.code = 'fixed'; action.summary = ''; action.visible = true
 }
-
-// 标记解决：解决方式（必选）+ 处理说明（用户可见）
-const resolveDlg = reactive({ visible: false, code: 'fixed', summary: '', submitting: false })
-const RESOLUTION_OPTIONS = [
-  ['fixed', '已修复'], ['wont_fix', '不予修复'], ['duplicate', '重复工单'],
-  ['need_more_info', '信息不足'], ['not_reproducible', '无法复现'], ['by_design', '按设计运作'],
-]
-
-async function submitResolve() {
-  resolveDlg.submitting = true
-  try {
-    const res = await api.post(`/admin/feedback-tickets/${ticketId}/transitions`, {
-      to: 'resolved',
-      resolution_code: resolveDlg.code,
-      resolution_summary: resolveDlg.summary.trim() || undefined,
-    })
-    ElMessage.success(res.data?.message || '已标记解决')
-    resolveDlg.visible = false
-    fetchDetail()
-  } catch (e) {
-    ElMessage.error(e.response?.data?.message || '操作失败')
-  } finally {
-    resolveDlg.submitting = false
-  }
+function closeAction(done) { if (!busy.value) done() }
+function submitAction() {
+  if (requiresSummary.value && !action.summary.trim()) return
+  return runOperation((id, status) => feedbackService.transition(id, {
+    to: action.to, expected_status: status,
+    ...(action.to === 'resolved' ? { resolution_code: action.code, resolution_summary: action.summary.trim() } : {}),
+    ...(['waiting_user', 'rejected'].includes(action.to) ? { reason: action.summary.trim() } : {}),
+  }), () => { action.visible = false })
 }
-
-const attachmentUrl = (a) => `${API_URL}${a.url}`
-const formatTime = (s) => (s ? s.slice(0, 16).replace('T', ' ') : '')
-const goBack = () => router.push({ name: 'operations.feedbackTickets' })
-
-onMounted(() => {
+const goBack = () => router.push({ name: 'operations.feedbackTickets', query: { ...route.query } })
+watch(ticketId, () => {
+  navigation += 1; ticket.value = null; busy.value = false; replyBody.value = ''; replyVisibility.value = 'public'; action.visible = false; previewVisible.value = false
   fetchDetail()
-  fetchStaff()
-})
+}, { immediate: true })
+fetchStaff()
+onBeforeUnmount(() => { navigation += 1; sequence += 1; staffSequence += 1 })
 </script>
 
 <style scoped>
-.ticket-detail-page {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.detail-body {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
-  gap: 16px;
-  align-items: start;
-}
-
-.main-card :deep(.dew-card__header),
-.side-card :deep(.dew-card__header) {
-  padding: 14px 18px 0;
-}
-
-.card-head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: var(--text-base);
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.t-title {
-  font-size: 16px;
-}
-
-.t-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  padding: 12px 18px 0;
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-}
-
-.t-desc {
-  padding: 10px 18px 0;
-  margin: 0;
-  line-height: 1.7;
-  color: var(--text-primary);
-  white-space: pre-wrap;
-}
-
-.t-attachments {
-  padding: 12px 18px 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.t-resolution {
-  margin: 14px 18px 16px;
-}
-
-.side-card :deep(.dew-card__body) {
-  padding: 14px 18px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.op-section {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.op-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-secondary);
-}
-
-.op-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.op-row.wrap {
-  flex-wrap: wrap;
-}
-
-.timeline {
-  padding: 12px 18px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.tl-row {
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: var(--fill-color-light, var(--bg-tertiary));
-}
-
-.tl-row.internal {
-  background: rgba(230, 162, 60, 0.1);
-}
-
-.tl-row.event {
-  padding: 6px 12px;
-}
-
-.tl-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  font-size: 12px;
-  margin-bottom: 4px;
-}
-
-.tl-body {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.6;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.hint {
-  color: var(--text-secondary);
-  font-size: 12px;
-}
-
-@media (max-width: 1024px) {
-  .detail-body {
-    grid-template-columns: 1fr;
-  }
-}
+.ticket-detail-page { display: flex; flex-direction: column; gap: var(--spacing-md); min-width: 0; }
+.ticket-detail-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: var(--spacing-md); align-items: start; }
+.ticket-detail-main, .ticket-action-panel { display: flex; flex-direction: column; gap: var(--spacing-md); min-width: 0; }
+.ticket-action-panel { position: sticky; top: 80px; }
+.ticket-card-heading { display: flex; gap: var(--spacing-sm); align-items: center; justify-content: space-between; }
+.ticket-card-heading h1 { font-size: var(--text-xl); line-height: 1.4; margin: 0; overflow-wrap: anywhere; }
+.ticket-meta { display: flex; flex-wrap: wrap; gap: var(--spacing-sm) var(--spacing-md); color: var(--text-secondary); font-size: var(--text-sm); }
+.ticket-description { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.8; color: var(--text-primary); }
+.ticket-context { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: var(--spacing-sm); margin: 0 0 var(--spacing-md); font-size: var(--text-sm); }
+.ticket-context dt, .ticket-detail-hint { color: var(--text-secondary); }
+.ticket-context dd { margin: 0; overflow-wrap: anywhere; }
+.ticket-context a, .ticket-link-button { color: var(--primary-color); }
+.ticket-link-button { border: 0; background: transparent; cursor: pointer; }
+.ticket-attachments { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); }
+.ticket-attachment { padding: var(--spacing-sm); border: 1px solid var(--border-light); border-radius: var(--radius-md); background: var(--surface-solid); color: var(--text-secondary); width: 160px; cursor: zoom-in; font: inherit; font-size: var(--text-sm); }
+.ticket-attachment.snapshot { width: 100%; }
+.ticket-timeline { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--spacing-sm); }
+.ticket-timeline li { border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: var(--spacing-md); }
+.ticket-timeline li.note { background: var(--color-warning-light); }
+.ticket-timeline li.event { background: var(--bg-secondary); }
+.ticket-timeline-heading { display: flex; align-items: center; flex-wrap: wrap; gap: var(--spacing-sm); font-size: var(--text-sm); }
+.ticket-timeline-heading span, .ticket-detail-hint { font-size: var(--text-sm); line-height: 1.6; }
+.ticket-timeline p { white-space: pre-wrap; overflow-wrap: anywhere; margin: var(--spacing-sm) 0 0; line-height: 1.7; }
+.ticket-reply { display: flex; flex-direction: column; align-items: flex-start; gap: var(--spacing-sm); border-top: 1px solid var(--border-light); margin-top: var(--spacing-lg); padding-top: var(--spacing-md); }
+.ticket-reply h2 { font-size: var(--text-base); margin: 0; }
+.ticket-reply p { margin: 0; }
+.ticket-action-buttons { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); }
+.ticket-action-panel :deep(.el-select) { width: 100%; }
+@media (max-width: 1024px) { .ticket-detail-grid { grid-template-columns: minmax(0, 1fr); } .ticket-action-panel { position: static; grid-row: 1; } }
+@media (max-width: 600px) { .ticket-context { grid-template-columns: 1fr; } .ticket-card-heading { flex-wrap: wrap; } }
 </style>

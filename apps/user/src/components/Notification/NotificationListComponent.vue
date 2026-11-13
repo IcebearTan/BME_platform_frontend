@@ -167,7 +167,7 @@ import { ElMessage } from 'element-plus'
 import { DewButton, DewCard, DewTag, DewDialog, DewSkeleton } from '@bme/dew-ui'
 import { useNotifications, formatRelativeTime } from '../../composables/useNotifications'
 import { useNotificationTabs } from '../../composables/useNotificationTabs'
-import { notificationTarget } from '../../composables/notificationTarget'
+import { notificationTarget, isReleaseAnnouncement } from '../../composables/notificationTarget'
 import { useGratitude } from '../../composables/useGratitude'
 import GratitudeLetterDetail from '../Gratitude/GratitudeLetterDetail.vue'
 
@@ -270,8 +270,8 @@ function handleClick(item) {
   }
   // 系统通知：桌面端右栏展示详情，移动端（单栏）回退弹窗
   if (item.category === 'system') {
-    // 发版公告例外：点击直达更新日志页（深链映射与铃铛共用 notificationTarget）
-    if (item.source_type === 'platform_release') {
+    // 发版公告例外：点击直达更新日志页（含历史手发行，判定与铃铛共用）
+    if (isReleaseAnnouncement(item)) {
       router.push(notificationTarget(item))
       return
     }
