@@ -18,7 +18,7 @@ const session = { id: 7, name: '2026 秋季学期营', category: 'learning', sta
   has_camp_access: true, my_permissions: ['member.manage'], mentor_selection_enabled: false,
   policy: { capabilities: { attendance: false, leave: true } } }
 
-async function setup(page, { dark = true, failSelected = false, delayFirst = false } = {}) {
+async function setup(page, { dark = true, failSelected = false, delayFirst = false, legacyResponse = false } = {}) {
   const errors = [], requests = []
   page.on('pageerror', error => errors.push(error.message))
   await page.addInitScript(darkMode => {
@@ -43,6 +43,7 @@ async function setup(page, { dark = true, failSelected = false, delayFirst = fal
         return route.fulfill({ status: 503, json: { code: 503, message: '服务暂不可用，请重试' } })
       }
       const selected = id ? mentors.filter(m => String(m.user_id) === id) : mentors
+      if (legacyResponse && !isProgress) return route.fulfill({ json: { code: 200, mentors, meetings: [], total: 5 } })
       if (delayFirst && id === '21') await new Promise(resolve => setTimeout(resolve, 600))
       if (isProgress) return route.fulfill({ json: { code: 200,
         mentors: mentors.map(m => ({ mentor_user_id: m.user_id, mentor_name: m.username, direction: m.direction })),
@@ -167,5 +168,14 @@ test('平板快速切换导生：较慢旧响应不覆盖最新筛选', async ({
   await expect(page.locator('.mtg-team').first()).toHaveText('林知行团队')
   const box = await page.locator('.mentor-search').boundingBox()
   expect(box.x + box.width).toBeLessThanOrEqual(769)
+  expect(errors).toEqual([])
+})
+
+test('旧后端响应显示可重试错误，不误报暂无组会', async ({ page }) => {
+  const { errors } = await setup(page, { legacyResponse: true })
+  await page.getByRole('button', { name: '组会总览', exact: true }).click()
+  await expect(page.locator('.teacher-meetings .error-text')).toHaveText('组会数据暂不可用，请稍后重试')
+  await expect(page.getByRole('button', { name: '重试', exact: true })).toBeVisible()
+  await expect(page.getByText('本营暂无组会记录', { exact: true })).toHaveCount(0)
   expect(errors).toEqual([])
 })

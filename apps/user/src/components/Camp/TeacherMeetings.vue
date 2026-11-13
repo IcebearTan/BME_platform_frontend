@@ -201,8 +201,17 @@ function requestPage(params = {}) {
   });
 }
 
+function meetingRows(d) {
+  if (!Array.isArray(d.groups) || d.groups.some((group) => !Array.isArray(group.meetings))) {
+    const error = new Error('Invalid meeting overview response');
+    error.userMessage = '组会数据暂不可用，请稍后重试';
+    throw error;
+  }
+  return d.groups.flatMap((group) => group.meetings);
+}
+
 function applyResult(d) {
-  meetings.value = (d.groups || []).flatMap((g) => g.meetings);
+  meetings.value = meetingRows(d);
   mentors.value = d.mentors || [];
   total.value = d.total || 0;
   hasMore.value = !!d.has_more;
@@ -224,7 +233,7 @@ async function load() {
   } catch (e) {
     if (seq !== reqSeq) return;
     loadError.value = true;
-    errorMsg.value = e.response?.data?.message || '加载全营组会失败';
+    errorMsg.value = e.userMessage || e.response?.data?.message || '加载全营组会失败';
   } finally {
     if (seq === reqSeq) {
       loading.value = false;
@@ -240,7 +249,7 @@ async function loadMore() {
   try {
     const d = await requestPage({ before_date: nextBeforeDate.value });
     if (seq !== reqSeq) return;                    // 期间发生筛选/切营：丢弃
-    meetings.value = [...meetings.value, ...(d.groups || []).flatMap((g) => g.meetings)];
+    meetings.value = [...meetings.value, ...meetingRows(d)];
     mentors.value = d.mentors || [];
     total.value = d.total || 0;
     hasMore.value = !!d.has_more;

@@ -123,3 +123,9 @@ pnpm exec playwright test -c e2e/playwright.reading.config.ts
 专项检查：启动后端隔离预览 API 5016 和用户端 18096 后，运行
 `pnpm exec playwright test -c e2e/playwright.project-guide.config.ts`。这是用户端静态更新，
 不需要数据库迁移、后端更新或新增环境配置。
+
+## 导生姓名搜索与组会日期筛选
+
+搜索位于老师工作台的「组会总览」和「学习进度」，查找服务端完整导生名单，选择后按 `mentor_id` 加载团队。日期文件夹需配套后端支持 `limit/before_date/start_date/end_date` 和 `groups/has_more/next_before_date`；只返回旧版 `meetings` 的后端不能直接配套。
+
+真实接口专项：在后端虚拟环境运行 `python scripts/serve_meeting_contract_fixture.py`（本机 5014、内存 SQLite），在前端运行 `pnpm --filter @bme/user dev:test`（18081），再另开终端运行 `pnpm exec playwright test -c e2e/playwright.mentor-contract.config.ts`。该专项真实调用组会和进度路由，不访问业务数据库；对应 `.live.js` 不加入默认模拟接口测试发现范围。
