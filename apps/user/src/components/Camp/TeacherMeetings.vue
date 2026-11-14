@@ -1,6 +1,8 @@
 <template>
   <div class="teacher-meetings">
-    <DewCard variant="default" size="lg" :no-hover="true">
+    <MentorMeetingWeek v-if="isLearning && viewMode === 'week'" ref="weekOverview" :key="sid" :sid="sid"
+      @show-dates="viewMode = 'dates'" />
+    <DewCard v-else variant="default" size="lg" :no-hover="true">
       <template #header>
         <div class="head-row">
           <!-- 首次加载不闪「全营组会（0）」：标题计数走骨架，加载后用后端 total -->
@@ -8,6 +10,7 @@
           <span class="head-hint">{{ headHint }}</span>
           <!-- 右上角：按日期范围筛选 -->
           <div class="head-actions">
+            <DewButton v-if="isLearning" size="sm" type="ghost" @click="viewMode = 'week'">按周查看</DewButton>
             <DewTag v-if="hasDateFilter" size="sm" type="primary">{{ dateStart || '…' }} ~ {{ dateEnd || '…' }}</DewTag>
             <DewButton v-if="hasDateFilter" size="sm" type="ghost" @click="clearDateFilter">清除</DewButton>
             <DewButton size="sm" type="ghost" @click="openDateFilter">按日期筛选</DewButton>
@@ -116,6 +119,7 @@
 import { ref, computed, watch } from 'vue';
 import { DewButton, DewCard, DewDialog, DewInput, DewSkeleton, DewTag } from '@bme/dew-ui';
 import MentorTeamFilter from './MentorTeamFilter.vue';
+import MentorMeetingWeek from './MentorMeetingWeek.vue';
 import { campService, todayLocal } from '../../services/campService';
 import MeetingDetail from './MeetingDetail.vue';
 
@@ -127,6 +131,9 @@ const props = defineProps({
 });
 
 const isLearning = computed(() => props.category !== 'project');
+const viewMode = ref('week');
+const weekOverview = ref(null);
+watch(viewMode, (mode) => { if (mode === 'dates') load(); });
 
 // 分页单位 = 日期文件夹，不是组会条（保证一个日期文件夹永远完整不跨页）
 const DATE_PAGE_SIZE = 10;   // 每次加载的日期文件夹数
@@ -343,9 +350,9 @@ watch(() => [props.sid, props.unitId], () => {
   dateDraftStart.value = '';
   dateDraftEnd.value = '';
   dateDlg.value = false;
-  load();
+  if (!isLearning.value || viewMode.value === 'dates') load();
 }, { immediate: true });
-defineExpose({ reload: load });
+defineExpose({ reload: () => weekOverview.value ? weekOverview.value.reload() : load() });
 
 // 筛选选项来自后端本营真实导生列表（mentors 契约：user_id/username/direction）
 const mentorOptions = computed(() => [

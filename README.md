@@ -128,4 +128,6 @@ pnpm exec playwright test -c e2e/playwright.reading.config.ts
 
 搜索位于老师工作台的「组会总览」和「学习进度」，查找服务端完整导生名单，选择后按 `mentor_id` 加载团队。日期文件夹需配套后端支持 `limit/before_date/start_date/end_date` 和 `groups/has_more/next_before_date`；只返回旧版 `meetings` 的后端不能直接配套。
 
+学习营组会总览默认按周一至周日展示导生，先列暂无记录者，支持周切换、姓名与状态筛选，展开导生查看场次和详情。「按日期查看」保留历史日期查询。每周请求七个完整日期，当前在营人数依据后端 `mentors[].is_current`，历史导生有当周记录时另标识，未来会议显示已安排。统计依据当前名单与平台记录，历史周不还原当周人员快照。项目营沿用日期视图。
+
 真实接口专项：在后端虚拟环境运行 `python scripts/serve_meeting_contract_fixture.py`（本机 5014、内存 SQLite），在前端运行 `pnpm --filter @bme/user dev:test`（18081），再另开终端运行 `pnpm exec playwright test -c e2e/playwright.mentor-contract.config.ts`。该专项真实调用组会和进度路由，不访问业务数据库；对应 `.live.js` 不加入默认模拟接口测试发现范围。

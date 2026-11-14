@@ -18,7 +18,7 @@ const session = { id: 7, name: '2026 秋季学期营', category: 'learning', sta
   has_camp_access: true, my_permissions: ['member.manage'], mentor_selection_enabled: false,
   policy: { capabilities: { attendance: false, leave: true } } }
 
-async function setup(page, { dark = true, failSelected = false, delayFirst = false, legacyResponse = false } = {}) {
+async function setup(page, { dark = true, failSelected = false, delayFirst = false, legacyResponse = false, weekly = false } = {}) {
   const errors = [], requests = []
   page.on('pageerror', error => errors.push(error.message))
   await page.addInitScript(darkMode => {
@@ -56,6 +56,18 @@ async function setup(page, { dark = true, failSelected = false, delayFirst = fal
             courses: [{ course_id: 1, course_title: '生物医学工程导论', total_chapters: 10, certified_chapters: 7, course_status: 'in_progress' }] }],
         })),
       } })
+      if (weekly && !isProgress) {
+        const roster = [...mentors.map(m => ({ ...m, is_current: true })),
+          { user_id: 99, username: '历史导生', is_current: false }]
+        const rows = [
+          { id: 1, mentor_id: 21, meeting_date: '2026-11-10', title: '本周实验讨论', has_minutes: false },
+          { id: 2, mentor_id: 22, meeting_date: '2026-11-15', title: '周日计划', has_minutes: false },
+          { id: 3, mentor_id: 99, meeting_date: '2026-11-12', title: '历史导生会议', has_minutes: true },
+        ].filter(m => (!id || String(m.mentor_id) === id)
+          && m.meeting_date >= params.get('start_date') && m.meeting_date <= params.get('end_date'))
+        return route.fulfill({ json: { code: 200, mentors: roster, total: rows.length, has_more: false,
+          groups: rows.map(m => ({ date: m.meeting_date, meetings: [{ ...m, scope: 'team' }] })) } })
+      }
       const dates = ['2026-11-13', '2026-11-12', '2026-11-10']
       return route.fulfill({ json: { code: 200, mentors, total: selected.length * 3, has_more: false,
         groups: dates.map((date, index) => ({ date, meetings: selected.map(m => ({ id: m.user_id * 10 + index,
@@ -69,6 +81,10 @@ async function setup(page, { dark = true, failSelected = false, delayFirst = fal
   })
   await page.goto(`${BASE}/camp?sid=7`, { waitUntil: 'domcontentloaded' })
   await expect(page.locator('body')).toHaveClass(dark ? /theme-dark/ : /theme-light/)
+  if (!weekly) {
+    await page.getByRole('button', { name: '组会总览', exact: true }).click()
+    await page.getByRole('button', { name: '按日期查看', exact: true }).click()
+  }
   return { errors, requests }
 }
 
@@ -177,5 +193,34 @@ test('旧后端响应显示可重试错误，不误报暂无组会', async ({ pa
   await expect(page.locator('.teacher-meetings .error-text')).toHaveText('组会数据暂不可用，请稍后重试')
   await expect(page.getByRole('button', { name: '重试', exact: true })).toBeVisible()
   await expect(page.getByText('本营暂无组会记录', { exact: true })).toHaveCount(0)
+  expect(errors).toEqual([])
+})
+
+test('周总览：当前名单、未来安排、历史记录、筛选和空周', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-11-14T12:00:00+08:00'))
+  const { errors, requests } = await setup(page, { weekly: true, dark: false })
+  await page.getByRole('button', { name: '组会总览', exact: true }).click()
+  await expect(page.locator('.week-summary')).toContainText('有记录 1 / 6 位导生')
+  await expect(page.locator('.week-summary')).toContainText('暂无记录 5 位')
+  await expect(page.locator('.week-summary')).toContainText('已安排 1 场')
+  expect(requests.at(-1).params).toMatchObject({ start_date: '2026-11-09', end_date: '2026-11-15', limit: '7' })
+  await expect(page.locator('.week-team')).toHaveCount(7)
+  await page.getByRole('button', { name: /陈嘉言.*有记录/ }).click()
+  await expect(page.getByRole('button', { name: /11\/10 本周实验讨论 待补纪要/ })).toBeVisible()
+  await page.getByRole('button', { name: '暂无记录', exact: true }).click()
+  await expect(page.locator('.week-team')).toHaveCount(5)
+  await expect(page.locator('.week-team').first()).not.toContainText('有记录')
+  await page.getByRole('button', { name: '全部', exact: true }).click()
+  await page.getByRole('button', { name: '上一周', exact: true }).click()
+  await expect.poll(() => requests.at(-1).params.start_date).toBe('2026-11-02')
+  await expect(page.locator('.week-summary')).toContainText('有记录 0 / 6 位导生')
+  await expect(page.locator('.week-team')).toHaveCount(6)
+  await page.getByRole('button', { name: '回到本周', exact: true }).click()
+  await page.getByPlaceholder('输入导生姓名').fill('陈嘉')
+  await page.getByPlaceholder('输入导生姓名').press('Enter')
+  await expect(page.locator('.week-summary')).toContainText('有记录 1 / 1 位导生')
+  expect(requests.at(-1).id).toBe('21')
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   expect(errors).toEqual([])
 })
