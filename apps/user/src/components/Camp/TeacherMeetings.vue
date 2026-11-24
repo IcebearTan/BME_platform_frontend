@@ -1,8 +1,6 @@
 <template>
   <div class="teacher-meetings">
-    <MentorMeetingWeek v-if="isLearning && viewMode === 'week'" ref="weekOverview" :key="sid" :sid="sid"
-      @show-dates="viewMode = 'dates'" />
-    <DewCard v-else variant="default" size="lg" :no-hover="true">
+    <DewCard variant="default" size="lg" :no-hover="true">
       <template #header>
         <div class="head-row">
           <!-- 首次加载不闪「全营组会（0）」：标题计数走骨架，加载后用后端 total -->
@@ -10,7 +8,6 @@
           <span class="head-hint">{{ headHint }}</span>
           <!-- 右上角：按日期范围筛选 -->
           <div class="head-actions">
-            <DewButton v-if="isLearning" size="sm" type="ghost" @click="viewMode = 'week'">按周查看</DewButton>
             <DewTag v-if="hasDateFilter" size="sm" type="primary">{{ dateStart || '…' }} ~ {{ dateEnd || '…' }}</DewTag>
             <DewButton v-if="hasDateFilter" size="sm" type="ghost" @click="clearDateFilter">清除</DewButton>
             <DewButton size="sm" type="ghost" @click="openDateFilter">按日期筛选</DewButton>
@@ -53,12 +50,13 @@
 
       <!-- 日期文件夹：按「会议日期」分组折叠，今天置顶 -->
       <div v-else class="folder-list">
-        <DewCard v-for="g in grouped" :key="g.date" variant="flat" size="md"
-                 :no-hover="true" class="folder" :class="{ 'is-collapsed': !expanded.has(g.date) }">
+        <DewCard v-for="g in grouped" :key="g.date" variant="inset" size="md"
+                 :no-hover="true" :tinted="g.isToday" :accent="g.isToday ? 'warning' : null"
+                 class="folder" :class="{ 'is-collapsed': !expanded.has(g.date), 'is-today': g.isToday }">
           <template #header>
             <button type="button" class="folder-head" :aria-expanded="expanded.has(g.date)" @click="toggle(g.date)">
               <span class="folder-date">{{ formatDateHeader(g.date) }}</span>
-              <DewTag v-if="g.isToday" type="neutral" size="sm">今日</DewTag>
+              <DewBadge v-if="g.isToday" type="warning">今日</DewBadge>
               <span class="folder-count">{{ g.items.length }} 场</span>
               <span aria-hidden="true" class="folder-arrow" :class="{ open: expanded.has(g.date) }"></span>
             </button>
@@ -117,9 +115,8 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue';
-import { DewButton, DewCard, DewDialog, DewInput, DewSkeleton, DewTag } from '@bme/dew-ui';
+import { DewBadge, DewButton, DewCard, DewDialog, DewInput, DewSkeleton, DewTag } from '@bme/dew-ui';
 import MentorTeamFilter from './MentorTeamFilter.vue';
-import MentorMeetingWeek from './MentorMeetingWeek.vue';
 import { campService, todayLocal } from '../../services/campService';
 import MeetingDetail from './MeetingDetail.vue';
 
@@ -131,9 +128,6 @@ const props = defineProps({
 });
 
 const isLearning = computed(() => props.category !== 'project');
-const viewMode = ref('week');
-const weekOverview = ref(null);
-watch(viewMode, (mode) => { if (mode === 'dates') load(); });
 
 // 分页单位 = 日期文件夹，不是组会条（保证一个日期文件夹永远完整不跨页）
 const DATE_PAGE_SIZE = 10;   // 每次加载的日期文件夹数
@@ -350,9 +344,9 @@ watch(() => [props.sid, props.unitId], () => {
   dateDraftStart.value = '';
   dateDraftEnd.value = '';
   dateDlg.value = false;
-  if (!isLearning.value || viewMode.value === 'dates') load();
+  load();
 }, { immediate: true });
-defineExpose({ reload: () => weekOverview.value ? weekOverview.value.reload() : load() });
+defineExpose({ reload: load });
 
 // 筛选选项来自后端本营真实导生列表（mentors 契约：user_id/username/direction）
 const mentorOptions = computed(() => [
@@ -404,6 +398,9 @@ function timeOf(m) {
 /* ── 日期文件夹 ── */
 .folder-list { display: flex; flex-direction: column; gap: 10px; }
 .folder.is-collapsed :deep(.dew-card__body) { display: none; }
+/* 今天文件夹：强化淡橙底 + 暖色描边，突出「今日」 */
+.folder.is-today { border-color: color-mix(in srgb, var(--color-warning) 45%, var(--dew-card-border)); }
+.folder.is-today :deep(.dew-card__tint) { opacity: 0.6; }
 .folder-head {
   display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none;
   width: calc(100% + 32px); box-sizing: border-box; font: inherit; text-align: left;
